@@ -54,8 +54,8 @@ test('Flow B retains lower confidence through the record', async ({ page }) => {
   await page.getByRole('button', { name: 'Seal placement' }).click();
   await expect(page.getByText(/PLACEMENT SEALED/)).toBeVisible();
   await page.getByRole('button', { name: 'Generate Evidence Record' }).click();
-  await expect(page.getByText('possible')).toBeVisible();
-  await expect(page.getByText('overlap retained')).toBeVisible();
+  await expect(page.getByText('possible', { exact: true })).toBeVisible();
+  await expect(page.getByText('overlap retained', { exact: true })).toBeVisible();
 });
 
 test('Flow C camera denial keeps file fallback usable', async ({ page, context }) => {
@@ -72,7 +72,7 @@ test('Flow C camera denial keeps file fallback usable', async ({ page, context }
   for (const checkbox of await page.getByRole('checkbox').all()) await checkbox.check();
   await page.getByRole('button', { name:'Ready to capture' }).click();
   await page.getByRole('button', { name:'Request camera access' }).click();
-  await expect(page.getByText('CAMERA UNAVAILABLE')).toBeVisible();
+  await expect(page.getByText('CAMERA UNAVAILABLE', { exact: true })).toBeVisible();
   await page.getByLabel('Choose a face photo').setInputFiles({ name:'fallback.jpg', mimeType:'image/jpeg', buffer:Buffer.from('fixture') });
   await page.getByRole('button', { name:'Use this capture' }).click();
   await expect(page.getByText('Evidence is still settling.')).toBeVisible();
@@ -132,7 +132,7 @@ test('reduced motion keeps state changes immediate and legible', async ({ page }
   const drawer = page.getByRole('region', { name: /Drawer hardware state: selected/i });
   await expect(drawer).toBeVisible();
   expect(await drawer.evaluate((node) => getComputedStyle(node).transitionDuration)).toBe('0s');
-  await expect(page.getByText('DRAWER 1 OF 3')).toBeVisible();
+  await expect(page.getByText('DRAWER 01 / 03')).toBeVisible();
 });
 
 test('captures the canonical implementation states for parity review', async ({ page }, testInfo) => {
