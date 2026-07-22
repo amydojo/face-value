@@ -36,8 +36,8 @@ export function EvidenceRecord({ record, onArchive, onCabinet, onBack }: { recor
         <RecordFolio record={record} />
         <dl className={styles.recordRows} data-fv-part="record-rows">{rows.map(([label, value]) => <div key={label}><dt>{label}</dt><dd className={label === 'CONFIDENCE' ? styles.eyebrow : undefined}>{value}</dd></div>)}</dl>
         <p className={styles.claimBoundary} data-fv-part="record-claim-boundary">{record.claimBoundary}</p>
-        <div className={styles.privacyBadge} data-fv-part="record-privacy">PRIVATE BY DEFAULT · FACE EXCLUDED</div>
-        <button type="button" className={styles.primaryAction} data-fv-action="view-full-record" onClick={onArchive}>VIEW FULL RECORD <span aria-hidden>→</span></button>
+        <div className={styles.privacyBadge} data-fv-part="record-privacy">PRIVATE BY DEFAULT · FACE IMAGE EXCLUDED</div>
+        <button type="button" className={styles.primaryAction} data-fv-action="view-full-record" aria-label="View archive" onClick={onArchive}>VIEW FULL RECORD <span aria-hidden>→</span></button>
         <button type="button" className={styles.secondaryAction} onClick={onCabinet}>Return to cabinet</button>
       </section>
     </>
