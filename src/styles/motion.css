@@ -1,0 +1,8 @@
+@media (prefers-reduced-motion: no-preference) {
+  [class*="drawerShell"], [class*="labelPlate"], [class*="recordFolio"] { transition: transform 520ms var(--fv-ease-damped), opacity 280ms ease; }
+  [class*="drawer_disturbed"] { transition-duration: 320ms; }
+  [class*="drawer_focused"] { transition-duration: 280ms; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: 0ms !important; }
+}

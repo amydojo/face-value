@@ -1,0 +1,67 @@
+import type { AnalysisResult, AnalysisScenario } from '../domain/model';
+
+const BASE_BOUNDARY =
+  'Simulated optical comparison only. This finding describes visible signals and does not establish a medical conclusion or product cause.';
+
+export const ANALYSIS_SCENARIOS: Record<Exclude<AnalysisScenario, 'failure'>, AnalysisResult> = {
+  no_change: {
+    captureQuality: 'accepted',
+    comparison: 'comparable',
+    visibleSignal: 'Post-acne pigmentation appears comparable to baseline.',
+    confidence: 'likely',
+    finding: 'No reliable change observed.',
+    nonFinding: 'No directional claim is supported by this comparison.',
+    relevantContext: 'Lighting, camera distance, and routine conditions were user-confirmed as comparable.',
+    recommendedAction: 'wait',
+    claimBoundary: BASE_BOUNDARY,
+    simulated: true,
+  },
+  likely_change: {
+    captureQuality: 'accepted',
+    comparison: 'comparable',
+    visibleSignal: 'The observed region appears less visually prominent than baseline.',
+    confidence: 'likely',
+    finding: 'Likely change in the assigned visible signal.',
+    nonFinding: 'The comparison does not prove that the product caused the change.',
+    relevantContext: 'Comparable observation conditions were user-confirmed.',
+    recommendedAction: 'reassess',
+    claimBoundary: BASE_BOUNDARY,
+    simulated: true,
+  },
+  partial: {
+    captureQuality: 'context_only',
+    comparison: 'partially_comparable',
+    visibleSignal: 'A visible difference appears, but lighting conditions changed.',
+    confidence: 'possible',
+    finding: 'Possible fluctuation.',
+    nonFinding: 'No reliable direction can be confirmed from this comparison alone.',
+    relevantContext: 'Lighting was not fully comparable.',
+    recommendedAction: 'wait',
+    claimBoundary: BASE_BOUNDARY,
+    simulated: true,
+  },
+  not_comparable: {
+    captureQuality: 'rejected',
+    comparison: 'not_comparable',
+    visibleSignal: 'The captured conditions do not support progress comparison.',
+    confidence: 'insufficient',
+    finding: 'Insufficient evidence.',
+    nonFinding: 'No progress conclusion was generated.',
+    relevantContext: 'Camera distance and time of day changed materially.',
+    recommendedAction: 'reassess',
+    claimBoundary: BASE_BOUNDARY,
+    simulated: true,
+  },
+  overlap_reduced: {
+    captureQuality: 'context_only',
+    comparison: 'partially_comparable',
+    visibleSignal: 'A visible difference appears while two products were active.',
+    confidence: 'possible',
+    finding: 'Possible fluctuation with lower-confidence attribution.',
+    nonFinding: 'The observation cannot isolate which active product contributed to the visible signal.',
+    relevantContext: 'C2–01 overlapped the observation window and remained active.',
+    recommendedAction: 'continue_with_overlap',
+    claimBoundary: BASE_BOUNDARY,
+    simulated: true,
+  },
+};

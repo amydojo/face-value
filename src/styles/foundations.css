@@ -1,0 +1,10 @@
+@import './tokens.css';
+
+* { box-sizing: border-box; }
+html { background: var(--fv-surface-chassis); }
+html, body, #root { margin: 0; min-width: 320px; min-height: 100%; }
+body { font-family: var(--fv-font-sans); color: var(--fv-text-on-light); background: var(--fv-surface-chassis); }
+button, input, select { font: inherit; }
+button { min-width: 44px; min-height: 44px; }
+button:focus-visible, input:focus-visible, select:focus-visible { outline: 3px solid var(--fv-signal-active); outline-offset: 3px; }
+button:disabled { opacity: .42; cursor: not-allowed; }
