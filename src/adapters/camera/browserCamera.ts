@@ -26,7 +26,7 @@ function defaultMediaDevices(): Pick<MediaDevices, 'getUserMedia'> | undefined {
 
 export function hasCameraSupport(
   mediaDevices: Pick<MediaDevices, 'getUserMedia'> | undefined = defaultMediaDevices(),
-): boolean {
+): mediaDevices is Pick<MediaDevices, 'getUserMedia'> {
   return typeof mediaDevices?.getUserMedia === 'function';
 }
 
