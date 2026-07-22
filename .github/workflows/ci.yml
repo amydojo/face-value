@@ -24,7 +24,17 @@ jobs:
       - run: npm install --no-audit --no-fund
       - run: npm run lint
       - run: npm run typecheck
-      - run: npm run test
+      - name: Unit and component tests
+        id: unit_tests
+        continue-on-error: true
+        run: npm run test -- --reporter=json --outputFile=vitest-results.json
+      - name: Upload Vitest report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: vitest-results
+          path: vitest-results.json
+          if-no-files-found: error
       - run: npm run build
       - run: npx playwright install --with-deps chromium
       - run: npm run test:e2e
@@ -35,3 +45,6 @@ jobs:
           name: playwright-evidence
           path: test-results
           if-no-files-found: ignore
+      - name: Enforce unit-test result
+        if: always() && steps.unit_tests.outcome == 'failure'
+        run: exit 1
