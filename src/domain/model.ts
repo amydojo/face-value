@@ -25,6 +25,7 @@ export type ComparisonState =
   | 'partially_comparable'
   | 'not_comparable';
 export type EvidenceConfidence = 'insufficient' | 'possible' | 'likely' | 'confirmed';
+export type AnalysisProcessingState = 'idle' | 'running' | 'succeeded' | 'failed';
 export type ProductPlacement =
   | 'established'
   | 'observation'
@@ -137,6 +138,7 @@ export interface FaceValueState {
   camera: CameraState;
   comparison: ComparisonState;
   confidence: EvidenceConfidence;
+  processing: AnalysisProcessingState;
   disturbance: DisturbanceState;
   placement: ProductPlacement;
   placementSealed: boolean;
