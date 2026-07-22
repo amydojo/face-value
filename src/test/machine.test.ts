@@ -3,7 +3,8 @@ import { ANALYSIS_SCENARIOS } from '../fixtures/analysis-scenarios';
 import { createEvidenceRecord, faceValueReducer, initialState } from '../app/machine';
 
 const open = faceValueReducer(initialState, { type: 'OPEN_CABINET' });
-const specimen = faceValueReducer(open, { type: 'OPEN_DRAWER' });
+const browse = faceValueReducer(open, { type: 'BROWSE_DRAWERS' });
+const specimen = faceValueReducer(browse, { type: 'OPEN_DRAWER' });
 const job = faceValueReducer(specimen, { type: 'ASSIGN_JOB', job: 'Post-acne pigmentation' });
 const baseline = faceValueReducer(faceValueReducer(faceValueReducer(job, { type: 'BEGIN_CAPTURE', kind: 'baseline' }), { type: 'CONFIRM_CONTRACT', outcome: 'ready' }), { type: 'CAPTURE_ACCEPTED', metadata: { id:'b', kind:'baseline', source:'camera', mimeType:'image/jpeg', createdAt:'2026-01-01', orientationRule:'analysis-unmirrored' } });
 const traced = faceValueReducer(baseline, { type: 'ADD_TRACE', trace: { id:'t', label:'VISIBLE SIGNAL', detail:'Settling', observedAt:'2026-01-02' } });
@@ -11,9 +12,9 @@ const traced = faceValueReducer(baseline, { type: 'ADD_TRACE', trace: { id:'t', 
 it('accepts valid transitions and rejects invalid transitions', () => {
   expect(open.stage).toBe('cabinet');
   expect(faceValueReducer(initialState, { type: 'OPEN_DRAWER' })).toBe(initialState);
-  expect(faceValueReducer(open, { type: 'PREVIOUS_DRAWER' })).toBe(open);
+  expect(browse.stage).toBe('browse');
+  expect(faceValueReducer(browse, { type: 'PREVIOUS_DRAWER' })).toBe(browse);
 });
-
 
 it('uses explicit camera capture states and rejects mismatched capture metadata', () => {
   const contract = faceValueReducer(job, { type: 'BEGIN_CAPTURE', kind: 'baseline' });

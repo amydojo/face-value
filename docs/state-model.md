@@ -11,6 +11,13 @@ Face Value uses one pure reducer. Events that do not satisfy their guard return 
 - `open`: indexed drawers are available.
 - `closing`: reserved semantic phase for coordinated closure and folio emergence.
 
+### Application stage
+
+- `welcome`: private-by-default product entry.
+- `cabinet`: canonical cabinet directory and active aperture.
+- `browse`: finite Observation Shelf drawer selection.
+- Remaining stages move through specimen, capture, observation, disturbance, comparison, Progress Mode, placement, record, and archive.
+
 ### Observation
 
 - `none`: no product observation exists.
@@ -56,9 +63,10 @@ Face Value uses one pure reducer. Events that do not satisfy their guard return 
 | Event | Valid source | Result | Rejected when |
 | --- | --- | --- | --- |
 | `OPEN_CABINET` | `welcome` | cabinet opens at drawer 1 | any other stage |
-| `PREVIOUS_DRAWER` | `cabinet` | index decreases by one | first drawer or wrong stage |
-| `NEXT_DRAWER` | `cabinet` | index increases by one | final drawer or wrong stage |
-| `OPEN_DRAWER` | `cabinet` | selected specimen opens | wrong stage |
+| `BROWSE_DRAWERS` | `cabinet` | finite Observation Shelf drawer browser | wrong stage |
+| `PREVIOUS_DRAWER` | `browse` | index decreases by one | first drawer or wrong stage |
+| `NEXT_DRAWER` | `browse` | index increases by one | final drawer or wrong stage |
+| `OPEN_DRAWER` | `browse` | selected specimen opens | wrong stage |
 | `ASSIGN_JOB` | `specimen`, `job` | job is stored; baseline becomes pending | wrong stage |
 | `BEGIN_CAPTURE: baseline` | `job` | baseline Capture Contract | no assigned-job stage |
 | `BEGIN_CAPTURE: followup` | `observation`, `analysis_failure`, `comparison_refused` | follow-up Capture Contract | wrong stage |
@@ -87,7 +95,7 @@ Face Value uses one pure reducer. Events that do not satisfy their guard return 
 | `RETURN_TO_CABINET` | any active stage | cabinet restored | never rejected |
 | `DELETE_OBSERVATION` | any active observation stage | current observation resets; existing archive remains | never rejected |
 | `CLEAR_DEMO_DATA` | any stage | complete fixture reset | never rejected |
-| `BACK` | progress, archive, record, capture states | exact semantic parent restored | otherwise unchanged |
+| `BACK` | browse, progress, archive, record, capture states | exact semantic parent restored | otherwise unchanged |
 
 ## Disturbance invariant
 

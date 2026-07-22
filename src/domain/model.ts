@@ -57,6 +57,7 @@ export type CaptureContractOutcome =
 export type AppStage =
   | 'welcome'
   | 'cabinet'
+  | 'browse'
   | 'specimen'
   | 'job'
   | 'capture_contract'

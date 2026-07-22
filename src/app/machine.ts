@@ -12,6 +12,7 @@ import { PRODUCTS } from '../fixtures/products';
 
 export type FaceValueEvent =
   | { type: 'OPEN_CABINET' }
+  | { type: 'BROWSE_DRAWERS' }
   | { type: 'PREVIOUS_DRAWER' }
   | { type: 'NEXT_DRAWER' }
   | { type: 'OPEN_DRAWER' }
@@ -106,18 +107,21 @@ export function faceValueReducer(state: FaceValueState, event: FaceValueEvent): 
     case 'OPEN_CABINET':
       if (state.stage !== 'welcome') return state;
       return { ...state, stage: 'cabinet', cabinet: 'open', announcement: 'Evidence Fridge open. Drawer 1 of 3 selected.' };
+    case 'BROWSE_DRAWERS':
+      if (state.stage !== 'cabinet') return state;
+      return { ...state, stage: 'browse', announcement: 'Observation Shelf open. Drawer 1 of 3 selected.' };
     case 'PREVIOUS_DRAWER': {
-      if (state.stage !== 'cabinet' || state.selectedDrawerIndex === 0) return state;
+      if (state.stage !== 'browse' || state.selectedDrawerIndex === 0) return state;
       const index = state.selectedDrawerIndex - 1;
       return { ...state, selectedDrawerIndex: index, selectedSpecimenId: PRODUCTS[index].id, announcement: `Drawer ${index + 1} of ${PRODUCTS.length} selected.` };
     }
     case 'NEXT_DRAWER': {
-      if (state.stage !== 'cabinet' || state.selectedDrawerIndex >= PRODUCTS.length - 1) return state;
+      if (state.stage !== 'browse' || state.selectedDrawerIndex >= PRODUCTS.length - 1) return state;
       const index = state.selectedDrawerIndex + 1;
       return { ...state, selectedDrawerIndex: index, selectedSpecimenId: PRODUCTS[index].id, announcement: `Drawer ${index + 1} of ${PRODUCTS.length} selected.` };
     }
     case 'OPEN_DRAWER':
-      if (state.stage !== 'cabinet') return state;
+      if (state.stage !== 'browse') return state;
       return { ...state, stage: 'specimen', announcement: `${PRODUCTS[state.selectedDrawerIndex].accession} drawer open.` };
     case 'ASSIGN_JOB':
       if (state.stage !== 'specimen' && state.stage !== 'job') return state;
@@ -224,6 +228,7 @@ export function faceValueReducer(state: FaceValueState, event: FaceValueEvent): 
     case 'CLEAR_DEMO_DATA':
       return { ...initialState, stage: 'welcome', announcement: 'Demo data cleared.' };
     case 'BACK':
+      if (state.stage === 'browse') return { ...state, stage: 'cabinet', announcement: 'Returned to cabinet directory.' };
       if (state.stage === 'progress') return { ...state, stage: 'analysis', announcement: 'Returned to comparison review.' };
       if (state.stage === 'archive') return { ...state, stage: state.returnStage ?? 'cabinet', returnStage: null, announcement: 'Returned to previous view.' };
       if (state.stage === 'record') return { ...state, stage: state.returnStage ?? 'cabinet', returnStage: null, announcement: 'Record closed.' };

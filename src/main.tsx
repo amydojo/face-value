@@ -4,6 +4,7 @@ import { BrowserRouter } from 'react-router-dom';
 import { FaceValueProvider } from './app/FaceValueProvider';
 import { AppRouter } from './app/router/AppRouter';
 import './styles/foundations.css';
+import './styles/canonical.css';
 import './styles/motion.css';
 
 createRoot(document.getElementById('root')!).render(

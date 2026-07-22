@@ -3,6 +3,7 @@ import { expect, test } from '@playwright/test';
 async function openAndBaseline(page: import('@playwright/test').Page) {
   await page.goto('/');
   await page.getByRole('button', { name:'Open the Evidence Fridge' }).click();
+  await page.getByRole('button', { name:'Browse indexed drawers' }).click();
   await page.getByRole('button', { name:/Open A1–03 drawer/ }).click();
   await page.getByLabel('Post-acne pigmentation').check();
   await page.getByRole('button', { name:'Complete Capture Contract' }).click();
@@ -64,6 +65,7 @@ test('Flow C camera denial keeps file fallback usable', async ({ page, context }
   });
   await page.goto('/');
   await page.getByRole('button', { name:'Open the Evidence Fridge' }).click();
+  await page.getByRole('button', { name:'Browse indexed drawers' }).click();
   await page.getByRole('button', { name:/Open A1–03 drawer/ }).click();
   await page.getByLabel('Post-acne pigmentation').check();
   await page.getByRole('button', { name:'Complete Capture Contract' }).click();
@@ -126,6 +128,7 @@ test('reduced motion keeps state changes immediate and legible', async ({ page }
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.goto('/');
   await page.getByRole('button', { name: 'Open the Evidence Fridge' }).click();
+  await page.getByRole('button', { name: 'Browse indexed drawers' }).click();
   const drawer = page.getByRole('region', { name: /Drawer hardware state: selected/i });
   await expect(drawer).toBeVisible();
   expect(await drawer.evaluate((node) => getComputedStyle(node).transitionDuration)).toBe('0s');
@@ -137,6 +140,8 @@ test('captures the canonical implementation states for parity review', async ({ 
   await page.goto('/');
   await page.getByRole('button', { name: 'Open the Evidence Fridge' }).click();
   await page.screenshot({ path: testInfo.outputPath('visual-cabinet.png') });
+  await page.getByRole('button', { name: 'Browse indexed drawers' }).click();
+  await page.screenshot({ path: testInfo.outputPath('visual-drawer-browser.png') });
 
   await page.getByRole('button', { name: /Open A1–03 drawer/ }).click();
   await page.screenshot({ path: testInfo.outputPath('visual-drawer-open.png') });

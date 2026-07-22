@@ -1,0 +1,105 @@
+main[aria-label="Face Value personal skincare evidence system"] > header + section > div[aria-label$="evidence settling"] {
+  min-height: 74px;
+  margin-top: 18px;
+  border-radius: 10px;
+  background: #171614;
+  color: var(--fv-text-on-dark);
+  padding: 15px 16px;
+  display: grid;
+  grid-template-columns: 62px 1fr;
+  grid-template-rows: auto auto;
+  gap: 6px 10px;
+  position: relative;
+}
+
+main[aria-label="Face Value personal skincare evidence system"] > header + section > div[aria-label$="evidence settling"] > span {
+  position: absolute;
+  left: 24px;
+  top: 12px;
+  width: 122px;
+  height: 2px;
+  background: var(--fv-signal-active);
+}
+
+main[aria-label="Face Value personal skincare evidence system"] > header + section > div[aria-label$="evidence settling"] strong {
+  grid-row: 1 / 3;
+  align-self: center;
+  font: 500 10px var(--fv-font-mono);
+}
+
+main[aria-label="Face Value personal skincare evidence system"] > header + section > div[aria-label$="evidence settling"] p {
+  margin: 0;
+  align-self: end;
+  font-size: 10px;
+  text-transform: uppercase;
+}
+
+main[aria-label="Face Value personal skincare evidence system"] > header + section > div[aria-label$="evidence settling"] small {
+  font: 500 8px var(--fv-font-mono);
+  color: #8e897f;
+}
+
+main[aria-label="Face Value personal skincare evidence system"] button[data-stage-focus]:not([class]) {
+  width: 100%;
+  min-height: 106px;
+  margin-top: 20px;
+  border: 0;
+  border-radius: 10px;
+  background: #efebe3;
+  color: var(--fv-text-on-light);
+  padding: 16px;
+  display: grid;
+  grid-template-columns: 1fr 28px;
+  grid-template-rows: auto 1fr auto;
+  gap: 6px 8px;
+  text-align: left;
+}
+
+main[aria-label="Face Value personal skincare evidence system"] button[data-stage-focus]:not([class]) span {
+  grid-column: 1 / 3;
+  font: 500 9px var(--fv-font-mono);
+  color: var(--fv-text-muted);
+}
+
+main[aria-label="Face Value personal skincare evidence system"] button[data-stage-focus]:not([class]) strong {
+  font-size: 17px;
+  font-weight: 500;
+  align-self: center;
+}
+
+main[aria-label="Face Value personal skincare evidence system"] button[data-stage-focus]:not([class]) small {
+  font-size: 11px;
+  color: var(--fv-text-muted);
+}
+
+main[aria-label="Face Value personal skincare evidence system"] button[data-stage-focus]:not([class]) b {
+  grid-column: 2;
+  grid-row: 2 / 4;
+  align-self: center;
+  justify-self: end;
+  color: var(--fv-signal-active);
+  font-size: 28px;
+  font-weight: 400;
+}
+
+main[aria-label="Face Value personal skincare evidence system"] > header + section:not([class]) {
+  padding-top: 20px;
+}
+
+main[aria-label="Face Value personal skincare evidence system"] > header + section:not([class]) > h1 {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+main[aria-label="Face Value personal skincare evidence system"] > header + section:not([class]) > p:not([class]) {
+  margin: 0 4px 12px;
+  color: var(--fv-text-muted);
+  font-size: 10px;
+}
