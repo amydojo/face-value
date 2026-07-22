@@ -36,7 +36,7 @@ jobs:
           path: vitest-results.json
           if-no-files-found: error
       - run: npm run build
-      - run: npx playwright install --with-deps chromium
+      - run: npx playwright install --with-deps webkit
       - run: npm run test:e2e
       - name: Upload Playwright evidence
         if: always()
