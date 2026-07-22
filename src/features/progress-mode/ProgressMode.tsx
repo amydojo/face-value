@@ -16,7 +16,7 @@ export function ProgressMode({ specimen, job, result, confidence, lowerConfidenc
           <div data-fv-part="finding-meta"><span>CONFIDENCE</span><strong>{confidence.toUpperCase()}</strong></div>
           <span>RELEVANT CONTEXT</span><p>{result.relevantContext}</p>
           <hr />
-          <button type="button" data-fv-action="proportionate" onClick={onContinue}><span>NEXT PROPORTIONATE ACTION</span><strong>{lowerConfidence ? 'Retry this product alone before changing placement.' : 'Record one follow-up in similar conditions.'}</strong><b aria-hidden>→</b></button>
+          <button type="button" data-fv-action="proportionate" aria-label="Re-shelve the product" onClick={onContinue}><span>NEXT PROPORTIONATE ACTION</span><strong>{lowerConfidence ? 'Retry this product alone before changing placement.' : 'Record one follow-up in similar conditions.'}</strong><b aria-hidden>→</b></button>
           <span>WHAT CAN WAIT</span><p>{result.nonFinding || 'Texture and radiance do not need separate action yet.'}</p>
           <small data-fv-part="claim-boundary">{result.claimBoundary}</small>
         </article>
