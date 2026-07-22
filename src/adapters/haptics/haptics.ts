@@ -8,4 +8,8 @@ export const browserHaptics: HapticsAdapter = {
   },
 };
 
-export const noOpHaptics: HapticsAdapter = { confirm() {} };
+export const noOpHaptics: HapticsAdapter = {
+  confirm() {
+    // Deliberate no-op for browsers and tests without haptic support.
+  },
+};
