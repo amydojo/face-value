@@ -159,13 +159,16 @@ test('captures the canonical implementation states for parity review', async ({ 
   await page.getByRole('button', { name: /Introduce C2–01/ }).click();
   await page.screenshot({ path: testInfo.outputPath('visual-two-products-active.png') });
 
-  await page.getByRole('button', { name: 'Continue with lower confidence' }).click();
+  await page.getByRole('button', { name: 'Return C2–01 to Cooling' }).click();
   await followup(page);
   await page.getByRole('button', { name: 'Enter Progress Mode' }).click();
+  await page.evaluate(() => window.scrollTo(0, 0));
   await page.screenshot({ path: testInfo.outputPath('visual-progress-mode.png') });
   await page.getByRole('button', { name: /Re-shelve the product/ }).click();
   await page.getByRole('button', { name: 'Seal placement' }).click();
+  await page.evaluate(() => window.scrollTo(0, 0));
   await page.screenshot({ path: testInfo.outputPath('visual-placement-sealed.png') });
   await page.getByRole('button', { name: 'Generate Evidence Record' }).click();
+  await page.evaluate(() => window.scrollTo(0, 0));
   await page.screenshot({ path: testInfo.outputPath('visual-evidence-record.png') });
 });
