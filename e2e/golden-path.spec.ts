@@ -36,7 +36,7 @@ test('Flow A returns the second product to Cooling and generates an Evidence Rec
   await expect(page.getByText(/PLACEMENT SEALED/)).toBeVisible();
   await page.getByRole('button', { name: 'Generate Evidence Record' }).click();
   await expect(page.getByRole('heading', { name:'EVIDENCE RECORD' })).toBeVisible();
-  await expect(page.getByText('FACE IMAGE EXCLUDED')).toBeVisible();
+  await expect(page.getByText('FACE EXCLUDED')).toBeVisible();
   await page.getByRole('button', { name: 'View archive' }).click();
   await expect(page.getByRole('heading', { name: /archive keeps what survived observation/i })).toBeVisible();
   await page.getByRole('button', { name: /Evidence Record ER-/i }).click();
@@ -144,8 +144,8 @@ test('captures the canonical implementation states for parity review', async ({ 
   await page.screenshot({ path: testInfo.outputPath('visual-drawer-browser.png') });
 
   await page.getByRole('button', { name: /Open A1–03 drawer/ }).click();
-  await page.screenshot({ path: testInfo.outputPath('visual-drawer-open.png') });
   await page.getByLabel('Post-acne pigmentation').check();
+  await page.screenshot({ path: testInfo.outputPath('visual-drawer-open.png') });
   await page.getByRole('button', { name: 'Complete Capture Contract' }).click();
   for (const checkbox of await page.getByRole('checkbox').all()) await checkbox.check();
   await page.getByRole('button', { name: 'Ready to capture' }).click();
