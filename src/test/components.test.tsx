@@ -1,8 +1,9 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { expect, it, vi } from 'vitest';
 import { FaceValueProvider } from '../app/FaceValueProvider';
+import { StageFocusManager } from '../app/StageFocusManager';
 import { DrawerCarousel } from '../components/DrawerCarousel';
 import { ObservationStatus } from '../components/hardware';
 import { FaceValueApplication } from '../features/FaceValueApplication';
@@ -86,15 +87,18 @@ it('provides visible text equivalents for comparison and confidence states', () 
   expect(screen.getByText('possible')).toBeVisible();
 });
 
-it('moves focus to the new stage heading after opening the cabinet', async () => {
+it('moves focus to the next valid action without scrolling the cabinet', async () => {
   const user = userEvent.setup();
   render(
     <MemoryRouter>
       <FaceValueProvider>
+        <StageFocusManager />
         <FaceValueApplication />
       </FaceValueProvider>
     </MemoryRouter>,
   );
   await user.click(screen.getByRole('button', { name: 'Open the Evidence Fridge' }));
-  expect(screen.getByRole('heading', { name: 'CABINET' })).toHaveFocus();
+  await waitFor(() => {
+    expect(screen.getByRole('button', { name: 'Browse indexed drawers' })).toHaveFocus();
+  });
 });
