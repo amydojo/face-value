@@ -5,7 +5,7 @@ async function openAndBaseline(page: import('@playwright/test').Page) {
   await page.getByRole('button', { name:'Open the Evidence Fridge' }).click();
   await page.getByRole('button', { name:'Browse indexed drawers' }).click();
   await page.getByRole('button', { name:/Open A1–03 drawer/ }).click();
-  await page.getByRole('radio', { name:'Post-acne pigmentation', exact:true }).check();
+  await page.getByRole('radio', { name:'Post-acne pigmentation', exact:true }).click();
   await page.getByRole('button', { name:'Complete Capture Contract' }).click();
   for (const checkbox of await page.getByRole('checkbox').all()) await checkbox.check();
   await page.getByRole('button', { name:'Ready to capture' }).click();
@@ -67,7 +67,7 @@ test('Flow C camera denial keeps file fallback usable', async ({ page, context }
   await page.getByRole('button', { name:'Open the Evidence Fridge' }).click();
   await page.getByRole('button', { name:'Browse indexed drawers' }).click();
   await page.getByRole('button', { name:/Open A1–03 drawer/ }).click();
-  await page.getByRole('radio', { name:'Post-acne pigmentation', exact:true }).check();
+  await page.getByRole('radio', { name:'Post-acne pigmentation', exact:true }).click();
   await page.getByRole('button', { name:'Complete Capture Contract' }).click();
   for (const checkbox of await page.getByRole('checkbox').all()) await checkbox.check();
   await page.getByRole('button', { name:'Ready to capture' }).click();
@@ -144,7 +144,7 @@ test('captures the canonical implementation states for parity review', async ({ 
   await page.screenshot({ path: testInfo.outputPath('visual-drawer-browser.png') });
 
   await page.getByRole('button', { name: /Open A1–03 drawer/ }).click();
-  await page.getByRole('radio', { name:'Post-acne pigmentation', exact:true }).check();
+  await page.getByRole('radio', { name:'Post-acne pigmentation', exact:true }).click();
   await page.screenshot({ path: testInfo.outputPath('visual-drawer-open.png') });
   await page.getByRole('button', { name: 'Complete Capture Contract' }).click();
   for (const checkbox of await page.getByRole('checkbox').all()) await checkbox.check();
