@@ -36,6 +36,14 @@ jobs:
           path: vitest-results.json
           if-no-files-found: error
       - run: npm run build
+      - name: Package exact deployment source
+        run: git ls-files -z | tar --null -T - -czf deployment-source.tgz
+      - name: Upload deployment source
+        uses: actions/upload-artifact@v4
+        with:
+          name: deployment-source-${{ github.sha }}
+          path: deployment-source.tgz
+          if-no-files-found: error
       - run: npx playwright install --with-deps webkit
       - run: npm run test:e2e
       - name: Upload Playwright evidence
