@@ -3,10 +3,9 @@ import { MockOpticalAnalysisAdapter } from '../adapters/analysis/MockOpticalAnal
 import { systemClock } from '../adapters/clock/clock';
 import { useFaceValue } from '../app/faceValueContext';
 import { PRODUCTS } from '../fixtures/products';
-import { AccessibleMovementMenu } from '../components/AccessibleMovementMenu';
 import { CabinetNavigation } from '../components/CabinetNavigation';
 import { DrawerCarousel } from '../components/DrawerCarousel';
-import { DrawerLabelPlate, DrawerShell, ObservationStatus, ProductSpecimen, ScreenHeader, TransferTrack, CabinetShell } from '../components/hardware';
+import { AvailableDrawerPlate, CabinetShell, DrawerLabelPlate, DrawerShell, ObservationStatus, ProductSpecimen, ScreenHeader, TransferTrack } from '../components/hardware';
 import { TraceRail } from '../components/TraceRail';
 import { DisturbanceRegister } from '../components/DisturbanceRegister';
 import { Archive } from './archive/Archive';
@@ -23,7 +22,7 @@ export function FaceValueApplication() {
   const { state, dispatch } = useFaceValue();
   const specimen = PRODUCTS[state.selectedDrawerIndex] ?? PRODUCTS[0];
   const [traceLabel, setTraceLabel] = useState('Less tight after cleansing');
-  const tone = ['disturbance', 'analysis', 'progress'].includes(state.stage) ? 'dark' : 'light';
+  const tone = ['disturbance', 'analysis', 'progress', 'placement'].includes(state.stage) ? 'dark' : 'light';
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -34,13 +33,6 @@ export function FaceValueApplication() {
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [dispatch, state.stage]);
-
-  useEffect(() => {
-    const target = document.querySelector<HTMLElement>('[data-stage-focus], h1');
-    if (!target) return;
-    if (!target.hasAttribute('tabindex') && target.tagName !== 'BUTTON') target.setAttribute('tabindex', '-1');
-    target.focus();
-  }, [state.stage]);
 
   const runAnalysis = async () => {
     dispatch({ type: 'ANALYSIS_STARTED' });
@@ -105,7 +97,7 @@ export function FaceValueApplication() {
         return state.analysis ? <ProgressMode specimen={specimen} job={state.assignedJob} result={state.analysis} confidence={state.confidence} lowerConfidence={state.disturbance === 'overlap_retained'} onContinue={() => dispatch({ type: 'SELECT_PLACEMENT', placement: state.disturbance === 'overlap_retained' ? 'retry_alone' : 'established' })} onBack={() => dispatch({ type: 'BACK' })} /> : null;
 
       case 'placement':
-        return <><ScreenHeader /><section className={styles.placementScreen} data-fv-screen="placement"><div className={styles.directory} data-fv-part="context-bar"><p>RE-SHELVING</p><p>{state.placementSealed ? 'SEALED' : 'CHOOSE'}</p></div><h1>Placement itself is the conclusion.</h1><DrawerShell state="transfer"><ProductSpecimen specimen={specimen} compact /><DrawerLabelPlate specimen={specimen} job={state.assignedJob} state={state.placementSealed ? 'sealed' : 'settling'} /></DrawerShell><TransferTrack placement={state.placement} />{state.placementSealed ? <div className={styles.placementSealed} role="status">PLACEMENT SEALED · {state.placement.replaceAll('_', ' ')}</div> : <AccessibleMovementMenu selected={state.placement} onSelect={(placement) => dispatch({ type: 'SELECT_PLACEMENT', placement })} />}{state.placementSealed ? <button type="button" className={styles.primaryAction} onClick={() => dispatch({ type: 'GENERATE_RECORD', now: systemClock.now() })}>Generate Evidence Record</button> : <button type="button" className={styles.primaryAction} onClick={() => dispatch({ type: 'SEAL_PLACEMENT' })}>Seal placement</button>}</section></>;
+        return <><ScreenHeader dark /><section className={styles.placementScreen} data-fv-screen="placement"><div className={styles.directory} data-fv-part="placement-context"><p>POST-ACNE PIGMENTATION</p><p>{state.placementSealed ? 'SEALED' : 'RE-SHELVE'}</p></div><h1 className={styles.srOnly}>{state.placementSealed ? 'Placement sealed' : 'Re-shelving'}</h1><DrawerShell state={state.placementSealed ? 'closed' : 'transfer'}>{state.placementSealed ? <AvailableDrawerPlate /> : <><ProductSpecimen specimen={specimen} compact /><DrawerLabelPlate specimen={specimen} job={state.assignedJob} state="settling" /></>}</DrawerShell><TransferTrack placement={state.placement} sealed={state.placementSealed} onSelect={(placement) => dispatch({ type: 'SELECT_PLACEMENT', placement })} onSeal={() => dispatch({ type: 'SEAL_PLACEMENT' })} onGenerate={() => dispatch({ type: 'GENERATE_RECORD', now: systemClock.now() })} /></section></>;
 
       case 'record':
         return state.record ? <EvidenceRecord record={state.record} onArchive={() => dispatch({ type: 'VIEW_ARCHIVE' })} onCabinet={() => dispatch({ type: 'RETURN_TO_CABINET' })} onBack={() => dispatch({ type: 'BACK' })} /> : null;
