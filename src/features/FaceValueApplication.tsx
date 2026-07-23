@@ -22,7 +22,8 @@ export function FaceValueApplication() {
   const { state, dispatch } = useFaceValue();
   const specimen = PRODUCTS[state.selectedDrawerIndex] ?? PRODUCTS[0];
   const [traceLabel, setTraceLabel] = useState('Less tight after cleansing');
-  const tone = ['disturbance', 'analysis', 'progress', 'placement'].includes(state.stage) ? 'dark' : 'light';
+  const assignedDrawerOpen = ['specimen', 'job'].includes(state.stage) && Boolean(state.assignedJob);
+  const tone = ['disturbance', 'analysis', 'progress', 'placement'].includes(state.stage) || assignedDrawerOpen ? 'dark' : 'light';
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -70,7 +71,10 @@ export function FaceValueApplication() {
 
       case 'specimen':
       case 'job':
-        return <><ScreenHeader /><section className={styles.specimenScreen} data-fv-screen="specimen"><div className={styles.directory} data-fv-part="context-bar"><p>A1&nbsp;&nbsp; OBSERVATION SHELF</p><p>OPEN</p></div><h1 className={styles.srOnly}>{specimen.product}</h1><DrawerShell state="open"><ProductSpecimen specimen={specimen} /><DrawerLabelPlate specimen={specimen} job={state.assignedJob} state="settling" /></DrawerShell><fieldset className={styles.jobOptions}><legend>ASSIGN ONE EXPLICIT PRODUCT JOB</legend>{specimen.jobOptions.map((job) => <label key={job}><input type="radio" name="job" checked={state.assignedJob === job} onChange={() => dispatch({ type: 'ASSIGN_JOB', job })} /><span>{job}</span></label>)}</fieldset><button type="button" className={styles.primaryAction} disabled={!state.assignedJob} onClick={() => dispatch({ type: 'BEGIN_CAPTURE', kind: 'baseline' })}>Complete Capture Contract</button></section></>;
+        if (state.assignedJob) {
+          return <><ScreenHeader dark /><section className={styles.specimenScreen} data-fv-screen="drawer-open"><div className={styles.directory} data-fv-part="drawer-open-context"><p>POST-ACNE PIGMENTATION</p><p>ACTIVE</p></div><h1 className={styles.srOnly}>{specimen.product} active drawer</h1><DrawerShell state="open"><ProductSpecimen specimen={specimen} /><DrawerLabelPlate specimen={specimen} job={state.assignedJob} state="settling" /></DrawerShell><button type="button" data-fv-part="assigned-role" aria-label="Complete Capture Contract" onClick={() => dispatch({ type: 'BEGIN_CAPTURE', kind: 'baseline' })}><span>ASSIGNED ROLE</span><strong>Hydration support<br />Barrier + pigmentation</strong><small aria-hidden>•••</small></button><nav data-fv-part="drawer-tabs" aria-label="Drawer detail sections"><button type="button" aria-current="page">SUMMARY</button><button type="button">TRACES</button><button type="button">DETAILS</button></nav></section></>;
+        }
+        return <><ScreenHeader /><section className={styles.specimenScreen} data-fv-screen="specimen"><div className={styles.directory} data-fv-part="context-bar"><p>A1&nbsp;&nbsp; OBSERVATION SHELF</p><p>ASSIGN ROLE</p></div><h1 className={styles.srOnly}>{specimen.product}</h1><DrawerShell state="open"><ProductSpecimen specimen={specimen} /><DrawerLabelPlate specimen={specimen} job={state.assignedJob} state="settling" /></DrawerShell><fieldset className={styles.jobOptions}><legend>ASSIGN ONE EXPLICIT PRODUCT JOB</legend>{specimen.jobOptions.map((job) => <label key={job}><input type="radio" name="job" checked={state.assignedJob === job} onChange={() => dispatch({ type: 'ASSIGN_JOB', job })} /><span>{job}</span></label>)}</fieldset></section></>;
 
       case 'capture_contract':
         return <CaptureContract kind={state.captureKind} onBack={() => dispatch({ type: 'BACK' })} onConfirm={(outcome) => dispatch({ type: 'CONFIRM_CONTRACT', outcome })} />;
