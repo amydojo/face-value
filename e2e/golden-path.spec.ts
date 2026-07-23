@@ -5,7 +5,7 @@ async function openAndBaseline(page: import('@playwright/test').Page) {
   await page.getByRole('button', { name:'Open the Evidence Fridge' }).click();
   await page.getByRole('button', { name:'Browse indexed drawers' }).click();
   await page.getByRole('button', { name:/Open A1–03 drawer/ }).click();
-  await page.getByLabel('Post-acne pigmentation').check();
+  await page.getByRole('radio', { name:'Post-acne pigmentation', exact:true }).check();
   await page.getByRole('button', { name:'Complete Capture Contract' }).click();
   for (const checkbox of await page.getByRole('checkbox').all()) await checkbox.check();
   await page.getByRole('button', { name:'Ready to capture' }).click();
@@ -19,7 +19,7 @@ async function openAndBaseline(page: import('@playwright/test').Page) {
 async function followup(page: import('@playwright/test').Page) {
   await page.getByRole('button', { name:'Record a comparable follow-up' }).click();
   for (const checkbox of await page.getByRole('checkbox').all()) await checkbox.check();
-  await page.getByLabel('comparable', { exact: true }).check();
+  await page.getByRole('radio', { name:'comparable', exact:true }).check();
   await page.getByRole('button', { name:'Continue to follow-up' }).click();
   await page.getByLabel('Choose a face photo').setInputFiles({ name:'followup.jpg', mimeType:'image/jpeg', buffer:Buffer.from('fixture') });
   await page.getByRole('button', { name:'Use this capture' }).click();
@@ -67,7 +67,7 @@ test('Flow C camera denial keeps file fallback usable', async ({ page, context }
   await page.getByRole('button', { name:'Open the Evidence Fridge' }).click();
   await page.getByRole('button', { name:'Browse indexed drawers' }).click();
   await page.getByRole('button', { name:/Open A1–03 drawer/ }).click();
-  await page.getByLabel('Post-acne pigmentation').check();
+  await page.getByRole('radio', { name:'Post-acne pigmentation', exact:true }).check();
   await page.getByRole('button', { name:'Complete Capture Contract' }).click();
   for (const checkbox of await page.getByRole('checkbox').all()) await checkbox.check();
   await page.getByRole('button', { name:'Ready to capture' }).click();
@@ -83,7 +83,7 @@ test('Flow D refuses a not-comparable follow-up without a progress conclusion', 
   await page.getByRole('button', { name:'Return C2–01 to Cooling' }).click();
   await page.getByRole('button', { name:'Record a comparable follow-up' }).click();
   for (const checkbox of await page.getByRole('checkbox').all()) await checkbox.check();
-  await page.getByLabel('not comparable', { exact: true }).check();
+  await page.getByRole('radio', { name:'not comparable', exact:true }).check();
   await page.getByRole('button', { name:'Refuse progress comparison' }).click();
   await expect(page.getByText('No progress conclusion was generated.')).toBeVisible();
   await page.getByRole('button', { name:'Save as context only' }).click();
@@ -95,7 +95,7 @@ test('Flow E preserves the observation when analysis fails', async ({ page }) =>
   await page.getByRole('button', { name:'Return C2–01 to Cooling' }).click();
   await page.getByRole('button', { name:'Record a comparable follow-up' }).click();
   for (const checkbox of await page.getByRole('checkbox').all()) await checkbox.check();
-  await page.getByLabel('comparable', { exact: true }).check();
+  await page.getByRole('radio', { name:'comparable', exact:true }).check();
   await page.getByRole('button', { name:'Continue to follow-up' }).click();
   await page.getByLabel('Choose a face photo').setInputFiles({ name:'followup.jpg', mimeType:'image/jpeg', buffer:Buffer.from('fixture') });
   await page.getByRole('button', { name:'Use this capture' }).click();
@@ -144,7 +144,7 @@ test('captures the canonical implementation states for parity review', async ({ 
   await page.screenshot({ path: testInfo.outputPath('visual-drawer-browser.png') });
 
   await page.getByRole('button', { name: /Open A1–03 drawer/ }).click();
-  await page.getByLabel('Post-acne pigmentation').check();
+  await page.getByRole('radio', { name:'Post-acne pigmentation', exact:true }).check();
   await page.screenshot({ path: testInfo.outputPath('visual-drawer-open.png') });
   await page.getByRole('button', { name: 'Complete Capture Contract' }).click();
   for (const checkbox of await page.getByRole('checkbox').all()) await checkbox.check();
