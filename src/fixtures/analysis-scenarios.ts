@@ -1,7 +1,7 @@
 import type { AnalysisResult, AnalysisScenario } from '../domain/model';
 
 const BASE_BOUNDARY =
-  'Simulated optical comparison only. This finding describes visible signals and does not establish a medical conclusion or product cause.';
+  'Consistent with helping. This record does not establish medical efficacy or product causation.';
 
 export const ANALYSIS_SCENARIOS: Record<Exclude<AnalysisScenario, 'failure'>, AnalysisResult> = {
   no_change: {
@@ -10,8 +10,8 @@ export const ANALYSIS_SCENARIOS: Record<Exclude<AnalysisScenario, 'failure'>, An
     visibleSignal: 'Post-acne pigmentation appears comparable to baseline.',
     confidence: 'likely',
     finding: 'No reliable change observed.',
-    nonFinding: 'No directional claim is supported by this comparison.',
-    relevantContext: 'Lighting, camera distance, and routine conditions were user-confirmed as comparable.',
+    nonFinding: 'Hydration remained steadier.',
+    relevantContext: '10 of 12 uses logged. Two captures comparable.',
     recommendedAction: 'wait',
     claimBoundary: BASE_BOUNDARY,
     simulated: true,
@@ -19,11 +19,11 @@ export const ANALYSIS_SCENARIOS: Record<Exclude<AnalysisScenario, 'failure'>, An
   likely_change: {
     captureQuality: 'accepted',
     comparison: 'comparable',
-    visibleSignal: 'The observed region appears less visually prominent than baseline.',
+    visibleSignal: 'Visible evenness appears slightly improved under comparable conditions.',
     confidence: 'likely',
-    finding: 'Likely change in the assigned visible signal.',
-    nonFinding: 'The comparison does not prove that the product caused the change.',
-    relevantContext: 'Comparable observation conditions were user-confirmed.',
+    finding: 'Visible evenness appears slightly improved.',
+    nonFinding: 'Texture and radiance do not need separate action yet.',
+    relevantContext: '10 of 12 uses logged. Two captures comparable.',
     recommendedAction: 'reassess',
     claimBoundary: BASE_BOUNDARY,
     simulated: true,
