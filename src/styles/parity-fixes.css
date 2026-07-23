@@ -13,6 +13,19 @@
   border: 0 !important;
 }
 
+/* Figma's context rail begins directly below the 92 px header rule. Component base styles carried an obsolete 18–20 px screen inset. */
+[data-fv-screen="cabinet"],
+[data-fv-screen="browse"],
+[data-fv-screen="specimen"],
+[data-fv-screen="observation"],
+[data-fv-screen="disturbance"],
+[data-fv-screen="analysis"],
+[data-fv-screen="progress"],
+[data-fv-screen="placement"],
+[data-fv-screen="record"] {
+  padding-top: 0 !important;
+}
+
 [data-fv-screen] h1:focus { outline: none; scroll-margin-top: 140px; }
 [data-fv-screen="record"] h1:focus { scroll-margin-top: 116px; }
 
