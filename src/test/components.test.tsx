@@ -87,7 +87,7 @@ it('provides visible text equivalents for comparison and confidence states', () 
   expect(screen.getByText('possible')).toBeVisible();
 });
 
-it('moves focus to the next valid action without scrolling the cabinet', async () => {
+it('moves focus to the semantic stage heading without scrolling the cabinet', async () => {
   const user = userEvent.setup();
   render(
     <MemoryRouter>
@@ -99,6 +99,6 @@ it('moves focus to the next valid action without scrolling the cabinet', async (
   );
   await user.click(screen.getByRole('button', { name: 'Open the Evidence Fridge' }));
   await waitFor(() => {
-    expect(screen.getByRole('button', { name: 'Browse indexed drawers' })).toHaveFocus();
+    expect(screen.getByRole('heading', { name: 'CABINET' })).toHaveFocus();
   });
 });
