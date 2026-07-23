@@ -7,8 +7,8 @@ export function StageFocusManager() {
   useEffect(() => {
     const frame = window.requestAnimationFrame(() => {
       const target =
-        document.querySelector<HTMLElement>('[data-stage-focus]') ??
-        document.querySelector<HTMLElement>('h1');
+        document.querySelector<HTMLElement>('h1') ??
+        document.querySelector<HTMLElement>('[data-stage-focus]');
 
       if (target) {
         if (!target.hasAttribute('tabindex') && target.tagName !== 'BUTTON') {
