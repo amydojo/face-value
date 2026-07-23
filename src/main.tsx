@@ -9,6 +9,7 @@ import './styles/canonical.css';
 import './styles/parity.css';
 import './styles/motion.css';
 import './styles/parity-fixes.css';
+import './styles/placement-parity.css';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
