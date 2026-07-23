@@ -1,0 +1,27 @@
+[data-fv-part="transfer-machine"] {
+  border-left: 0 !important;
+}
+
+[data-fv-screen="record"] [data-fv-part="record-rows"] dd {
+  max-height: 26px;
+  overflow: hidden;
+}
+
+[data-fv-screen="cabinet"] [data-fv-part="next-action-card"]:focus,
+[data-fv-screen="cabinet"] [data-fv-part="next-action-card"]:focus-visible {
+  outline: none;
+}
+
+/* Remove the obsolete component inset so Drawer Open aligns to Figma y=150. */
+[data-fv-screen="drawer-open"] {
+  padding-top: 0 !important;
+}
+
+[data-fv-screen="drawer-open"] [data-fv-part="drawer-tabs"] {
+  margin-top: 17px;
+}
+
+/* Keep the secondary cabinet exit reachable by scrolling without leaking into the canonical record frame. */
+[data-fv-screen="record"] > button:last-child {
+  margin-top: 100px;
+}

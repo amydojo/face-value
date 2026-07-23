@@ -1,0 +1,21 @@
+:root {
+  --fv-surface-chassis: #f4f1ea;
+  --fv-surface-paper: #eeeae1;
+  --fv-surface-enamel: #0b0b0a;
+  --fv-surface-enamel-raised: #171614;
+  --fv-text-on-light: #131211;
+  --fv-text-muted: #66635c;
+  --fv-text-on-dark: #f0ede5;
+  --fv-text-dark-muted: #b9b3a8;
+  --fv-rule-default: rgba(189, 184, 173, .72);
+  --fv-signal-active: #ff6e14;
+  --fv-metal-light: #ddd9cf;
+  --fv-metal-mid: #9a9993;
+  --fv-metal-dark: #575751;
+  --fv-radius-shell: 42px;
+  --fv-radius-control: 12px;
+  --fv-font-sans: "Geist", "SF Pro Display", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --fv-font-mono: "Geist Mono", "SFMono-Regular", Consolas, monospace;
+  --fv-ease-damped: cubic-bezier(.2,.75,.2,1);
+  --fv-safe-bottom: max(20px, env(safe-area-inset-bottom));
+}

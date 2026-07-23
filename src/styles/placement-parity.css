@@ -1,0 +1,287 @@
+[data-fv-screen="placement"] {
+  display: block !important;
+  min-height: calc(100svh - 94px);
+  color: #f0ede5;
+}
+
+[data-fv-screen="placement"] > h1 {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  margin: -1px !important;
+  overflow: hidden !important;
+  clip: rect(0 0 0 0) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+}
+
+[data-fv-part="placement-context"] p:last-child { color: #ff6e14; }
+[data-fv-screen="placement"] > [data-fv-drawer-state] { margin-top: 5px; }
+
+/* Re-shelving drawer: Figma node 120:1068. */
+[data-fv-drawer-state="transfer"] [data-fv-part="interior"] {
+  left: 19px;
+  right: auto;
+  top: 70px;
+  width: 324px;
+  height: 248px;
+  opacity: .72;
+}
+[data-fv-drawer-state="transfer"] [data-fv-part="rail-left"],
+[data-fv-drawer-state="transfer"] [data-fv-part="rail-right"] { top: 82px; height: 222px; }
+[data-fv-drawer-state="transfer"] [data-fv-part="rail-left"] { left: 29px; }
+[data-fv-drawer-state="transfer"] [data-fv-part="rail-right"] { right: 29px; }
+[data-fv-drawer-state="transfer"] [data-fv-part="rail-highlight-left"],
+[data-fv-drawer-state="transfer"] [data-fv-part="rail-highlight-right"] { top: 84px; height: 216px; }
+[data-fv-drawer-state="transfer"] [data-fv-part="rail-highlight-left"] { left: 31px; }
+[data-fv-drawer-state="transfer"] [data-fv-part="rail-highlight-right"] { right: 33px; }
+[data-fv-drawer-state="transfer"] [data-fv-part="tray"] {
+  left: 72px;
+  right: auto;
+  top: 164px;
+  width: 218px;
+  height: 118px;
+}
+[data-fv-drawer-state="transfer"] [data-fv-part="tray-edge"] { left: 42px; right: auto; top: 133px; width: 278px; }
+[data-fv-drawer-state="transfer"] [data-fv-part="drawer-front"] {
+  left: 58px;
+  right: auto;
+  top: 272px;
+  width: 246px;
+  height: 98px;
+}
+[data-fv-drawer-state="transfer"] [data-fv-part="pull-recess"] { left: 158px; top: 282px; width: 46px; height: 10px; }
+[data-fv-drawer-state="transfer"] [data-fv-part="pull"] { width: 36px !important; }
+[data-fv-drawer-state="transfer"] [data-fv-part="latch-light"] { left: 151px; top: 264px; width: 60px; opacity: .8; }
+[data-fv-drawer-state="transfer"] [data-fv-part="interior-light"] { left: 68px; top: 86px; width: 226px; opacity: .28; }
+[data-fv-drawer-state="transfer"] [data-fv-part="label-mount"] { left: 70px; top: 310px; width: 178px; height: 45px; }
+[data-fv-drawer-state="transfer"] [data-fv-part="state-tab"] { left: 286px; top: 310px; height: 45px; }
+[data-fv-drawer-state="transfer"] [data-fv-part="transfer-track-hardware"] { left: 44px; top: 248px; width: 274px; height: 34px; opacity: 1; }
+[data-fv-drawer-state="transfer"] [data-fv-part="specimen"][data-fv-compact="true"] {
+  top: 110px;
+  transform: translateX(-50%) scale(.637);
+  transform-origin: top center;
+}
+[data-fv-drawer-state="transfer"] [data-fv-part="label-plate"] {
+  left: 69px !important;
+  top: 310px !important;
+  bottom: auto !important;
+  width: 224px !important;
+  height: 60px !important;
+}
+
+/* Closed, accepted drawer: Figma node 135:233. */
+[data-fv-drawer-state="closed"] [data-fv-part="interior"] {
+  left: 19px;
+  right: auto;
+  top: 70px;
+  width: 324px;
+  height: 248px;
+  opacity: .16;
+}
+[data-fv-drawer-state="closed"] [data-fv-part="rail-left"],
+[data-fv-drawer-state="closed"] [data-fv-part="rail-right"] { top: 82px; height: 222px; opacity: .18; }
+[data-fv-drawer-state="closed"] [data-fv-part="rail-left"] { left: 29px; }
+[data-fv-drawer-state="closed"] [data-fv-part="rail-right"] { right: 29px; }
+[data-fv-drawer-state="closed"] [data-fv-part="rail-highlight-left"],
+[data-fv-drawer-state="closed"] [data-fv-part="rail-highlight-right"] { top: 84px; height: 216px; }
+[data-fv-drawer-state="closed"] [data-fv-part="rail-highlight-left"] { left: 31px; }
+[data-fv-drawer-state="closed"] [data-fv-part="rail-highlight-right"] { right: 33px; }
+[data-fv-drawer-state="closed"] [data-fv-part="tray"] {
+  left: 40px;
+  right: auto;
+  top: 174px;
+  width: 282px;
+  height: 112px;
+  opacity: .16;
+}
+[data-fv-drawer-state="closed"] [data-fv-part="tray-edge"] { left: 42px; right: auto; top: 133px; width: 278px; }
+[data-fv-drawer-state="closed"] [data-fv-part="drawer-front"] {
+  left: 13px;
+  right: auto;
+  top: 230px;
+  width: 336px;
+  height: 181px;
+}
+[data-fv-drawer-state="closed"] [data-fv-part="pull-recess"] { left: 158px; top: 246px; width: 46px; height: 10px; }
+[data-fv-drawer-state="closed"] [data-fv-part="pull"] { width: 36px !important; }
+[data-fv-drawer-state="closed"] [data-fv-part="latch-light"] { left: 150px; top: 224px; width: 62px; opacity: .18; }
+[data-fv-drawer-state="closed"] [data-fv-part="interior-light"] { opacity: 0; }
+[data-fv-drawer-state="closed"] [data-fv-part="label-mount"] { left: 28px; top: 321px; width: 214px; height: 53px; }
+[data-fv-drawer-state="closed"] [data-fv-part="state-tab"] { left: 326px; top: 321px; height: 53px; }
+[data-fv-drawer-state="closed"] [data-fv-part="transfer-track-hardware"] { opacity: 0; }
+[data-fv-part="available-plate"] {
+  position: absolute;
+  left: 28px;
+  top: 321px;
+  width: 214px;
+  height: 53px;
+  z-index: 9;
+  padding: 21px 16px 0;
+  border-radius: 5px;
+  background: #ebe5db;
+  color: #131211;
+  font: 500 9px/1 var(--fv-font-mono);
+}
+
+/* Transfer machine: shared geometry for choose and settled states. */
+[data-fv-part="transfer-machine"] {
+  position: relative;
+  width: 352px;
+  height: 288px;
+  margin: -6px auto 0;
+  padding: 0;
+  border-radius: 14px;
+  background: #090808;
+  box-shadow: inset 0 6px 14px rgba(0,0,0,.72);
+  color: #ebe5db;
+  overflow: hidden;
+}
+[data-fv-part="transfer-machine"] > h2 {
+  position: absolute;
+  left: 18px;
+  top: 16px;
+  width: 316px;
+  margin: 0;
+  font: 500 11.5px/1 var(--fv-font-mono);
+  letter-spacing: 0;
+}
+[data-fv-part="transfer-machine"] > p {
+  position: absolute;
+  left: 18px;
+  top: 38px;
+  width: 316px;
+  margin: 0;
+  color: #94918a;
+  font: 400 10.5px/1 var(--fv-font-sans);
+  text-transform: none;
+}
+[data-fv-part="transfer-vertical-track"] {
+  position: absolute;
+  left: 40px;
+  top: 70px;
+  width: 5px;
+  height: 180px;
+  border-radius: 2.5px;
+  background: #474540;
+}
+[data-fv-part="transfer-machine"] fieldset {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+[data-fv-part="transfer-machine"] fieldset > legend {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+}
+[data-fv-part="transfer-machine"] label {
+  position: absolute;
+  left: 0;
+  width: 352px;
+  height: 34px;
+  cursor: pointer;
+}
+[data-fv-placement-row="established"] { top: 58px; }
+[data-fv-placement-row="useful_elsewhere"] { top: 98px; }
+[data-fv-placement-row="paused"] { top: 138px; }
+[data-fv-placement-row="retry_alone"] { top: 178px; }
+[data-fv-placement-row="released"] { top: 218px; }
+[data-fv-part="transfer-machine"] label input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+[data-fv-part="transfer-machine"] label:focus-within { outline: 1px solid rgba(255,110,20,.75); outline-offset: -2px; }
+[data-fv-part="placement-slot"] {
+  position: absolute;
+  left: 38px;
+  top: 17px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #8a8780;
+}
+[data-fv-part="transfer-machine"] label > b {
+  position: absolute;
+  left: 62px;
+  top: 8px;
+  width: 30px;
+  color: #94918a;
+  font: 500 9px/1 var(--fv-font-mono);
+}
+[data-fv-part="transfer-machine"] label > strong {
+  position: absolute;
+  left: 96px;
+  top: 8px;
+  width: 110px;
+  color: #dbd6cc;
+  font: 500 9px/1 var(--fv-font-mono);
+}
+[data-fv-part="transfer-machine"] label > small {
+  position: absolute;
+  left: 210px;
+  top: 8px;
+  width: 124px;
+  color: #7a7870;
+  font: 400 8.5px/1 var(--fv-font-sans);
+}
+[data-fv-part="transfer-machine"] label[data-selected] > b { color: #ff6e14; }
+[data-fv-transfer-state="sealed"] label[data-selected] [data-fv-part="placement-slot"] { background: #ff6e14; }
+[data-fv-transfer-state="sealed"] fieldset { pointer-events: none; }
+
+[data-fv-part="transfer-drawer-object"] {
+  position: absolute;
+  left: 18px;
+  top: 70px;
+  width: 34px;
+  height: 22px;
+  z-index: 3;
+  border-radius: 5px;
+  background: linear-gradient(90deg,#d6d4cc 6%,#858580 50%,#c2bfb8 106%);
+  box-shadow: 0 5px 8px -2px rgba(0,0,0,.5);
+  transition: top 620ms var(--fv-ease-damped), left 180ms var(--fv-ease-damped);
+}
+[data-fv-part="transfer-drawer-object"] i {
+  position: absolute;
+  left: 6px;
+  top: 2px;
+  width: 22px;
+  height: 2px;
+  border-radius: 1px;
+  background: #ff6e14;
+  box-shadow: 0 0 6px rgba(255,110,20,.34);
+}
+[data-fv-selected-placement="useful_elsewhere"] [data-fv-part="transfer-drawer-object"] { top: 110px; }
+[data-fv-selected-placement="paused"] [data-fv-part="transfer-drawer-object"] { top: 150px; }
+[data-fv-selected-placement="retry_alone"] [data-fv-part="transfer-drawer-object"] { top: 190px; }
+[data-fv-selected-placement="released"] [data-fv-part="transfer-drawer-object"] { top: 230px; }
+[data-fv-transfer-state="sealed"] [data-fv-part="transfer-drawer-object"] { left: 34px; }
+
+[data-fv-part="transfer-machine"] > [data-fv-action] {
+  position: absolute;
+  left: 18px;
+  top: 254px;
+  width: 316px;
+  min-height: 20px !important;
+  height: 20px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 5px;
+  background: #1c1b18;
+  color: #7a7870;
+  text-align: left;
+  font: 500 8px/1 var(--fv-font-mono);
+}
+[data-fv-transfer-state="sealed"] > [data-fv-action] { background: #29251f; color: #ff6e14; }
+
+@media (prefers-reduced-motion: reduce) {
+  [data-fv-part="transfer-drawer-object"] { transition-duration: 0ms !important; }
+}
