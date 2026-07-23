@@ -36,8 +36,13 @@ jobs:
           path: vitest-results.json
           if-no-files-found: error
       - run: npm run build
+      - name: Stamp exact commit for deployment proof
+        run: printf '%s\n' "$GITHUB_SHA" > public/commit.txt
       - name: Package exact deployment source
-        run: git ls-files -z | tar --null -T - -czf deployment-source.tgz
+        run: |
+          git ls-files -z > tracked-files
+          printf 'public/commit.txt\0' >> tracked-files
+          tar --null -T tracked-files -czf deployment-source.tgz
       - name: Upload deployment source
         uses: actions/upload-artifact@v4
         with:
