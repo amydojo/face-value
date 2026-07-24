@@ -18,14 +18,14 @@ async function openCassette(page: Page) {
 
 async function captureOpeningStates(page: Page, testInfo: TestInfo, prefix: string) {
   const instrument = page.getByLabel('Evidence cassette instrument');
-  await page.screenshot({ path: testInfo.outputPath(`${prefix}-sealed.png`), fullPage: true });
+  await page.screenshot({ path: testInfo.outputPath(`${prefix}-sealed.png`) });
   await page.getByRole('button', { name: 'Open evidence cassette' }).click();
   await expect(instrument).toHaveAttribute('data-cassette-state', 'released');
-  await page.screenshot({ path: testInfo.outputPath(`${prefix}-released.png`), fullPage: true });
+  await page.screenshot({ path: testInfo.outputPath(`${prefix}-released.png`) });
   await expect(instrument).toHaveAttribute('data-cassette-state', 'tilting');
-  await page.screenshot({ path: testInfo.outputPath(`${prefix}-micro-tilted.png`), fullPage: true });
+  await page.screenshot({ path: testInfo.outputPath(`${prefix}-micro-tilted.png`) });
   await expect(instrument).toHaveAttribute('data-cassette-state', 'presented');
-  await page.screenshot({ path: testInfo.outputPath(`${prefix}-presented.png`), fullPage: true });
+  await page.screenshot({ path: testInfo.outputPath(`${prefix}-presented.png`) });
 }
 
 test('direct verdict route opens, presents, explains, and reseals without runtime errors', async ({ page }) => {
@@ -36,7 +36,17 @@ test('direct verdict route opens, presents, explains, and reseals without runtim
   const instrument = page.getByLabel('Evidence cassette instrument');
   await expect(instrument).toBeVisible();
   await expect(instrument).toHaveAttribute('data-cassette-state', 'sealed');
-  await expect(page.getByText('Earning its place.')).toBeVisible();
+
+  const verdictTitle = page.getByRole('heading', { name: 'Earning its place.' });
+  await expect(verdictTitle).toBeVisible();
+  const titleBox = await verdictTitle.boundingBox();
+  expect(titleBox?.width).toBeGreaterThan(150);
+  expect(titleBox?.height).toBeGreaterThan(30);
+
+  const primaryAction = page.getByRole('button', { name: /Keep it/i });
+  const actionBox = await primaryAction.boundingBox();
+  expect(actionBox).not.toBeNull();
+  expect((actionBox?.y ?? 874) + (actionBox?.height ?? 0)).toBeLessThanOrEqual(874);
 
   const handle = page.getByRole('button', { name: 'Open evidence cassette' });
   await handle.click();
@@ -50,7 +60,6 @@ test('direct verdict route opens, presents, explains, and reseals without runtim
 
   await page.getByRole('button', { name: 'WHY THIS VERDICT' }).click();
   await expect(page.getByText(/longitudinal visual evidence/i)).toBeVisible();
-  const primaryAction = page.getByRole('button', { name: /Keep it/i });
   await expect(primaryAction).toBeVisible();
   await primaryAction.click();
   await expect(page.getByRole('button', { name: 'Open the Evidence Fridge' })).toBeVisible();
@@ -148,12 +157,10 @@ test('captures required V7 visual evidence', async ({ page }, testInfo) => {
     await page.goto('/verdict');
     await page.screenshot({
       path: testInfo.outputPath(`evidence-cassette-${viewport.width}x${viewport.height}-sealed.png`),
-      fullPage: true,
     });
     await openCassette(page);
     await page.screenshot({
       path: testInfo.outputPath(`evidence-cassette-${viewport.width}x${viewport.height}-presented.png`),
-      fullPage: true,
     });
   }
 });
