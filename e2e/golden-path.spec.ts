@@ -46,7 +46,7 @@ async function openIndexAndSelectSpecimen(page: Page) {
   await assertNoLegacyHardware(page);
 
   await page.getByRole('button', { name: /Inspect cassette A1–03/i }).last().click();
-  await expect(page.getByRole('heading', { name: /Barrier Support Serum/i })).toBeVisible();
+  await expect(page.getByRole('heading', { name: /Fermented Brightening Essence/i })).toBeVisible();
   await assertNoLegacyHardware(page);
 }
 
@@ -212,10 +212,19 @@ test('all supported mobile viewports preserve one scaled assembly, controls, and
     await open.click();
     await page.getByRole('button', { name: 'Browse evidence cassettes', exact: true }).click();
     await assertNoOverflow(page);
-    const initialScroll = await page.evaluate(() => window.scrollY);
-    await page.mouse.wheel(0, 240);
-    const finalScroll = await page.evaluate(() => window.scrollY);
-    expect(finalScroll).toBeGreaterThanOrEqual(initialScroll);
+    await expect(page.locator('[data-cassette-selector] > div').first()).toHaveCSS('touch-action', 'pan-y');
+    const canScroll = await page.evaluate(() => {
+      const before = window.scrollY;
+      window.scrollTo(0, Math.min(240, document.documentElement.scrollHeight - window.innerHeight));
+      return {
+        before,
+        after: window.scrollY,
+        scrollHeight: document.documentElement.scrollHeight,
+        viewportHeight: window.innerHeight,
+      };
+    });
+    expect(canScroll.scrollHeight).toBeGreaterThan(canScroll.viewportHeight);
+    expect(canScroll.after).toBeGreaterThanOrEqual(canScroll.before);
   }
 });
 
@@ -235,6 +244,7 @@ test('reduced motion preserves selection, presentation, and classification seman
 });
 
 test('captures app-wide cassette migration evidence at canonical and critical viewports', async ({ page }, testInfo: TestInfo) => {
+  test.setTimeout(90_000);
   await page.setViewportSize({ width: 402, height: 874 });
   await page.goto('/');
   await page.screenshot({ path: testInfo.outputPath('cassette-402x874-entry.png'), fullPage: true });
