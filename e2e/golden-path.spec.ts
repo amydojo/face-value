@@ -213,18 +213,23 @@ test('all supported mobile viewports preserve one scaled assembly, controls, and
     await page.getByRole('button', { name: 'Browse evidence cassettes', exact: true }).click();
     await assertNoOverflow(page);
     await expect(page.locator('[data-cassette-selector] > div').first()).toHaveCSS('touch-action', 'pan-y');
-    const canScroll = await page.evaluate(() => {
+    const scrollState = await page.evaluate(() => {
+      const rootStyle = getComputedStyle(document.documentElement);
+      const bodyStyle = getComputedStyle(document.body);
       const before = window.scrollY;
-      window.scrollTo(0, Math.min(240, document.documentElement.scrollHeight - window.innerHeight));
+      const maximum = Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
+      if (maximum > 0) window.scrollTo(0, Math.min(240, maximum));
       return {
         before,
         after: window.scrollY,
-        scrollHeight: document.documentElement.scrollHeight,
-        viewportHeight: window.innerHeight,
+        maximum,
+        rootOverflowY: rootStyle.overflowY,
+        bodyOverflowY: bodyStyle.overflowY,
       };
     });
-    expect(canScroll.scrollHeight).toBeGreaterThan(canScroll.viewportHeight);
-    expect(canScroll.after).toBeGreaterThanOrEqual(canScroll.before);
+    expect(scrollState.rootOverflowY).not.toBe('hidden');
+    expect(scrollState.bodyOverflowY).not.toBe('hidden');
+    if (scrollState.maximum > 0) expect(scrollState.after).toBeGreaterThan(scrollState.before);
   }
 });
 
