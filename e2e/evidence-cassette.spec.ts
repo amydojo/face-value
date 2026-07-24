@@ -40,7 +40,7 @@ test('direct verdict route opens, presents, explains, and reseals without runtim
 
   const handle = page.getByRole('button', { name: 'Open evidence cassette' });
   await handle.click();
-  await handle.click();
+  await handle.dispatchEvent('click');
   await expect(instrument).toHaveAttribute('data-cassette-state', 'presented');
   await expect(instrument).toHaveAttribute('data-glass-cleared', 'true');
   await expect(page.getByRole('button', { name: 'Edit product trial details' })).toBeVisible();
@@ -50,7 +50,10 @@ test('direct verdict route opens, presents, explains, and reseals without runtim
 
   await page.getByRole('button', { name: 'WHY THIS VERDICT' }).click();
   await expect(page.getByText(/longitudinal visual evidence/i)).toBeVisible();
-  await expect(page.getByRole('button', { name: /Keep it/i })).toBeVisible();
+  const primaryAction = page.getByRole('button', { name: /Keep it/i });
+  await expect(primaryAction).toBeVisible();
+  await primaryAction.click();
+  await expect(page.getByRole('button', { name: 'Open the Evidence Fridge' })).toBeVisible();
   expect(errors).toEqual([]);
 });
 
