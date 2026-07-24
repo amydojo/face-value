@@ -43,7 +43,7 @@ test('direct verdict route opens, presents, explains, and reseals without runtim
   expect(titleBox?.width).toBeGreaterThan(150);
   expect(titleBox?.height).toBeGreaterThan(30);
 
-  const primaryAction = page.getByRole('button', { name: /Keep it/i });
+  const primaryAction = page.getByRole('button', { name: /Classify evidence disposition.*KEEP IT/i });
   const actionBox = await primaryAction.boundingBox();
   expect(actionBox).not.toBeNull();
   expect((actionBox?.y ?? 874) + (actionBox?.height ?? 0)).toBeLessThanOrEqual(874);
@@ -62,7 +62,7 @@ test('direct verdict route opens, presents, explains, and reseals without runtim
   await expect(page.getByText(/longitudinal visual evidence/i)).toBeVisible();
   await expect(primaryAction).toBeVisible();
   await primaryAction.click();
-  await expect(page.getByRole('button', { name: 'Open the Evidence Fridge' })).toBeVisible();
+  await expect(page.getByRole('button', { name: /OPEN EVIDENCE INDEX/i })).toBeVisible();
   expect(errors).toEqual([]);
 });
 
@@ -122,7 +122,7 @@ test('supported mobile viewports preserve geometry, actions, and horizontal fit'
     expect(handleBox?.height).toBeGreaterThanOrEqual(44);
     expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(0);
     await openCassette(page);
-    await expect(page.getByRole('button', { name: /Keep it/i })).toBeVisible();
+    await expect(page.getByRole('button', { name: /KEEP IT/i })).toBeVisible();
     await expect(page.getByRole('button', { name: 'WHY THIS VERDICT' })).toBeVisible();
   }
 });
@@ -140,7 +140,7 @@ test('route changes and resize during motion leave no orphaned interaction state
   await page.reload();
   await page.getByRole('button', { name: 'Open evidence cassette' }).click();
   await page.goto('/');
-  await expect(page.getByRole('button', { name: 'Open the Evidence Fridge' })).toBeVisible();
+  await expect(page.getByRole('button', { name: /OPEN EVIDENCE INDEX/i })).toBeVisible();
   expect(errors).toEqual([]);
 });
 
