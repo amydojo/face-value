@@ -10,6 +10,22 @@ import { CameraViewport } from '../features/capture-contract/CameraViewport';
 import { EvidenceCassetteSelector, EvidenceInstrument } from '../features/evidence-instrument/EvidenceInstrument';
 import { PRODUCTS } from '../fixtures/products';
 
+function firePointer(
+  node: Element,
+  type: 'pointerdown' | 'pointerup',
+  { pointerId, clientX, clientY }: { pointerId: number; clientX: number; clientY: number },
+) {
+  const event = new MouseEvent(type, {
+    bubbles: true,
+    cancelable: true,
+    button: 0,
+    clientX,
+    clientY,
+  });
+  Object.defineProperty(event, 'pointerId', { configurable: true, value: pointerId });
+  fireEvent(node, event);
+}
+
 it('supports finite keyboard-accessible cassette controls with clear names', async () => {
   const user = userEvent.setup();
   const next = vi.fn();
@@ -44,13 +60,13 @@ it('keeps below-threshold selector drag deterministic and activates past thresho
   const target = container.querySelector('[data-cassette-selector] > div');
   if (!(target instanceof HTMLElement)) throw new Error('Selector target missing');
 
-  fireEvent.pointerDown(target, { pointerId: 1, button: 0, clientX: 100, clientY: 100 });
-  fireEvent.pointerUp(target, { pointerId: 1, clientX: 120, clientY: 101 });
+  firePointer(target, 'pointerdown', { pointerId: 1, clientX: 100, clientY: 100 });
+  firePointer(target, 'pointerup', { pointerId: 1, clientX: 120, clientY: 101 });
   expect(previous).not.toHaveBeenCalled();
   expect(next).not.toHaveBeenCalled();
 
-  fireEvent.pointerDown(target, { pointerId: 2, button: 0, clientX: 150, clientY: 100 });
-  fireEvent.pointerUp(target, { pointerId: 2, clientX: 94, clientY: 101 });
+  firePointer(target, 'pointerdown', { pointerId: 2, clientX: 150, clientY: 100 });
+  firePointer(target, 'pointerup', { pointerId: 2, clientX: 94, clientY: 101 });
   expect(next).toHaveBeenCalledOnce();
 });
 
