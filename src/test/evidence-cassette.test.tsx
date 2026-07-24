@@ -38,6 +38,36 @@ function advance(milliseconds: number) {
   act(() => vi.advanceTimersByTime(milliseconds));
 }
 
+function advanceNormalOpening() {
+  advance(80);
+  advance(140);
+  advance(200);
+  advance(160);
+  advance(320);
+}
+
+function advanceReducedOpening() {
+  advance(80);
+  advance(160);
+  advance(160);
+}
+
+function firePointer(
+  node: Element,
+  type: 'pointerdown' | 'pointermove' | 'pointerup',
+  { pointerId, clientX, clientY }: { pointerId: number; clientX: number; clientY: number },
+) {
+  const event = new MouseEvent(type, {
+    bubbles: true,
+    cancelable: true,
+    button: 0,
+    clientX,
+    clientY,
+  });
+  Object.defineProperty(event, 'pointerId', { configurable: true, value: pointerId });
+  fireEvent(node, event);
+}
+
 describe('evidence cassette machine', () => {
   it('accepts only the causal opening order', () => {
     let state: EvidenceCassetteState = 'sealed';
@@ -76,7 +106,7 @@ describe('EvidenceCassette', () => {
     });
     Object.defineProperty(HTMLElement.prototype, 'hasPointerCapture', {
       configurable: true,
-      value: vi.fn(() => false),
+      value: vi.fn(() => true),
     });
   });
 
@@ -124,20 +154,21 @@ describe('EvidenceCassette', () => {
     const instrument = screen.getByLabelText('Evidence cassette instrument');
     const handle = screen.getByRole('button', { name: 'Open evidence cassette' });
 
-    fireEvent.pointerDown(handle, { button: 0, pointerId: 1, clientX: 10, clientY: 10 });
-    fireEvent.pointerMove(handle, { pointerId: 1, clientX: 26, clientY: 12 });
-    fireEvent.pointerUp(handle, { pointerId: 1 });
+    firePointer(handle, 'pointerdown', { pointerId: 1, clientX: 10, clientY: 10 });
+    firePointer(handle, 'pointermove', { pointerId: 1, clientX: 26, clientY: 12 });
+    firePointer(handle, 'pointerup', { pointerId: 1, clientX: 26, clientY: 12 });
+    fireEvent.click(handle);
     expect(instrument).toHaveAttribute('data-cassette-state', 'sealed');
 
-    fireEvent.pointerDown(handle, { button: 0, pointerId: 2, clientX: 10, clientY: 10 });
-    fireEvent.pointerMove(handle, { pointerId: 2, clientX: 46, clientY: 12 });
+    firePointer(handle, 'pointerdown', { pointerId: 2, clientX: 10, clientY: 10 });
+    firePointer(handle, 'pointermove', { pointerId: 2, clientX: 46, clientY: 12 });
     expect(instrument).toHaveAttribute('data-cassette-state', 'pressing');
   });
 
   it('reseals decisively from presented', () => {
     renderCassette();
     fireEvent.click(screen.getByRole('button', { name: 'Open evidence cassette' }));
-    advance(900);
+    advanceNormalOpening();
     fireEvent.click(screen.getByRole('button', { name: 'Close evidence cassette' }));
     expect(screen.getByLabelText('Evidence cassette instrument')).toHaveAttribute(
       'data-cassette-state',
@@ -154,7 +185,7 @@ describe('EvidenceCassette', () => {
     installMotionPreference(true);
     renderCassette();
     fireEvent.click(screen.getByRole('button', { name: 'Open evidence cassette' }));
-    advance(400);
+    advanceReducedOpening();
     expect(screen.getByLabelText('Evidence cassette instrument')).toHaveAttribute(
       'data-cassette-state',
       'presented',
