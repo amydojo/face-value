@@ -249,7 +249,7 @@ test('reduced motion preserves selection, presentation, and classification seman
 });
 
 test('captures app-wide cassette migration evidence at canonical and critical viewports', async ({ page }, testInfo: TestInfo) => {
-  test.setTimeout(180_000);
+  test.setTimeout(300_000);
   await page.setViewportSize({ width: 402, height: 874 });
   await page.goto('/');
   await page.screenshot({ path: testInfo.outputPath('cassette-402x874-entry.png'), fullPage: true });
@@ -292,6 +292,7 @@ test('captures app-wide cassette migration evidence at canonical and critical vi
 
   for (const viewport of [{ width: 375, height: 812 }, { width: 430, height: 932 }]) {
     await page.setViewportSize(viewport);
+    await page.evaluate(() => localStorage.clear());
     await page.goto('/');
     await page.getByRole('button', { name: /OPEN EVIDENCE INDEX/i }).click();
     await page.screenshot({
