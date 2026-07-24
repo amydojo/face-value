@@ -46,12 +46,19 @@ it('accepts valid transitions and rejects invalid transitions', () => {
   expect(faceValueReducer(specimen, { type: 'BACK' }).stage).toBe('browse');
 });
 
+it('announces cassette semantics while retaining compatible internal events', () => {
+  expect(initialState.announcement).toBe('Evidence instrument in standby.');
+  expect(open.announcement).toMatch(/Evidence Index/i);
+  expect(browse.announcement).toMatch(/Cassette Index/i);
+  expect([initialState.announcement, open.announcement, browse.announcement].join(' ')).not.toMatch(
+    /fridge|drawer|cabinet/i,
+  );
+});
+
 it('uses explicit camera capture states and rejects mismatched capture metadata', () => {
   const requesting = faceValueReducer(baselineCamera, { type: 'CAMERA_REQUESTED' });
   const ready = faceValueReducer(requesting, { type: 'CAMERA_READY' });
-  expect(faceValueReducer(ready, { type: 'CAMERA_CAPTURING' }).camera).toBe(
-    'capturing',
-  );
+  expect(faceValueReducer(ready, { type: 'CAMERA_CAPTURING' }).camera).toBe('capturing');
 
   const mismatched = faceValueReducer(baselineCamera, {
     type: 'CAPTURE_ACCEPTED',
@@ -67,7 +74,7 @@ it('uses explicit camera capture states and rejects mismatched capture metadata'
   expect(mismatched).toBe(baselineCamera);
 });
 
-it('keeps the stable disturbance branch comparable', () => {
+it('keeps the stable interference branch comparable', () => {
   const disturbed = faceValueReducer(traced, { type: 'INTRODUCE_SECOND_PRODUCT' });
   const stable = faceValueReducer(disturbed, {
     type: 'RESOLVE_DISTURBANCE',
@@ -77,9 +84,10 @@ it('keeps the stable disturbance branch comparable', () => {
   expect(stable.disturbance).toBe('returned_to_cooling');
   expect(stable.observation).toBe('active_stable');
   expect(stable.confidence).toBe('insufficient');
+  expect(stable.announcement).toMatch(/Secondary cassette removed/i);
 });
 
-it('enforces lower-confidence semantics even if an adapter returns a stronger result', () => {
+it('enforces lower confidence semantics even if an adapter returns a stronger result', () => {
   const disturbed = faceValueReducer(traced, { type: 'INTRODUCE_SECOND_PRODUCT' });
   const overlap = faceValueReducer(disturbed, {
     type: 'RESOLVE_DISTURBANCE',
@@ -116,7 +124,7 @@ it('enforces lower-confidence semantics even if an adapter returns a stronger re
   expect(analyzed.analysis?.recommendedAction).toBe('continue_with_overlap');
 });
 
-it('persists lower confidence through Progress Mode, re-shelving, and record generation', () => {
+it('persists lower confidence through verdict, classification, and record generation', () => {
   const disturbed = faceValueReducer(traced, { type: 'INTRODUCE_SECOND_PRODUCT' });
   const overlap = faceValueReducer(disturbed, {
     type: 'RESOLVE_DISTURBANCE',
@@ -159,7 +167,7 @@ it('persists lower confidence through Progress Mode, re-shelving, and record gen
   expect(recorded.record?.includesFaceImage).toBe(false);
 });
 
-it('refuses record generation before placement is sealed', () => {
+it('refuses record generation before disposition is committed', () => {
   const state = {
     ...initialState,
     stage: 'placement' as const,
