@@ -1,0 +1,161 @@
+.verdict {
+  width: 100%;
+  padding: 0 17px 24px;
+  color: #f2ede4;
+  background: #050505;
+}
+
+.context {
+  min-height: 45px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  color: rgba(242, 237, 228, 0.47);
+  font-size: 8px;
+  font-weight: 650;
+  letter-spacing: 0.12em;
+}
+
+.kicker {
+  margin: 28px 0 0;
+  color: #c76836;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.13em;
+}
+
+.verdict h1 {
+  max-width: 320px;
+  margin: 8px 0 0;
+  color: #f4efe6;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: clamp(34px, 9vw, 39px);
+  font-weight: 400;
+  line-height: 0.98;
+  letter-spacing: -0.035em;
+}
+
+.support {
+  max-width: 330px;
+  margin: 14px 0 0;
+  color: rgba(242, 237, 228, 0.58);
+  font-size: 12px;
+  line-height: 1.48;
+}
+
+.confidenceNotice {
+  margin: 9px 0 -4px;
+  color: rgba(242, 237, 228, 0.48);
+  font-size: 7px;
+  font-weight: 650;
+  letter-spacing: 0.1em;
+}
+
+.hardwareComposition {
+  width: 100%;
+  margin: 18px auto 0;
+}
+
+.whyButton,
+.primaryAction {
+  width: 100%;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border: 0;
+  font: inherit;
+  cursor: pointer;
+}
+
+.whyButton {
+  margin-top: 2px;
+  padding: 0 2px;
+  border-top: 1px solid rgba(255, 255, 255, 0.09);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.09);
+  color: rgba(242, 237, 228, 0.68);
+  background: transparent;
+  font-size: 9px;
+  font-weight: 650;
+  letter-spacing: 0.11em;
+}
+
+.whyButton span:last-child {
+  color: rgba(242, 237, 228, 0.37);
+  font-size: 16px;
+  font-weight: 300;
+}
+
+.whyPanel {
+  padding: 13px 2px 15px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.09);
+  color: rgba(242, 237, 228, 0.56);
+}
+
+.whyPanel div {
+  display: flex;
+  justify-content: space-between;
+  font-size: 8px;
+  letter-spacing: 0.1em;
+}
+
+.whyPanel p {
+  margin: 11px 0 0;
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.whyPanel small {
+  display: block;
+  margin-top: 9px;
+  color: rgba(242, 237, 228, 0.37);
+  font-size: 9px;
+  line-height: 1.4;
+}
+
+.primaryAction {
+  min-height: 56px;
+  margin-top: 10px;
+  padding: 0 17px;
+  border-radius: 2px;
+  color: #171512;
+  background: #e8e0d2;
+  font-size: 10px;
+  font-weight: 750;
+  letter-spacing: 0.11em;
+}
+
+.primaryAction span:last-child {
+  font-size: 17px;
+  font-weight: 400;
+}
+
+.whyButton:focus-visible,
+.primaryAction:focus-visible {
+  outline: 2px solid #f4efe6;
+  outline-offset: 3px;
+}
+
+@media (max-width: 359px) {
+  .verdict {
+    padding-inline: 16px;
+  }
+
+  .kicker {
+    margin-top: 22px;
+  }
+
+  .verdict h1 {
+    font-size: 32px;
+  }
+
+  .support {
+    font-size: 11px;
+  }
+
+  .hardwareComposition {
+    margin-top: 14px;
+  }
+}
