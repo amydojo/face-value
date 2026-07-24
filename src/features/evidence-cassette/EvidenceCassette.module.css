@@ -1,0 +1,616 @@
+.instrument {
+  --hardware-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --hardware-width: min(328px, calc(100vw - 32px));
+  position: relative;
+  width: var(--hardware-width);
+  aspect-ratio: 346 / 404;
+  margin-inline: auto;
+  isolation: isolate;
+  perspective: 1040px;
+  perspective-origin: 50% 58%;
+}
+
+.housing {
+  position: absolute;
+  inset: 0 0 auto;
+  width: 100%;
+  height: 78.218%;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 20px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.055), transparent 16%),
+    linear-gradient(145deg, #252421, #151513 70%);
+  box-shadow:
+    0 17px 35px rgba(0, 0, 0, 0.42),
+    inset 0 1px rgba(255, 255, 255, 0.07),
+    inset 0 -1px rgba(0, 0, 0, 0.68);
+}
+
+.chamber {
+  position: absolute;
+  top: 3.165%;
+  left: 2.89%;
+  width: 94.22%;
+  height: 69.62%;
+  overflow: hidden;
+  border-radius: 13px;
+  background: #11110f;
+  box-shadow:
+    inset 0 1px rgba(255, 255, 255, 0.05),
+    inset 0 -2px 5px rgba(0, 0, 0, 0.54);
+}
+
+.rearPanel {
+  position: absolute;
+  top: 4.55%;
+  left: 2.45%;
+  width: 95.1%;
+  height: 89.1%;
+  border: 1px solid rgba(255, 255, 255, 0.035);
+  border-radius: 7px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.026), transparent 22%),
+    #181816;
+  box-shadow: inset 0 7px 12px rgba(0, 0, 0, 0.2);
+  z-index: 1;
+}
+
+.identityRail {
+  position: absolute;
+  left: 10.74%;
+  top: 82.27%;
+  width: 78.53%;
+  height: 9.09%;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 7px;
+  padding-inline: 8px;
+  border-radius: 3px;
+  color: rgba(244, 238, 226, 0.78);
+  opacity: 0;
+  transform: translateY(2px);
+  z-index: 2;
+}
+
+.identityRail::before {
+  position: absolute;
+  inset: 0;
+  content: '';
+  border: 1px solid rgba(255, 255, 255, 0.045);
+  border-radius: inherit;
+  background: rgba(42, 40, 36, 0.78);
+  opacity: 0;
+}
+
+.identityRail > * {
+  position: relative;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  opacity: 0;
+}
+
+.identityCode,
+.identityJob,
+.identityEditLabel {
+  font-size: 6px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+}
+
+.identityName {
+  font-size: 6.5px;
+  font-weight: 650;
+  letter-spacing: 0.045em;
+}
+
+.identityJob {
+  color: rgba(244, 238, 226, 0.48);
+}
+
+.identityEditLabel {
+  color: rgba(244, 238, 226, 0.34);
+}
+
+.specimenPresentation {
+  position: absolute;
+  left: 35.89%;
+  top: 14.09%;
+  width: 28.22%;
+  height: 65.45%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  opacity: 0.96;
+  transform: translateY(2px);
+  z-index: 3;
+}
+
+.bottleCap {
+  width: 38%;
+  height: 12%;
+  border: 1px solid rgba(31, 29, 26, 0.5);
+  border-radius: 3px 3px 1px 1px;
+  background:
+    linear-gradient(90deg, rgba(255, 255, 255, 0.16), transparent 24%, rgba(0, 0, 0, 0.1)),
+    #b9b3a9;
+  box-shadow: 0 1px 1px rgba(0, 0, 0, 0.35);
+}
+
+.bottleBody {
+  width: 100%;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(50, 46, 41, 0.34);
+  border-radius: 5px 5px 9px 9px;
+  color: #25231f;
+  background:
+    linear-gradient(90deg, rgba(255, 255, 255, 0.38), transparent 19%, transparent 76%, rgba(60, 53, 45, 0.12)),
+    linear-gradient(180deg, #e5ded1, #cfc5b6);
+  box-shadow:
+    0 7px 9px rgba(0, 0, 0, 0.25),
+    inset 0 1px rgba(255, 255, 255, 0.45);
+}
+
+.bottleBody span {
+  margin-bottom: 18%;
+  font-size: clamp(4px, 1.25vw, 5px);
+  letter-spacing: 0.12em;
+}
+
+.bottleBody strong {
+  font-size: clamp(6px, 1.75vw, 7px);
+  line-height: 1.24;
+  letter-spacing: 0.075em;
+}
+
+.bottleBody small {
+  margin-top: 17%;
+  font-size: clamp(4px, 1.2vw, 5px);
+  letter-spacing: 0.08em;
+}
+
+.specimenDock {
+  position: absolute;
+  left: 41.72%;
+  top: 78.64%;
+  width: 16.56%;
+  height: max(4px, 1.82%);
+  border-radius: 2px;
+  background: #3a3833;
+  box-shadow:
+    0 2px 2px rgba(0, 0, 0, 0.52),
+    inset 0 1px rgba(255, 255, 255, 0.08);
+  z-index: 3;
+}
+
+.smartGlass {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background:
+    linear-gradient(90deg, rgba(237, 225, 203, 0.11), transparent 17%, transparent 83%, rgba(237, 225, 203, 0.11)),
+    rgba(235, 220, 194, 0.51);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  transition:
+    backdrop-filter 240ms var(--hardware-ease),
+    -webkit-backdrop-filter 240ms var(--hardware-ease),
+    background-color 300ms var(--hardware-ease);
+  z-index: 4;
+}
+
+.smartGlass::after {
+  position: absolute;
+  inset: 0;
+  content: '';
+  border-radius: inherit;
+  background:
+    radial-gradient(ellipse at center, transparent 50%, rgba(232, 218, 193, 0.28) 100%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.055), transparent 20%);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  opacity: 0.78;
+  transition:
+    opacity 320ms var(--hardware-ease) 35ms,
+    backdrop-filter 320ms var(--hardware-ease) 35ms,
+    -webkit-backdrop-filter 320ms var(--hardware-ease) 35ms;
+}
+
+.structuralBezel {
+  position: absolute;
+  inset: 0;
+  border: 1px solid rgba(255, 255, 255, 0.085);
+  border-radius: inherit;
+  box-shadow:
+    inset 0 0 0 7px rgba(15, 15, 13, 0.58),
+    inset 0 1px rgba(255, 255, 255, 0.055),
+    inset 0 -1px rgba(0, 0, 0, 0.7);
+  pointer-events: none;
+  z-index: 5;
+}
+
+.cassettePerspective {
+  position: absolute;
+  left: 1.734%;
+  top: 57.92%;
+  width: 96.532%;
+  height: 16.832%;
+  transform-style: preserve-3d;
+  perspective: 1040px;
+  z-index: 7;
+}
+
+.cassetteModule {
+  position: absolute;
+  inset: 0;
+  transform: translate3d(0, 0, 0) rotateX(0deg);
+  transform-origin: 50% 0%;
+  transform-style: preserve-3d;
+  transition: transform 90ms var(--hardware-ease);
+  will-change: transform;
+}
+
+.cassetteFace {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.075);
+  border-radius: 6px 6px 12px 12px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.06), transparent 23%),
+    linear-gradient(155deg, #292824, #1c1b18 72%);
+  box-shadow:
+    0 5px 9px rgba(0, 0, 0, 0.38),
+    inset 0 1px rgba(255, 255, 255, 0.075),
+    inset 0 -1px rgba(0, 0, 0, 0.64);
+}
+
+.cassetteLabel {
+  position: absolute;
+  left: 8.2%;
+  bottom: 18%;
+  display: grid;
+  grid-template-columns: auto auto;
+  grid-template-rows: auto auto;
+  column-gap: 11px;
+  color: rgba(232, 226, 215, 0.57);
+  text-transform: uppercase;
+}
+
+.cassetteLabel span {
+  grid-row: 1 / span 2;
+  align-self: center;
+  font-size: 7px;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+}
+
+.cassetteLabel strong {
+  font-size: 6.5px;
+  font-weight: 650;
+  letter-spacing: 0.12em;
+}
+
+.cassetteLabel small {
+  margin-top: 3px;
+  color: rgba(232, 226, 215, 0.34);
+  font-size: 5.5px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+}
+
+.evidenceMark {
+  position: absolute;
+  right: 7.2%;
+  bottom: 21%;
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: #c76836;
+  opacity: 0.84;
+}
+
+.handleTarget {
+  position: absolute;
+  top: -13%;
+  left: 50%;
+  width: 60px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  transform: translateX(-50%);
+  cursor: grab;
+  touch-action: pan-y;
+  z-index: 2;
+}
+
+.handleTarget:active {
+  cursor: grabbing;
+}
+
+.handleTarget:focus-visible {
+  outline: 2px solid rgba(240, 232, 216, 0.82);
+  outline-offset: 2px;
+}
+
+.handleRecess {
+  position: absolute;
+  top: 9px;
+  left: 50%;
+  width: 40px;
+  height: 8px;
+  border-radius: 8px;
+  background: #11110f;
+  box-shadow:
+    inset 0 1px 2px rgba(0, 0, 0, 0.86),
+    0 1px rgba(255, 255, 255, 0.045);
+  transform: translateX(-50%);
+  transition: background 80ms linear, transform 80ms var(--hardware-ease);
+}
+
+.handleGrip {
+  position: absolute;
+  top: 3px;
+  left: 50%;
+  width: 24px;
+  height: 2px;
+  border-radius: 2px;
+  background: rgba(207, 199, 184, 0.32);
+  transform: translateX(-50%);
+}
+
+.editControl {
+  position: absolute;
+  top: 43.3%;
+  right: 12.7%;
+  width: 48px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  color: transparent;
+  background: transparent;
+  opacity: 0;
+  pointer-events: none;
+  z-index: 8;
+}
+
+.editControl:focus-visible {
+  outline: 2px solid rgba(240, 232, 216, 0.82);
+  outline-offset: -7px;
+}
+
+.outputSlot {
+  position: absolute;
+  top: 75.74%;
+  left: 4.046%;
+  width: 91.908%;
+  height: 8px;
+  overflow: visible;
+  border-radius: 4px;
+  background: #090908;
+  box-shadow:
+    inset 0 1px rgba(255, 255, 255, 0.075),
+    0 1px 1px rgba(0, 0, 0, 0.74);
+  z-index: 6;
+}
+
+.outputSlot::after {
+  position: absolute;
+  inset: 0;
+  content: '';
+  border-radius: inherit;
+  box-shadow: inset 0 -3px 3px rgba(0, 0, 0, 0.7);
+  z-index: 2;
+}
+
+.outputRecord {
+  position: absolute;
+  top: 6px;
+  left: 4%;
+  width: 92%;
+  min-height: 31px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 9px 13px 7px;
+  border-radius: 0 0 3px 3px;
+  color: rgba(43, 39, 33, 0.64);
+  background: #d8d0c1;
+  box-shadow: 0 8px 10px rgba(0, 0, 0, 0.24);
+  font-size: 5.5px;
+  letter-spacing: 0.1em;
+  z-index: 1;
+}
+
+.outputRecord strong {
+  font-size: 6px;
+  font-weight: 650;
+}
+
+.instrument[data-cassette-state='pressing'] .handleRecess {
+  background: #0c0c0b;
+  transform: translate(-50%, 1px);
+}
+
+.instrument[data-cassette-state='released'] .cassetteModule {
+  transform: translate3d(0, 1px, 10px) rotateX(0deg);
+  transition-duration: 90ms;
+}
+
+.instrument[data-cassette-state='tilting'] .cassetteModule {
+  transform: translate3d(0, 5px, 10px) rotateX(-6.5deg);
+  transition-duration: 200ms;
+}
+
+.instrument[data-cassette-state='settled'] .cassetteModule,
+.instrument[data-cassette-state='clearing'] .cassetteModule,
+.instrument[data-cassette-state='presented'] .cassetteModule {
+  transform: translate3d(0, 4px, 10px) rotateX(-6deg);
+  transition-duration: 90ms;
+}
+
+.instrument[data-cassette-state='clearing'] .smartGlass,
+.instrument[data-cassette-state='presented'] .smartGlass {
+  background:
+    linear-gradient(90deg, rgba(237, 225, 203, 0.045), transparent 17%, transparent 83%, rgba(237, 225, 203, 0.045)),
+    rgba(235, 220, 194, 0.05);
+  backdrop-filter: blur(1px);
+  -webkit-backdrop-filter: blur(1px);
+}
+
+.instrument[data-cassette-state='clearing'] .smartGlass::after,
+.instrument[data-cassette-state='presented'] .smartGlass::after {
+  backdrop-filter: blur(1px);
+  -webkit-backdrop-filter: blur(1px);
+  opacity: 0.2;
+}
+
+.instrument[data-cassette-state='clearing'] .specimenPresentation,
+.instrument[data-cassette-state='presented'] .specimenPresentation {
+  opacity: 1;
+  transform: translateY(0);
+  transition:
+    opacity 190ms var(--hardware-ease) 70ms,
+    transform 190ms var(--hardware-ease) 70ms;
+}
+
+.instrument[data-cassette-state='clearing'] .identityRail,
+.instrument[data-cassette-state='presented'] .identityRail {
+  opacity: 1;
+  transform: translateY(0);
+  transition:
+    opacity 80ms linear 70ms,
+    transform 180ms var(--hardware-ease) 70ms;
+}
+
+.instrument[data-cassette-state='clearing'] .identityRail::before,
+.instrument[data-cassette-state='presented'] .identityRail::before {
+  opacity: 1;
+  transition: opacity 80ms linear 70ms;
+}
+
+.instrument[data-cassette-state='clearing'] .identityCode,
+.instrument[data-cassette-state='presented'] .identityCode {
+  opacity: 1;
+  transition: opacity 110ms linear 90ms;
+}
+
+.instrument[data-cassette-state='clearing'] .identityName,
+.instrument[data-cassette-state='presented'] .identityName {
+  opacity: 1;
+  transition: opacity 130ms linear 120ms;
+}
+
+.instrument[data-cassette-state='clearing'] .identityJob,
+.instrument[data-cassette-state='presented'] .identityJob {
+  opacity: 1;
+  transition: opacity 130ms linear 155ms;
+}
+
+.instrument[data-cassette-state='clearing'] .identityEditLabel,
+.instrument[data-cassette-state='presented'] .identityEditLabel {
+  opacity: 1;
+  transition: opacity 80ms linear 240ms;
+}
+
+.instrument[data-cassette-state='presented'] .editControl {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.instrument[data-cassette-state='closing'] .cassetteModule {
+  transform: translate3d(0, 0, 0) rotateX(0deg);
+  transition-duration: 220ms;
+  transition-delay: 220ms;
+}
+
+.instrument[data-cassette-state='closing'] .smartGlass {
+  transition-duration: 160ms;
+  transition-delay: 40ms;
+}
+
+.instrument[data-cassette-state='closing'] .smartGlass::after {
+  transition-duration: 180ms;
+  transition-delay: 35ms;
+}
+
+.instrument[data-cassette-state='closing'] .specimenPresentation {
+  transition:
+    opacity 150ms linear 55ms,
+    transform 160ms var(--hardware-ease) 55ms;
+}
+
+.instrument[data-cassette-state='closing'] .identityRail,
+.instrument[data-cassette-state='closing'] .identityRail::before,
+.instrument[data-cassette-state='closing'] .identityRail > * {
+  transition: opacity 80ms linear;
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+@media (max-width: 359px) {
+  .instrument {
+    --hardware-width: calc(100vw - 32px);
+  }
+
+  .identityRail {
+    gap: 4px;
+    padding-inline: 6px;
+  }
+
+  .identityName {
+    font-size: 5.5px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cassetteModule,
+  .smartGlass,
+  .smartGlass::after,
+  .specimenPresentation,
+  .identityRail,
+  .identityRail::before,
+  .identityRail > * {
+    transition-timing-function: linear !important;
+  }
+
+  .instrument[data-cassette-state='released'] .cassetteModule,
+  .instrument[data-cassette-state='clearing'] .cassetteModule,
+  .instrument[data-cassette-state='presented'] .cassetteModule {
+    transform: translate3d(0, 2px, 0) rotateX(0deg);
+    transition-duration: 160ms;
+  }
+
+  .instrument[data-cassette-state='closing'] .cassetteModule {
+    transform: translate3d(0, 0, 0) rotateX(0deg);
+    transition-duration: 140ms;
+    transition-delay: 140ms;
+  }
+
+  .instrument[data-cassette-state='clearing'] .specimenPresentation,
+  .instrument[data-cassette-state='presented'] .specimenPresentation {
+    transform: none;
+  }
+
+  .identityRail,
+  .identityRail > * {
+    transform: none !important;
+  }
+}
