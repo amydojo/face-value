@@ -8,6 +8,7 @@ import {
 } from './evidenceCassetteMachine';
 import styles from './EvidenceCassette.module.css';
 
+const DRAG_INTENT_PX = 5;
 const DRAG_ACTIVATION_PX = 28;
 
 function usePrefersReducedMotion() {
@@ -24,6 +25,12 @@ function usePrefersReducedMotion() {
   }, []);
 
   return reduced;
+}
+
+function toDisplayName(value: string) {
+  return value
+    .toLocaleLowerCase()
+    .replace(/\b\p{L}/gu, (character) => character.toLocaleUpperCase());
 }
 
 export interface EvidenceCassetteProps {
@@ -82,6 +89,10 @@ export function EvidenceCassette({
   const presented = state === 'presented';
   const busy = isCassetteBusy(state);
   const mechanicallySettled = isMechanicallySettled(state);
+  const productWords = productName.split(/\s+/);
+  const lineBreak = Math.ceil(productWords.length / 2);
+  const productLineOne = productWords.slice(0, lineBreak).join(' ');
+  const productLineTwo = productWords.slice(lineBreak).join(' ');
 
   const handlePointerDown = (event: ReactPointerEvent<HTMLButtonElement>) => {
     if (event.button !== 0 || busy) return;
@@ -99,10 +110,15 @@ export function EvidenceCassette({
 
     const deltaX = event.clientX - drag.startX;
     const deltaY = event.clientY - drag.startY;
-    if (Math.abs(deltaX) < DRAG_ACTIVATION_PX || Math.abs(deltaX) <= Math.abs(deltaY)) return;
+    const distanceX = Math.abs(deltaX);
+    const distanceY = Math.abs(deltaY);
+
+    if (distanceX >= DRAG_INTENT_PX || distanceY >= DRAG_INTENT_PX) {
+      suppressClickRef.current = true;
+    }
+    if (distanceX < DRAG_ACTIVATION_PX || distanceX <= distanceY) return;
 
     drag.activated = true;
-    suppressClickRef.current = true;
     event.currentTarget.setPointerCapture(event.pointerId);
     activate();
   };
@@ -123,7 +139,7 @@ export function EvidenceCassette({
   };
 
   const accessibleDescription = presented
-    ? 'Evidence cassette open. Barrier Water Serum specimen presented.'
+    ? `Evidence cassette open. ${toDisplayName(productName)} specimen presented.`
     : 'Evidence cassette sealed. Specimen protected behind smart glass.';
 
   return (
@@ -148,8 +164,8 @@ export function EvidenceCassette({
             <div className={styles.bottleCap} />
             <div className={styles.bottleBody}>
               <span>FACE VALUE</span>
-              <strong>BARRIER</strong>
-              <strong>WATER SERUM</strong>
+              <strong>{productLineOne}</strong>
+              {productLineTwo && <strong>{productLineTwo}</strong>}
               <small>30 ML</small>
             </div>
           </div>
