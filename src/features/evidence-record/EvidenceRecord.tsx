@@ -16,7 +16,7 @@ const placementFor = (placement: ProductPlacement, uppercase = false) => {
     paused: 'P1 · Paused',
     retry_alone: 'R3 · Retry alone',
     released: 'E7 · Released',
-    cooling: 'C2 · Cooling shelf',
+    cooling: 'C2 · Outside observation window',
   };
   const value = values[placement] ?? placement.replaceAll('_', ' ');
   return uppercase ? value.toUpperCase() : value;
@@ -27,7 +27,7 @@ export function RecordFolio({ record }: { record: EvidenceRecordData }) {
   return (
     <div className={styles.recordFolio} data-fv-part="record-folio" aria-label={`Evidence Record ${record.id}`}>
       <div data-fv-part="folio-tab">{FOLIO_CODE}</div>
-      <div data-fv-part="folio-specimen-field"><i aria-hidden /><span aria-hidden /></div>
+      <div data-fv-part="folio-specimen-field"><i aria-hidden="true" /><span aria-hidden="true" /></div>
       <strong>{record.product}</strong>
       <small>{observationWindow}</small>
       <p>{record.finding}<br />{record.nonFinding}</p>
@@ -38,7 +38,17 @@ export function RecordFolio({ record }: { record: EvidenceRecordData }) {
   );
 }
 
-export function EvidenceRecord({ record, onArchive, onCabinet, onBack }: { record: EvidenceRecordData; onArchive: () => void; onCabinet: () => void; onBack: () => void }) {
+export function EvidenceRecord({
+  record,
+  onArchive,
+  onIndex,
+  onBack,
+}: {
+  record: EvidenceRecordData;
+  onArchive: () => void;
+  onIndex: () => void;
+  onBack: () => void;
+}) {
   const rows = [
     ['OBSERVATION WINDOW', observationWindowFor(record)],
     ['COMPARISON', record.comparison === 'comparable' ? 'Comparable across two captures' : record.comparison.replaceAll('_', ' ')],
@@ -46,20 +56,36 @@ export function EvidenceRecord({ record, onArchive, onCabinet, onBack }: { recor
     ['USAGE CONSISTENCY', '10 of 12 planned uses logged'],
     ['IMPORTANT DISTURBANCE', record.disturbance === 'none' || record.disturbance === 'returned_to_cooling' ? 'None during comparable window' : record.disturbance.replaceAll('_', ' ')],
     ['CONFIDENCE', record.confidence],
-    ['FINAL PLACEMENT', placementFor(record.finalPlacement)],
+    ['FINAL DISPOSITION', placementFor(record.finalPlacement)],
   ];
 
   return (
     <>
       <ScreenHeader />
       <section className={styles.recordScreen} data-fv-screen="record" aria-labelledby="record-heading">
-        <div className={styles.recordHeading} data-fv-part="record-heading"><button type="button" className={styles.textButton} onClick={onBack}>←</button><h1 id="record-heading">EVIDENCE RECORD</h1><span>{FOLIO_CODE}</span></div>
-        <RecordFolio record={record} />
-        <dl className={styles.recordRows} data-fv-part="record-rows">{rows.map(([label, value]) => <div key={label}><dt>{label}</dt><dd className={label === 'CONFIDENCE' ? styles.eyebrow : undefined}>{value}</dd></div>)}</dl>
+        <div className={styles.recordHeading} data-fv-part="record-heading">
+          <button type="button" className={styles.textButton} onClick={onBack}>←</button>
+          <h1 id="record-heading">EVIDENCE RECORD</h1>
+          <span>{FOLIO_CODE}</span>
+        </div>
+        <div className={styles.recordOutputAssembly} aria-label="Independent evidence output">
+          <div aria-hidden="true" />
+          <RecordFolio record={record} />
+        </div>
+        <dl className={styles.recordRows} data-fv-part="record-rows">
+          {rows.map(([label, value]) => (
+            <div key={label}>
+              <dt>{label}</dt>
+              <dd className={label === 'CONFIDENCE' ? styles.eyebrow : undefined}>{value}</dd>
+            </div>
+          ))}
+        </dl>
         <p className={styles.claimBoundary} data-fv-part="record-claim-boundary">{record.claimBoundary}</p>
         <div className={styles.privacyBadge} data-fv-part="record-privacy">PRIVATE BY DEFAULT · FACE EXCLUDED</div>
-        <button type="button" className={styles.primaryAction} data-fv-action="view-full-record" aria-label="View archive" onClick={onArchive}>VIEW FULL RECORD <span aria-hidden>→</span></button>
-        <button type="button" className={styles.secondaryAction} onClick={onCabinet}>Return to cabinet</button>
+        <button type="button" className={styles.primaryAction} aria-label="View archive" onClick={onArchive}>
+          <span>VIEW EVIDENCE ARCHIVE</span><span aria-hidden="true">→</span>
+        </button>
+        <button type="button" className={styles.secondaryAction} onClick={onIndex}>Return to Evidence Index</button>
       </section>
     </>
   );
