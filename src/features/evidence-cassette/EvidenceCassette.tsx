@@ -102,6 +102,7 @@ export function EvidenceCassette({
       startY: event.clientY,
       activated: false,
     };
+    event.currentTarget.setPointerCapture(event.pointerId);
   };
 
   const handlePointerMove = (event: ReactPointerEvent<HTMLButtonElement>) => {
@@ -119,7 +120,6 @@ export function EvidenceCassette({
     if (distanceX < DRAG_ACTIVATION_PX || distanceX <= distanceY) return;
 
     drag.activated = true;
-    event.currentTarget.setPointerCapture(event.pointerId);
     activate();
   };
 
