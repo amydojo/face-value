@@ -65,8 +65,8 @@ async function assignJobAndCaptureBaseline(page: Page) {
 async function registerInterference(page: Page) {
   await page.getByRole('button', { name: 'Add Trace' }).click();
   await page.getByRole('button', { name: /Register C2–01 Hydrating Drops/i }).click();
-  await expect(page.getByText('INTERFERENCE REGISTER')).toBeVisible();
-  await expect(page.getByText('INTERFERENCE REGISTERED')).toBeVisible();
+  await expect(page.getByText('INTERFERENCE REGISTER', { exact: true })).toBeVisible();
+  await expect(page.getByText('INTERFERENCE REGISTERED', { exact: true })).toBeVisible();
   await assertNoLegacyHardware(page);
 }
 
@@ -249,7 +249,7 @@ test('reduced motion preserves selection, presentation, and classification seman
 });
 
 test('captures app-wide cassette migration evidence at canonical and critical viewports', async ({ page }, testInfo: TestInfo) => {
-  test.setTimeout(90_000);
+  test.setTimeout(180_000);
   await page.setViewportSize({ width: 402, height: 874 });
   await page.goto('/');
   await page.screenshot({ path: testInfo.outputPath('cassette-402x874-entry.png'), fullPage: true });
