@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import type { ProductPlacement, Specimen } from '../domain/model';
 import styles from '../styles/FaceValue.module.css';
 
@@ -98,14 +98,64 @@ const placementRows: Array<{ value: ProductPlacement; code: string; label: strin
   { value: 'released', code: 'E7', label: 'RELEASED', note: 'Close and archive' },
 ];
 
+type TransferPhase = 'choosing' | 'moving' | 'sealed';
+
+const placementLabel = (placement: ProductPlacement) => {
+  const row = placementRows.find((item) => item.value === placement);
+  return row ? `${row.code} · ${row.label.toLowerCase()}` : placement.replaceAll('_', ' ');
+};
+
 export function TransferTrack({ placement, sealed, onSelect, onSeal, onGenerate }: { placement: ProductPlacement; sealed: boolean; onSelect: (placement: ProductPlacement) => void; onSeal: () => void; onGenerate: () => void }) {
+  const [phase, setPhase] = useState<TransferPhase>(sealed ? 'sealed' : 'choosing');
+  const holdMotion = import.meta.env.DEV && new URLSearchParams(window.location.search).get('holdPlacementMotion') === '1';
+
+  useEffect(() => {
+    if (sealed) setPhase('sealed');
+  }, [sealed]);
+
+  useEffect(() => {
+    if (phase !== 'moving' || holdMotion) return;
+    const reduced = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
+    const timeout = window.setTimeout(onSeal, reduced ? 0 : 800);
+    return () => window.clearTimeout(timeout);
+  }, [holdMotion, onSeal, phase]);
+
+  const activate = () => {
+    if (phase === 'sealed' || sealed) {
+      onGenerate();
+      return;
+    }
+    if (phase === 'moving') {
+      if (holdMotion) onSeal();
+      return;
+    }
+    setPhase('moving');
+  };
+
+  const heading = phase === 'sealed' ? 'PLACEMENT SEALED' : 'MOVE TO SHELF';
+  const description = phase === 'sealed'
+    ? placementLabel(placement)
+    : phase === 'moving'
+      ? `Drawer moving to ${placementLabel(placement)}`
+      : 'Select one destination. Placement becomes the conclusion.';
+  const actionLabel = phase === 'sealed'
+    ? 'Generate Evidence Record'
+    : phase === 'moving'
+      ? holdMotion ? 'Complete placement transfer' : 'Placement transfer in progress'
+      : 'Seal placement';
+  const actionText = phase === 'sealed'
+    ? 'EVIDENCE FOLIO CREATED · FV–014'
+    : phase === 'moving'
+      ? `DRAWER MOVING TO ${placementLabel(placement).toUpperCase()}`
+      : 'DRAWER REMAINS REVERSIBLE UNTIL PLACED';
+
   return (
-    <section className={styles.transferTrack} data-fv-part="transfer-machine" data-fv-transfer-state={sealed ? 'sealed' : 'choose'} data-fv-selected-placement={placement} aria-labelledby="transfer-heading">
-      <h2 id="transfer-heading">{sealed ? 'PLACEMENT SEALED' : 'MOVE TO SHELF'}</h2>
-      <p>{sealed ? `${placement === 'established' ? 'S4 · Established routine' : placement.replaceAll('_', ' ')}` : 'Select one destination. Placement becomes the conclusion.'}</p>
+    <section className={styles.transferTrack} data-fv-part="transfer-machine" data-fv-transfer-state={phase} data-fv-motion-held={(phase === 'moving' && holdMotion) || undefined} data-fv-selected-placement={placement} aria-labelledby="transfer-heading" aria-live="polite">
+      <h2 id="transfer-heading">{heading}</h2>
+      <p>{description}</p>
       <div data-fv-part="transfer-vertical-track" aria-hidden />
       <div data-fv-part="transfer-drawer-object" aria-hidden><i /></div>
-      <fieldset aria-label="Choose final shelf placement" disabled={sealed}>
+      <fieldset aria-label="Choose final shelf placement" disabled={phase !== 'choosing'}>
         <legend>Choose final shelf placement</legend>
         {placementRows.map((row) => (
           <label key={row.value} data-fv-placement-row={row.value} data-selected={placement === row.value || undefined}>
@@ -117,8 +167,8 @@ export function TransferTrack({ placement, sealed, onSelect, onSeal, onGenerate 
           </label>
         ))}
       </fieldset>
-      <button type="button" data-fv-action={sealed ? 'generate-record' : 'seal-placement'} aria-label={sealed ? 'Generate Evidence Record' : 'Seal placement'} onClick={sealed ? onGenerate : onSeal} disabled={!sealed && !placement}>
-        {sealed ? 'EVIDENCE FOLIO CREATED · FV–014' : 'DRAWER REMAINS REVERSIBLE UNTIL PLACED'}
+      <button type="button" data-fv-action={phase === 'sealed' ? 'generate-record' : phase === 'moving' ? 'complete-transfer' : 'seal-placement'} aria-label={actionLabel} onClick={activate} disabled={phase === 'moving' && !holdMotion}>
+        {actionText}
       </button>
     </section>
   );

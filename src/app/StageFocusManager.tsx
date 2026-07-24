@@ -1,6 +1,15 @@
 import { useEffect } from 'react';
 import { useFaceValue } from './faceValueContext';
 
+const isUserOwnedFocus = (element: Element | null): element is HTMLElement =>
+  element instanceof HTMLElement &&
+  element.isConnected &&
+  element !== document.body &&
+  element !== document.documentElement &&
+  element.matches(
+    'button, input, select, textarea, a[href], [contenteditable="true"], [tabindex]:not([tabindex="-1"])',
+  );
+
 export function StageFocusManager() {
   const { state } = useFaceValue();
 
@@ -10,7 +19,7 @@ export function StageFocusManager() {
         document.querySelector<HTMLElement>('h1') ??
         document.querySelector<HTMLElement>('[data-stage-focus]');
 
-      if (target) {
+      if (target && !isUserOwnedFocus(document.activeElement)) {
         if (!target.hasAttribute('tabindex') && target.tagName !== 'BUTTON') {
           target.setAttribute('tabindex', '-1');
         }

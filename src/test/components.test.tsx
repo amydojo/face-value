@@ -1,11 +1,11 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { expect, it, vi } from 'vitest';
 import { FaceValueProvider } from '../app/FaceValueProvider';
 import { StageFocusManager } from '../app/StageFocusManager';
 import { DrawerCarousel } from '../components/DrawerCarousel';
-import { ObservationStatus } from '../components/hardware';
+import { ObservationStatus, TransferTrack } from '../components/hardware';
 import { FaceValueApplication } from '../features/FaceValueApplication';
 import { CameraViewport } from '../features/capture-contract/CameraViewport';
 import { PRODUCTS } from '../fixtures/products';
@@ -85,6 +85,38 @@ it('provides visible text equivalents for comparison and confidence states', () 
   expect(screen.getByText('active disturbed')).toBeVisible();
   expect(screen.getByText('partially comparable')).toBeVisible();
   expect(screen.getByText('possible')).toBeVisible();
+});
+
+it('keeps placement in an explicit moving phase until the 620ms transfer and 180ms settle complete', () => {
+  vi.useFakeTimers();
+  const onSeal = vi.fn();
+  const props = {
+    placement: 'established' as const,
+    sealed: false,
+    onSelect: vi.fn(),
+    onSeal,
+    onGenerate: vi.fn(),
+  };
+  const { rerender } = render(<TransferTrack {...props} />);
+
+  fireEvent.click(screen.getByRole('button', { name: 'Seal placement' }));
+  expect(screen.getByRole('region', { name: /MOVE TO SHELF/i })).toHaveAttribute(
+    'data-fv-transfer-state',
+    'moving',
+  );
+  expect(screen.getByRole('button', { name: 'Placement transfer in progress' })).toBeDisabled();
+
+  act(() => vi.advanceTimersByTime(799));
+  expect(onSeal).not.toHaveBeenCalled();
+  act(() => vi.advanceTimersByTime(1));
+  expect(onSeal).toHaveBeenCalledOnce();
+
+  rerender(<TransferTrack {...props} sealed />);
+  expect(screen.getByRole('region', { name: /PLACEMENT SEALED/i })).toHaveAttribute(
+    'data-fv-transfer-state',
+    'sealed',
+  );
+  vi.useRealTimers();
 });
 
 it('moves focus to the semantic stage heading without scrolling the cabinet', async () => {

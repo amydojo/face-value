@@ -12,6 +12,7 @@ import './styles/parity-fixes.css';
 import './styles/placement-parity.css';
 import './styles/drawer-open-parity.css';
 import './styles/final-parity-polish.css';
+import './styles/motion-proof.css';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

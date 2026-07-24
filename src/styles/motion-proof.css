@@ -1,0 +1,95 @@
+:root {
+  --fv-motion-carousel: 280ms;
+  --fv-motion-end-resistance: 140ms;
+  --fv-motion-settle: 120ms;
+  --fv-motion-latch: 90ms;
+  --fv-motion-drawer: 520ms;
+  --fv-motion-trace: 180ms;
+  --fv-motion-disturbance: 320ms;
+  --fv-motion-stable-return: 360ms;
+  --fv-motion-progress: 280ms;
+  --fv-motion-transfer: 620ms;
+  --fv-motion-transfer-settle: 180ms;
+  --fv-motion-folio: 220ms;
+}
+
+[data-fv-part="carousel-hardware"] {
+  transition: transform var(--fv-motion-carousel) var(--fv-ease-damped);
+}
+
+[data-fv-part="latch-light"] {
+  transition: opacity var(--fv-motion-latch) ease-out, box-shadow var(--fv-motion-latch) ease-out;
+}
+
+[data-fv-drawer-state] {
+  transition: transform var(--fv-motion-drawer) var(--fv-ease-damped), opacity var(--fv-motion-progress) ease-out;
+}
+
+[data-fv-part="intruding-drawer"],
+[data-fv-part="split-light-left"],
+[data-fv-part="split-light-right"] {
+  transition: transform var(--fv-motion-disturbance) var(--fv-ease-damped), opacity var(--fv-motion-disturbance) ease-out, background-color var(--fv-motion-disturbance) ease-out;
+}
+
+[data-fv-part="focus-curtain-left"],
+[data-fv-part="focus-curtain-right"] {
+  transition: opacity var(--fv-motion-progress) ease-out, width var(--fv-motion-progress) var(--fv-ease-damped);
+}
+
+[data-fv-part="transfer-drawer-object"] {
+  transition: top var(--fv-motion-transfer) var(--fv-ease-damped), left var(--fv-motion-transfer-settle) var(--fv-ease-damped);
+}
+
+[data-fv-screen="placement"]:has([data-fv-transfer-state="moving"]) [data-fv-part="placement-context"] p:last-child {
+  font-size: 0;
+}
+
+[data-fv-screen="placement"]:has([data-fv-transfer-state="moving"]) [data-fv-part="placement-context"] p:last-child::after {
+  content: "MOVING";
+  color: #ff6e14;
+  font: 500 10px/1 var(--fv-font-mono);
+}
+
+[data-fv-transfer-state="moving"] [data-fv-part="transfer-drawer-object"] {
+  left: 22px;
+  top: 110px;
+}
+
+[data-fv-transfer-state="moving"] label[data-selected] [data-fv-part="placement-slot"] {
+  background: #ff6e14;
+  box-shadow: 0 0 6px rgba(255, 110, 20, 0.28);
+}
+
+[data-fv-transfer-state="moving"] > [data-fv-action="complete-transfer"] {
+  background: #1c1b18;
+  color: #8d8981;
+}
+
+[data-fv-transfer-state="moving"][data-fv-motion-held="true"] [data-fv-part="transfer-drawer-object"] {
+  transition: none;
+}
+
+[data-fv-part="record-folio"] {
+  animation: fv-folio-emerge var(--fv-motion-folio) var(--fv-ease-damped) both;
+}
+
+@keyframes fv-folio-emerge {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-fv-part="carousel-hardware"],
+  [data-fv-part="latch-light"],
+  [data-fv-drawer-state],
+  [data-fv-part="intruding-drawer"],
+  [data-fv-part="split-light-left"],
+  [data-fv-part="split-light-right"],
+  [data-fv-part="focus-curtain-left"],
+  [data-fv-part="focus-curtain-right"],
+  [data-fv-part="transfer-drawer-object"],
+  [data-fv-part="record-folio"] {
+    animation-duration: 0ms !important;
+    transition-duration: 0ms !important;
+  }
+}
