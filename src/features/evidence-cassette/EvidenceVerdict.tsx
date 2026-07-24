@@ -60,19 +60,21 @@ export function EvidenceVerdict({
           <span>ONE PRODUCT · ONE JOB</span>
         </div>
 
-        <p className={styles.kicker}>THE PRODUCT HAS AN ANSWER.</p>
-        <h1 id="verdict-heading">{copy.title}</h1>
-        <p className={styles.support}>{copy.support}</p>
+        <div className={styles.copyBlock}>
+          <p className={styles.kicker}>THE PRODUCT HAS AN ANSWER.</p>
+          <h1 id="verdict-heading">{copy.title}</h1>
+          <p className={styles.support}>{copy.support}</p>
 
-        {lowerConfidence && (
-          <p className={styles.confidenceNotice} role="status">
-            LOWER CONFIDENCE RETAINED
-          </p>
-        )}
+          {lowerConfidence && (
+            <p className={styles.confidenceNotice} role="status">
+              LOWER CONFIDENCE RETAINED
+            </p>
+          )}
+        </div>
 
         <div className={styles.hardwareComposition}>
           <EvidenceCassette
-            accessionCode={specimen.accession.replace('–', '–')}
+            accessionCode={specimen.accession}
             productName={specimen.product}
             job={resolvedJob}
             verdict={copy.title.toUpperCase()}
