@@ -28,12 +28,12 @@ beforeEach(() => {
 it('recovers from pointer cancellation and accepts the next deliberate tap', () => {
   const activate = vi.fn();
   render(
-    <CassetteHandle mode="active" accession="A1–03" onActivate={activate}>
+    <CassetteHandle mode="active" accession="A1–03" product="Fermented Brightening Essence" onActivate={activate}>
       HANDLE
     </CassetteHandle>,
   );
 
-  const handle = screen.getByRole('button', { name: 'Open active observation for A1–03' });
+  const handle = screen.getByRole('button', { name: 'Open trial summary for Fermented Brightening Essence' });
   pointerEvent('pointerDown', handle, { pointerId: 1, clientX: 10, clientY: 10 });
   pointerEvent('pointerMove', handle, { pointerId: 1, clientX: 19, clientY: 18 });
   pointerEvent('pointerCancel', handle, { pointerId: 1, clientX: 19, clientY: 18 });
@@ -45,15 +45,31 @@ it('recovers from pointer cancellation and accepts the next deliberate tap', () 
 it('suppresses the synthetic click after a completed drag activation', () => {
   const activate = vi.fn();
   render(
-    <CassetteHandle mode="index" accession="A1–03" onActivate={activate}>
+    <CassetteHandle mode="index" accession="A1–03" product="Fermented Brightening Essence" onActivate={activate}>
       HANDLE
     </CassetteHandle>,
   );
 
-  const handle = screen.getByRole('button', { name: 'Open evidence cassette A1–03' });
+  const handle = screen.getByRole('button', { name: 'View trial for Fermented Brightening Essence' });
   pointerEvent('pointerDown', handle, { pointerId: 2, clientX: 10, clientY: 10 });
   pointerEvent('pointerMove', handle, { pointerId: 2, clientX: 48, clientY: 11 });
   pointerEvent('pointerUp', handle, { pointerId: 2, clientX: 48, clientY: 11 });
+  fireEvent.click(handle);
+
+  expect(activate).toHaveBeenCalledOnce();
+});
+
+it('recovers from lost pointer capture', () => {
+  const activate = vi.fn();
+  render(
+    <CassetteHandle mode="index" accession="A1–03" product="Fermented Brightening Essence" onActivate={activate}>
+      HANDLE
+    </CassetteHandle>,
+  );
+
+  const handle = screen.getByRole('button', { name: 'View trial for Fermented Brightening Essence' });
+  pointerEvent('pointerDown', handle, { pointerId: 3, clientX: 10, clientY: 10 });
+  fireEvent.lostPointerCapture(handle, { pointerId: 3 });
   fireEvent.click(handle);
 
   expect(activate).toHaveBeenCalledOnce();
