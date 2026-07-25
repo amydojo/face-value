@@ -103,7 +103,7 @@ export function EvidenceCassette({
       aria-label="Product trial result"
     >
       <div className={styles.housing} aria-hidden="true">
-        <div className={styles.chamber}>
+        <div id="trial-result-content" className={styles.chamber}>
           <div className={styles.rearPanel} />
           <div className={styles.identityRail} data-fv-part="specimen-identity">
             <span className={styles.identityCode}>{accessionCode}</span>
@@ -143,6 +143,7 @@ export function EvidenceCassette({
             expanded={presented}
             busy={busy}
             describedBy="trial-result-description"
+            controls="trial-result-content"
             className={styles.handleTarget}
             onActivate={activate}
             onEscape={() => {
@@ -168,12 +169,7 @@ export function EvidenceCassette({
         EDIT
       </button>
 
-      <div className={styles.outputSlot} aria-hidden="true">
-        <div className={styles.outputRecord}>
-          <span>SAVED RESULT</span>
-          <strong>{accessionCode}</strong>
-        </div>
-      </div>
+      <div className={styles.outputSlot} aria-hidden="true" />
 
       <p id="trial-result-description" className={styles.srOnly}>
         {accessibleDescription}
