@@ -27,7 +27,15 @@ jobs:
       - name: Unit and component tests
         run: |
           npm run test -- --reporter=json --outputFile=vitest-results.json || true
-          node --input-type=module -e "import fs from 'node:fs'; const report = JSON.parse(fs.readFileSync('vitest-results.json', 'utf8')); if (!report.success) process.exit(1); console.log(report.numPassedTests + '/' + report.numTotalTests + ' tests passed');"
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const report = JSON.parse(fs.readFileSync('vitest-results.json', 'utf8'));
+          if (!report.success || report.numFailedTests !== 0 || report.numFailedTestSuites !== 0) {
+            console.error(`Vitest failed: ${report.numFailedTests} test(s), ${report.numFailedTestSuites} suite(s).`);
+            process.exit(1);
+          }
+          console.log(`Vitest passed: ${report.numPassedTests}/${report.numTotalTests} tests.`);
+          NODE
       - name: Upload Vitest report
         if: always()
         uses: actions/upload-artifact@v4
