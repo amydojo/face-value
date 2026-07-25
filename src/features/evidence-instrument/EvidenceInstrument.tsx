@@ -84,7 +84,7 @@ export function EvidenceInstrument({
   const accession = specimen?.accession ?? 'A1–00';
   const resolvedJob = job ?? (specimen ? 'JOB UNASSIGNED' : 'READY FOR PRODUCT');
   const resolvedState = state ?? (mode ? modeToHardwareState[mode] : 'sealed');
-  const resolvedStatus = status ?? (mode ? cassetteModeStatus[mode] : statusCopy[resolvedState]);
+  const resolvedStatus = status ?? (state ? statusCopy[resolvedState] : mode ? cassetteModeStatus[mode] : statusCopy[resolvedState]);
   const interactive = Boolean(mode && (onActivate || summary));
   const activate = () => {
     if (onActivate) onActivate();
