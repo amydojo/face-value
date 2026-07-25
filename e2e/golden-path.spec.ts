@@ -91,7 +91,11 @@ test('complete mobile Human Butter journey saves exactly one durable result', as
   const scrollBeforeHandle = await page.evaluate(() => window.scrollY);
   await dragHandle(page, activeHandle);
   expect(await page.evaluate(() => window.scrollY)).toBe(scrollBeforeHandle);
-  await expect(page.locator('[data-evidence-instrument] [data-fv-part="trial-summary"]')).toBeVisible();
+  const activeFaceplate = page.locator('[data-evidence-instrument] [data-cassette-part="registered-product-faceplate"]');
+  await expect(activeFaceplate).toBeVisible();
+  await expect(activeFaceplate).toContainText('SAMPLE REGISTERED');
+  await expect(activeFaceplate).toContainText('FERMENTED BRIGHTENING ESSENCE');
+  await expect(activeFaceplate).toContainText('JOB · Post-acne pigmentation');
 
   const maximumScroll = await page.evaluate(() => Math.max(0, document.documentElement.scrollHeight - window.innerHeight));
   if (maximumScroll > 0) {
