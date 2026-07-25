@@ -82,6 +82,7 @@ it('SAVE_RESULT classifies, preserves context, and generates exactly one record'
     type: 'SAVE_RESULT',
     now: '2026-07-24T18:31:00.000Z',
   });
+  const opened = faceValueReducer(first, { type: 'OPEN_SAVED_RESULT' });
 
   expect(first.placementSealed).toBe(true);
   expect(first.observation).toBe('complete');
@@ -91,10 +92,17 @@ it('SAVE_RESULT classifies, preserves context, and generates exactly one record'
   expect(first.record?.followupCapture?.id).toBe('followup');
   expect(second.archive).toHaveLength(1);
   expect(second.record?.id).toBe(first.record?.id);
-  expect(faceValueReducer(first, { type: 'OPEN_SAVED_RESULT' }).stage).toBe('record');
+  expect(opened.stage).toBe('record');
+  expect(opened.observation).toBe('none');
+  expect(opened.assignedJob).toBeNull();
+  expect(opened.baselineCapture).toBeNull();
+  expect(opened.followupCapture).toBeNull();
+  expect(opened.analysis).toBeNull();
+  expect(opened.record?.id).toBe(first.record?.id);
+  expect(opened.archive).toHaveLength(1);
 });
 
-it('back and archive reopening preserve the same saved result', () => {
+it('back, completed-trial retirement, and archive reopening preserve the same saved result', () => {
   const ready = {
     ...initialState,
     stage: 'placement' as const,
@@ -106,9 +114,13 @@ it('back and archive reopening preserve the same saved result', () => {
   };
   const saved = faceValueReducer(ready, { type: 'SAVE_RESULT', now: '2026-07-24T19:00:00.000Z' });
   const opened = faceValueReducer(saved, { type: 'OPEN_SAVED_RESULT' });
+  const cabinet = faceValueReducer(opened, { type: 'BACK' });
   const archive = faceValueReducer(opened, { type: 'VIEW_ARCHIVE' });
   const reopened = faceValueReducer(archive, { type: 'VIEW_RECORD', record: archive.archive[0] });
 
+  expect(cabinet.stage).toBe('cabinet');
+  expect(cabinet.observation).toBe('none');
+  expect(cabinet.archive).toHaveLength(1);
   expect(reopened.record?.id).toBe(saved.record?.id);
   expect(reopened.archive).toHaveLength(1);
   expect(faceValueReducer(reopened, { type: 'BACK' }).stage).toBe('archive');
