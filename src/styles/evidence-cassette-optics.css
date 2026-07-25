@@ -4,6 +4,11 @@
   -webkit-font-smoothing: antialiased;
 }
 
+[data-resting-identity='true'] [data-fv-part='smart-glass'] {
+  backdrop-filter: blur(1px) !important;
+  -webkit-backdrop-filter: blur(1px) !important;
+}
+
 [data-glass-cleared='true'] [data-fv-part='smart-glass'],
 [data-glass-cleared='true'] [data-fv-part='smart-glass']::after {
   backdrop-filter: none !important;
