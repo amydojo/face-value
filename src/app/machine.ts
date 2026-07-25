@@ -200,6 +200,13 @@ export function faceValueReducer(state: FaceValueState, event: FaceValueEvent): 
     }
 
     case 'OPEN_DRAWER':
+      if (state.stage === 'cabinet' && state.assignedJob && ['active_stable', 'active_disturbed', 'waiting'].includes(state.observation)) {
+        return {
+          ...state,
+          stage: 'observation',
+          announcement: `Trial in progress for ${PRODUCTS[state.selectedDrawerIndex].product}.`,
+        };
+      }
       if (state.stage !== 'browse') return state;
       return {
         ...state,
@@ -460,8 +467,6 @@ export function faceValueReducer(state: FaceValueState, event: FaceValueEvent): 
         announcement: `Saved result ${state.record.id} opened.`,
       };
 
-    // Compatibility events remain explicit for older persisted sessions and
-    // reducer-level recovery tests. Production UI uses SAVE_RESULT instead.
     case 'SEAL_PLACEMENT':
       if (state.stage !== 'placement' || !state.analysis || state.placementSealed) return state;
       return {
