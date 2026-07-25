@@ -1,5 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import type { ProductPlacement } from '../domain/model';
+import headerStyles from './ScreenHeader.module.css';
 import styles from '../styles/FaceValue.module.css';
 
 export function EvidenceShell({
@@ -25,11 +26,10 @@ export function EvidenceShell({
 export function ScreenHeader({ code = 'FV–014', dark = false }: { code?: string; dark?: boolean }) {
   return (
     <header
-      className={`${styles.header} ${dark ? styles.headerDark : ''}`}
+      className={`${headerStyles.header} ${dark ? headerStyles.dark : ''}`}
       data-fv-part="screen-header"
-      style={{ minHeight: 50 }}
     >
-      <div data-fv-part="brand-bar" style={{ minHeight: 50 }}>
+      <div className={headerStyles.brandBar} data-fv-part="brand-bar">
         <strong>FACE VALUE</strong><span>{code}</span>
       </div>
     </header>
