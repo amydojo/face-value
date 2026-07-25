@@ -1,13 +1,30 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
-import { expect, it, vi } from 'vitest';
+import { beforeEach, expect, it, vi } from 'vitest';
 import { FaceValueProvider } from '../app/FaceValueProvider';
 import { StageFocusManager } from '../app/StageFocusManager';
 import { FaceValueApplication } from '../features/FaceValueApplication';
 import { CameraViewport } from '../features/capture-contract/CameraViewport';
 import { EvidenceCassetteSelector, EvidenceInstrument } from '../features/evidence-instrument/EvidenceInstrument';
 import { PRODUCTS } from '../fixtures/products';
+
+beforeEach(() => {
+  Object.defineProperty(window, 'matchMedia', {
+    configurable: true,
+    writable: true,
+    value: vi.fn().mockImplementation((query: string) => ({
+      matches: false,
+      media: query,
+      onchange: null,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    })),
+  });
+});
 
 it('supports finite keyboard-accessible trial controls with human names', async () => {
   const user = userEvent.setup();
@@ -43,7 +60,7 @@ it('reserves activation for the explicit trial handle', async () => {
     />,
   );
 
-  const handle = screen.getByRole('button', { name: 'View trial for Fermented Brightening Essence' });
+  const handle = screen.getByRole('button', { name: 'View trial for FERMENTED BRIGHTENING ESSENCE' });
   expect(handle).toHaveAttribute('data-cassette-handle');
   expect(container.querySelectorAll('[data-cassette-handle]')).toHaveLength(1);
   await user.click(handle);
@@ -55,11 +72,11 @@ it('exposes trial, ready, and saved-result states without relying on color', () 
   const { rerender } = render(<EvidenceInstrument specimen={PRODUCTS[0]} mode="index" onActivate={action} />);
   expect(screen.getByLabelText(/Product trial A1–03.*TRIAL SELECTED/i)).toBeVisible();
   rerender(<EvidenceInstrument specimen={PRODUCTS[0]} mode="active" onActivate={action} />);
-  expect(screen.getByLabelText(/TRIAL IN PROGRESS/i)).toBeVisible();
+  expect(screen.getByLabelText(/Product trial A1–03.*TRIAL IN PROGRESS/i)).toBeVisible();
   rerender(<EvidenceInstrument specimen={PRODUCTS[0]} mode="review-due" onActivate={action} />);
-  expect(screen.getByLabelText(/READY TO COMPARE/i)).toBeVisible();
+  expect(screen.getByLabelText(/Product trial A1–03.*READY TO COMPARE/i)).toBeVisible();
   rerender(<EvidenceInstrument specimen={PRODUCTS[0]} mode="classified" outputReady onActivate={action} />);
-  expect(screen.getByLabelText(/SAVED RESULT/i)).toBeVisible();
+  expect(screen.getByLabelText(/Product trial A1–03.*SAVED RESULT/i)).toBeVisible();
   expect(screen.getByText('SAVED RESULT READY')).toBeInTheDocument();
 });
 
@@ -78,8 +95,8 @@ it('explains two active products once in human language', () => {
       onActivate={vi.fn()}
     />,
   );
-  expect(screen.getByLabelText(/TWO PRODUCTS ACTIVE/i)).toBeVisible();
-  expect(screen.getByText('TWO PRODUCTS ACTIVE')).toBeInTheDocument();
+  expect(screen.getByLabelText(/Product trial A1–03.*TWO PRODUCTS ACTIVE/i)).toBeVisible();
+  expect(screen.getAllByText('TWO PRODUCTS ACTIVE')).toHaveLength(2);
   expect(screen.queryByText(/INTERFERENCE REGISTERED/i)).not.toBeInTheDocument();
 });
 
