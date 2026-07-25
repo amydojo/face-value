@@ -102,6 +102,8 @@ export function EvidenceInstrument({
       data-evidence-instrument
       data-hardware-state={resolvedState}
       data-cassette-mode={mode}
+      data-handle-expanded={resolvedExpanded || undefined}
+      data-output-ready={outputReady || undefined}
       data-selected={selected || undefined}
       data-optics-layered="true"
       data-resting-identity={specimen ? 'true' : 'false'}
@@ -186,14 +188,20 @@ export function EvidenceInstrument({
           hidden={!resolvedExpanded}
           data-cassette-summary
           data-fv-part="trial-summary"
-          style={{ marginTop: 10 }}
+          className={styles.machineSummary}
         >
           {summaryContent}
         </div>
       )}
 
-      <div className={styles.outputSlot} data-output-ready={outputReady || undefined} aria-hidden="true">
-        {outputReady && <span>SAVED RESULT READY</span>}
+      <div className={styles.outputSlot} aria-hidden="true">
+        {outputReady && (
+          <span className={styles.outputRecord}>
+            <b>RESULT</b>
+            <small>{accession}</small>
+            <em>SAVED RESULT READY</em>
+          </span>
+        )}
       </div>
       {children}
     </section>
