@@ -12,9 +12,10 @@ import type {
 import { PRODUCTS } from '../fixtures/products';
 
 /*
- * The original MVP event keys and a few domain fields remain internal for storage
- * compatibility. They are not exposed through copy, accessibility, analytics, or
- * canonical documentation. New presentation code uses cassette semantics only.
+ * Original MVP event keys and several evidence-domain fields remain internal for
+ * persisted-state compatibility. Presentation code translates them into the
+ * Human Butter language contract: trial, note, scan, result, next step, and
+ * saved result.
  */
 export type FaceValueEvent =
   | { type: 'OPEN_CABINET' }
@@ -43,6 +44,8 @@ export type FaceValueEvent =
   | { type: 'SAVE_CONTEXT_ONLY' }
   | { type: 'ENTER_PROGRESS' }
   | { type: 'SELECT_PLACEMENT'; placement: ProductPlacement }
+  | { type: 'SAVE_RESULT'; now: string }
+  | { type: 'OPEN_SAVED_RESULT' }
   | { type: 'SEAL_PLACEMENT' }
   | { type: 'GENERATE_RECORD'; now: string }
   | { type: 'VIEW_ARCHIVE' }
@@ -75,7 +78,7 @@ export const initialState: FaceValueState = {
   record: null,
   archive: [],
   analysisScenario: 'likely_change',
-  announcement: 'Evidence instrument in standby.',
+  announcement: 'Face Value is ready.',
   returnStage: null,
 };
 
@@ -99,13 +102,13 @@ const enforceOverlapBoundary = (state: FaceValueState, result: AnalysisResult): 
     confidence: 'possible',
     relevantContext: result.relevantContext.includes('overlap')
       ? result.relevantContext
-      : `${result.relevantContext} A second active product overlapped the observation window.`,
+      : `${result.relevantContext} A second active product overlapped the trial window.`,
     recommendedAction: 'continue_with_overlap',
   };
 };
 
 export function createEvidenceRecord(state: FaceValueState, now: string): EvidenceRecordData {
-  if (!state.analysis || !state.assignedJob) throw new Error('Evidence Record requires analysis and job');
+  if (!state.analysis || !state.assignedJob) throw new Error('Saved result requires analysis and job');
   const specimen = PRODUCTS.find((item) => item.id === state.selectedSpecimenId) ?? PRODUCTS[0];
   return {
     id: `ER-${now.replace(/\D/g, '').slice(0, 12)}`,
@@ -124,11 +127,35 @@ export function createEvidenceRecord(state: FaceValueState, now: string): Eviden
     claimBoundary: state.analysis.claimBoundary,
     createdAt: now,
     includesFaceImage: false,
+    note: state.trace?.detail ?? null,
+    baselineCapture: state.baselineCapture,
+    followupCapture: state.followupCapture,
   };
 }
 
 function returnToStage(state: FaceValueState, stage: AppStage, announcement: string): FaceValueState {
   return { ...state, stage, returnStage: null, camera: 'idle', announcement };
+}
+
+function retireCompletedTrial(state: FaceValueState): FaceValueState {
+  return {
+    ...state,
+    observation: 'none',
+    camera: 'idle',
+    comparison: 'not_available',
+    confidence: 'insufficient',
+    processing: 'idle',
+    disturbance: 'none',
+    placement: 'observation',
+    placementSealed: false,
+    assignedJob: null,
+    captureKind: 'baseline',
+    contractOutcome: null,
+    baselineCapture: null,
+    followupCapture: null,
+    trace: null,
+    analysis: null,
+  };
 }
 
 export function faceValueReducer(state: FaceValueState, event: FaceValueEvent): FaceValueState {
@@ -139,7 +166,7 @@ export function faceValueReducer(state: FaceValueState, event: FaceValueEvent): 
         ...state,
         stage: 'cabinet',
         cabinet: 'open',
-        announcement: `Evidence Index open. Cassette ${state.selectedDrawerIndex + 1} of ${PRODUCTS.length} active.`,
+        announcement: `Your trials are open. Trial ${state.selectedDrawerIndex + 1} of ${PRODUCTS.length} is selected.`,
       };
 
     case 'BROWSE_DRAWERS':
@@ -147,7 +174,7 @@ export function faceValueReducer(state: FaceValueState, event: FaceValueEvent): 
       return {
         ...state,
         stage: 'browse',
-        announcement: `Cassette Index open. Cassette ${state.selectedDrawerIndex + 1} of ${PRODUCTS.length} selected.`,
+        announcement: `Trial ${state.selectedDrawerIndex + 1} of ${PRODUCTS.length} selected.`,
       };
 
     case 'OPEN_REVIEW_DUE':
@@ -156,7 +183,7 @@ export function faceValueReducer(state: FaceValueState, event: FaceValueEvent): 
         return {
           ...state,
           stage: 'progress',
-          announcement: `Verdict review restored. ${state.analysis.finding} Confidence: ${state.confidence}.`,
+          announcement: `Result restored. ${state.analysis.finding} Confidence: ${state.confidence}.`,
         };
       }
       if (state.followupCapture) {
@@ -164,7 +191,7 @@ export function faceValueReducer(state: FaceValueState, event: FaceValueEvent): 
           ...state,
           stage: 'analysis',
           processing: 'idle',
-          announcement: 'Follow-up restored. Optical comparison is ready.',
+          announcement: 'Follow-up scan restored. Comparison will begin automatically.',
         };
       }
       return state;
@@ -177,7 +204,7 @@ export function faceValueReducer(state: FaceValueState, event: FaceValueEvent): 
         selectedDrawerIndex: index,
         selectedSpecimenId: PRODUCTS[index].id,
         assignedJob: null,
-        announcement: `Cassette ${index + 1} of ${PRODUCTS.length} selected.`,
+        announcement: `Trial ${index + 1} of ${PRODUCTS.length} selected.`,
       };
     }
 
@@ -189,16 +216,23 @@ export function faceValueReducer(state: FaceValueState, event: FaceValueEvent): 
         selectedDrawerIndex: index,
         selectedSpecimenId: PRODUCTS[index].id,
         assignedJob: null,
-        announcement: `Cassette ${index + 1} of ${PRODUCTS.length} selected.`,
+        announcement: `Trial ${index + 1} of ${PRODUCTS.length} selected.`,
       };
     }
 
     case 'OPEN_DRAWER':
+      if (state.stage === 'cabinet' && state.assignedJob && ['active_stable', 'active_disturbed', 'waiting'].includes(state.observation)) {
+        return {
+          ...state,
+          stage: 'observation',
+          announcement: `Trial in progress for ${PRODUCTS[state.selectedDrawerIndex].product}.`,
+        };
+      }
       if (state.stage !== 'browse') return state;
       return {
         ...state,
         stage: 'specimen',
-        announcement: `Evidence cassette ${PRODUCTS[state.selectedDrawerIndex].accession} selected for inspection.`,
+        announcement: `Viewing trial for ${PRODUCTS[state.selectedDrawerIndex].product}.`,
       };
 
     case 'ASSIGN_JOB':
@@ -208,7 +242,7 @@ export function faceValueReducer(state: FaceValueState, event: FaceValueEvent): 
         stage: 'job',
         assignedJob: event.job,
         observation: 'baseline_pending',
-        announcement: `Evidence role assigned: ${event.job}.`,
+        announcement: `Trial job assigned: ${event.job}.`,
       };
 
     case 'BEGIN_CAPTURE':
@@ -221,7 +255,7 @@ export function faceValueReducer(state: FaceValueState, event: FaceValueEvent): 
         contractOutcome: null,
         camera: 'idle',
         returnStage: state.stage,
-        announcement: `${event.kind === 'baseline' ? 'Baseline' : 'Follow-up'} Capture Contract opened.`,
+        announcement: `${event.kind === 'baseline' ? 'Baseline' : 'Follow-up'} scan conditions opened.`,
       };
 
     case 'CONFIRM_CONTRACT':
@@ -232,7 +266,7 @@ export function faceValueReducer(state: FaceValueState, event: FaceValueEvent): 
           contractOutcome: event.outcome,
           comparison: 'not_comparable',
           stage: 'comparison_refused',
-          announcement: 'Comparison refused. Conditions are not suitable for progress comparison.',
+          announcement: 'These scans are not fair to compare. Nothing was concluded from them.',
         };
       }
       return {
@@ -241,7 +275,7 @@ export function faceValueReducer(state: FaceValueState, event: FaceValueEvent): 
         stage: 'camera',
         camera: 'idle',
         comparison: event.outcome === 'partially_comparable' ? 'partially_comparable' : state.comparison,
-        announcement: 'Observation capture ready. Request camera access or choose a file.',
+        announcement: 'Scan ready. Request camera access or choose a file.',
       };
 
     case 'CAMERA_REQUESTED':
@@ -277,7 +311,7 @@ export function faceValueReducer(state: FaceValueState, event: FaceValueEvent): 
           confidence: 'insufficient',
           returnStage: null,
           processing: 'idle',
-          announcement: 'Baseline saved in memory. Active evidence cassette sealed.',
+          announcement: 'Baseline scan saved. Trial in progress.',
         };
       }
       return {
@@ -288,21 +322,22 @@ export function faceValueReducer(state: FaceValueState, event: FaceValueEvent): 
         observation: 'review_due',
         returnStage: null,
         processing: 'idle',
-        announcement: 'Follow-up captured. Optical comparison is ready.',
+        analysis: null,
+        announcement: 'Follow-up scan saved. Comparing automatically.',
       };
 
     case 'DELETE_CURRENT_CAPTURE':
       if (state.stage !== 'camera') return state;
       return state.captureKind === 'baseline'
-        ? { ...state, baselineCapture: null, camera: 'idle', announcement: 'Current baseline capture deleted.' }
-        : { ...state, followupCapture: null, camera: 'idle', announcement: 'Current follow-up capture deleted.' };
+        ? { ...state, baselineCapture: null, camera: 'idle', announcement: 'Current baseline scan deleted.' }
+        : { ...state, followupCapture: null, camera: 'idle', announcement: 'Current follow-up scan deleted.' };
 
     case 'ADD_TRACE':
-      if (state.stage !== 'observation' || state.observation !== 'active_stable') return state;
-      return { ...state, trace: event.trace, announcement: 'Trace added to the evidence rail.' };
+      if (state.stage !== 'observation' || !['active_stable', 'active_disturbed'].includes(state.observation)) return state;
+      return { ...state, trace: event.trace, announcement: 'Note saved.' };
 
     case 'INTRODUCE_SECOND_PRODUCT':
-      if (state.stage !== 'observation' || !state.trace) return state;
+      if (state.stage !== 'observation') return state;
       return {
         ...state,
         stage: 'disturbance',
@@ -310,7 +345,7 @@ export function faceValueReducer(state: FaceValueState, event: FaceValueEvent): 
         disturbance: 'detected',
         comparison: 'partially_comparable',
         confidence: 'possible',
-        announcement: 'Two cassette identities are active in one observation window. Attribution confidence is reduced.',
+        announcement: 'Another product was used during this trial.',
       };
 
     case 'RESOLVE_DISTURBANCE':
@@ -323,7 +358,7 @@ export function faceValueReducer(state: FaceValueState, event: FaceValueEvent): 
           disturbance: 'returned_to_cooling',
           comparison: 'not_available',
           confidence: 'insufficient',
-          announcement: 'Secondary cassette removed from this observation window. Stable attribution restored.',
+          announcement: 'The second product was removed. This trial can stay focused.',
         };
       }
       return {
@@ -334,16 +369,16 @@ export function faceValueReducer(state: FaceValueState, event: FaceValueEvent): 
         comparison: 'partially_comparable',
         confidence: 'possible',
         analysisScenario: 'overlap_reduced',
-        announcement: 'Lower confidence retained for the remainder of this observation.',
+        announcement: 'Both products remain in the trial. The result will be less certain.',
       };
 
     case 'SET_SCENARIO':
-      if (state.stage !== 'analysis') return state;
+      if (!['observation', 'analysis'].includes(state.stage)) return state;
       return { ...state, analysisScenario: event.scenario };
 
     case 'ANALYSIS_STARTED':
       if (state.stage !== 'analysis' || state.analysis || state.processing === 'running') return state;
-      return { ...state, processing: 'running', announcement: 'Simulated optical comparison running.' };
+      return { ...state, processing: 'running', announcement: 'Comparing your scans.' };
 
     case 'ANALYSIS_SUCCEEDED': {
       if (state.stage !== 'analysis') return state;
@@ -356,7 +391,7 @@ export function faceValueReducer(state: FaceValueState, event: FaceValueEvent): 
           comparison: 'not_comparable',
           confidence: 'insufficient',
           processing: 'succeeded',
-          announcement: 'Comparison refused. No progress conclusion was generated.',
+          announcement: 'These scans are not fair to compare. Nothing was concluded from them.',
         };
       }
       return {
@@ -367,8 +402,8 @@ export function faceValueReducer(state: FaceValueState, event: FaceValueEvent): 
         observation: 'review_due',
         processing: 'succeeded',
         announcement: state.disturbance === 'overlap_retained'
-          ? 'Verdict ready with lower confidence retained.'
-          : 'Verdict ready for cassette presentation.',
+          ? 'Result ready. The result will be less certain because two products shared the trial.'
+          : 'Result ready. Pull the handle to reveal it.',
       };
     }
 
@@ -381,7 +416,7 @@ export function faceValueReducer(state: FaceValueState, event: FaceValueEvent): 
         observation: 'waiting',
         confidence: state.disturbance === 'overlap_retained' ? 'possible' : 'insufficient',
         processing: 'failed',
-        announcement: 'Optical analysis unavailable. Observation remains saved and no finding was fabricated.',
+        announcement: 'Comparison unavailable. The trial is still saved and nothing was fabricated.',
       };
 
     case 'RETAKE_FOLLOWUP':
@@ -396,7 +431,7 @@ export function faceValueReducer(state: FaceValueState, event: FaceValueEvent): 
         comparison: state.disturbance === 'overlap_retained' ? 'partially_comparable' : 'not_available',
         confidence: state.disturbance === 'overlap_retained' ? 'possible' : 'insufficient',
         returnStage: 'observation',
-        announcement: 'Follow-up retake opened.',
+        announcement: 'Follow-up scan retake opened.',
       };
 
     case 'SAVE_CONTEXT_ONLY':
@@ -405,7 +440,7 @@ export function faceValueReducer(state: FaceValueState, event: FaceValueEvent): 
         ...state,
         stage: 'observation',
         observation: 'waiting',
-        announcement: 'Capture saved as context only. No progress conclusion was added.',
+        announcement: 'Saved as context only. No result was added.',
       };
 
     case 'ENTER_PROGRESS':
@@ -413,30 +448,62 @@ export function faceValueReducer(state: FaceValueState, event: FaceValueEvent): 
       return {
         ...state,
         stage: 'progress',
-        announcement: `Verdict review. ${state.analysis.finding} Confidence: ${state.confidence}.`,
+        announcement: `Result. ${state.analysis.finding} Confidence: ${state.confidence}.`,
       };
 
     case 'SELECT_PLACEMENT':
       if (state.stage !== 'progress' && state.stage !== 'placement') return state;
+      if (state.stage === 'placement' && state.placementSealed) return state;
       return {
         ...state,
         stage: 'placement',
         placement: event.placement,
         placementSealed: false,
-        announcement: `Evidence disposition selected: ${event.placement}.`,
+        announcement: `Next step selected: ${event.placement.replaceAll('_', ' ')}.`,
       };
 
-    case 'SEAL_PLACEMENT':
-      if (state.stage !== 'placement' || !state.analysis) return state;
+    case 'SAVE_RESULT': {
+      if (state.stage !== 'placement' || !state.analysis || state.placementSealed) return state;
+      const record = createEvidenceRecord(state, event.now);
+      const archive = state.archive.some((item) => item.id === record.id)
+        ? state.archive
+        : [record, ...state.archive];
       return {
         ...state,
         observation: 'complete',
         placementSealed: true,
-        announcement: `Evidence disposition committed: ${state.placement}.`,
+        record,
+        archive,
+        returnStage: 'cabinet',
+        announcement: 'Saved to your evidence. Trial conditions, scans, note, confidence, and next step were preserved.',
+      };
+    }
+
+    case 'OPEN_SAVED_RESULT': {
+      if (state.stage !== 'placement' || !state.placementSealed || !state.record) return state;
+      const retired = retireCompletedTrial(state);
+      return {
+        ...retired,
+        stage: 'record',
+        returnStage: 'cabinet',
+        announcement: `Saved result ${state.record.id} opened.`,
+      };
+    }
+
+    case 'SEAL_PLACEMENT':
+      if (state.stage !== 'placement' || !state.analysis || state.placementSealed) return state;
+      return {
+        ...state,
+        observation: 'complete',
+        placementSealed: true,
+        announcement: `Next step committed: ${state.placement.replaceAll('_', ' ')}.`,
       };
 
     case 'GENERATE_RECORD': {
       if (state.stage !== 'placement' || !state.analysis || !state.placementSealed) return state;
+      if (state.record && state.archive.some((item) => item.id === state.record?.id)) {
+        return { ...state, stage: 'record', returnStage: 'cabinet' };
+      }
       const record = createEvidenceRecord(state, event.now);
       const archive = state.archive.some((item) => item.id === record.id)
         ? state.archive
@@ -447,7 +514,7 @@ export function faceValueReducer(state: FaceValueState, event: FaceValueEvent): 
         record,
         archive,
         returnStage: 'cabinet',
-        announcement: 'Evidence Record generated without a face image.',
+        announcement: 'Saved result opened.',
       };
     }
 
@@ -457,7 +524,7 @@ export function faceValueReducer(state: FaceValueState, event: FaceValueEvent): 
         ...state,
         returnStage: state.stage,
         stage: 'archive',
-        announcement: `${state.archive.length} Evidence Record${state.archive.length === 1 ? '' : 's'} in archive.`,
+        announcement: `${state.archive.length} past result${state.archive.length === 1 ? '' : 's'}.`,
       };
 
     case 'VIEW_RECORD':
@@ -467,7 +534,7 @@ export function faceValueReducer(state: FaceValueState, event: FaceValueEvent): 
         returnStage: 'archive',
         stage: 'record',
         record: event.record,
-        announcement: `Evidence Record ${event.record.id} opened.`,
+        announcement: `Saved result ${event.record.id} opened.`,
       };
 
     case 'RETURN_TO_CABINET':
@@ -476,7 +543,7 @@ export function faceValueReducer(state: FaceValueState, event: FaceValueEvent): 
         stage: 'cabinet',
         cabinet: 'open',
         returnStage: null,
-        announcement: 'Returned to the Evidence Index.',
+        announcement: 'Returned to Your trials.',
       };
 
     case 'DELETE_OBSERVATION':
@@ -485,25 +552,25 @@ export function faceValueReducer(state: FaceValueState, event: FaceValueEvent): 
         stage: 'cabinet',
         cabinet: 'open',
         archive: state.archive,
-        announcement: 'Current observation deleted. Raw images were already memory-only.',
+        announcement: 'Current trial deleted. Raw images were already memory-only.',
       };
 
     case 'CLEAR_DEMO_DATA':
       return { ...initialState, stage: 'welcome', announcement: 'Demo data cleared.' };
 
     case 'BACK':
-      if (state.stage === 'browse') return returnToStage(state, 'cabinet', 'Returned to Evidence Index.');
-      if (state.stage === 'specimen' || state.stage === 'job') return returnToStage(state, 'browse', 'Returned to cassette selector.');
-      if (state.stage === 'progress') return returnToStage(state, 'analysis', 'Returned to comparison review.');
-      if (state.stage === 'analysis') return returnToStage(state, 'observation', 'Returned to active observation.');
-      if (state.stage === 'placement' && !state.placementSealed) return returnToStage(state, 'progress', 'Returned to verdict review.');
+      if (state.stage === 'browse') return returnToStage(state, 'cabinet', 'Returned to Your trials.');
+      if (state.stage === 'specimen' || state.stage === 'job') return returnToStage(state, 'browse', 'Returned to trial selection.');
+      if (state.stage === 'progress') return returnToStage(state, 'analysis', 'Returned to result-ready view.');
+      if (state.stage === 'analysis') return returnToStage(state, 'observation', 'Returned to trial in progress.');
+      if (state.stage === 'placement' && !state.placementSealed) return returnToStage(state, 'progress', 'Returned to result.');
       if (state.stage === 'archive') return returnToStage(state, state.returnStage ?? 'cabinet', 'Returned to previous view.');
-      if (state.stage === 'record') return returnToStage(state, state.returnStage ?? 'cabinet', 'Record closed.');
+      if (state.stage === 'record') return returnToStage(state, state.returnStage ?? 'cabinet', 'Saved result closed.');
       if (state.stage === 'camera' || state.stage === 'capture_contract') {
         return returnToStage(
           state,
           state.returnStage ?? (state.captureKind === 'baseline' ? 'job' : 'observation'),
-          'Capture closed.',
+          'Scan closed.',
         );
       }
       return state;

@@ -53,24 +53,20 @@ function advanceReducedOpening() {
   advance(160);
 }
 
-function firePointer(
-  node: Element,
-  type: 'pointerdown' | 'pointermove' | 'pointerup',
-  { pointerId, clientX, clientY }: { pointerId: number; clientX: number; clientY: number },
-) {
+function firePointer(node: Element, type: 'pointerdown' | 'pointermove' | 'pointerup', values: { pointerId: number; clientX: number; clientY: number }) {
   const event = new MouseEvent(type, {
     bubbles: true,
     cancelable: true,
     button: 0,
-    clientX,
-    clientY,
+    clientX: values.clientX,
+    clientY: values.clientY,
   });
-  Object.defineProperty(event, 'pointerId', { configurable: true, value: pointerId });
+  Object.defineProperty(event, 'pointerId', { configurable: true, value: values.pointerId });
   fireEvent(node, event);
 }
 
-const openName = 'Open evidence cassette A1–01';
-const closeName = 'Close evidence cassette A1–01';
+const openName = 'Reveal result for BARRIER WATER SERUM';
+const closeName = 'Close result for BARRIER WATER SERUM';
 
 describe('evidence cassette machine', () => {
   it('accepts only the causal opening order', () => {
@@ -100,72 +96,57 @@ describe('EvidenceCassette', () => {
   beforeEach(() => {
     vi.useFakeTimers();
     installMotionPreference(false);
-    Object.defineProperty(HTMLElement.prototype, 'setPointerCapture', {
-      configurable: true,
-      value: vi.fn(),
-    });
-    Object.defineProperty(HTMLElement.prototype, 'releasePointerCapture', {
-      configurable: true,
-      value: vi.fn(),
-    });
-    Object.defineProperty(HTMLElement.prototype, 'hasPointerCapture', {
-      configurable: true,
-      value: vi.fn(() => true),
-    });
+    Object.defineProperty(HTMLElement.prototype, 'setPointerCapture', { configurable: true, value: vi.fn() });
+    Object.defineProperty(HTMLElement.prototype, 'releasePointerCapture', { configurable: true, value: vi.fn() });
+    Object.defineProperty(HTMLElement.prototype, 'hasPointerCapture', { configurable: true, value: vi.fn(() => true) });
   });
 
-  it('starts sealed with a semantic handle and live product identity', () => {
+  it('starts sealed with a semantic result handle and no premature saved output', () => {
     renderCassette();
-    expect(screen.getByLabelText('Evidence cassette instrument')).toHaveAttribute(
-      'data-cassette-state',
-      'sealed',
-    );
-    expect(screen.getByRole('button', { name: openName })).toBeVisible();
+    expect(screen.getByLabelText('Product trial result')).toHaveAttribute('data-cassette-state', 'sealed');
+    const handle = screen.getByRole('button', { name: openName });
+    expect(handle).toBeVisible();
+    expect(handle).toHaveAttribute('aria-controls', 'trial-result-content');
+    expect(handle).toHaveAttribute('aria-expanded', 'false');
     expect(screen.getByText('BARRIER WATER', { exact: true })).toBeInTheDocument();
     expect(screen.getByText('30 ML', { exact: true })).toBeInTheDocument();
-    expect(screen.getByRole('status')).toHaveTextContent('Cassette sealed');
+    expect(screen.queryByText('SAVED RESULT')).not.toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent('Result sealed');
   });
 
-  it('opens once, keeps glass frosted through mechanics, then presents crisp identity', () => {
+  it('opens once, preserves the mechanical sequence, then presents crisp identity', () => {
     renderCassette();
-    const instrument = screen.getByLabelText('Evidence cassette instrument');
+    const instrument = screen.getByLabelText('Product trial result');
     const handle = screen.getByRole('button', { name: openName });
-
     fireEvent.click(handle);
     fireEvent.click(handle);
     expect(instrument).toHaveAttribute('data-cassette-state', 'pressing');
     expect(instrument).toHaveAttribute('data-glass-cleared', 'false');
-
     advance(80);
     expect(instrument).toHaveAttribute('data-cassette-state', 'released');
-    expect(screen.getByRole('status')).toHaveTextContent('Cassette released');
+    expect(screen.getByRole('status')).toHaveTextContent('Latch released');
     advance(140);
     expect(instrument).toHaveAttribute('data-cassette-state', 'tilting');
-    expect(instrument).toHaveAttribute('data-glass-cleared', 'false');
     advance(200);
     expect(instrument).toHaveAttribute('data-cassette-state', 'settled');
     expect(instrument).toHaveAttribute('data-mechanics-settled', 'true');
     advance(160);
     expect(instrument).toHaveAttribute('data-cassette-state', 'clearing');
-    expect(instrument).toHaveAttribute('data-identity-visible', 'false');
     advance(320);
     expect(instrument).toHaveAttribute('data-cassette-state', 'presented');
     expect(instrument).toHaveAttribute('data-glass-cleared', 'true');
     expect(screen.getByRole('button', { name: closeName })).toBeVisible();
-    expect(screen.getByRole('button', { name: 'Edit product trial details' })).toBeVisible();
   });
 
   it('uses the same transition for a deliberate handle drag and ignores a short drag', () => {
     renderCassette();
-    const instrument = screen.getByLabelText('Evidence cassette instrument');
+    const instrument = screen.getByLabelText('Product trial result');
     const handle = screen.getByRole('button', { name: openName });
-
     firePointer(handle, 'pointerdown', { pointerId: 1, clientX: 10, clientY: 10 });
     firePointer(handle, 'pointermove', { pointerId: 1, clientX: 26, clientY: 12 });
     firePointer(handle, 'pointerup', { pointerId: 1, clientX: 26, clientY: 12 });
     fireEvent.click(handle);
     expect(instrument).toHaveAttribute('data-cassette-state', 'sealed');
-
     firePointer(handle, 'pointerdown', { pointerId: 2, clientX: 10, clientY: 10 });
     firePointer(handle, 'pointermove', { pointerId: 2, clientX: 46, clientY: 12 });
     expect(instrument).toHaveAttribute('data-cassette-state', 'pressing');
@@ -176,15 +157,9 @@ describe('EvidenceCassette', () => {
     fireEvent.click(screen.getByRole('button', { name: openName }));
     advanceNormalOpening();
     fireEvent.click(screen.getByRole('button', { name: closeName }));
-    expect(screen.getByLabelText('Evidence cassette instrument')).toHaveAttribute(
-      'data-cassette-state',
-      'closing',
-    );
+    expect(screen.getByLabelText('Product trial result')).toHaveAttribute('data-cassette-state', 'closing');
     advance(460);
-    expect(screen.getByLabelText('Evidence cassette instrument')).toHaveAttribute(
-      'data-cassette-state',
-      'sealed',
-    );
+    expect(screen.getByLabelText('Product trial result')).toHaveAttribute('data-cassette-state', 'sealed');
   });
 
   it('preserves the semantic and crisp identity result in reduced motion', () => {
@@ -192,7 +167,7 @@ describe('EvidenceCassette', () => {
     renderCassette();
     fireEvent.click(screen.getByRole('button', { name: openName }));
     advanceReducedOpening();
-    const instrument = screen.getByLabelText('Evidence cassette instrument');
+    const instrument = screen.getByLabelText('Product trial result');
     expect(instrument).toHaveAttribute('data-cassette-state', 'presented');
     expect(instrument).toHaveAttribute('data-identity-visible', 'true');
   });

@@ -129,6 +129,9 @@ export interface EvidenceRecordData {
   claimBoundary: string;
   createdAt: string;
   includesFaceImage: false;
+  note?: string | null;
+  baselineCapture?: CaptureMetadata | null;
+  followupCapture?: CaptureMetadata | null;
 }
 
 export interface FaceValueState {

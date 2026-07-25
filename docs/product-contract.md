@@ -2,27 +2,25 @@
 
 **Status:** Frozen product direction
 
-**Version:** 1.1
+**Version:** 1.2
 
 **Effective date:** July 24, 2026
 
-This document is the product authority for the Face Value experience. Figma, implementation, API integration, copy, demos, and submission materials must follow this contract unless the contract is deliberately amended.
+This document is the product authority for the Face Value experience. Figma, implementation, API integration, copy, demos, and submission materials must follow this contract unless it is deliberately amended in the same pull request.
 
 ## 1. Product definition
 
 Face Value is a skincare product trial machine.
 
-It helps a person test one skincare product against one explicit job, then uses repeat skin scans and context aware comparison to determine whether that product is earning its place.
+It helps a person test one skincare product against one explicit job, then uses repeat skin scans and context-aware comparison to determine whether that product is earning its place.
 
 ### Core promise
 
-> One product. One job. One honest verdict.
+> One product. One job. One honest result.
 
 ### Public hook
 
 > Your shelf is full of claims. Put them on trial.
-
-The public hook describes the human problem. It does not prescribe furniture as the interface metaphor.
 
 ### Human problem
 
@@ -30,188 +28,293 @@ People accumulate skincare products without a reliable way to tell which product
 
 ### Desired outcome
 
-The user leaves each completed check with one understandable verdict and one proportionate next action.
+The person leaves each completed trial with one understandable result, one proportionate next step, and one durable saved result.
 
-## 2. The visible product loop
+## 2. Human Butter principle
 
-The user should experience three mental moments.
+> The machine keeps the evidence precise. The interface makes the next move obvious.
+
+One screen asks one question. The trial object performs the transition. The page supplies only the consequence.
+
+Every default screen contains:
+
+1. one human headline
+2. one meaningful product-trial object
+3. one useful piece of context
+4. one primary action
+5. at most one quiet alternative
+
+Everything else belongs in Details, an overflow or disclosure, a focused editor, the final saved result, or internal state.
+
+## 3. Visible product loop
+
+The person should experience four mental moments.
 
 ### Trial
 
-The user chooses one product and assigns it one job.
-
-The interface answers:
+Choose one product and give it one job.
 
 > What are we testing?
 
-### Check in
+### Follow-up scan
 
-The user completes a comparable follow up scan and reports only context the system cannot observe.
-
-The interface answers:
+Return under similar conditions and report only context the system cannot observe.
 
 > What changed?
 
-### Verdict
+### Result
 
-Face Value explains what the evidence supports and what the user should do next.
+Face Value explains what the comparison supports and what it does not support.
 
-The interface answers:
+> What happened, and what does it mean?
+
+### Next step
+
+Accept the recommended action or deliberately override it.
 
 > What should I do now?
 
 The complete visible loop is:
 
-> Trial → Check in → Verdict
+> Trial → Follow-up scan → Result → Next step
 
-Any additional system state must support this loop without becoming a separate mental burden for the user.
+Additional system state must support this loop without becoming procedural homework.
 
-## 3. Golden path
+## 4. Canonical journey
 
-The primary product journey must remain understandable as six moments.
+The primary journey is:
 
-1. **Start**
+`welcome → Your trials → view trial → trial in progress → add or edit note → follow-up scan → another-product decision when needed → automatic comparison → reveal result → accept recommended next step → Save result → confident reseal → saved result → Past results`
 
-   Prompt: Which product are we putting on trial?
+### Your trials
 
-   Primary action: Open Evidence Index
+Prioritize the trial that needs attention. Show one prominent trial object, product name, readiness or day context, and one concise summary. The handle is the primary way to view the trial.
 
-2. **Assign one job**
+### Trial selection
 
-   Prompt: What is this supposed to change?
+Previous and next controls move between products. The handle inspects the selected trial. Do not duplicate inspection with a separate button or instruction paragraph.
 
-   Supported MVP jobs include hydration, redness, texture, breakouts, and dark spots.
+### Trial in progress
 
-3. **Capture the starting point**
+Default content is:
 
-   Prompt: Take your starting scan
+- **Still observing.**
+- the trial object
+- one date or readiness sentence
+- the current note when present
+- **TAKE FOLLOW UP SCAN** when meaningful
+- **Edit note** or **Add note** as the quiet action
 
-   Supporting instruction: Use the same lighting and angle when you check again.
+Raw state, destructive actions, another-product controls, and technical details stay behind disclosure.
 
-4. **Active trial**
+### Note editing
 
-   The specimen is sealed in an active observation cassette. The user sees its accession identity, assigned job, evidence state, and next useful check date.
+The focused editor asks **What did you notice?** Its primary action is **SAVE NOTE** and its quiet alternative is **Cancel**. The note collapses back to one readable line after saving.
 
-5. **Run the check**
+### Another product used
 
-   Prompt: Let us see if it is earning its place.
+Explain the consequence once:
 
-   After capture, ask only what may have interfered with the observation. Another product, irritation, inconsistent use, changed conditions, or other relevant context lowers attribution confidence without blaming the user.
+> Hydrating Drops entered this trial.
+>
+> That makes it harder to know which product caused any change.
 
-6. **Reveal the verdict**
+Primary action removes the second product. The quiet alternative retains both and accepts a less certain result. Technical attribution explanation is optional detail.
 
-   Evidence Cassette V7 performs the ceremonial reveal. The user receives one verdict, one explanation, and one next action. The user commits an evidence disposition, then an independent Evidence Record emerges.
+### Automatic comparison
 
-## 4. Verdict system
+Accepting a valid follow-up scan is the comparison request. Do not require separate production actions to run comparison or enter result review.
 
-Face Value may return four primary user facing verdicts.
+### Result
+
+Evidence Cassette V7 performs the restrained reveal. The screen answers:
+
+1. What happened?
+2. What does it mean?
+3. What should I do next?
+
+The default action accepts the recommended next step. **See why** reveals confidence, context, and claim boundaries.
+
+### Next step
+
+The result action already determines the recommended classification. Show it automatically with one explanation and **SAVE RESULT**. The full classification list remains hidden until **Choose a different next step** is opened.
+
+### Saved result
+
+One **SAVE RESULT** activation commits classification, performs the confident reseal, generates exactly one durable result, and opens it automatically. The person is not asked to commit, generate, and open the same decision separately.
+
+## 5. Result system
+
+Face Value may return four primary result patterns.
 
 ### Earning its place
 
-Use when relevant skin signals improved under reasonably comparable conditions.
+Use when relevant signals improved under reasonably comparable conditions.
 
-Default action: Keep using it
+Default action: **KEEP IT**
+
+Domain placement: `established`
 
 ### Too early to tell
 
-Use when the trial is incomplete, the interval is insufficient, or the signal is promising but not yet strong enough.
+Use when the interval or signal is not strong enough.
 
-Default action: Continue the trial
+Default action: **TEST LONGER**
 
-### Evidence got messy
+Domain placement: `paused`
 
-Use when overlap, inconsistent use, irritation, capture mismatch, or another disturbance prevents clean attribution.
+### Test it alone
 
-Default action: Retry it alone
+Use when product overlap or another condition prevents clean attribution.
+
+Default action: **RETRY IT ALONE**
+
+Domain placement: `retry_alone`
 
 ### Not proving its job
 
-Use when the required observation window has passed and the relevant evidence does not support meaningful progress on the assigned job.
+Use when the relevant window has passed and the evidence does not support meaningful progress on the assigned job.
 
-Default action: Release or pause it
+Default action: pause or release through an explicit next step.
 
-The verdict must never exceed the confidence supported by the available evidence.
+A result must never exceed the confidence supported by the available evidence. Unknown result-to-placement mappings are explicit errors, never silent defaults.
 
-## 5. Product laws
+## 6. Product laws
 
 ### Law 1: One product receives one explicit job
 
-Face Value does not evaluate whether a product is generally good. It evaluates whether the product appears to be performing the job the user assigned.
+Face Value does not judge whether a product is generally good. It evaluates whether the product appears to be performing the assigned job.
 
 ### Law 2: Complexity appears as confidence, not work
 
-The system may contain sophisticated state, comparison, disturbance, and confidence logic. The user should experience that sophistication as a trustworthy result, not procedural homework.
+The system may contain sophisticated comparison, overlap, and confidence logic. The person experiences that sophistication as a trustworthy result, not an evidence database to operate.
 
 ### Law 3: One screen has one dominant action
 
-Every primary screen should make the next step obvious. Competing primary actions are a product defect.
+Competing primary actions are a product defect.
 
 ### Law 4: Evidence is scoped to the assigned job
 
-The interface does not display a wall of unrelated skin scores. It surfaces only the signals needed to evaluate the selected job.
+Do not display a wall of unrelated skin scores.
 
-### Law 5: Disturbance lowers certainty rather than creating blame
+### Law 5: Another product lowers certainty rather than creating blame
 
-Adding another product, inconsistent use, irritation, or mismatched capture conditions must reduce attribution confidence. These conditions must never be framed as user failure.
+Overlap, inconsistent use, irritation, or mismatched capture conditions reduce attribution confidence. They are never framed as user failure.
 
 ### Law 6: Face Value does not diagnose skin
 
-Face Value evaluates product trial evidence. It does not diagnose disease, grade attractiveness, prescribe treatment, or claim medical clearance.
+Face Value evaluates product-trial evidence. It does not diagnose disease, grade attractiveness, prescribe treatment, or claim medical clearance.
 
 ### Law 7: Evidence Cassette V7 is the container, not the explanation
 
-The cassette system makes the trial tangible, memorable, and precise. It must never make the core task harder to understand.
+The internal cassette system makes the trial tangible and precise. The primary journey speaks about the product trial, note, scan, result, and next step.
 
-The phone behaves as a personal evidence instrument, not a refrigerator, oven, furniture unit, deep room, or card carousel.
+### Law 8: Completion produces one durable artifact
 
-### Law 8: Completion produces a durable artifact
-
-Evidence Records are produced as a consequence of a completed verdict and committed disposition. The record is mechanically independent from cassette motion.
+A completed result produces exactly one saved result as a consequence of **SAVE RESULT**. It preserves the decision and evidence context without storing a face image.
 
 ### Law 9: Explain the car before the engine
 
-Public communication begins with the human problem, magical action, and outcome. Technical architecture follows only after the user understands why the product matters.
+Public communication begins with the human problem, magical action, and outcome. Technical architecture follows only after the product is understood.
 
-## 6. User language and internal language
+## 7. User language and internal language
 
-| Internal concept | User facing expression |
+| Internal or detailed concept | Primary user-facing expression |
 | --- | --- |
-| Capture Contract | Match your first scan |
-| Progress Mode | Here is what the trial found |
-| Disturbance branch | Did anything interfere with this trial? |
-| Placement state | Evidence disposition |
-| Placement sealing | Commit disposition |
-| Evidence Record generation | Evidence Record ready |
+| Evidence Index | Your trials |
+| Evidence cassette | Product trial or trial |
+| Active observation | Trial in progress |
+| Lightweight trace | Note |
+| Visible signal | What you noticed |
+| Comparable follow-up | Follow-up scan |
+| Review due | Ready to compare |
+| Disturbance | Another product was used |
+| Interference | Two products shared this trial |
+| Lower-confidence overlap | The result will be less certain |
+| Verdict | Result |
+| Disposition | Next step |
+| Commit disposition | Save result |
+| Evidence archive | Past results |
+| Evidence Record | Saved result or trial result |
 | Optical comparison confidence | How sure Face Value is |
 | Longitudinal attribution | Is this product earning its place? |
-| Persisted `cabinet` stage | Evidence Index |
-| Persisted drawer events and index | Cassette selection |
-| Persisted `cooling` placement | Outside the active observation window |
 
-Internal names may remain in code when changing them creates unnecessary storage or migration risk. They must not appear in visible copy, accessibility labels, analytics attributes, current tests, or canonical presentation documentation.
+Technical names may remain in code, types, reducer events, persisted structures, architecture documentation, and detailed saved-result fields where changing them creates migration risk or reduces precision. They must not leak into default copy or accessible names.
 
-## 7. What the system handles invisibly
+The voice is direct, calm, intelligent, and evidence-first. It is not cute, chatty, sentimental, punitive, or generic wellness copy.
 
-The product may manage the following without making them separate user tasks:
+## 8. Progressive disclosure policy
 
-* Capture quality and camera guidance
-* Baseline and follow up comparability
-* Relevant skin signal selection
-* Analysis response normalization
-* Trial timing
-* Disturbance persistence
-* Confidence limits
-* Evidence disposition state
-* Evidence Record creation
-* Privacy cleanup and image deletion
-* Reduced motion completion
-* Accessibility announcements and focus behavior
+Default screens do not expose every available state at equal weight.
 
-## 8. YouCam integration contract
+Use progressive disclosure for:
 
-YouCam is the optical evidence provider. Face Value remains the product reasoning and interaction layer.
+- note editing
+- trial details
+- another-product explanation
+- destructive actions
+- raw observation, comparison, and confidence state
+- result reasoning
+- alternate next-step classification
+- demo controls
 
-The integration must map each assigned job to a narrow set of relevant signals.
+A border communicates editable input, active selection, or focused interaction. Read-only information is not boxed merely to appear official.
+
+## 9. Universal handle meaning
+
+A visible handle always means:
+
+> Show me what this trial currently contains.
+
+Required destinations:
+
+- Your trials → view selected trial
+- trial selection → inspect selected trial
+- trial in progress → open or close trial summary
+- ready to compare → begin result review through real reducer state
+- result → perform the V7 reveal
+- saved result → open the preserved result
+
+Every visible handle is a semantic button with a contextual name. It supports tap, pointer drag, touch, Enter, Space, cancellation, lost pointer capture, Escape where relevant, and reduced motion. The handle owns its gesture; page scrolling remains available outside it. Do not use whole-card click targets as a workaround. Do not render a handle-shaped affordance without a meaningful action.
+
+## 10. Save and exactly-once contract
+
+One `SAVE_RESULT` transaction preserves:
+
+- selected product and specimen identity
+- assigned job
+- baseline and follow-up metadata
+- note
+- finding and non-finding
+- confidence
+- comparison state
+- another-product context
+- selected next step
+- claim boundary
+- timestamp
+- Past results placement
+- `includesFaceImage: false`
+
+Repeated activation, back navigation, reload restoration, and Past results reopening must preserve exactly-once behavior.
+
+## 11. What the system handles invisibly
+
+- capture quality and camera guidance
+- baseline and follow-up comparability
+- relevant signal selection
+- analysis normalization
+- trial timing
+- another-product persistence
+- confidence limits
+- result-to-next-step mapping
+- classification and saved-result creation
+- privacy cleanup and image deletion
+- reduced-motion completion
+- accessibility announcements and focus behavior
+
+## 12. YouCam integration contract
+
+YouCam is the optical evidence provider. Face Value remains the reasoning and interaction layer.
 
 | Assigned job | Primary analysis signals |
 | --- | --- |
@@ -221,115 +324,93 @@ The integration must map each assigned job to a narrow set of relevant signals.
 | Reduce breakouts | Acne and oiliness |
 | Fade dark spots | Spots and radiance |
 
-The user should not receive every available API score by default.
+Do not show every available API score by default. A YouCam result must never override known product overlap or upgrade confidence beyond what trial conditions support. Production integration requires clear consent, processing disclosure, failure recovery, and image-lifecycle behavior.
 
-YouCam may observe visible skin signals. Face Value determines how those signals relate to the assigned product job, trial timing, disturbances, comparison confidence, and next action.
-
-A YouCam result must never override a known disturbance or upgrade confidence beyond what the trial conditions support.
-
-The application must provide clear consent, processing disclosure, failure recovery, and image lifecycle behavior before production use.
-
-## 9. Signature product objects
-
-### Evidence instrument
-
-The instrument is the fixed consumer hardware frame. It contains one shallow optical bay, one specimen dock, persistent smart glass, mounted identity, one rigid cassette group, and an independent output slot.
-
-### Evidence Cassette
-
-A cassette is the indexed observation object for one product and one assigned job. It may be dormant, indexed, selected, sealed, active, disturbed, review due, presented, classified, or archived.
-
-### Evidence Index
-
-The Evidence Index is a status register for specimen cassettes. It is not a dashboard of generic cards and not a rack rendered with theatrical perspective.
-
-### Verdict
-
-The verdict is the primary payoff. Evidence Cassette V7 preserves handle press, latch release, cassette pop, mechanical pause, restrained micro tilt, settle, smart glass clear, specimen presentation, identity reveal, and confident reseal.
-
-### Evidence Record
-
-The Evidence Record is the durable, face free artifact produced after a verdict. It preserves the product, job, duration, result, confidence, disturbance context, and next action. It emerges from an output mechanism independent from the cassette.
-
-## 10. Physical truth
+## 13. Physical truth
 
 The production hardware system always preserves:
 
-1. One fixed enclosure.
-2. One shallow optical bay.
-3. One rigid cassette transform group.
-4. One persistent glass layer.
-5. One fixed specimen dock.
-6. One mounted identity system.
-7. One independent output slot.
+1. one fixed enclosure
+2. one shallow optical bay
+3. one rigid transform group
+4. one persistent smart-glass layer
+5. one fixed specimen dock
+6. one mounted identity system
+7. one independent output slot
 
-The cassette may read as indexed, selected, sealed, released, presented, classified, or archived.
+The result reveal preserves latch release, pop toward the user, mechanical pause, restrained micro-tilt, settle, smart-glass clear, specimen presentation, identity reveal, and confident reseal.
 
-It must never read as pulled furniture, a hinged door, a filing unit, an oven tray, a floating card, or a deep architectural room.
+It must never read as pulled furniture, a hinged door, a filing unit, an oven tray, a floating card, a fake operating system, or a deep architectural room.
 
-## 11. Progressive disclosure
+## 14. Accessibility contract
 
-The default result should show:
+Maintain or improve:
 
-1. The verdict.
-2. A plain language explanation.
-3. One next action.
+- semantic buttons and contextual accessible names
+- visible focus and stage focus transfer
+- screen-reader announcements
+- `aria-expanded` and `aria-controls`
+- keyboard, tap, touch, and pointer access
+- no drag-only interaction
+- reduced-motion parity
+- Escape and back recovery
+- note-editor focus entry and return
+- accessible result reasoning and next-step override
+- no information that relies on color alone
 
-The user may then open Why This Verdict to inspect relevant signal changes, comparison quality, trial duration, disturbances, confidence, privacy, and analysis notes.
-
-Technical detail must remain available for trust without blocking comprehension.
-
-## 12. Non goals for the MVP
+## 15. Non-goals
 
 The MVP is not:
 
-* A general skin diagnosis tool
-* A beauty score
-* A full routine optimizer
-* An ingredient compatibility database
-* A product recommendation marketplace
-* An ecommerce funnel
-* A provider treatment clearance system
-* A social before and after feed
-* A dashboard containing every available skin metric
-* A substitute for medical care
+- a general skin diagnosis tool
+- a beauty score
+- a full routine optimizer
+- an ingredient compatibility database
+- a product recommendation marketplace
+- an ecommerce funnel
+- a provider treatment-clearance system
+- a social before-and-after feed
+- a dashboard containing every available skin metric
+- a substitute for medical care
 
-These boundaries protect the clarity and credibility of the product trial loop.
+## 16. Demo contract
 
-## 13. Demo contract
+The canonical demo proves one complete product investigation:
 
-The canonical demo should follow one product investigation.
+1. open Your trials
+2. select one trial and assign one job
+3. capture a baseline
+4. add or edit a note
+5. take a follow-up scan
+6. resolve or retain another product when present
+7. let comparison run automatically
+8. reveal the result through the real handle
+9. accept the recommended next step
+10. save once
+11. watch the confident reseal
+12. open the saved result
+13. reopen the same result from Past results
 
-1. The user opens the Evidence Index.
-2. The user selects one cassette and assigns one job.
-3. The user captures a starting scan.
-4. The specimen becomes an active observation cassette.
-5. The user returns for a follow up scan.
-6. Face Value reveals Earning its place through Evidence Cassette V7.
-7. The user chooses Keep using it and commits the evidence disposition.
-8. An independent Evidence Record emerges.
-9. A brief alternate state shows that an overlapping cassette identity produces Evidence got messy rather than false certainty.
+The demo proves the magical action and trust boundary. It does not tour every internal state.
 
-The demo must prove both the magical action and the trust boundary. It should not tour every screen or explain every internal state.
+## 17. Acceptance test for future work
 
-## 14. Acceptance test for future work
+Before a new feature, screen, term, metric, or interaction is accepted, ask:
 
-Before a new feature, screen, term, metric, or interaction is accepted, it must pass all of the following questions.
-
-1. Does it help the user understand what is being tested, what changed, or what to do now?
-2. Does it preserve one product, one job, and one honest verdict?
+1. Does it help the person understand what is being tested, what changed, or what to do now?
+2. Does it preserve one product, one job, and one honest result?
 3. Can the system handle it invisibly instead?
-4. Does it make the product easier to understand within five seconds?
+4. Does it make the product understandable within five seconds?
 5. Does it preserve uncertainty rather than manufacture certainty?
-6. Does it strengthen the product trial machine rather than turn Face Value into a generic skincare platform?
-7. Does it obey the Evidence Cassette V7 physical truth?
+6. Does it strengthen the product-trial machine rather than turn Face Value into a generic skincare platform?
+7. Does it obey the V7 physical truth?
+8. Does it maintain one primary action and universal handle meaning?
+9. Does it preserve exactly-once saved-result behavior?
 
-A no on questions 1, 2, 5, 6, or 7 blocks the change.
+A no on questions 1, 2, 5, 6, 7, 8, or 9 blocks the change.
 
-## 15. Change control
+## 18. Change control
 
-This contract is intentionally narrow.
-
-Changes to the core promise, visible loop, verdict set, product laws, medical boundary, or production hardware grammar require an explicit update to this document in the same pull request as the affected design or implementation.
+Changes to the core promise, visible loop, result set, product laws, medical boundary, Human Butter language boundary, or hardware grammar require an explicit update to this document in the same pull request as the affected design or implementation.
 
 Implementation may evolve. The human problem remains outside the machine.

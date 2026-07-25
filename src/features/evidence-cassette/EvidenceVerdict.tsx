@@ -17,11 +17,11 @@ export interface EvidenceVerdictProps {
   onBack: () => void;
 }
 
-function getVerdictCopy(placement: VerdictPlacement) {
+function getResultCopy(placement: VerdictPlacement) {
   if (placement === 'retry_alone') {
     return {
       title: 'Test it alone.',
-      support: 'The signal may be real, but the overlap means this product has not earned a clean verdict yet.',
+      support: 'Your skin changed, but two products shared the trial. We cannot honestly credit this one yet.',
       action: 'RETRY IT ALONE',
     };
   }
@@ -29,14 +29,14 @@ function getVerdictCopy(placement: VerdictPlacement) {
   if (placement === 'established') {
     return {
       title: 'Earning its place.',
-      support: 'The repeated scans show a useful change in the job you gave it. Keep the product and keep the evidence honest.',
+      support: 'The repeat scans show a useful change in the job you gave it. This product has earned a place for now.',
       action: 'KEEP IT',
     };
   }
 
   return {
     title: 'Keep watching.',
-    support: 'The evidence is not strong enough to promote or remove this product yet. Give the trial one cleaner comparison.',
+    support: 'The scans do not show a reliable enough change yet. Give this trial one cleaner comparison.',
     action: 'TEST LONGER',
   };
 }
@@ -52,28 +52,28 @@ export function EvidenceVerdict({
   onBack,
 }: EvidenceVerdictProps) {
   const [whyOpen, setWhyOpen] = useState(false);
-  const copy = getVerdictCopy(recommendedPlacement);
-  const resolvedJob = job ?? 'ACTIVE OBSERVATION';
+  const copy = getResultCopy(recommendedPlacement);
+  const resolvedJob = job ?? 'TRIAL IN PROGRESS';
 
   return (
     <>
       <ScreenHeader dark />
       <section
         className={styles.verdict}
-        data-fv-screen="verdict"
+        data-fv-screen="result"
         data-fv-recommended-placement={recommendedPlacement}
-        aria-labelledby="verdict-heading"
+        aria-labelledby="result-heading"
       >
         <div className={styles.context}>
-          <span>HONEST VERDICT</span>
+          <span>RESULT</span>
           <span>ONE PRODUCT · ONE JOB</span>
         </div>
 
         <div className={styles.copyBlock}>
-          <p className={styles.kicker}>THE PRODUCT HAS AN ANSWER.</p>
-          <h1 id="verdict-heading" data-stage-focus tabIndex={-1}>{copy.title}</h1>
+          <p className={styles.kicker}>YOUR TRIAL HAS AN ANSWER.</p>
+          <h1 id="result-heading" data-stage-focus tabIndex={-1}>{copy.title}</h1>
           <p className={styles.support}>{copy.support}</p>
-          {lowerConfidence && <p className={styles.confidenceNotice} role="status">LOWER CONFIDENCE RETAINED</p>}
+          {lowerConfidence && <p className={styles.confidenceNotice} role="status">THE RESULT IS LESS CERTAIN</p>}
         </div>
 
         <div className={styles.hardwareComposition}>
@@ -91,13 +91,13 @@ export function EvidenceVerdict({
           type="button"
           className={styles.whyButton}
           aria-expanded={whyOpen}
-          aria-controls="why-this-verdict"
+          aria-controls="why-this-result"
           onClick={() => setWhyOpen((open) => !open)}
         >
-          <span>WHY THIS VERDICT</span><span aria-hidden>{whyOpen ? '−' : '+'}</span>
+          <span>SEE WHY</span><span aria-hidden>{whyOpen ? '−' : '+'}</span>
         </button>
 
-        <div id="why-this-verdict" className={styles.whyPanel} hidden={!whyOpen}>
+        <div id="why-this-result" className={styles.whyPanel} hidden={!whyOpen}>
           <div><span>CONFIDENCE</span><strong>{confidence.toUpperCase()}</strong></div>
           <p>{result.relevantContext}</p>
           <small>{result.claimBoundary}</small>
@@ -106,7 +106,7 @@ export function EvidenceVerdict({
         <button
           type="button"
           className={styles.primaryAction}
-          aria-label={`Classify evidence disposition — ${copy.action}`}
+          aria-label={`Accept recommended next step — ${copy.action}`}
           onClick={() => onContinue(recommendedPlacement)}
         >
           <span>{copy.action}</span><span aria-hidden>→</span>

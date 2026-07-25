@@ -51,7 +51,7 @@ export function EvidenceCassette({
   onEdit,
 }: EvidenceCassetteProps) {
   const [state, dispatch] = useReducer(evidenceCassetteReducer, initialState);
-  const [announcement, setAnnouncement] = useState('Cassette sealed');
+  const [announcement, setAnnouncement] = useState('Result sealed');
   const reducedMotion = usePrefersReducedMotion();
 
   useEffect(() => {
@@ -64,17 +64,17 @@ export function EvidenceCassette({
 
   useEffect(() => {
     if (state === 'sealed') {
-      setAnnouncement('Cassette sealed');
+      setAnnouncement('Result sealed');
       return;
     }
     if (state === 'released') {
-      setAnnouncement('Cassette released');
+      setAnnouncement('Latch released');
       return;
     }
     if (state !== 'presented') return;
 
-    setAnnouncement('Specimen presented');
-    const timer = window.setTimeout(() => setAnnouncement('Evidence record ready'), 120);
+    setAnnouncement('Result revealed');
+    const timer = window.setTimeout(() => setAnnouncement('Product identity and result ready'), 120);
     return () => window.clearTimeout(timer);
   }, [state]);
 
@@ -88,8 +88,8 @@ export function EvidenceCassette({
   const productLineTwo = productWords.slice(lineBreak).join(' ');
 
   const accessibleDescription = presented
-    ? `Evidence cassette open. ${toDisplayName(productName)} specimen presented with crisp live identity.`
-    : `Evidence cassette sealed. ${toDisplayName(productName)} remains identifiable behind smart glass.`;
+    ? `Result open. ${toDisplayName(productName)} is presented with a crisp live identity.`
+    : `Result sealed. ${toDisplayName(productName)} remains identifiable behind smart glass.`;
 
   return (
     <section
@@ -100,10 +100,10 @@ export function EvidenceCassette({
       data-glass-cleared={presented ? 'true' : 'false'}
       data-identity-visible={presented ? 'true' : 'false'}
       data-optics-layered="true"
-      aria-label="Evidence cassette instrument"
+      aria-label="Product trial result"
     >
       <div className={styles.housing} aria-hidden="true">
-        <div className={styles.chamber}>
+        <div id="trial-result-content" className={styles.chamber}>
           <div className={styles.rearPanel} />
           <div className={styles.identityRail} data-fv-part="specimen-identity">
             <span className={styles.identityCode}>{accessionCode}</span>
@@ -131,7 +131,7 @@ export function EvidenceCassette({
           <div className={styles.cassetteFace} aria-hidden="true">
             <div className={styles.cassetteLabel}>
               <span>{accessionCode}</span>
-              <strong>{presented ? 'VERDICT' : 'ACTIVE'}</strong>
+              <strong>{presented ? 'RESULT' : 'TRIAL'}</strong>
               <small>{presented ? verdict : job}</small>
             </div>
             <i className={styles.evidenceMark} />
@@ -142,7 +142,8 @@ export function EvidenceCassette({
             product={productName}
             expanded={presented}
             busy={busy}
-            describedBy="evidence-cassette-description"
+            describedBy="trial-result-description"
+            controls="trial-result-content"
             className={styles.handleTarget}
             onActivate={activate}
             onEscape={() => {
@@ -168,14 +169,9 @@ export function EvidenceCassette({
         EDIT
       </button>
 
-      <div className={styles.outputSlot} aria-hidden="true">
-        <div className={styles.outputRecord}>
-          <span>EVIDENCE RECORD</span>
-          <strong>{accessionCode}</strong>
-        </div>
-      </div>
+      <div className={styles.outputSlot} aria-hidden="true" />
 
-      <p id="evidence-cassette-description" className={styles.srOnly}>
+      <p id="trial-result-description" className={styles.srOnly}>
         {accessibleDescription}
       </p>
       <p className={styles.srOnly} role="status" aria-live="polite" aria-atomic="true">

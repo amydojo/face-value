@@ -13,6 +13,7 @@ function hydrateState(): FaceValueState {
   const persisted = loadStructuredDemoData();
   if (!persisted) return initialState;
 
+  const completedTrial = persisted.observation === 'complete' && persisted.archive.length > 0;
   const hasContinuity =
     persisted.observation !== 'none' ||
     persisted.archive.length > 0 ||
@@ -23,8 +24,20 @@ function hydrateState(): FaceValueState {
     ...persisted,
     stage: hasContinuity ? 'cabinet' : 'welcome',
     cabinet: hasContinuity ? 'open' : 'closed',
+    observation: completedTrial ? 'none' : persisted.observation,
+    assignedJob: completedTrial ? null : persisted.assignedJob,
+    baselineCapture: completedTrial ? null : persisted.baselineCapture,
+    followupCapture: completedTrial ? null : persisted.followupCapture,
+    trace: completedTrial ? null : persisted.trace,
+    analysis: completedTrial ? null : persisted.analysis,
+    disturbance: completedTrial ? 'none' : persisted.disturbance,
+    comparison: completedTrial ? 'not_available' : persisted.comparison,
+    confidence: completedTrial ? 'insufficient' : persisted.confidence,
+    processing: 'idle',
+    placement: completedTrial ? 'observation' : persisted.placement,
+    placementSealed: completedTrial ? false : persisted.placementSealed,
     announcement: hasContinuity
-      ? 'Structured evidence restored. Raw images were not persisted.'
+      ? 'Your trials were restored. Raw images were not saved.'
       : initialState.announcement,
   };
 }

@@ -6,11 +6,11 @@ export type CassetteMode =
   | 'classified';
 
 export const cassetteModeStatus: Record<CassetteMode, string> = {
-  index: 'INDEXED',
-  active: 'ACTIVE OBSERVATION',
-  'review-due': 'REVIEW DUE',
-  verdict: 'VERDICT',
-  classified: 'CLASSIFIED',
+  index: 'TRIAL SELECTED',
+  active: 'TRIAL IN PROGRESS',
+  'review-due': 'READY TO COMPARE',
+  verdict: 'RESULT',
+  classified: 'SAVED RESULT',
 };
 
 export function cassetteActionLabel({
@@ -26,14 +26,14 @@ export function cassetteActionLabel({
 }) {
   switch (mode) {
     case 'index':
-      return `Open evidence cassette ${accession}`;
+      return `View trial for ${product ?? accession}`;
     case 'active':
-      return `${expanded ? 'Close' : 'Open'} active observation for ${accession}`;
+      return `${expanded ? 'Close' : 'Open'} trial summary for ${product ?? accession}`;
     case 'review-due':
-      return `Review verdict for ${product ?? accession}`;
+      return `Reveal result for ${product ?? accession}`;
     case 'verdict':
-      return `${expanded ? 'Close' : 'Open'} evidence cassette ${accession}`;
+      return `${expanded ? 'Close' : 'Reveal'} result for ${product ?? accession}`;
     case 'classified':
-      return `Open classified evidence record ${accession}`;
+      return `Open saved result ${accession}`;
   }
 }

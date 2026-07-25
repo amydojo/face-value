@@ -6,6 +6,7 @@ import { StageFocusManager } from './app/StageFocusManager';
 import { AppRouter } from './app/router/AppRouter';
 import './styles/foundations.css';
 import './styles/evidence-cassette-optics.css';
+import './styles/hidden-contract.css';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

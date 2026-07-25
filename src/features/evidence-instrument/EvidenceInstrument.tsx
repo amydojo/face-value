@@ -18,14 +18,14 @@ export type EvidenceHardwareState =
 
 const statusCopy: Record<EvidenceHardwareState, string> = {
   dormant: 'STANDBY',
-  indexed: 'INDEXED',
+  indexed: 'TRIAL SELECTED',
   selected: 'SELECTED',
   sealed: 'SEALED',
-  active: 'ACTIVE OBSERVATION',
-  disturbed: 'OBSERVATION DISTURBED',
-  reviewDue: 'REVIEW DUE',
-  classified: 'CLASSIFIED',
-  archived: 'ARCHIVED',
+  active: 'TRIAL IN PROGRESS',
+  disturbed: 'TWO PRODUCTS ACTIVE',
+  reviewDue: 'READY TO COMPARE',
+  classified: 'SAVED RESULT',
+  archived: 'PAST RESULT',
 };
 
 const modeToHardwareState: Record<CassetteMode, EvidenceHardwareState> = {
@@ -79,16 +79,21 @@ export function EvidenceInstrument({
 }: EvidenceInstrumentProps) {
   const [summaryOpen, setSummaryOpen] = useState(false);
   const resolvedExpanded = expanded ?? summaryOpen;
-  const productName = specimen?.product ?? 'AWAITING SPECIMEN';
+  const productName = specimen?.product ?? 'AWAITING PRODUCT';
   const [lineOne, lineTwo] = toProductLines(productName);
   const accession = specimen?.accession ?? 'A1–00';
-  const resolvedJob = job ?? (specimen ? 'JOB UNASSIGNED' : 'READY FOR SPECIMEN');
+  const resolvedJob = job ?? (specimen ? 'JOB UNASSIGNED' : 'READY FOR PRODUCT');
   const resolvedState = state ?? (mode ? modeToHardwareState[mode] : 'sealed');
-  const resolvedStatus = status ?? (mode ? cassetteModeStatus[mode] : statusCopy[resolvedState]);
+  const resolvedStatus = status ?? (state ? statusCopy[resolvedState] : mode ? cassetteModeStatus[mode] : statusCopy[resolvedState]);
   const interactive = Boolean(mode && (onActivate || summary));
+  const hasSummary = Boolean(summary || expanded !== undefined);
+  const summaryId = `trial-summary-${specimen?.id ?? 'empty'}`;
+  const summaryContent = expanded !== undefined && mode === 'active'
+    ? <strong>{resolvedJob}</strong>
+    : summary ?? <strong>{resolvedJob}</strong>;
   const activate = () => {
     if (onActivate) onActivate();
-    else if (summary) setSummaryOpen((open) => !open);
+    else if (hasSummary) setSummaryOpen((open) => !open);
   };
 
   return (
@@ -100,7 +105,7 @@ export function EvidenceInstrument({
       data-selected={selected || undefined}
       data-optics-layered="true"
       data-resting-identity={specimen ? 'true' : 'false'}
-      aria-label={`Evidence cassette ${accession}. ${productName}. ${resolvedStatus}.`}
+      aria-label={`Product trial ${accession}. ${productName}. ${resolvedStatus}.`}
     >
       <div className={styles.housing} aria-hidden="true" />
       <div className={styles.structuralBezel} aria-hidden="true" />
@@ -146,13 +151,15 @@ export function EvidenceInstrument({
             {resolvedState === 'disturbed' && secondarySpecimen && (
               <div className={styles.interferenceRail}>
                 <span>{secondarySpecimen.accession}</span>
-                <strong>INTERFERENCE REGISTERED</strong>
+                <strong>TWO PRODUCTS ACTIVE</strong>
               </div>
             )}
           </div>
-          <div className={styles.handleRecess}>
-            <span className={styles.handleGrip} />
-          </div>
+          {interactive && (
+            <div className={styles.handleRecess}>
+              <span className={styles.handleGrip} />
+            </div>
+          )}
         </div>
       </div>
 
@@ -163,6 +170,7 @@ export function EvidenceInstrument({
           product={productName}
           label={actionLabel}
           expanded={resolvedExpanded}
+          controls={hasSummary ? summaryId : undefined}
           className={styles.activationTarget}
           onActivate={activate}
           onEscape={() => {
@@ -172,19 +180,20 @@ export function EvidenceInstrument({
         />
       )}
 
-      {summary && (
+      {hasSummary && (
         <div
-          id={`cassette-summary-${specimen?.id ?? 'empty'}`}
+          id={summaryId}
           hidden={!resolvedExpanded}
           data-cassette-summary
+          data-fv-part="trial-summary"
           style={{ marginTop: 10 }}
         >
-          {summary}
+          {summaryContent}
         </div>
       )}
 
       <div className={styles.outputSlot} data-output-ready={outputReady || undefined} aria-hidden="true">
-        {outputReady && <span>EVIDENCE RECORD READY</span>}
+        {outputReady && <span>SAVED RESULT READY</span>}
       </div>
       {children}
     </section>
@@ -213,7 +222,7 @@ export function EvidenceCassetteSelector({
   return (
     <section
       className={styles.selector}
-      aria-label={`Evidence cassette selector. Cassette ${index + 1} of ${products.length}.`}
+      aria-label={`Trial selector. Trial ${index + 1} of ${products.length}.`}
       data-cassette-selector
     >
       <div className={styles.selectorTarget}>
@@ -223,13 +232,13 @@ export function EvidenceCassetteSelector({
           mode="index"
           selected
           onActivate={onInspect}
-          actionLabel={`Open evidence cassette ${specimen.accession}`}
+          actionLabel={`View trial for ${specimen.product}`}
         />
       </div>
       <div className={styles.selectorControls}>
-        <button type="button" onClick={onPrevious} disabled={index === 0} aria-label="Previous cassette">‹</button>
+        <button type="button" onClick={onPrevious} disabled={index === 0} aria-label="Previous trial">‹</button>
         <div className={styles.indexRegister} aria-live="polite">
-          <strong>CASSETTE {String(index + 1).padStart(2, '0')} / {String(products.length).padStart(2, '0')}</strong>
+          <strong>TRIAL {String(index + 1).padStart(2, '0')} / {String(products.length).padStart(2, '0')}</strong>
           <span>{specimen.product}</span>
           <div aria-hidden="true">
             {products.map((product, productIndex) => (
@@ -237,17 +246,9 @@ export function EvidenceCassetteSelector({
             ))}
           </div>
         </div>
-        <button type="button" onClick={onNext} disabled={index === products.length - 1} aria-label="Next cassette">›</button>
+        <button type="button" onClick={onNext} disabled={index === products.length - 1} aria-label="Next trial">›</button>
       </div>
-      <p>Pull the cassette handle to inspect. Use the indexed controls to move between specimens.</p>
-      <button
-        type="button"
-        className={styles.inspectAction}
-        onClick={onInspect}
-        aria-label={`Inspect cassette ${specimen.accession}`}
-      >
-        INSPECT CASSETTE <span aria-hidden="true">→</span>
-      </button>
+      <p>Pull to view trial</p>
     </section>
   );
 }
