@@ -112,6 +112,7 @@ export function CassetteHandle({
       onKeyDown={(event) => {
         if (event.key === 'Escape' && onEscape) {
           event.preventDefault();
+          event.stopPropagation();
           onEscape();
         }
       }}
