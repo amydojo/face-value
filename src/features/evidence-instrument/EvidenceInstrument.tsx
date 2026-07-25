@@ -86,13 +86,12 @@ export function EvidenceInstrument({
   const resolvedState = state ?? (mode ? modeToHardwareState[mode] : 'sealed');
   const resolvedStatus = status ?? (state ? statusCopy[resolvedState] : mode ? cassetteModeStatus[mode] : statusCopy[resolvedState]);
   const interactive = Boolean(mode && (onActivate || summary));
+  const hasSummary = Boolean(summary || expanded !== undefined);
   const summaryId = `trial-summary-${specimen?.id ?? 'empty'}`;
-  const summaryContent = expanded !== undefined && mode === 'active'
-    ? <strong>{resolvedJob}</strong>
-    : summary;
+  const summaryContent = summary ?? <strong>{resolvedJob}</strong>;
   const activate = () => {
     if (onActivate) onActivate();
-    else if (summary) setSummaryOpen((open) => !open);
+    else if (hasSummary) setSummaryOpen((open) => !open);
   };
 
   return (
@@ -169,7 +168,7 @@ export function EvidenceInstrument({
           product={productName}
           label={actionLabel}
           expanded={resolvedExpanded}
-          controls={summary ? summaryId : undefined}
+          controls={hasSummary ? summaryId : undefined}
           className={styles.activationTarget}
           onActivate={activate}
           onEscape={() => {
@@ -179,11 +178,12 @@ export function EvidenceInstrument({
         />
       )}
 
-      {summary && (
+      {hasSummary && (
         <div
           id={summaryId}
           hidden={!resolvedExpanded}
           data-cassette-summary
+          data-fv-part="trial-summary"
           style={{ marginTop: 10 }}
         >
           {summaryContent}
