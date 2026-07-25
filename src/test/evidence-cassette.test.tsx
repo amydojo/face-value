@@ -101,12 +101,16 @@ describe('EvidenceCassette', () => {
     Object.defineProperty(HTMLElement.prototype, 'hasPointerCapture', { configurable: true, value: vi.fn(() => true) });
   });
 
-  it('starts sealed with a semantic result handle and live product identity', () => {
+  it('starts sealed with a semantic result handle and no premature saved output', () => {
     renderCassette();
     expect(screen.getByLabelText('Product trial result')).toHaveAttribute('data-cassette-state', 'sealed');
-    expect(screen.getByRole('button', { name: openName })).toBeVisible();
+    const handle = screen.getByRole('button', { name: openName });
+    expect(handle).toBeVisible();
+    expect(handle).toHaveAttribute('aria-controls', 'trial-result-content');
+    expect(handle).toHaveAttribute('aria-expanded', 'false');
     expect(screen.getByText('BARRIER WATER', { exact: true })).toBeInTheDocument();
     expect(screen.getByText('30 ML', { exact: true })).toBeInTheDocument();
+    expect(screen.queryByText('SAVED RESULT')).not.toBeInTheDocument();
     expect(screen.getByRole('status')).toHaveTextContent('Result sealed');
   });
 
