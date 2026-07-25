@@ -91,7 +91,7 @@ test('reduced motion reaches the same revealed result and automatic saved-result
   await page.getByRole('button', { name: 'SAVE RESULT' }).click();
   await expect(page.getByRole('heading', { name: 'SAVED RESULT' })).toBeVisible();
   await page.getByRole('button', { name: 'View Past results' }).click();
-  await expect(page.getByLabel('Past results').getByRole('button')).toHaveCount(1);
+  await expect(page.getByLabel('Past results').getByRole('button', { name: /Open saved result/i })).toHaveCount(1);
 });
 
 test('no-change result maps directly to paused while the full taxonomy stays hidden', async ({ page }) => {
@@ -100,7 +100,7 @@ test('no-change result maps directly to paused while the full taxonomy stays hid
   await page.getByRole('button', { name: /Accept recommended next step — TEST LONGER/i }).click();
   const nextStep = page.locator('[data-fv-part="next-step"]');
   await expect(nextStep).toHaveAttribute('data-fv-selected-placement', 'paused');
-  await expect(page.getByText('P1 · Paused')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'P1 · Paused' })).toBeVisible();
   await expect(page.getByRole('group', { name: 'Choose a different next step' })).toBeHidden();
   await page.getByRole('button', { name: 'Choose a different next step' }).click();
   await expect(page.getByRole('group', { name: 'Choose a different next step' })).toBeVisible();
