@@ -24,9 +24,14 @@ export function EvidenceShell({
 
 export function ScreenHeader({ code = 'FV–014', dark = false }: { code?: string; dark?: boolean }) {
   return (
-    <header className={`${styles.header} ${dark ? styles.headerDark : ''}`} data-fv-part="screen-header">
-      <div data-fv-part="status-bar" aria-hidden="true"><span>9:41</span><span>•••</span></div>
-      <div data-fv-part="brand-bar"><strong>FACE VALUE</strong><span>{code}</span></div>
+    <header
+      className={`${styles.header} ${dark ? styles.headerDark : ''}`}
+      data-fv-part="screen-header"
+      style={{ minHeight: 50 }}
+    >
+      <div data-fv-part="brand-bar" style={{ minHeight: 50 }}>
+        <strong>FACE VALUE</strong><span>{code}</span>
+      </div>
     </header>
   );
 }
