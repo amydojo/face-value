@@ -100,7 +100,7 @@ test('complete production journey uses one cassette grammar and produces a durab
   await expect(instrument).toHaveAttribute('data-cassette-state', 'sealed');
 
   await commitAndRecord(page, 'established');
-  await expect(page.getByRole('definition').filter({ hasText: 'S4 · Established routine' })).toBeVisible();
+  await expect(page.getByText('S4 · Established routine', { exact: true })).toBeVisible();
   await expect(page.getByText('FACE EXCLUDED')).toBeVisible();
   await page.getByRole('button', { name: 'View archive' }).click();
   await expect(page.getByLabel('Archived evidence records').getByRole('button')).toHaveCount(1);
@@ -113,9 +113,9 @@ test('overlap retains lower confidence and maps to retry alone', async ({ page }
   await createVerdict(page, true);
   await expect(page.getByText('LOWER CONFIDENCE RETAINED')).toBeVisible();
   await commitAndRecord(page, 'retry_alone');
-  await expect(page.getByRole('definition').filter({ hasText: 'possible' })).toBeVisible();
-  await expect(page.getByRole('definition').filter({ hasText: 'overlap retained' })).toBeVisible();
-  await expect(page.getByRole('definition').filter({ hasText: 'R3 · Retry alone' })).toBeVisible();
+  await expect(page.getByText('possible', { exact: true })).toBeVisible();
+  await expect(page.getByText('overlap retained', { exact: true })).toBeVisible();
+  await expect(page.getByText('R3 · Retry alone', { exact: true })).toBeVisible();
 });
 
 test('camera denial preserves cassette context and file fallback', async ({ page, context }) => {
