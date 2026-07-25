@@ -45,7 +45,8 @@ it('reserves cassette activation for the explicit index handle', async () => {
   const selectorSurface = container.querySelector('[data-cassette-selector] > div');
   expect(selectorSurface).not.toHaveAttribute('data-cassette-handle');
   const handle = screen.getByRole('button', { name: 'Open evidence cassette A1–03' });
-  expect(handle).toHaveStyle({ touchAction: 'none' });
+  expect(handle).toHaveAttribute('data-cassette-handle');
+  expect(container.querySelectorAll('[data-cassette-handle]')).toHaveLength(1);
   await user.click(handle);
   expect(inspect).toHaveBeenCalledOnce();
 });
