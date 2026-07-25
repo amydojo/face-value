@@ -144,7 +144,7 @@ test('complete mobile Human Butter journey saves exactly one durable result', as
 
   const nextStep = page.locator('[data-fv-part="next-step"]');
   await expect(nextStep).toHaveAttribute('data-fv-selected-placement', 'retry_alone');
-  await expect(page.getByText('R3 · Retry alone')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'R3 · Retry alone' })).toBeVisible();
   await expect(page.getByRole('group', { name: 'Choose a different next step' })).toBeHidden();
   await page.screenshot({ path: testInfo.outputPath('human-butter-recommended-next-step.png'), fullPage: true });
 
@@ -154,12 +154,13 @@ test('complete mobile Human Butter journey saves exactly one durable result', as
 
   await expect(page.getByRole('heading', { name: 'SAVED RESULT' })).toBeVisible();
   await expect(page.getByText('Less tight after cleansing', { exact: true })).toBeVisible();
-  await expect(page.getByText('R3 · Retry alone', { exact: true })).toBeVisible();
+  await expect(page.getByRole('definition').filter({ hasText: 'R3 · Retry alone' })).toBeVisible();
   await page.screenshot({ path: testInfo.outputPath('human-butter-open-saved-result.png'), fullPage: true });
 
   await page.getByRole('button', { name: 'View Past results' }).click();
   const pastResults = page.getByLabel('Past results');
-  await expect(pastResults.getByRole('button')).toHaveCount(1);
+  const savedResultEntries = pastResults.getByRole('button', { name: /Open saved result/i });
+  await expect(savedResultEntries).toHaveCount(1);
   await page.screenshot({ path: testInfo.outputPath('human-butter-past-results.png'), fullPage: true });
   await pastResults.getByRole('button', { name: /Open saved result A1–03/i }).click();
   await expect(page.getByRole('heading', { name: 'SAVED RESULT' })).toBeVisible();
@@ -167,7 +168,7 @@ test('complete mobile Human Butter journey saves exactly one durable result', as
   await page.reload();
   await expect(page.getByRole('heading', { name: 'Your trials' })).toBeVisible();
   await page.getByRole('button', { name: 'Past results' }).click();
-  await expect(page.getByLabel('Past results').getByRole('button')).toHaveCount(1);
+  await expect(page.getByLabel('Past results').getByRole('button', { name: /Open saved result/i })).toHaveCount(1);
 
   expect(errors).toEqual([]);
 });
