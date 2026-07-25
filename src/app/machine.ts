@@ -137,6 +137,27 @@ function returnToStage(state: FaceValueState, stage: AppStage, announcement: str
   return { ...state, stage, returnStage: null, camera: 'idle', announcement };
 }
 
+function retireCompletedTrial(state: FaceValueState): FaceValueState {
+  return {
+    ...state,
+    observation: 'none',
+    camera: 'idle',
+    comparison: 'not_available',
+    confidence: 'insufficient',
+    processing: 'idle',
+    disturbance: 'none',
+    placement: 'observation',
+    placementSealed: false,
+    assignedJob: null,
+    captureKind: 'baseline',
+    contractOutcome: null,
+    baselineCapture: null,
+    followupCapture: null,
+    trace: null,
+    analysis: null,
+  };
+}
+
 export function faceValueReducer(state: FaceValueState, event: FaceValueEvent): FaceValueState {
   switch (event.type) {
     case 'OPEN_CABINET':
@@ -458,14 +479,16 @@ export function faceValueReducer(state: FaceValueState, event: FaceValueEvent): 
       };
     }
 
-    case 'OPEN_SAVED_RESULT':
+    case 'OPEN_SAVED_RESULT': {
       if (state.stage !== 'placement' || !state.placementSealed || !state.record) return state;
+      const retired = retireCompletedTrial(state);
       return {
-        ...state,
+        ...retired,
         stage: 'record',
         returnStage: 'cabinet',
         announcement: `Saved result ${state.record.id} opened.`,
       };
+    }
 
     case 'SEAL_PLACEMENT':
       if (state.stage !== 'placement' || !state.analysis || state.placementSealed) return state;
