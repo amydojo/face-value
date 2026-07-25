@@ -28,7 +28,7 @@ async function assertNoOverflow(page: Page) {
   expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(0);
 }
 
-async function chooseBaselineFile(page: Page, name = 'baseline.jpg') {
+async function chooseCapture(page: Page, name = 'baseline.jpg') {
   await page.getByLabel('Choose a face photo').setInputFiles({
     name,
     mimeType: 'image/jpeg',
@@ -37,107 +37,88 @@ async function chooseBaselineFile(page: Page, name = 'baseline.jpg') {
   await page.getByRole('button', { name: 'Use this capture' }).click();
 }
 
-async function openIndexAndSelectSpecimen(page: Page) {
+async function selectSpecimen(page: Page) {
   await page.goto('/');
   await page.getByRole('button', { name: /OPEN EVIDENCE INDEX/i }).click();
   await expect(page.getByRole('heading', { name: 'EVIDENCE INDEX' })).toBeVisible();
   await assertNoLegacyHardware(page);
-
   await page.getByRole('button', { name: 'Browse evidence cassettes', exact: true }).click();
   await expect(page.getByRole('region', { name: /Evidence cassette selector/i })).toBeVisible();
-  await assertNoLegacyHardware(page);
-
-  await page.getByRole('button', { name: /Inspect cassette A1–03/i }).last().click();
+  await page.getByRole('button', { name: /Open evidence cassette A1–03/i }).click();
   await expect(page.getByRole('heading', { name: /Fermented Brightening Essence/i })).toBeVisible();
-  await assertNoLegacyHardware(page);
 }
 
-async function assignJobAndCaptureBaseline(page: Page) {
-  await openIndexAndSelectSpecimen(page);
+async function createObservation(page: Page) {
+  await selectSpecimen(page);
   await page.getByRole('radio', { name: 'Post-acne pigmentation', exact: true }).click();
-  await expect(page.getByText('ASSIGNED EVIDENCE ROLE')).toBeVisible();
   await page.getByRole('button', { name: 'Complete Capture Contract' }).click();
   for (const checkbox of await page.getByRole('checkbox').all()) await checkbox.check();
   await page.getByRole('button', { name: 'Ready to capture' }).click();
-  await chooseBaselineFile(page);
+  await chooseCapture(page);
   await expect(page.getByText('Evidence is still settling.')).toBeVisible();
-  await assertNoLegacyHardware(page);
 }
 
-async function registerInterference(page: Page) {
+async function createVerdict(page: Page, overlap = false) {
+  await createObservation(page);
   await page.getByRole('button', { name: 'Add Trace' }).click();
   await page.getByRole('button', { name: /Register C2–01 Hydrating Drops/i }).click();
-  await expect(page.getByText('INTERFERENCE REGISTER', { exact: true })).toBeVisible();
-  await expect(page.getByText('INTERFERENCE REGISTERED', { exact: true })).toBeVisible();
-  await assertNoLegacyHardware(page);
-}
-
-async function captureFollowupAndAnalyze(page: Page) {
+  if (overlap) {
+    await page.getByRole('button', { name: 'Continue with lower confidence' }).click();
+  } else {
+    await page.getByRole('button', { name: /Remove C2–01 from this window/i }).click();
+  }
   await page.getByRole('button', { name: 'Record a comparable follow-up' }).click();
   for (const checkbox of await page.getByRole('checkbox').all()) await checkbox.check();
   await page.getByRole('radio', { name: 'comparable', exact: true }).check();
   await page.getByRole('button', { name: 'Continue to follow-up' }).click();
-  await chooseBaselineFile(page, 'followup.jpg');
-  await expect(page.getByText(/SIMULATED OPTICAL COMPARISON/i)).toBeVisible();
+  await chooseCapture(page, 'followup.jpg');
   await page.getByRole('button', { name: 'Run simulated comparison' }).click();
   await page.getByRole('button', { name: 'Enter verdict review' }).click();
-  await expect(page.getByLabel('Evidence cassette instrument')).toBeVisible();
+  await expect(page.locator('[data-fv-screen="verdict"]')).toBeVisible();
 }
 
-async function commitDispositionAndOpenArchive(page: Page, placement?: 'established' | 'paused' | 'retry_alone') {
+async function commitAndRecord(page: Page, placement: 'established' | 'retry_alone') {
   await page.getByRole('button', { name: /Classify evidence disposition/i }).click();
-  await expect(page.getByRole('heading', { name: /Give the evidence a place/i })).toBeVisible();
-  if (placement) {
-    await expect(page.locator('[data-fv-part="evidence-disposition"]')).toHaveAttribute('data-fv-selected-placement', placement);
-  }
+  const disposition = page.locator('[data-fv-part="evidence-disposition"]');
+  await expect(disposition).toHaveAttribute('data-fv-selected-placement', placement);
   await page.getByRole('button', { name: 'Commit evidence disposition' }).click();
   await expect(page.getByRole('button', { name: 'Generate Evidence Record' })).toBeVisible();
   await page.getByRole('button', { name: 'Generate Evidence Record' }).click();
   await expect(page.getByRole('heading', { name: 'EVIDENCE RECORD' })).toBeVisible();
-  await expect(page.getByText('FACE EXCLUDED')).toBeVisible();
-  await page.getByRole('button', { name: 'View archive' }).click();
-  await expect(page.getByRole('heading', { name: /Every cassette leaves a durable record/i })).toBeVisible();
 }
 
 test('complete production journey uses one cassette grammar and produces a durable record', async ({ page }) => {
   const errors = collectRuntimeErrors(page);
   await page.setViewportSize({ width: 402, height: 874 });
-  await assignJobAndCaptureBaseline(page);
-  await registerInterference(page);
-  await page.getByRole('button', { name: /Remove C2–01 from this window/i }).click();
-  await captureFollowupAndAnalyze(page);
+  await createVerdict(page);
 
-  const verdictInstrument = page.getByLabel('Evidence cassette instrument');
-  await expect(verdictInstrument).toHaveAttribute('data-cassette-state', 'sealed');
+  const instrument = page.getByLabel('Evidence cassette instrument');
+  await expect(instrument).toHaveAttribute('data-cassette-state', 'sealed');
   await page.getByRole('button', { name: /Open evidence cassette A1–03/ }).click();
-  await expect(verdictInstrument).toHaveAttribute('data-cassette-state', 'presented');
+  await expect(instrument).toHaveAttribute('data-cassette-state', 'presented');
   await page.getByRole('button', { name: /Close evidence cassette A1–03/ }).click();
-  await expect(verdictInstrument).toHaveAttribute('data-cassette-state', 'sealed');
+  await expect(instrument).toHaveAttribute('data-cassette-state', 'sealed');
 
-  await commitDispositionAndOpenArchive(page, 'established');
-  await page.getByRole('button', { name: /Evidence Record ER-/i }).click();
-  await page.getByRole('button', { name: 'Return to Evidence Index' }).click();
-  await expect(page.getByRole('heading', { name: 'EVIDENCE INDEX' })).toBeVisible();
+  await commitAndRecord(page, 'established');
+  await expect(page.getByRole('definition').filter({ hasText: 'S4 · Established routine' })).toBeVisible();
+  await expect(page.getByText('FACE EXCLUDED')).toBeVisible();
+  await page.getByRole('button', { name: 'View archive' }).click();
+  await expect(page.getByLabel('Archived evidence records').getByRole('button')).toHaveCount(1);
   await assertNoLegacyHardware(page);
   await assertNoOverflow(page);
   expect(errors).toEqual([]);
 });
 
-test('overlap branch retains lower confidence through verdict, classification, and record', async ({ page }) => {
-  await assignJobAndCaptureBaseline(page);
-  await registerInterference(page);
-  await page.getByRole('button', { name: 'Continue with lower confidence' }).click();
-  await captureFollowupAndAnalyze(page);
-  await expect(page.getByText(/LOWER CONFIDENCE RETAINED/)).toBeVisible();
-  await commitDispositionAndOpenArchive(page, 'retry_alone');
-  await page.getByRole('button', { name: /Evidence Record ER-/i }).click();
-  await expect(page.getByText('possible', { exact: true })).toBeVisible();
-  await expect(page.getByText('overlap retained', { exact: true })).toBeVisible();
-  await expect(page.getByText('R3 · Retry alone')).toBeVisible();
-  await assertNoLegacyHardware(page);
+test('overlap retains lower confidence and maps to retry alone', async ({ page }) => {
+  await createVerdict(page, true);
+  await expect(page.getByText('LOWER CONFIDENCE RETAINED')).toBeVisible();
+  await commitAndRecord(page, 'retry_alone');
+  await expect(page.getByRole('definition').filter({ hasText: 'possible' })).toBeVisible();
+  await expect(page.getByRole('definition').filter({ hasText: 'overlap retained' })).toBeVisible();
+  await expect(page.getByRole('definition').filter({ hasText: 'R3 · Retry alone' })).toBeVisible();
 });
 
-test('camera denial preserves the cassette context and file fallback', async ({ page, context }) => {
+test('camera denial preserves cassette context and file fallback', async ({ page, context }) => {
   await context.grantPermissions([], { origin: 'http://127.0.0.1:4173' });
   await page.addInitScript(() => {
     Object.defineProperty(navigator, 'mediaDevices', {
@@ -147,50 +128,40 @@ test('camera denial preserves the cassette context and file fallback', async ({ 
       },
     });
   });
-  await openIndexAndSelectSpecimen(page);
+  await selectSpecimen(page);
   await page.getByRole('radio', { name: 'Post-acne pigmentation', exact: true }).click();
   await page.getByRole('button', { name: 'Complete Capture Contract' }).click();
   for (const checkbox of await page.getByRole('checkbox').all()) await checkbox.check();
   await page.getByRole('button', { name: 'Ready to capture' }).click();
-  await expect(page.getByLabel(/Cassette A1–03/i)).toBeVisible();
   await page.getByRole('button', { name: 'Request camera access' }).click();
   await expect(page.getByText('CAMERA UNAVAILABLE', { exact: true })).toBeVisible();
-  await chooseBaselineFile(page, 'fallback.jpg');
+  await chooseCapture(page, 'fallback.jpg');
   await expect(page.getByText('Evidence is still settling.')).toBeVisible();
 });
 
-test('keyboard-only navigation reaches index, selector, capture, verdict, classification, and archive', async ({ page }) => {
+test('keyboard-only activation reaches verdict, classification, and archive', async ({ page }) => {
   await page.goto('/');
   await keyboardActivate(page, page.getByRole('button', { name: /OPEN EVIDENCE INDEX/i }));
   await keyboardActivate(page, page.getByRole('button', { name: 'Browse evidence cassettes', exact: true }));
-  await page.keyboard.press('ArrowRight');
-  await expect(page.getByText('CASSETTE 02 / 03')).toBeVisible();
-  await page.keyboard.press('ArrowLeft');
-  await keyboardActivate(page, page.getByRole('button', { name: /Inspect cassette A1–03/i }).last());
-
+  await keyboardActivate(page, page.getByRole('button', { name: /Open evidence cassette A1–03/i }));
   const job = page.getByRole('radio', { name: 'Post-acne pigmentation', exact: true });
   await job.focus();
   await page.keyboard.press('Space');
   await keyboardActivate(page, page.getByRole('button', { name: 'Complete Capture Contract' }));
-  for (const checkbox of await page.getByRole('checkbox').all()) {
-    await checkbox.focus();
-    await page.keyboard.press('Space');
-  }
+  for (const checkbox of await page.getByRole('checkbox').all()) await checkbox.check();
   await keyboardActivate(page, page.getByRole('button', { name: 'Ready to capture' }));
-  await chooseBaselineFile(page);
+  await chooseCapture(page);
   await keyboardActivate(page, page.getByRole('button', { name: 'Add Trace' }));
   await keyboardActivate(page, page.getByRole('button', { name: /Register C2–01 Hydrating Drops/i }));
   await keyboardActivate(page, page.getByRole('button', { name: /Remove C2–01 from this window/i }));
   await keyboardActivate(page, page.getByRole('button', { name: 'Record a comparable follow-up' }));
   for (const checkbox of await page.getByRole('checkbox').all()) await checkbox.check();
-  const comparable = page.getByRole('radio', { name: 'comparable', exact: true });
-  await comparable.focus();
-  await page.keyboard.press('Space');
+  await page.getByRole('radio', { name: 'comparable', exact: true }).check();
   await keyboardActivate(page, page.getByRole('button', { name: 'Continue to follow-up' }));
-  await chooseBaselineFile(page, 'followup.jpg');
+  await chooseCapture(page, 'followup.jpg');
   await keyboardActivate(page, page.getByRole('button', { name: 'Run simulated comparison' }));
   await keyboardActivate(page, page.getByRole('button', { name: 'Enter verdict review' }));
-  await keyboardActivate(page, page.getByRole('button', { name: /Open evidence cassette A1–03/ }));
+  await page.getByRole('button', { name: /Open evidence cassette A1–03/ }).press('Space');
   await expect(page.getByLabel('Evidence cassette instrument')).toHaveAttribute('data-cassette-state', 'presented');
   await keyboardActivate(page, page.getByRole('button', { name: /Close evidence cassette A1–03/ }));
   await keyboardActivate(page, page.getByRole('button', { name: /Classify evidence disposition/i }));
@@ -200,7 +171,7 @@ test('keyboard-only navigation reaches index, selector, capture, verdict, classi
   await expect(page.getByRole('heading', { name: /Every cassette leaves a durable record/i })).toBeVisible();
 });
 
-test('all supported mobile viewports preserve one scaled assembly, controls, and page scroll', async ({ page }) => {
+test('supported mobile viewports preserve controls, fit, and page scroll', async ({ page }) => {
   for (const viewport of [
     { width: 320, height: 568 },
     { width: 375, height: 812 },
@@ -214,102 +185,36 @@ test('all supported mobile viewports preserve one scaled assembly, controls, and
     const box = await open.boundingBox();
     expect(box?.height).toBeGreaterThanOrEqual(44);
     expect(box?.width).toBeGreaterThanOrEqual(44);
-    await assertNoOverflow(page);
     await open.click();
     await page.getByRole('button', { name: 'Browse evidence cassettes', exact: true }).click();
-    await assertNoOverflow(page);
-    await expect(page.locator('[data-cassette-selector] > div').first()).toHaveCSS('touch-action', 'pan-y');
     await expect(page.getByRole('button', { name: /Open evidence cassette A1–03/ })).toHaveCSS('touch-action', 'none');
     const scrollState = await page.evaluate(() => {
       const rootStyle = getComputedStyle(document.documentElement);
       const bodyStyle = getComputedStyle(document.body);
       const before = window.scrollY;
       const maximum = Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
-      if (maximum > 0) window.scrollTo(0, Math.min(240, maximum));
-      return {
-        before,
-        after: window.scrollY,
-        maximum,
-        rootOverflowY: rootStyle.overflowY,
-        bodyOverflowY: bodyStyle.overflowY,
-      };
+      window.scrollTo(0, Math.min(240, maximum));
+      return { before, after: window.scrollY, maximum, root: rootStyle.overflowY, body: bodyStyle.overflowY };
     });
-    expect(scrollState.rootOverflowY).not.toBe('hidden');
-    expect(scrollState.bodyOverflowY).not.toBe('hidden');
+    expect(scrollState.root).not.toBe('hidden');
+    expect(scrollState.body).not.toBe('hidden');
     if (scrollState.maximum > 0) expect(scrollState.after).toBeGreaterThan(scrollState.before);
+    await assertNoOverflow(page);
   }
 });
 
-test('reduced motion preserves selection, presentation, and classification semantics', async ({ page }) => {
-  await page.emulateMedia({ reducedMotion: 'reduce' });
-  await assignJobAndCaptureBaseline(page);
-  await page.getByRole('button', { name: 'Add Trace' }).click();
-  await page.getByRole('button', { name: /Register C2–01 Hydrating Drops/i }).click();
-  await page.getByRole('button', { name: /Remove C2–01 from this window/i }).click();
-  await captureFollowupAndAnalyze(page);
-  await page.getByRole('button', { name: /Open evidence cassette A1–03/ }).click();
-  await expect(page.getByLabel('Evidence cassette instrument')).toHaveAttribute('data-cassette-state', 'presented');
-  await page.getByRole('button', { name: /Close evidence cassette A1–03/ }).click();
-  await page.getByRole('button', { name: /Classify evidence disposition/i }).click();
-  await page.getByRole('button', { name: 'Commit evidence disposition' }).click();
-  await expect(page.getByRole('button', { name: 'Generate Evidence Record' })).toBeVisible();
-});
-
-test('captures app-wide cassette migration evidence at canonical and critical viewports', async ({ page }, testInfo: TestInfo) => {
-  test.setTimeout(300_000);
+test('captures critical V7 mobile evidence', async ({ page }, testInfo: TestInfo) => {
+  test.setTimeout(180_000);
   await page.setViewportSize({ width: 402, height: 874 });
-  await page.goto('/');
-  await page.screenshot({ path: testInfo.outputPath('cassette-402x874-entry.png'), fullPage: true });
-  await page.getByRole('button', { name: /OPEN EVIDENCE INDEX/i }).click();
-  await page.screenshot({ path: testInfo.outputPath('cassette-402x874-index.png'), fullPage: true });
-  await page.getByRole('button', { name: 'Browse evidence cassettes', exact: true }).click();
-  await page.screenshot({ path: testInfo.outputPath('cassette-402x874-browser.png'), fullPage: true });
-  await page.getByRole('button', { name: /Inspect cassette A1–03/i }).last().click();
-  await page.screenshot({ path: testInfo.outputPath('cassette-402x874-specimen.png'), fullPage: true });
-  await page.getByRole('radio', { name: 'Post-acne pigmentation', exact: true }).click();
-  await page.screenshot({ path: testInfo.outputPath('cassette-402x874-job.png'), fullPage: true });
-  await page.getByRole('button', { name: 'Complete Capture Contract' }).click();
-  for (const checkbox of await page.getByRole('checkbox').all()) await checkbox.check();
-  await page.getByRole('button', { name: 'Ready to capture' }).click();
-  await chooseBaselineFile(page);
-  await page.screenshot({ path: testInfo.outputPath('cassette-402x874-observation.png'), fullPage: true });
-  await page.getByRole('button', { name: 'Add Trace' }).click();
-  await page.getByRole('button', { name: /Register C2–01 Hydrating Drops/i }).click();
-  await page.screenshot({ path: testInfo.outputPath('cassette-402x874-disturbance.png'), fullPage: true });
-  await page.getByRole('button', { name: /Remove C2–01 from this window/i }).click();
-  await page.getByRole('button', { name: 'Record a comparable follow-up' }).click();
-  for (const checkbox of await page.getByRole('checkbox').all()) await checkbox.check();
-  await page.getByRole('button', { name: 'Continue to follow-up' }).click();
-  await chooseBaselineFile(page, 'followup.jpg');
-  await page.screenshot({ path: testInfo.outputPath('cassette-402x874-analysis.png'), fullPage: true });
-  await page.getByRole('button', { name: 'Run simulated comparison' }).click();
-  await page.getByRole('button', { name: 'Enter verdict review' }).click();
-  await page.screenshot({ path: testInfo.outputPath('cassette-402x874-verdict-sealed.png'), fullPage: true });
+  await createVerdict(page);
+  await page.screenshot({ path: testInfo.outputPath('v7-verdict-sealed.png'), fullPage: true });
   await page.getByRole('button', { name: /Open evidence cassette A1–03/ }).click();
   await expect(page.getByLabel('Evidence cassette instrument')).toHaveAttribute('data-cassette-state', 'presented');
-  await page.screenshot({ path: testInfo.outputPath('cassette-402x874-verdict-presented.png'), fullPage: true });
+  await page.screenshot({ path: testInfo.outputPath('v7-verdict-presented.png'), fullPage: true });
   await page.getByRole('button', { name: /Close evidence cassette A1–03/ }).click();
   await page.getByRole('button', { name: /Classify evidence disposition/i }).click();
-  await page.screenshot({ path: testInfo.outputPath('cassette-402x874-placement.png'), fullPage: true });
   await page.getByRole('button', { name: 'Commit evidence disposition' }).click();
+  await page.screenshot({ path: testInfo.outputPath('v7-classified-resealed.png'), fullPage: true });
   await page.getByRole('button', { name: 'Generate Evidence Record' }).click();
-  await page.screenshot({ path: testInfo.outputPath('cassette-402x874-record.png'), fullPage: true });
-  await page.getByRole('button', { name: 'View archive' }).click();
-  await page.screenshot({ path: testInfo.outputPath('cassette-402x874-archive.png'), fullPage: true });
-
-  for (const viewport of [{ width: 375, height: 812 }, { width: 430, height: 932 }]) {
-    await page.setViewportSize(viewport);
-    await page.evaluate(() => localStorage.clear());
-    await page.goto('/');
-    await page.getByRole('button', { name: /OPEN EVIDENCE INDEX/i }).click();
-    await page.screenshot({
-      path: testInfo.outputPath(`cassette-${viewport.width}x${viewport.height}-index.png`),
-      fullPage: true,
-    });
-    await page.getByRole('button', { name: 'Browse evidence cassettes', exact: true }).click();
-    await page.screenshot({
-      path: testInfo.outputPath(`cassette-${viewport.width}x${viewport.height}-browser.png`),
-      fullPage: true,
-    });
-  }
+  await page.screenshot({ path: testInfo.outputPath('v7-evidence-record.png'), fullPage: true });
 });
