@@ -1,5 +1,6 @@
 import type {
   AnalysisResult,
+  CaptureMetadata,
   ComparisonState,
   DisturbanceState,
   EvidenceConfidence,
@@ -22,6 +23,8 @@ export interface PersistedDemoData {
   comparison: ComparisonState;
   confidence: EvidenceConfidence;
   disturbance: DisturbanceState;
+  baselineCapture: CaptureMetadata | null;
+  followupCapture: CaptureMetadata | null;
   trace: TraceEntry | null;
   analysis: AnalysisResult | null;
   record: EvidenceRecordData | null;
@@ -66,6 +69,15 @@ const disturbanceStates = new Set<DisturbanceState>([
   'returned_to_cooling',
   'overlap_retained',
 ]);
+const captureKinds = new Set<CaptureMetadata['kind']>(['baseline', 'followup']);
+const captureSources = new Set<CaptureMetadata['source']>(['camera', 'file']);
+const captureMimeTypes = new Set<CaptureMetadata['mimeType']>([
+  'image/jpeg',
+  'image/png',
+  'image/webp',
+  'image/heic',
+  'image/unknown',
+]);
 
 const isObject = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null;
@@ -76,6 +88,15 @@ const isTrace = (value: unknown): value is TraceEntry =>
   typeof value.label === 'string' &&
   typeof value.detail === 'string' &&
   typeof value.observedAt === 'string';
+
+const isCaptureMetadata = (value: unknown): value is CaptureMetadata =>
+  isObject(value) &&
+  typeof value.id === 'string' &&
+  captureKinds.has(value.kind as CaptureMetadata['kind']) &&
+  captureSources.has(value.source as CaptureMetadata['source']) &&
+  captureMimeTypes.has(value.mimeType as CaptureMetadata['mimeType']) &&
+  typeof value.createdAt === 'string' &&
+  value.orientationRule === 'analysis-unmirrored';
 
 const isEvidenceRecord = (value: unknown): value is EvidenceRecordData =>
   isObject(value) &&
@@ -105,6 +126,8 @@ export function toPersistedDemoData(state: FaceValueState): PersistedDemoData {
     comparison: state.comparison,
     confidence: state.confidence,
     disturbance: state.disturbance,
+    baselineCapture: state.baselineCapture,
+    followupCapture: state.followupCapture,
     trace: state.trace,
     analysis: state.analysis,
     record: state.record,
@@ -131,6 +154,8 @@ export function loadStructuredDemoData(
 
     const archive = value.archive;
     const assignedJob = value.assignedJob;
+    const baselineCapture = value.baselineCapture ?? null;
+    const followupCapture = value.followupCapture ?? null;
     const trace = value.trace;
     const analysis = value.analysis;
     const record = value.record;
@@ -147,6 +172,8 @@ export function loadStructuredDemoData(
       !comparisons.has(value.comparison as ComparisonState) ||
       !confidenceStates.has(value.confidence as EvidenceConfidence) ||
       !disturbanceStates.has(value.disturbance as DisturbanceState) ||
+      !(baselineCapture === null || isCaptureMetadata(baselineCapture)) ||
+      !(followupCapture === null || isCaptureMetadata(followupCapture)) ||
       !(trace === null || isTrace(trace)) ||
       !(analysis === null || isAnalysisResult(analysis)) ||
       !(record === null || isEvidenceRecord(record)) ||
@@ -156,7 +183,11 @@ export function loadStructuredDemoData(
       throw new Error('Invalid persisted data');
     }
 
-    return value as unknown as PersistedDemoData;
+    return {
+      ...(value as unknown as Omit<PersistedDemoData, 'baselineCapture' | 'followupCapture'>),
+      baselineCapture,
+      followupCapture,
+    };
   } catch {
     storage.removeItem(STORAGE_KEY);
     return null;
