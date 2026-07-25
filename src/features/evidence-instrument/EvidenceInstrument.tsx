@@ -219,7 +219,7 @@ export function EvidenceInstrument({
         className={cassetteStyles.faceplate}
         data-cassette-part="registered-product-faceplate"
         aria-hidden={faceplateHidden}
-        inert={faceplateHidden ? '' : undefined}
+        inert={faceplateHidden}
       >
         <div className={cassetteStyles.faceplateHeader}>
           <span>SAMPLE REGISTERED</span>
