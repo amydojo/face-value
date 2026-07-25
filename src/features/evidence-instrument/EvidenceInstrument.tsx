@@ -51,6 +51,7 @@ export interface EvidenceInstrumentProps {
   selected?: boolean;
   secondarySpecimen?: Specimen;
   outputReady?: boolean;
+  expanded?: boolean;
   onActivate?: () => void;
   onEscape?: () => void;
   actionLabel?: string;
@@ -68,6 +69,7 @@ export function EvidenceInstrument({
   selected = false,
   secondarySpecimen,
   outputReady = false,
+  expanded,
   onActivate,
   onEscape,
   actionLabel,
@@ -76,6 +78,7 @@ export function EvidenceInstrument({
   compact = false,
 }: EvidenceInstrumentProps) {
   const [summaryOpen, setSummaryOpen] = useState(false);
+  const resolvedExpanded = expanded ?? summaryOpen;
   const productName = specimen?.product ?? 'AWAITING SPECIMEN';
   const [lineOne, lineTwo] = toProductLines(productName);
   const accession = specimen?.accession ?? 'A1–00';
@@ -159,11 +162,11 @@ export function EvidenceInstrument({
           accession={accession}
           product={productName}
           label={actionLabel}
-          expanded={summaryOpen}
+          expanded={resolvedExpanded}
           className={styles.activationTarget}
           onActivate={activate}
           onEscape={() => {
-            if (summaryOpen) setSummaryOpen(false);
+            if (expanded === undefined && summaryOpen) setSummaryOpen(false);
             else onEscape?.();
           }}
         />
@@ -172,7 +175,7 @@ export function EvidenceInstrument({
       {summary && (
         <div
           id={`cassette-summary-${specimen?.id ?? 'empty'}`}
-          hidden={!summaryOpen}
+          hidden={!resolvedExpanded}
           data-cassette-summary
           style={{ marginTop: 10 }}
         >
