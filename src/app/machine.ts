@@ -19,6 +19,7 @@ import { PRODUCTS } from '../fixtures/products';
 export type FaceValueEvent =
   | { type: 'OPEN_CABINET' }
   | { type: 'BROWSE_DRAWERS' }
+  | { type: 'OPEN_REVIEW_DUE' }
   | { type: 'PREVIOUS_DRAWER' }
   | { type: 'NEXT_DRAWER' }
   | { type: 'OPEN_DRAWER' }
@@ -148,6 +149,25 @@ export function faceValueReducer(state: FaceValueState, event: FaceValueEvent): 
         stage: 'browse',
         announcement: `Cassette Index open. Cassette ${state.selectedDrawerIndex + 1} of ${PRODUCTS.length} selected.`,
       };
+
+    case 'OPEN_REVIEW_DUE':
+      if (state.stage !== 'cabinet' || state.observation !== 'review_due') return state;
+      if (state.analysis && state.analysis.comparison !== 'not_comparable') {
+        return {
+          ...state,
+          stage: 'progress',
+          announcement: `Verdict review restored. ${state.analysis.finding} Confidence: ${state.confidence}.`,
+        };
+      }
+      if (state.followupCapture) {
+        return {
+          ...state,
+          stage: 'analysis',
+          processing: 'idle',
+          announcement: 'Follow-up restored. Optical comparison is ready.',
+        };
+      }
+      return state;
 
     case 'PREVIOUS_DRAWER': {
       if (state.stage !== 'browse' || state.selectedDrawerIndex === 0) return state;
@@ -418,11 +438,14 @@ export function faceValueReducer(state: FaceValueState, event: FaceValueEvent): 
     case 'GENERATE_RECORD': {
       if (state.stage !== 'placement' || !state.analysis || !state.placementSealed) return state;
       const record = createEvidenceRecord(state, event.now);
+      const archive = state.archive.some((item) => item.id === record.id)
+        ? state.archive
+        : [record, ...state.archive];
       return {
         ...state,
         stage: 'record',
         record,
-        archive: [record, ...state.archive],
+        archive,
         returnStage: 'cabinet',
         announcement: 'Evidence Record generated without a face image.',
       };
