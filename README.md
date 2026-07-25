@@ -8,11 +8,11 @@ The visible product loop is:
 
 > **Trial → Check in → Verdict**
 
-The system preserves uncertainty, accounts for interference, and never grades the face or manufactures cause and effect certainty.
+The system preserves uncertainty, accounts for interference, and never grades the face or manufactures cause-and-effect certainty.
 
 ## Product contract
 
-`docs/product-contract.md` is the product authority for Face Value. It freezes the human problem, core promise, visible loop, verdict system, user language, YouCam integration boundary, non goals, and acceptance test for future work.
+`docs/product-contract.md` is the product authority for Face Value. It freezes the human problem, core promise, visible loop, verdict system, user language, YouCam integration boundary, non-goals, and acceptance test for future work.
 
 The governing promise is:
 
@@ -20,31 +20,62 @@ The governing promise is:
 
 Future design, implementation, API integration, demo, and submission work must follow that contract or amend it explicitly in the same pull request.
 
+## Production journey
+
+Face Value exposes one public state-machine journey:
+
+> **Welcome → Evidence Index → cassette selection → active observation → follow-up comparison → V7 verdict → disposition → confident reseal → Evidence Record**
+
+EvidenceVerdict receives the selected specimen, assigned job, analysis result, comparison, confidence, and disturbance state from the existing reducer. The standalone `/verdict` fixture route has been removed. A persisted review-due cassette resumes through the reducer rather than a route or component-local navigation model.
+
+Verdict actions map explicitly to disposition:
+
+- `KEEP IT` → `established`
+- `TEST LONGER` → `paused`
+- `RETRY IT ALONE` → `retry_alone`
+
+Record generation occurs only after classification is committed and is idempotent for the deterministic record identifier.
+
 ## Production hardware language
 
 Evidence Cassette V7 is the single production physical and interaction grammar.
 
-The phone behaves as a precision evidence instrument containing indexed skincare specimen cassettes. The shared family is defined in `src/features/evidence-instrument`, while the ceremonial verdict reveal remains in `src/features/evidence-cassette` with its explicit reducer.
+The phone behaves as a precision evidence instrument containing indexed skincare specimen cassettes. The shared family is defined in `src/features/evidence-instrument` and `src/features/evidence-cassette`.
+
+Production cassette modes are:
+
+- `index`
+- `active`
+- `review-due`
+- `verdict`
+- `classified`
 
 The fixed physical truth is:
 
-* one graphite enclosure
-* one shallow optical bay
-* one fixed specimen dock
-* one persistent smart glass layer
-* one mounted identity rail
-* one rigid cassette transform group
-* one mechanically independent Evidence Record output slot
+- one graphite enclosure
+- one shallow optical bay
+- one fixed specimen dock
+- one live specimen and identity layer
+- one dedicated persistent smart-glass overlay
+- one structural bezel
+- one rigid cassette transform group
+- one mechanically independent Evidence Record output slot
 
-Appliance, furniture, room, shelf transfer, and generic card carousel metaphors are superseded and must not be reintroduced.
+The explicit cassette handle owns tap, Enter, Space, Escape recovery, pointer and touch drag, thresholding, capture, and cancellation. The handle does not disable page scrolling outside its own surface.
 
-See `docs/evidence-cassette-v7.md` and `docs/design-contract.md`.
+Smart-glass blur, tint, reflection, and clearing remain on the dedicated overlay. Product identity stays live and full resolution, with no inherited blur in the presented or reduced-motion state.
+
+The browser and operating system own system chrome. Face Value renders no fake time, signal, or battery row. The application shell owns top safe-area spacing through `env(safe-area-inset-top)`.
+
+Appliance, furniture, room, shelf-transfer, fake-system-interface, and generic card-carousel metaphors are superseded and must not be reintroduced.
+
+See `docs/evidence-cassette-v7.md`, `docs/design-contract.md`, and `docs/production-journey-integration.md`.
 
 ## MVP scope
 
-This repository implements one responsive, fixture backed golden path through the Evidence Index. The application includes finite cassette selection, one job assignment, camera or file capture, stable observation, repeat comparison, both second product interference branches, confidence preservation, the Evidence Cassette V7 verdict reveal, evidence disposition, independent Evidence Record output, archive browsing, deletion, and return to the index.
+This repository implements one responsive, fixture-backed golden path through the Evidence Index. The application includes finite cassette selection, one job assignment, camera or file capture, stable observation, repeat comparison, both second-product interference branches, confidence preservation, the Evidence Cassette V7 verdict reveal, evidence disposition, independent Evidence Record output, archive browsing, deletion, restoration, and return to the index.
 
-The underlying domain model remains more detailed than the visible user journey. Capture quality, comparison confidence, disturbance handling, placement state, privacy cleanup, accessibility, and reduced motion behavior are system responsibilities rather than separate product promises.
+The underlying domain model remains more detailed than the visible user journey. Capture quality, comparison confidence, disturbance handling, placement state, privacy cleanup, accessibility, and reduced-motion behavior are system responsibilities rather than separate product promises.
 
 ## Local setup
 
@@ -55,59 +86,59 @@ npm run dev
 
 Scripts:
 
-* `npm run dev`: start the mobile web app.
-* `npm run lint`: run ESLint.
-* `npm run typecheck`: run strict TypeScript project checks.
-* `npm run test`: run unit and component tests.
-* `npm run build`: typecheck and create the production bundle.
-* `npm run test:e2e`: run the Playwright golden path matrix.
-* `npm run check`: run lint, typecheck, unit and component tests, and the production build.
+- `npm run dev`: start the mobile web app.
+- `npm run lint`: run ESLint.
+- `npm run typecheck`: run strict TypeScript project checks.
+- `npm run test`: run unit and component tests.
+- `npm run build`: typecheck and create the production bundle.
+- `npm run test:e2e`: run the Playwright mobile WebKit journey matrix.
+- `npm run check`: run lint, typecheck, unit and component tests, and the production build.
 
 Full validation:
 
 ```bash
 npm run check
-npx playwright install chromium
+npx playwright install webkit
 npm run test:e2e
 ```
 
 ## Architecture
 
-The application uses Vite, React, strict TypeScript, a pure reducer state machine, scoped CSS Modules, Vitest, React Testing Library, and Playwright. Domain state is independent from React. Browser capabilities are isolated behind adapters for camera, analysis, persistence, haptics, and clock behavior.
+The application uses Vite, React, strict TypeScript, one pure reducer state machine, scoped CSS Modules, Vitest, React Testing Library, and Playwright. Domain state is independent from React. Browser capabilities are isolated behind adapters for camera, analysis, persistence, haptics, and clock behavior.
 
-The initial MVP used internal event and field names derived from an earlier physical metaphor. A small set remains inside the reducer and persisted state for compatibility. Those names are not user facing, accessible, analytical, or canonical. New presentation work must use cassette semantics.
+A small set of original MVP event and field names remains inside the reducer and persisted state for compatibility. Those names are not user-facing, accessible, analytical, or canonical. New presentation work uses cassette semantics.
 
-See `docs/product-contract.md`, `docs/architecture.md`, `docs/state-model.md`, `docs/camera-contract.md`, `docs/design-contract.md`, and `docs/evidence-cassette-v7.md`.
+See `docs/product-contract.md`, `docs/architecture.md`, `docs/state-model.md`, `docs/camera-contract.md`, `docs/design-contract.md`, `docs/evidence-cassette-v7.md`, and `docs/production-journey-integration.md`.
 
 ## Mock analysis disclosure
 
 `MockOpticalAnalysisAdapter` is the only analysis implementation in the current MVP. It returns deterministic fixture scenarios and is visibly identified in the product as simulated optical comparison. No external analysis request runs, and no fixture result is represented as a production analysis API response.
 
-A real YouCam adapter can implement the typed `AnalysisAdapter` boundary without replacing the domain state machine. The product contract limits visible analysis to the signals relevant to the one job assigned to the product.
+A real YouCam adapter can implement the typed `AnalysisAdapter` boundary without replacing the domain state machine. The product contract limits visible analysis to signals relevant to the one job assigned to the product.
 
 ## Camera and privacy
 
-The browser camera adapter prefers the user facing camera with ideal 1920×1080 constraints, retries with a general video request when preferred constraints are overconstrained, normalizes browser errors, captures an unmirrored JPEG frame at approximately 0.92 quality, and always stops tracks. The live preview is mirrored with CSS only. File input remains available when camera APIs are unsupported or denied.
+The browser camera adapter prefers the user-facing camera with ideal 1920×1080 constraints, retries with a general video request when preferred constraints are overconstrained, normalizes browser errors, captures an unmirrored JPEG frame at approximately 0.92 quality, and always stops tracks. The live preview is mirrored with CSS only. File input remains available when camera APIs are unsupported or denied.
 
 Raw face images remain in component memory only. They are not written to localStorage, sent to a server, included in Evidence Records, or exposed in exported structured artifacts. Temporary object URLs are revoked after replacement, deletion, and unmount.
 
 ## Design source of truth
 
-* Figma file: `https://www.figma.com/design/GKiVi4YJLm9WqozwAK3ThB`
-* Evidence Cassette V7 family: node `368:3295`
-* Final sealed verdict: node `342:2752`
-* Final presented verdict: node `343:2578`
+- Figma file: `https://www.figma.com/design/GKiVi4YJLm9WqozwAK3ThB`
+- Evidence Cassette V7 family: node `368:3295`
+- Final sealed verdict: node `342:2752`
+- Final presented verdict: node `343:2578`
 
 Production preserves the approved V7 graphite instrument, shallow bay, restrained cassette geometry, mounted identity, persistent smart glass, one small orange evidence signal, and independent paper output. CSS perspective replaces Figma depth approximations where a real physical transition requires it.
 
 ## Chaos Vault provenance
 
-Camera behavior is a clean room adaptation of `amydojo/undone-tools/chaos-vault/departments/camera.html` and its demo behavior. The Face Value adaptation deliberately changes the preferred camera from environment facing to user facing and keeps everything downstream of image capture outside the donor boundary. Only the portable browser camera behavior survives. Donor scoring, branding, recommendations, and old analysis models are excluded.
+Camera behavior is a clean-room adaptation of `amydojo/undone-tools/chaos-vault/departments/camera.html` and its demo behavior. The Face Value adaptation deliberately changes the preferred camera from environment-facing to user-facing and keeps everything downstream of image capture outside the donor boundary. Only the portable browser camera behavior survives. Donor scoring, branding, recommendations, and old analysis models are excluded.
 
 ## Current limitations
 
-* Optical analysis is deterministic fixture data.
-* Context conditions are user confirmed rather than automatically detected.
-* Device camera behavior is covered by adapter tests and browser automation, not claimed as verified on physical devices.
-* Persistence is local structured demo data only.
-* There is no authentication, server processing, cloud storage, analytics, OCR, barcode scanning, ingredient database, ecommerce, medical assessment, or native packaging.
+- Optical analysis is deterministic fixture data.
+- Context conditions are user-confirmed rather than automatically detected.
+- Mobile Safari behavior is covered by Playwright WebKit with an iPhone device profile, not claimed as verified on a physical iPhone.
+- Persistence is local structured demo data only.
+- There is no authentication, server processing, cloud storage, analytics, OCR, barcode scanning, ingredient database, ecommerce, medical assessment, or native packaging.

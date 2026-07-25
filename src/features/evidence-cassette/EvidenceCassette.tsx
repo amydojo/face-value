@@ -1,4 +1,4 @@
-import { useEffect, useReducer, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
+import { useEffect, useReducer, useState } from 'react';
 import {
   evidenceCassetteReducer,
   isCassetteBusy,
@@ -6,10 +6,8 @@ import {
   nextCassetteStep,
   type EvidenceCassetteState,
 } from './evidenceCassetteMachine';
+import { CassetteHandle } from './CassetteHandle';
 import styles from './EvidenceCassette.module.css';
-
-const DRAG_INTENT_PX = 5;
-const DRAG_ACTIVATION_PX = 28;
 
 function usePrefersReducedMotion() {
   const [reduced, setReduced] = useState(() =>
@@ -36,6 +34,7 @@ function toDisplayName(value: string) {
 export interface EvidenceCassetteProps {
   accessionCode: string;
   productName: string;
+  volume: string;
   job: string;
   verdict?: string;
   initialState?: EvidenceCassetteState;
@@ -45,6 +44,7 @@ export interface EvidenceCassetteProps {
 export function EvidenceCassette({
   accessionCode,
   productName,
+  volume,
   job,
   verdict = 'EARNING ITS PLACE',
   initialState = 'sealed',
@@ -53,13 +53,6 @@ export function EvidenceCassette({
   const [state, dispatch] = useReducer(evidenceCassetteReducer, initialState);
   const [announcement, setAnnouncement] = useState('Cassette sealed');
   const reducedMotion = usePrefersReducedMotion();
-  const dragRef = useRef<{
-    pointerId: number;
-    startX: number;
-    startY: number;
-    activated: boolean;
-  } | null>(null);
-  const suppressClickRef = useRef(false);
 
   useEffect(() => {
     const step = nextCassetteStep(state, reducedMotion);
@@ -94,85 +87,41 @@ export function EvidenceCassette({
   const productLineOne = productWords.slice(0, lineBreak).join(' ');
   const productLineTwo = productWords.slice(lineBreak).join(' ');
 
-  const handlePointerDown = (event: ReactPointerEvent<HTMLButtonElement>) => {
-    if (event.button !== 0 || busy) return;
-    event.preventDefault();
-    dragRef.current = {
-      pointerId: event.pointerId,
-      startX: event.clientX,
-      startY: event.clientY,
-      activated: false,
-    };
-    event.currentTarget.setPointerCapture(event.pointerId);
-  };
-
-  const handlePointerMove = (event: ReactPointerEvent<HTMLButtonElement>) => {
-    const drag = dragRef.current;
-    if (!drag || drag.pointerId !== event.pointerId || drag.activated) return;
-
-    event.preventDefault();
-    const deltaX = event.clientX - drag.startX;
-    const deltaY = event.clientY - drag.startY;
-    const distanceX = Math.abs(deltaX);
-    const distanceY = Math.abs(deltaY);
-
-    if (distanceX >= DRAG_INTENT_PX || distanceY >= DRAG_INTENT_PX) {
-      suppressClickRef.current = true;
-    }
-    if (distanceX < DRAG_ACTIVATION_PX || distanceX <= distanceY) return;
-
-    drag.activated = true;
-    activate();
-  };
-
-  const clearPointer = (event: ReactPointerEvent<HTMLButtonElement>) => {
-    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
-      event.currentTarget.releasePointerCapture(event.pointerId);
-    }
-    dragRef.current = null;
-  };
-
-  const handleClick = () => {
-    if (suppressClickRef.current) {
-      suppressClickRef.current = false;
-      return;
-    }
-    activate();
-  };
-
   const accessibleDescription = presented
-    ? `Evidence cassette open. ${toDisplayName(productName)} specimen presented.`
-    : 'Evidence cassette sealed. Specimen protected behind smart glass.';
+    ? `Evidence cassette open. ${toDisplayName(productName)} specimen presented with crisp live identity.`
+    : `Evidence cassette sealed. ${toDisplayName(productName)} remains identifiable behind smart glass.`;
 
   return (
     <section
       className={styles.instrument}
       data-cassette-state={state}
+      data-cassette-mode="verdict"
       data-mechanics-settled={mechanicallySettled ? 'true' : 'false'}
       data-glass-cleared={presented ? 'true' : 'false'}
       data-identity-visible={presented ? 'true' : 'false'}
+      data-optics-layered="true"
       aria-label="Evidence cassette instrument"
     >
       <div className={styles.housing} aria-hidden="true">
         <div className={styles.chamber}>
           <div className={styles.rearPanel} />
-          <div className={styles.identityRail}>
+          <div className={styles.identityRail} data-fv-part="specimen-identity">
             <span className={styles.identityCode}>{accessionCode}</span>
             <strong className={styles.identityName}>{productName}</strong>
             <span className={styles.identityJob}>{job}</span>
             <span className={styles.identityEditLabel}>EDIT</span>
           </div>
-          <div className={styles.specimenPresentation}>
+          <div className={styles.specimenPresentation} data-fv-part="specimen-identity">
             <div className={styles.bottleCap} />
             <div className={styles.bottleBody}>
               <span>FACE VALUE</span>
               <strong>{productLineOne}</strong>
               {productLineTwo && <strong>{productLineTwo}</strong>}
-              <small>30 ML</small>
+              <small>{volume}</small>
             </div>
           </div>
           <div className={styles.specimenDock} />
-          <div className={styles.smartGlass} />
+          <div className={styles.smartGlass} data-fv-part="smart-glass" />
           <div className={styles.structuralBezel} />
         </div>
       </div>
@@ -187,23 +136,24 @@ export function EvidenceCassette({
             </div>
             <i className={styles.evidenceMark} />
           </div>
-          <button
-            type="button"
+          <CassetteHandle
+            mode="verdict"
+            accession={accessionCode}
+            product={productName}
+            expanded={presented}
+            busy={busy}
+            describedBy="evidence-cassette-description"
             className={styles.handleTarget}
-            style={{ touchAction: 'none', userSelect: 'none', WebkitTouchCallout: 'none' }}
-            aria-label={presented ? 'Close evidence cassette' : 'Open evidence cassette'}
-            aria-describedby="evidence-cassette-description"
-            aria-disabled={busy}
-            onClick={handleClick}
-            onPointerDown={handlePointerDown}
-            onPointerMove={handlePointerMove}
-            onPointerUp={clearPointer}
-            onPointerCancel={clearPointer}
+            onActivate={activate}
+            onEscape={() => {
+              if (presented) activate();
+              else onEdit?.();
+            }}
           >
             <span className={styles.handleRecess} aria-hidden="true">
               <span className={styles.handleGrip} />
             </span>
-          </button>
+          </CassetteHandle>
         </div>
       </div>
 

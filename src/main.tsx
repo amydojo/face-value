@@ -5,6 +5,7 @@ import { FaceValueProvider } from './app/FaceValueProvider';
 import { StageFocusManager } from './app/StageFocusManager';
 import { AppRouter } from './app/router/AppRouter';
 import './styles/foundations.css';
+import './styles/evidence-cassette-optics.css';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

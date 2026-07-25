@@ -29,6 +29,7 @@ function renderCassette() {
     <EvidenceCassette
       accessionCode="A1–01"
       productName="BARRIER WATER SERUM"
+      volume="30 ML"
       job="HYDRATION"
     />,
   );
@@ -67,6 +68,9 @@ function firePointer(
   Object.defineProperty(event, 'pointerId', { configurable: true, value: pointerId });
   fireEvent(node, event);
 }
+
+const openName = 'Open evidence cassette A1–01';
+const closeName = 'Close evidence cassette A1–01';
 
 describe('evidence cassette machine', () => {
   it('accepts only the causal opening order', () => {
@@ -110,20 +114,22 @@ describe('EvidenceCassette', () => {
     });
   });
 
-  it('starts sealed with a semantic handle and stable description', () => {
+  it('starts sealed with a semantic handle and live product identity', () => {
     renderCassette();
     expect(screen.getByLabelText('Evidence cassette instrument')).toHaveAttribute(
       'data-cassette-state',
       'sealed',
     );
-    expect(screen.getByRole('button', { name: 'Open evidence cassette' })).toBeVisible();
+    expect(screen.getByRole('button', { name: openName })).toBeVisible();
+    expect(screen.getByText('BARRIER WATER', { exact: true })).toBeInTheDocument();
+    expect(screen.getByText('30 ML', { exact: true })).toBeInTheDocument();
     expect(screen.getByRole('status')).toHaveTextContent('Cassette sealed');
   });
 
-  it('opens once, keeps glass frosted through mechanics, then presents identity', () => {
+  it('opens once, keeps glass frosted through mechanics, then presents crisp identity', () => {
     renderCassette();
     const instrument = screen.getByLabelText('Evidence cassette instrument');
-    const handle = screen.getByRole('button', { name: 'Open evidence cassette' });
+    const handle = screen.getByRole('button', { name: openName });
 
     fireEvent.click(handle);
     fireEvent.click(handle);
@@ -145,14 +151,14 @@ describe('EvidenceCassette', () => {
     advance(320);
     expect(instrument).toHaveAttribute('data-cassette-state', 'presented');
     expect(instrument).toHaveAttribute('data-glass-cleared', 'true');
-    expect(screen.getByRole('button', { name: 'Close evidence cassette' })).toBeVisible();
+    expect(screen.getByRole('button', { name: closeName })).toBeVisible();
     expect(screen.getByRole('button', { name: 'Edit product trial details' })).toBeVisible();
   });
 
   it('uses the same transition for a deliberate handle drag and ignores a short drag', () => {
     renderCassette();
     const instrument = screen.getByLabelText('Evidence cassette instrument');
-    const handle = screen.getByRole('button', { name: 'Open evidence cassette' });
+    const handle = screen.getByRole('button', { name: openName });
 
     firePointer(handle, 'pointerdown', { pointerId: 1, clientX: 10, clientY: 10 });
     firePointer(handle, 'pointermove', { pointerId: 1, clientX: 26, clientY: 12 });
@@ -167,9 +173,9 @@ describe('EvidenceCassette', () => {
 
   it('reseals decisively from presented', () => {
     renderCassette();
-    fireEvent.click(screen.getByRole('button', { name: 'Open evidence cassette' }));
+    fireEvent.click(screen.getByRole('button', { name: openName }));
     advanceNormalOpening();
-    fireEvent.click(screen.getByRole('button', { name: 'Close evidence cassette' }));
+    fireEvent.click(screen.getByRole('button', { name: closeName }));
     expect(screen.getByLabelText('Evidence cassette instrument')).toHaveAttribute(
       'data-cassette-state',
       'closing',
@@ -181,21 +187,20 @@ describe('EvidenceCassette', () => {
     );
   });
 
-  it('preserves the semantic result in reduced motion', () => {
+  it('preserves the semantic and crisp identity result in reduced motion', () => {
     installMotionPreference(true);
     renderCassette();
-    fireEvent.click(screen.getByRole('button', { name: 'Open evidence cassette' }));
+    fireEvent.click(screen.getByRole('button', { name: openName }));
     advanceReducedOpening();
-    expect(screen.getByLabelText('Evidence cassette instrument')).toHaveAttribute(
-      'data-cassette-state',
-      'presented',
-    );
+    const instrument = screen.getByLabelText('Evidence cassette instrument');
+    expect(instrument).toHaveAttribute('data-cassette-state', 'presented');
+    expect(instrument).toHaveAttribute('data-identity-visible', 'true');
   });
 
   it('cleans scheduled transitions when unmounted', () => {
     const error = vi.spyOn(console, 'error').mockImplementation(() => undefined);
     const { unmount } = renderCassette();
-    fireEvent.click(screen.getByRole('button', { name: 'Open evidence cassette' }));
+    fireEvent.click(screen.getByRole('button', { name: openName }));
     unmount();
     advance(2000);
     expect(error).not.toHaveBeenCalled();

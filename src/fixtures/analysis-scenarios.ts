@@ -24,7 +24,7 @@ export const ANALYSIS_SCENARIOS: Record<Exclude<AnalysisScenario, 'failure'>, An
     finding: 'Visible evenness appears slightly improved.',
     nonFinding: 'Texture and radiance do not need separate action yet.',
     relevantContext: '10 of 12 uses logged. Two captures comparable.',
-    recommendedAction: 'reassess',
+    recommendedAction: 'keep',
     claimBoundary: BASE_BOUNDARY,
     simulated: true,
   },

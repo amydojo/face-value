@@ -1,5 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import type { ProductPlacement } from '../domain/model';
+import headerStyles from './ScreenHeader.module.css';
 import styles from '../styles/FaceValue.module.css';
 
 export function EvidenceShell({
@@ -24,9 +25,13 @@ export function EvidenceShell({
 
 export function ScreenHeader({ code = 'FV–014', dark = false }: { code?: string; dark?: boolean }) {
   return (
-    <header className={`${styles.header} ${dark ? styles.headerDark : ''}`} data-fv-part="screen-header">
-      <div data-fv-part="status-bar" aria-hidden="true"><span>9:41</span><span>•••</span></div>
-      <div data-fv-part="brand-bar"><strong>FACE VALUE</strong><span>{code}</span></div>
+    <header
+      className={`${headerStyles.header} ${dark ? headerStyles.dark : ''}`}
+      data-fv-part="screen-header"
+    >
+      <div className={headerStyles.brandBar} data-fv-part="brand-bar">
+        <strong>FACE VALUE</strong><span>{code}</span>
+      </div>
     </header>
   );
 }

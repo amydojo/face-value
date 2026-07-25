@@ -25,9 +25,17 @@ jobs:
       - run: npm run lint
       - run: npm run typecheck
       - name: Unit and component tests
-        id: unit_tests
-        continue-on-error: true
-        run: npm run test -- --reporter=json --outputFile=vitest-results.json
+        run: |
+          npm run test -- --reporter=json --outputFile=vitest-results.json || true
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const report = JSON.parse(fs.readFileSync('vitest-results.json', 'utf8'));
+          if (!report.success || report.numFailedTests !== 0 || report.numFailedTestSuites !== 0) {
+            console.error(`Vitest failed: ${report.numFailedTests} test(s), ${report.numFailedTestSuites} suite(s).`);
+            process.exit(1);
+          }
+          console.log(`Vitest passed: ${report.numPassedTests}/${report.numTotalTests} tests.`);
+          NODE
       - name: Upload Vitest report
         if: always()
         uses: actions/upload-artifact@v4
@@ -36,6 +44,12 @@ jobs:
           path: vitest-results.json
           if-no-files-found: error
       - run: npm run build
+      - name: Upload production bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: production-bundle
+          path: dist
+          if-no-files-found: error
       - run: npx playwright install --with-deps webkit
       - run: npm run test:e2e
       - name: Upload Playwright evidence
@@ -45,6 +59,3 @@ jobs:
           name: playwright-evidence
           path: test-results
           if-no-files-found: ignore
-      - name: Enforce unit-test result
-        if: always() && steps.unit_tests.outcome == 'failure'
-        run: exit 1

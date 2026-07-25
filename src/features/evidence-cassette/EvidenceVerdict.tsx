@@ -1,8 +1,10 @@
 import { useState } from 'react';
-import type { AnalysisResult, EvidenceConfidence, Specimen } from '../../domain/model';
+import type { AnalysisResult, EvidenceConfidence, ProductPlacement, Specimen } from '../../domain/model';
 import { ScreenHeader } from '../../components/hardware';
 import { EvidenceCassette } from './EvidenceCassette';
 import styles from './EvidenceVerdict.module.css';
+
+type VerdictPlacement = Extract<ProductPlacement, 'established' | 'paused' | 'retry_alone'>;
 
 export interface EvidenceVerdictProps {
   specimen: Specimen;
@@ -10,12 +12,13 @@ export interface EvidenceVerdictProps {
   result: AnalysisResult;
   confidence: EvidenceConfidence;
   lowerConfidence: boolean;
-  onContinue: () => void;
+  recommendedPlacement: VerdictPlacement;
+  onContinue: (placement: VerdictPlacement) => void;
   onBack: () => void;
 }
 
-function getVerdictCopy(result: AnalysisResult, lowerConfidence: boolean) {
-  if (lowerConfidence) {
+function getVerdictCopy(placement: VerdictPlacement) {
+  if (placement === 'retry_alone') {
     return {
       title: 'Test it alone.',
       support: 'The signal may be real, but the overlap means this product has not earned a clean verdict yet.',
@@ -23,7 +26,7 @@ function getVerdictCopy(result: AnalysisResult, lowerConfidence: boolean) {
     };
   }
 
-  if (result.recommendedAction === 'keep') {
+  if (placement === 'established') {
     return {
       title: 'Earning its place.',
       support: 'The repeated scans show a useful change in the job you gave it. Keep the product and keep the evidence honest.',
@@ -44,17 +47,23 @@ export function EvidenceVerdict({
   result,
   confidence,
   lowerConfidence,
+  recommendedPlacement,
   onContinue,
   onBack,
 }: EvidenceVerdictProps) {
   const [whyOpen, setWhyOpen] = useState(false);
-  const copy = getVerdictCopy(result, lowerConfidence);
+  const copy = getVerdictCopy(recommendedPlacement);
   const resolvedJob = job ?? 'ACTIVE OBSERVATION';
 
   return (
     <>
       <ScreenHeader dark />
-      <section className={styles.verdict} data-fv-screen="progress" aria-labelledby="verdict-heading">
+      <section
+        className={styles.verdict}
+        data-fv-screen="verdict"
+        data-fv-recommended-placement={recommendedPlacement}
+        aria-labelledby="verdict-heading"
+      >
         <div className={styles.context}>
           <span>HONEST VERDICT</span>
           <span>ONE PRODUCT · ONE JOB</span>
@@ -62,7 +71,7 @@ export function EvidenceVerdict({
 
         <div className={styles.copyBlock}>
           <p className={styles.kicker}>THE PRODUCT HAS AN ANSWER.</p>
-          <h1 id="verdict-heading">{copy.title}</h1>
+          <h1 id="verdict-heading" data-stage-focus tabIndex={-1}>{copy.title}</h1>
           <p className={styles.support}>{copy.support}</p>
           {lowerConfidence && <p className={styles.confidenceNotice} role="status">LOWER CONFIDENCE RETAINED</p>}
         </div>
@@ -71,6 +80,7 @@ export function EvidenceVerdict({
           <EvidenceCassette
             accessionCode={specimen.accession}
             productName={specimen.product}
+            volume={specimen.volume}
             job={resolvedJob}
             verdict={copy.title.toUpperCase()}
             onEdit={onBack}
@@ -97,7 +107,7 @@ export function EvidenceVerdict({
           type="button"
           className={styles.primaryAction}
           aria-label={`Classify evidence disposition — ${copy.action}`}
-          onClick={onContinue}
+          onClick={() => onContinue(recommendedPlacement)}
         >
           <span>{copy.action}</span><span aria-hidden>→</span>
         </button>

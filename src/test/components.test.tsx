@@ -10,22 +10,6 @@ import { CameraViewport } from '../features/capture-contract/CameraViewport';
 import { EvidenceCassetteSelector, EvidenceInstrument } from '../features/evidence-instrument/EvidenceInstrument';
 import { PRODUCTS } from '../fixtures/products';
 
-function firePointer(
-  node: Element,
-  type: 'pointerdown' | 'pointerup',
-  { pointerId, clientX, clientY }: { pointerId: number; clientX: number; clientY: number },
-) {
-  const event = new MouseEvent(type, {
-    bubbles: true,
-    cancelable: true,
-    button: 0,
-    clientX,
-    clientY,
-  });
-  Object.defineProperty(event, 'pointerId', { configurable: true, value: pointerId });
-  fireEvent(node, event);
-}
-
 it('supports finite keyboard-accessible cassette controls with clear names', async () => {
   const user = userEvent.setup();
   const next = vi.fn();
@@ -45,35 +29,42 @@ it('supports finite keyboard-accessible cassette controls with clear names', asy
   expect(screen.getByText('CASSETTE 01 / 03')).toBeVisible();
 });
 
-it('keeps below-threshold selector drag deterministic and activates past threshold', () => {
-  const previous = vi.fn();
-  const next = vi.fn();
+it('reserves cassette activation for the explicit index handle', async () => {
+  const user = userEvent.setup();
+  const inspect = vi.fn();
   const { container } = render(
     <EvidenceCassetteSelector
       products={PRODUCTS}
-      index={1}
-      onPrevious={previous}
-      onNext={next}
-      onInspect={vi.fn()}
+      index={0}
+      onPrevious={vi.fn()}
+      onNext={vi.fn()}
+      onInspect={inspect}
     />,
   );
-  const target = container.querySelector('[data-cassette-selector] > div');
-  if (!(target instanceof HTMLElement)) throw new Error('Selector target missing');
 
-  firePointer(target, 'pointerdown', { pointerId: 1, clientX: 100, clientY: 100 });
-  firePointer(target, 'pointerup', { pointerId: 1, clientX: 120, clientY: 101 });
-  expect(previous).not.toHaveBeenCalled();
-  expect(next).not.toHaveBeenCalled();
-
-  firePointer(target, 'pointerdown', { pointerId: 2, clientX: 150, clientY: 100 });
-  firePointer(target, 'pointerup', { pointerId: 2, clientX: 94, clientY: 101 });
-  expect(next).toHaveBeenCalledOnce();
+  const selectorSurface = container.querySelector('[data-cassette-selector] > div');
+  expect(selectorSurface).not.toHaveAttribute('data-cassette-handle');
+  const handle = screen.getByRole('button', { name: 'Open evidence cassette A1–03' });
+  expect(handle).toHaveAttribute('data-cassette-handle');
+  expect(container.querySelectorAll('[data-cassette-handle]')).toHaveLength(1);
+  await user.click(handle);
+  expect(inspect).toHaveBeenCalledOnce();
 });
 
-it('exposes active and disturbed cassette semantics without relying on color', () => {
-  const { rerender } = render(<EvidenceInstrument specimen={PRODUCTS[0]} state="active" />);
-  expect(screen.getByLabelText(/Evidence cassette A1–03.*ACTIVE OBSERVATION/i)).toBeVisible();
-  rerender(<EvidenceInstrument specimen={PRODUCTS[0]} secondarySpecimen={PRODUCTS[1]} state="disturbed" />);
+it('exposes index, active, review-due, and classified cassette semantics without relying on color', () => {
+  const { rerender } = render(<EvidenceInstrument specimen={PRODUCTS[0]} mode="index" />);
+  expect(screen.getByLabelText(/Evidence cassette A1–03.*INDEXED/i)).toBeVisible();
+  rerender(<EvidenceInstrument specimen={PRODUCTS[0]} mode="active" />);
+  expect(screen.getByLabelText(/ACTIVE OBSERVATION/i)).toBeVisible();
+  rerender(<EvidenceInstrument specimen={PRODUCTS[0]} mode="review-due" />);
+  expect(screen.getByLabelText(/REVIEW DUE/i)).toBeVisible();
+  rerender(<EvidenceInstrument specimen={PRODUCTS[0]} mode="classified" outputReady />);
+  expect(screen.getByLabelText(/CLASSIFIED/i)).toBeVisible();
+  expect(screen.getByText('EVIDENCE RECORD READY')).toBeInTheDocument();
+});
+
+it('exposes disturbed cassette semantics without relying on color', () => {
+  render(<EvidenceInstrument specimen={PRODUCTS[0]} secondarySpecimen={PRODUCTS[1]} state="disturbed" />);
   expect(screen.getByLabelText(/OBSERVATION DISTURBED/i)).toBeVisible();
   expect(screen.getByText('INTERFERENCE REGISTERED')).toBeInTheDocument();
 });
@@ -170,7 +161,7 @@ it('keeps disposition in an explicit committing phase until classification compl
   vi.useRealTimers();
 });
 
-it('moves focus to the semantic Evidence Index heading', async () => {
+it('moves focus to the semantic Evidence Index heading and removes fake system chrome', async () => {
   const user = userEvent.setup();
   render(
     <MemoryRouter>
@@ -184,6 +175,8 @@ it('moves focus to the semantic Evidence Index heading', async () => {
   await waitFor(() => {
     expect(screen.getByRole('heading', { name: 'EVIDENCE INDEX' })).toHaveFocus();
   });
+  expect(screen.queryByText('9:41')).not.toBeInTheDocument();
+  expect(document.querySelector('[data-fv-part="status-bar"]')).toBeNull();
 });
 
 it('removes obsolete appliance and furniture language from the rendered journey', async () => {
