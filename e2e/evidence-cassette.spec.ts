@@ -86,9 +86,18 @@ test('complete production journey integrates Evidence Cassette V7 and emits one 
   expect(await page.evaluate(() => window.scrollY)).toBe(scrollBeforeHandle);
   await expect(page.locator('[data-fv-part="cassette-observation-summary"]')).toBeVisible();
 
-  await page.mouse.move(390, 820);
-  await page.mouse.wheel(0, 460);
-  await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(scrollBeforeHandle);
+  const observationTouchAction = await page.locator('[data-fv-screen="observation"]').evaluate((node) =>
+    getComputedStyle(node).touchAction,
+  );
+  expect(observationTouchAction).not.toBe('none');
+  const outsideHandleScroll = await page.evaluate(() => {
+    const before = window.scrollY;
+    const maximum = Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
+    window.scrollTo(0, Math.min(maximum, before + 460));
+    return { before, after: window.scrollY, maximum };
+  });
+  expect(outsideHandleScroll.maximum).toBeGreaterThan(0);
+  expect(outsideHandleScroll.after).toBeGreaterThan(outsideHandleScroll.before);
 
   await reachVerdict(page);
   await expect(page.getByText('FERMENTED BRIGHTENING ESSENCE', { exact: true }).first()).toBeVisible();
@@ -121,7 +130,10 @@ test('complete production journey integrates Evidence Cassette V7 and emits one 
   await closeHandle.focus();
   await page.keyboard.press('Escape');
   await expect(instrument).toHaveAttribute('data-cassette-state', 'sealed');
-  await closeHandle.press('Space').catch(() => undefined);
+  await page.getByRole('button', { name: /Open evidence cassette A1–03/ }).press('Space');
+  await expect(instrument).toHaveAttribute('data-cassette-state', 'presented');
+  await page.getByRole('button', { name: /Close evidence cassette A1–03/ }).click();
+  await expect(instrument).toHaveAttribute('data-cassette-state', 'sealed');
 
   await page.getByRole('button', { name: /Classify evidence disposition.*KEEP IT/i }).click();
   const disposition = page.locator('[data-fv-part="evidence-disposition"]');
@@ -133,7 +145,7 @@ test('complete production journey integrates Evidence Cassette V7 and emits one 
 
   await page.getByRole('button', { name: 'Generate Evidence Record' }).click();
   await expect(page.getByRole('heading', { name: 'EVIDENCE RECORD' })).toBeVisible();
-  await expect(page.getByText('S4 · Established routine')).toBeVisible();
+  await expect(page.getByText('S4 · Established routine', { exact: true })).toBeVisible();
   await expect(page.getByText('FACE EXCLUDED')).toBeVisible();
   await page.screenshot({ path: testInfo.outputPath('cassette-evidence-record.png'), fullPage: true });
 
