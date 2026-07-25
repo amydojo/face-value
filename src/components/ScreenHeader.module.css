@@ -1,5 +1,7 @@
 .header {
+  width: 100%;
   min-height: 50px;
+  box-sizing: border-box;
   border-bottom: 1px solid var(--fv-rule-default);
 }
 
