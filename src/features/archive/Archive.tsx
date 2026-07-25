@@ -14,24 +14,33 @@ export function Archive({
   onClear: () => void;
 }) {
   return (
-    <section className={styles.archive} aria-labelledby="archive-heading" data-fv-screen="archive">
+    <section className={styles.archive} aria-labelledby="past-results-heading" data-fv-screen="past-results">
       <button type="button" className={styles.textButton} onClick={onBack}>← Back</button>
-      <p className={styles.eyebrow}>EVIDENCE ARCHIVE</p>
-      <h1 id="archive-heading">Every cassette leaves a durable record.</h1>
-      <p>Archived observations remain readable without reopening the original capture.</p>
+      <p className={styles.eyebrow}>PAST RESULTS</p>
+      <h1 id="past-results-heading">Past results</h1>
+      <p>Each saved result keeps the product, job, scans, note, trial conditions, confidence, and next step together.</p>
       {records.length === 0 ? (
-        <p>No Evidence Records yet.</p>
+        <p>No saved results yet.</p>
       ) : (
-        <div className={styles.archiveIndex} aria-label="Archived evidence records">
+        <div className={styles.archiveIndex} aria-label="Past results">
           {records.map((record) => (
-            <button className={styles.archiveRecord} type="button" key={record.id} onClick={() => onOpen(record)}>
+            <button
+              className={styles.archiveRecord}
+              type="button"
+              key={record.id}
+              onClick={() => onOpen(record)}
+              aria-label={`Open saved result ${record.accession} for ${record.product}`}
+            >
               <span className={styles.archiveAccession}>{record.accession}</span>
               <RecordFolio record={record} />
             </button>
           ))}
         </div>
       )}
-      <button type="button" className={styles.dangerAction} onClick={onClear}>Clear demo data</button>
+      <details>
+        <summary>Demo controls</summary>
+        <button type="button" className={styles.dangerAction} onClick={onClear}>Clear demo data</button>
+      </details>
     </section>
   );
 }
