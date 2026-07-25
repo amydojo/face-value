@@ -91,13 +91,14 @@ test('complete mobile Human Butter journey saves exactly one durable result', as
   const scrollBeforeHandle = await page.evaluate(() => window.scrollY);
   await dragHandle(page, activeHandle);
   expect(await page.evaluate(() => window.scrollY)).toBe(scrollBeforeHandle);
-  await expect(page.locator('[data-fv-part="trial-summary"]')).toBeVisible();
+  await expect(page.locator('[data-evidence-instrument] [data-fv-part="trial-summary"]')).toBeVisible();
 
   const maximumScroll = await page.evaluate(() => Math.max(0, document.documentElement.scrollHeight - window.innerHeight));
   if (maximumScroll > 0) {
     const before = await page.evaluate(() => window.scrollY);
-    await page.evaluate(() => window.scrollTo(0, Math.min(document.documentElement.scrollHeight, window.scrollY + 360)));
-    expect(await page.evaluate(() => window.scrollY)).toBeGreaterThan(before);
+    await page.mouse.move(20, 820);
+    await page.mouse.wheel(0, 360);
+    await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(before);
   }
 
   await page.getByRole('button', { name: 'Add note' }).click();
@@ -148,7 +149,12 @@ test('complete mobile Human Butter journey saves exactly one durable result', as
   await expect(page.getByRole('group', { name: 'Choose a different next step' })).toBeHidden();
   await page.screenshot({ path: testInfo.outputPath('human-butter-recommended-next-step.png'), fullPage: true });
 
-  await page.getByRole('button', { name: 'SAVE RESULT' }).click();
+  const saveResult = page.getByRole('button', { name: 'SAVE RESULT' });
+  await saveResult.evaluate((button) => {
+    (button as HTMLButtonElement).click();
+    (button as HTMLButtonElement).click();
+  });
+  await expect(page.locator('[data-output-ready="true"]')).toBeVisible();
   await expect(page.getByText('Saved to your evidence.').first()).toBeVisible();
   await page.screenshot({ path: testInfo.outputPath('human-butter-saved-resealed.png'), fullPage: true });
 
