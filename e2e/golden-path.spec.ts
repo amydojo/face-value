@@ -19,6 +19,8 @@ async function keyboardActivate(page: Page, target: Locator) {
 async function assertNoLegacyHardware(page: Page) {
   const visibleText = await page.locator('body').innerText();
   expect(visibleText).not.toMatch(forbiddenVisibleCopy);
+  expect(visibleText).not.toContain('9:41');
+  await expect(page.locator('[data-fv-part="status-bar"]')).toHaveCount(0);
   await expect(page.locator('[data-fv-part="drawer-carousel"], [data-fv-part="drawer-hardware"], .drawerShell')).toHaveCount(0);
 }
 
@@ -82,9 +84,12 @@ async function captureFollowupAndAnalyze(page: Page) {
   await expect(page.getByLabel('Evidence cassette instrument')).toBeVisible();
 }
 
-async function commitDispositionAndOpenArchive(page: Page) {
+async function commitDispositionAndOpenArchive(page: Page, placement?: 'established' | 'paused' | 'retry_alone') {
   await page.getByRole('button', { name: /Classify evidence disposition/i }).click();
   await expect(page.getByRole('heading', { name: /Give the evidence a place/i })).toBeVisible();
+  if (placement) {
+    await expect(page.locator('[data-fv-part="evidence-disposition"]')).toHaveAttribute('data-fv-selected-placement', placement);
+  }
   await page.getByRole('button', { name: 'Commit evidence disposition' }).click();
   await expect(page.getByRole('button', { name: 'Generate Evidence Record' })).toBeVisible();
   await page.getByRole('button', { name: 'Generate Evidence Record' }).click();
@@ -104,12 +109,12 @@ test('complete production journey uses one cassette grammar and produces a durab
 
   const verdictInstrument = page.getByLabel('Evidence cassette instrument');
   await expect(verdictInstrument).toHaveAttribute('data-cassette-state', 'sealed');
-  await page.getByRole('button', { name: 'Open evidence cassette' }).click();
+  await page.getByRole('button', { name: /Open evidence cassette A1–03/ }).click();
   await expect(verdictInstrument).toHaveAttribute('data-cassette-state', 'presented');
-  await page.getByRole('button', { name: 'Close evidence cassette' }).click();
+  await page.getByRole('button', { name: /Close evidence cassette A1–03/ }).click();
   await expect(verdictInstrument).toHaveAttribute('data-cassette-state', 'sealed');
 
-  await commitDispositionAndOpenArchive(page);
+  await commitDispositionAndOpenArchive(page, 'established');
   await page.getByRole('button', { name: /Evidence Record ER-/i }).click();
   await page.getByRole('button', { name: 'Return to Evidence Index' }).click();
   await expect(page.getByRole('heading', { name: 'EVIDENCE INDEX' })).toBeVisible();
@@ -124,10 +129,11 @@ test('overlap branch retains lower confidence through verdict, classification, a
   await page.getByRole('button', { name: 'Continue with lower confidence' }).click();
   await captureFollowupAndAnalyze(page);
   await expect(page.getByText(/LOWER CONFIDENCE RETAINED/)).toBeVisible();
-  await commitDispositionAndOpenArchive(page);
+  await commitDispositionAndOpenArchive(page, 'retry_alone');
   await page.getByRole('button', { name: /Evidence Record ER-/i }).click();
   await expect(page.getByText('possible', { exact: true })).toBeVisible();
   await expect(page.getByText('overlap retained', { exact: true })).toBeVisible();
+  await expect(page.getByText('R3 · Retry alone')).toBeVisible();
   await assertNoLegacyHardware(page);
 });
 
@@ -184,9 +190,9 @@ test('keyboard-only navigation reaches index, selector, capture, verdict, classi
   await chooseBaselineFile(page, 'followup.jpg');
   await keyboardActivate(page, page.getByRole('button', { name: 'Run simulated comparison' }));
   await keyboardActivate(page, page.getByRole('button', { name: 'Enter verdict review' }));
-  await keyboardActivate(page, page.getByRole('button', { name: 'Open evidence cassette' }));
+  await keyboardActivate(page, page.getByRole('button', { name: /Open evidence cassette A1–03/ }));
   await expect(page.getByLabel('Evidence cassette instrument')).toHaveAttribute('data-cassette-state', 'presented');
-  await keyboardActivate(page, page.getByRole('button', { name: 'Close evidence cassette' }));
+  await keyboardActivate(page, page.getByRole('button', { name: /Close evidence cassette A1–03/ }));
   await keyboardActivate(page, page.getByRole('button', { name: /Classify evidence disposition/i }));
   await keyboardActivate(page, page.getByRole('button', { name: 'Commit evidence disposition' }));
   await keyboardActivate(page, page.getByRole('button', { name: 'Generate Evidence Record' }));
@@ -213,6 +219,7 @@ test('all supported mobile viewports preserve one scaled assembly, controls, and
     await page.getByRole('button', { name: 'Browse evidence cassettes', exact: true }).click();
     await assertNoOverflow(page);
     await expect(page.locator('[data-cassette-selector] > div').first()).toHaveCSS('touch-action', 'pan-y');
+    await expect(page.getByRole('button', { name: /Open evidence cassette A1–03/ })).toHaveCSS('touch-action', 'none');
     const scrollState = await page.evaluate(() => {
       const rootStyle = getComputedStyle(document.documentElement);
       const bodyStyle = getComputedStyle(document.body);
@@ -240,9 +247,9 @@ test('reduced motion preserves selection, presentation, and classification seman
   await page.getByRole('button', { name: /Register C2–01 Hydrating Drops/i }).click();
   await page.getByRole('button', { name: /Remove C2–01 from this window/i }).click();
   await captureFollowupAndAnalyze(page);
-  await page.getByRole('button', { name: 'Open evidence cassette' }).click();
+  await page.getByRole('button', { name: /Open evidence cassette A1–03/ }).click();
   await expect(page.getByLabel('Evidence cassette instrument')).toHaveAttribute('data-cassette-state', 'presented');
-  await page.getByRole('button', { name: 'Close evidence cassette' }).click();
+  await page.getByRole('button', { name: /Close evidence cassette A1–03/ }).click();
   await page.getByRole('button', { name: /Classify evidence disposition/i }).click();
   await page.getByRole('button', { name: 'Commit evidence disposition' }).click();
   await expect(page.getByRole('button', { name: 'Generate Evidence Record' })).toBeVisible();
@@ -278,10 +285,10 @@ test('captures app-wide cassette migration evidence at canonical and critical vi
   await page.getByRole('button', { name: 'Run simulated comparison' }).click();
   await page.getByRole('button', { name: 'Enter verdict review' }).click();
   await page.screenshot({ path: testInfo.outputPath('cassette-402x874-verdict-sealed.png'), fullPage: true });
-  await page.getByRole('button', { name: 'Open evidence cassette' }).click();
+  await page.getByRole('button', { name: /Open evidence cassette A1–03/ }).click();
   await expect(page.getByLabel('Evidence cassette instrument')).toHaveAttribute('data-cassette-state', 'presented');
   await page.screenshot({ path: testInfo.outputPath('cassette-402x874-verdict-presented.png'), fullPage: true });
-  await page.getByRole('button', { name: 'Close evidence cassette' }).click();
+  await page.getByRole('button', { name: /Close evidence cassette A1–03/ }).click();
   await page.getByRole('button', { name: /Classify evidence disposition/i }).click();
   await page.screenshot({ path: testInfo.outputPath('cassette-402x874-placement.png'), fullPage: true });
   await page.getByRole('button', { name: 'Commit evidence disposition' }).click();
