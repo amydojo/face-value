@@ -33,7 +33,7 @@ function hydrateState(): FaceValueState {
     disturbance: completedTrial ? 'none' : persisted.disturbance,
     comparison: completedTrial ? 'not_available' : persisted.comparison,
     confidence: completedTrial ? 'insufficient' : persisted.confidence,
-    processing: completedTrial ? 'idle' : persisted.processing,
+    processing: 'idle',
     placement: completedTrial ? 'observation' : persisted.placement,
     placementSealed: completedTrial ? false : persisted.placementSealed,
     announcement: hasContinuity
