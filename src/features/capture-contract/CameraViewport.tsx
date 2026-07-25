@@ -27,6 +27,9 @@ interface PendingCapture {
 
 export function CameraViewport({
   kind,
+  accession = 'A1–01',
+  product = 'Active specimen',
+  job = 'Active observation',
   cameraState,
   onRequesting,
   onReady,
@@ -37,6 +40,9 @@ export function CameraViewport({
   onBack,
 }: {
   kind: CaptureKind;
+  accession?: string;
+  product?: string;
+  job?: string | null;
   cameraState: CameraState;
   onRequesting: () => void;
   onReady: () => void;
@@ -131,27 +137,33 @@ export function CameraViewport({
 
   return (
     <section className={styles.cameraScreen} aria-labelledby="camera-heading">
-      <button type="button" className={styles.textButton} onClick={leave}>
-        ← Back
-      </button>
-      <p className={styles.eyebrow}>{kind.toUpperCase()} CAPTURE</p>
+      <button type="button" className={styles.textButton} onClick={leave}>← Back</button>
+      <div className={styles.captureIdentity} aria-label={`Cassette ${accession}, ${product}, ${job ?? 'job unassigned'}`}>
+        <span>{accession}</span><strong>{product}</strong><small>{job ?? 'JOB UNASSIGNED'}</small>
+      </div>
+      <p className={styles.eyebrow}>{kind.toUpperCase()} OBSERVATION CAPTURE</p>
       <h1 id="camera-heading">Comparable evidence begins with honest conditions.</h1>
-      <div
-        className={styles.cameraViewport}
-        aria-label="Observed face region. Preview is mirrored for framing; evidence pixels are captured unmirrored."
-      >
-        {pendingCapture ? (
-          <img src={pendingCapture.previewUrl} alt="Current private capture preview" />
-        ) : (
-          <video ref={videoRef} autoPlay muted playsInline />
-        )}
-        {!pendingCapture && cameraState !== 'ready' && cameraState !== 'capturing' && (
-          <div className={styles.cameraPlaceholder}>
-            PRIVATE BY DEFAULT
-            <br />
-            <small>Original image remains in memory only</small>
-          </div>
-        )}
+      <div className={styles.cameraInstrumentFrame}>
+        <div
+          className={styles.cameraViewport}
+          aria-label="Observed face region. Preview is mirrored for framing; evidence pixels are captured unmirrored."
+        >
+          {pendingCapture ? (
+            <img src={pendingCapture.previewUrl} alt="Current private capture preview" />
+          ) : (
+            <video ref={videoRef} autoPlay muted playsInline />
+          )}
+          {!pendingCapture && cameraState !== 'ready' && cameraState !== 'capturing' && (
+            <div className={styles.cameraPlaceholder}>
+              PRIVATE BY DEFAULT
+              <br />
+              <small>Original image remains in memory only</small>
+            </div>
+          )}
+        </div>
+        <div className={styles.cameraAccessionRail} aria-hidden="true">
+          <span>{accession}</span><strong>{kind.toUpperCase()} OBSERVATION</strong><i />
+        </div>
       </div>
       {failure && (
         <div className={styles.notice} role="status">
@@ -160,14 +172,10 @@ export function CameraViewport({
         </div>
       )}
       {!pendingCapture && cameraState !== 'ready' && cameraState !== 'capturing' && (
-        <button type="button" className={styles.primaryAction} onClick={openCamera}>
-          Request camera access
-        </button>
+        <button type="button" className={styles.primaryAction} onClick={openCamera}>Request camera access</button>
       )}
       {!pendingCapture && cameraState === 'ready' && (
-        <button type="button" className={styles.primaryAction} onClick={capture}>
-          Capture frame
-        </button>
+        <button type="button" className={styles.primaryAction} onClick={capture}>Capture frame</button>
       )}
       <label className={styles.fileFallback}>
         Choose a photo instead
@@ -181,17 +189,11 @@ export function CameraViewport({
       </label>
       {pendingCapture && (
         <>
-          <button type="button" className={styles.primaryAction} onClick={acceptPendingCapture}>
-            Use this capture
-          </button>
-          <button type="button" className={styles.secondaryAction} onClick={deleteCapture}>
-            Delete current capture
-          </button>
+          <button type="button" className={styles.primaryAction} onClick={acceptPendingCapture}>Use this capture</button>
+          <button type="button" className={styles.secondaryAction} onClick={deleteCapture}>Delete current capture</button>
         </>
       )}
-      <p className={styles.privacyLine}>
-        No server upload · No local image persistence · Analysis orientation: unmirrored
-      </p>
+      <p className={styles.privacyLine}>No server upload · No local image persistence · Analysis orientation: unmirrored</p>
     </section>
   );
 }

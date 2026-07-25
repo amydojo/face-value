@@ -4,28 +4,78 @@ import { MemoryRouter } from 'react-router-dom';
 import { expect, it, vi } from 'vitest';
 import { FaceValueProvider } from '../app/FaceValueProvider';
 import { StageFocusManager } from '../app/StageFocusManager';
-import { DrawerCarousel } from '../components/DrawerCarousel';
-import { ObservationStatus, TransferTrack } from '../components/hardware';
+import { EvidenceDisposition, ObservationStatus } from '../components/hardware';
 import { FaceValueApplication } from '../features/FaceValueApplication';
 import { CameraViewport } from '../features/capture-contract/CameraViewport';
+import { EvidenceCassetteSelector, EvidenceInstrument } from '../features/evidence-instrument/EvidenceInstrument';
 import { PRODUCTS } from '../fixtures/products';
 
-it('supports keyboard-accessible finite drawer controls with accessible names', async () => {
+function firePointer(
+  node: Element,
+  type: 'pointerdown' | 'pointerup',
+  { pointerId, clientX, clientY }: { pointerId: number; clientX: number; clientY: number },
+) {
+  const event = new MouseEvent(type, {
+    bubbles: true,
+    cancelable: true,
+    button: 0,
+    clientX,
+    clientY,
+  });
+  Object.defineProperty(event, 'pointerId', { configurable: true, value: pointerId });
+  fireEvent(node, event);
+}
+
+it('supports finite keyboard-accessible cassette controls with clear names', async () => {
   const user = userEvent.setup();
   const next = vi.fn();
   render(
-    <DrawerCarousel
+    <EvidenceCassetteSelector
       products={PRODUCTS}
       index={0}
       onPrevious={vi.fn()}
       onNext={next}
-      onOpen={vi.fn()}
+      onInspect={vi.fn()}
     />,
   );
-  expect(screen.getByRole('button', { name: 'Previous drawer' })).toBeDisabled();
-  await user.click(screen.getByRole('button', { name: 'Next drawer' }));
-  expect(next).toHaveBeenCalled();
-  expect(screen.getByRole('region', { name: /Drawer 1 of 3/i })).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Previous cassette' })).toBeDisabled();
+  await user.click(screen.getByRole('button', { name: 'Next cassette' }));
+  expect(next).toHaveBeenCalledOnce();
+  expect(screen.getByRole('region', { name: /Cassette 1 of 3/i })).toBeInTheDocument();
+  expect(screen.getByText('CASSETTE 01 / 03')).toBeVisible();
+});
+
+it('keeps below-threshold selector drag deterministic and activates past threshold', () => {
+  const previous = vi.fn();
+  const next = vi.fn();
+  const { container } = render(
+    <EvidenceCassetteSelector
+      products={PRODUCTS}
+      index={1}
+      onPrevious={previous}
+      onNext={next}
+      onInspect={vi.fn()}
+    />,
+  );
+  const target = container.querySelector('[data-cassette-selector] > div');
+  if (!(target instanceof HTMLElement)) throw new Error('Selector target missing');
+
+  firePointer(target, 'pointerdown', { pointerId: 1, clientX: 100, clientY: 100 });
+  firePointer(target, 'pointerup', { pointerId: 1, clientX: 120, clientY: 101 });
+  expect(previous).not.toHaveBeenCalled();
+  expect(next).not.toHaveBeenCalled();
+
+  firePointer(target, 'pointerdown', { pointerId: 2, clientX: 150, clientY: 100 });
+  firePointer(target, 'pointerup', { pointerId: 2, clientX: 94, clientY: 101 });
+  expect(next).toHaveBeenCalledOnce();
+});
+
+it('exposes active and disturbed cassette semantics without relying on color', () => {
+  const { rerender } = render(<EvidenceInstrument specimen={PRODUCTS[0]} state="active" />);
+  expect(screen.getByLabelText(/Evidence cassette A1–03.*ACTIVE OBSERVATION/i)).toBeVisible();
+  rerender(<EvidenceInstrument specimen={PRODUCTS[0]} secondarySpecimen={PRODUCTS[1]} state="disturbed" />);
+  expect(screen.getByLabelText(/OBSERVATION DISTURBED/i)).toBeVisible();
+  expect(screen.getByText('INTERFERENCE REGISTERED')).toBeInTheDocument();
 });
 
 it('keeps file fallback available when camera is denied', () => {
@@ -44,6 +94,7 @@ it('keeps file fallback available when camera is denied', () => {
   );
   expect(screen.getByLabelText('Choose a face photo')).toHaveAttribute('accept', 'image/*');
   expect(screen.getByText(/Choose a photo instead/i)).toBeInTheDocument();
+  expect(screen.getByText(/BASELINE OBSERVATION CAPTURE/i)).toBeInTheDocument();
 });
 
 it('allows a pending private capture to be deleted before acceptance', async () => {
@@ -87,39 +138,39 @@ it('provides visible text equivalents for comparison and confidence states', () 
   expect(screen.getByText('possible')).toBeVisible();
 });
 
-it('keeps placement in an explicit moving phase until the 620ms transfer and 180ms settle complete', () => {
+it('keeps disposition in an explicit committing phase until classification completes', () => {
   vi.useFakeTimers();
-  const onSeal = vi.fn();
+  const onClassify = vi.fn();
   const props = {
     placement: 'established' as const,
-    sealed: false,
+    classified: false,
     onSelect: vi.fn(),
-    onSeal,
+    onClassify,
     onGenerate: vi.fn(),
   };
-  const { rerender } = render(<TransferTrack {...props} />);
+  const { rerender } = render(<EvidenceDisposition {...props} />);
 
-  fireEvent.click(screen.getByRole('button', { name: 'Seal placement' }));
-  expect(screen.getByRole('region', { name: /MOVE TO SHELF/i })).toHaveAttribute(
-    'data-fv-transfer-state',
-    'moving',
+  fireEvent.click(screen.getByRole('button', { name: 'Commit evidence disposition' }));
+  expect(screen.getByRole('region', { name: /CLASSIFY THE CASSETTE/i })).toHaveAttribute(
+    'data-fv-disposition-state',
+    'committing',
   );
-  expect(screen.getByRole('button', { name: 'Placement transfer in progress' })).toBeDisabled();
+  expect(screen.getByRole('button', { name: 'Evidence classification in progress' })).toBeDisabled();
 
-  act(() => vi.advanceTimersByTime(799));
-  expect(onSeal).not.toHaveBeenCalled();
+  act(() => vi.advanceTimersByTime(519));
+  expect(onClassify).not.toHaveBeenCalled();
   act(() => vi.advanceTimersByTime(1));
-  expect(onSeal).toHaveBeenCalledOnce();
+  expect(onClassify).toHaveBeenCalledOnce();
 
-  rerender(<TransferTrack {...props} sealed />);
-  expect(screen.getByRole('region', { name: /PLACEMENT SEALED/i })).toHaveAttribute(
-    'data-fv-transfer-state',
-    'sealed',
+  rerender(<EvidenceDisposition {...props} classified />);
+  expect(screen.getByRole('region', { name: /EVIDENCE DISPOSITION COMMITTED/i })).toHaveAttribute(
+    'data-fv-disposition-state',
+    'classified',
   );
   vi.useRealTimers();
 });
 
-it('moves focus to the semantic stage heading without scrolling the cabinet', async () => {
+it('moves focus to the semantic Evidence Index heading', async () => {
   const user = userEvent.setup();
   render(
     <MemoryRouter>
@@ -129,8 +180,23 @@ it('moves focus to the semantic stage heading without scrolling the cabinet', as
       </FaceValueProvider>
     </MemoryRouter>,
   );
-  await user.click(screen.getByRole('button', { name: 'Open the Evidence Fridge' }));
+  await user.click(screen.getByRole('button', { name: /OPEN EVIDENCE INDEX/i }));
   await waitFor(() => {
-    expect(screen.getByRole('heading', { name: 'CABINET' })).toHaveFocus();
+    expect(screen.getByRole('heading', { name: 'EVIDENCE INDEX' })).toHaveFocus();
   });
+});
+
+it('removes obsolete appliance and furniture language from the rendered journey', async () => {
+  const user = userEvent.setup();
+  render(
+    <MemoryRouter>
+      <FaceValueProvider>
+        <FaceValueApplication />
+      </FaceValueProvider>
+    </MemoryRouter>,
+  );
+  expect(document.body).not.toHaveTextContent(/fridge|drawer|cabinet/i);
+  await user.click(screen.getByRole('button', { name: /OPEN EVIDENCE INDEX/i }));
+  expect(document.body).not.toHaveTextContent(/fridge|drawer|cabinet/i);
+  expect(screen.getAllByText(/cassette/i).length).toBeGreaterThan(0);
 });

@@ -20,9 +20,29 @@ The governing promise is:
 
 Future design, implementation, API integration, demo, and submission work must follow that contract or amend it explicitly in the same pull request.
 
+## Production hardware language
+
+Evidence Cassette V7 is the single production physical and interaction grammar.
+
+The phone behaves as a precision evidence instrument containing indexed skincare specimen cassettes. The shared family is defined in `src/features/evidence-instrument`, while the ceremonial verdict reveal remains in `src/features/evidence-cassette` with its explicit reducer.
+
+The fixed physical truth is:
+
+* one graphite enclosure
+* one shallow optical bay
+* one fixed specimen dock
+* one persistent smart glass layer
+* one mounted identity rail
+* one rigid cassette transform group
+* one mechanically independent Evidence Record output slot
+
+Appliance, furniture, room, shelf transfer, and generic card carousel metaphors are superseded and must not be reintroduced.
+
+See `docs/evidence-cassette-v7.md` and `docs/design-contract.md`.
+
 ## MVP scope
 
-This repository implements one responsive, fixture backed golden path through the Evidence Fridge. The current application includes finite product browsing, one job assignment, camera or file capture, stable observation, repeat comparison, both second product interference branches, confidence preservation, verdict presentation, re shelving, visible placement motion, automatic Evidence Record generation, archive browsing, deletion, and return to the cabinet.
+This repository implements one responsive, fixture backed golden path through the Evidence Index. The application includes finite cassette selection, one job assignment, camera or file capture, stable observation, repeat comparison, both second product interference branches, confidence preservation, the Evidence Cassette V7 verdict reveal, evidence disposition, independent Evidence Record output, archive browsing, deletion, and return to the index.
 
 The underlying domain model remains more detailed than the visible user journey. Capture quality, comparison confidence, disturbance handling, placement state, privacy cleanup, accessibility, and reduced motion behavior are system responsibilities rather than separate product promises.
 
@@ -55,7 +75,9 @@ npm run test:e2e
 
 The application uses Vite, React, strict TypeScript, a pure reducer state machine, scoped CSS Modules, Vitest, React Testing Library, and Playwright. Domain state is independent from React. Browser capabilities are isolated behind adapters for camera, analysis, persistence, haptics, and clock behavior.
 
-See `docs/product-contract.md`, `docs/architecture.md`, `docs/state-model.md`, `docs/camera-contract.md`, and `docs/design-contract.md`.
+The initial MVP used internal event and field names derived from an earlier physical metaphor. A small set remains inside the reducer and persisted state for compatibility. Those names are not user facing, accessible, analytical, or canonical. New presentation work must use cassette semantics.
+
+See `docs/product-contract.md`, `docs/architecture.md`, `docs/state-model.md`, `docs/camera-contract.md`, `docs/design-contract.md`, and `docs/evidence-cassette-v7.md`.
 
 ## Mock analysis disclosure
 
@@ -72,14 +94,11 @@ Raw face images remain in component memory only. They are not written to localSt
 ## Design source of truth
 
 * Figma file: `https://www.figma.com/design/GKiVi4YJLm9WqozwAK3ThB`
-* Canonical flow: Figma node `120:798`
-* Two products active: Figma node `120:980`
-* Motion and engineering handoff: Figma node `90:77`
-* Responsive validation: Figma node `137:1663`
+* Evidence Cassette V7 family: node `368:3295`
+* Final sealed verdict: node `342:2752`
+* Final presented verdict: node `343:2578`
 
-The implementation uses the final Premium Drawer Cabinet system only: warm pale civic exterior, matte black enamel interior, restrained metal structure, one infrastructure orange signal, finite indexed drawers, conserved product specimens, Trace Rail, verdict experience, and pale Evidence Records.
-
-The Evidence Fridge is the signature container for the trial. It is not the explanation of the product.
+Production preserves the approved V7 graphite instrument, shallow bay, restrained cassette geometry, mounted identity, persistent smart glass, one small orange evidence signal, and independent paper output. CSS perspective replaces Figma depth approximations where a real physical transition requires it.
 
 ## Chaos Vault provenance
 

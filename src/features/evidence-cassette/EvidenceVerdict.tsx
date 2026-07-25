@@ -64,12 +64,7 @@ export function EvidenceVerdict({
           <p className={styles.kicker}>THE PRODUCT HAS AN ANSWER.</p>
           <h1 id="verdict-heading">{copy.title}</h1>
           <p className={styles.support}>{copy.support}</p>
-
-          {lowerConfidence && (
-            <p className={styles.confidenceNotice} role="status">
-              LOWER CONFIDENCE RETAINED
-            </p>
-          )}
+          {lowerConfidence && <p className={styles.confidenceNotice} role="status">LOWER CONFIDENCE RETAINED</p>}
         </div>
 
         <div className={styles.hardwareComposition}>
@@ -89,8 +84,7 @@ export function EvidenceVerdict({
           aria-controls="why-this-verdict"
           onClick={() => setWhyOpen((open) => !open)}
         >
-          <span>WHY THIS VERDICT</span>
-          <span aria-hidden>{whyOpen ? '−' : '+'}</span>
+          <span>WHY THIS VERDICT</span><span aria-hidden>{whyOpen ? '−' : '+'}</span>
         </button>
 
         <div id="why-this-verdict" className={styles.whyPanel} hidden={!whyOpen}>
@@ -102,11 +96,10 @@ export function EvidenceVerdict({
         <button
           type="button"
           className={styles.primaryAction}
-          aria-label={`Re-shelve the product — ${copy.action}`}
+          aria-label={`Classify evidence disposition — ${copy.action}`}
           onClick={onContinue}
         >
-          <span>{copy.action}</span>
-          <span aria-hidden>→</span>
+          <span>{copy.action}</span><span aria-hidden>→</span>
         </button>
       </section>
     </>

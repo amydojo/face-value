@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import { CabinetShell } from '../../components/hardware';
+import { EvidenceShell } from '../../components/hardware';
 import type { AnalysisResult, Specimen } from '../../domain/model';
 import { EvidenceVerdict } from '../evidence-cassette/EvidenceVerdict';
 
@@ -30,7 +30,7 @@ export function VerdictRoute() {
   const navigate = useNavigate();
 
   return (
-    <CabinetShell tone="dark" label="Face Value verdict">
+    <EvidenceShell tone="dark" label="Face Value verdict">
       <EvidenceVerdict
         specimen={specimen}
         job="HYDRATION"
@@ -40,6 +40,6 @@ export function VerdictRoute() {
         onContinue={() => navigate('/')}
         onBack={() => navigate('/')}
       />
-    </CabinetShell>
+    </EvidenceShell>
   );
 }

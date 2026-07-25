@@ -1,48 +1,64 @@
-# Evidence Cassette V7
+# Evidence Cassette V7 production grammar
 
-## Production slice
+Evidence Cassette V7 is the single production hardware language for Face Value.
 
-The production component is shared by the direct `/verdict` route and the application’s existing Progress Mode stage. The direct route supplies the canonical A1–01 Barrier Water Serum fixture for deterministic design review. The full flow supplies the active specimen and job from application state.
+The phone behaves as a personal precision evidence instrument containing indexed skincare specimen cassettes. Production screens must not introduce appliance, furniture, room, or card-carousel metaphors.
 
-## Component system
+## Shared physical truth
 
-- `EvidenceVerdict` owns verdict hierarchy, Why This Verdict disclosure, and the primary product decision.
-- `EvidenceCassette` owns hardware structure, pointer and keyboard interaction, accessible state, and material presentation.
-- `evidenceCassetteMachine` is the only transition authority.
-- `EvidenceCassette.module.css` owns fixed geometry, depth ordering, smart glass, and rigid body transforms.
+Every hardware assembly preserves the same structural order:
 
-The structural stack is: fixed housing, shallow optical bay, mounted identity rail, fixed specimen and dock, persistent smart glass, structural bezel, rigid cassette module, and independent output slot.
+1. Fixed graphite enclosure.
+2. Shallow optical bay.
+3. Fixed specimen dock.
+4. Persistent warm smart glass.
+5. Mounted identity rail.
+6. One rigid cassette transform group.
+7. Independent evidence output slot.
 
-## State model
+`EvidenceInstrument` and `EvidenceCassetteSelector` provide the restrained app-wide family. `EvidenceCassette` remains the explicit ceremonial verdict interaction and retains its reducer.
+
+## Semantic states
+
+General application states are:
+
+`dormant`, `indexed`, `selected`, `sealed`, `active`, `disturbed`, `reviewDue`, `classified`, and `archived`.
+
+These states are presentation semantics, not a replacement for the domain model. Internal state and event names inherited from the original MVP may remain when changing them would add migration risk, but they must never reach visible copy, accessibility labels, analytics attributes, tests, or canonical documentation.
+
+The verdict sequence remains:
 
 `sealed → pressing → released → tilting → settled → clearing → presented → closing → sealed`
 
-Normal motion uses an 80 ms handle press, 90 ms latch release plus 50 ms mechanical pause, 200 ms micro tilt, 90 ms settle plus 70 ms optical pause, 320 ms glass clear, and a 460 ms staged close. The identity sequence overlaps the final optical clear after the hardware has settled.
+Normal motion uses an 80 ms press, 90 ms release, 50 ms pause, 200 ms micro tilt, 90 ms settle, 320 ms smart-glass clear, 190 ms specimen and identity resolve, and 460 ms close.
 
-Reduced motion removes translate Z and rotate X while preserving press, released, clearing, presented, and closing meaning.
+## Interaction grammar
 
-## Interaction model
-
-Tap, keyboard activation, and a deliberate horizontal handle drag dispatch the same `ACTIVATE` event. Horizontal drag was selected for the first production slice because `touch-action: pan-y` preserves normal page scrolling while the pointer is on the 60 × 44 px handle target. Drag remains threshold based rather than analog.
-
-The reducer rejects activation while mechanical or optical work is in progress, preventing double activation and overlapping close and open sequences. Every scheduled transition is owned by an effect cleanup.
-
-## Production depth versus Figma
-
-Figma’s presented state uses a restrained 2D rotation to communicate depth. Production keeps the approved silhouette and opening amount but replaces that approximation with one rigid `translate3d` plus `rotateX` transform group under 1040 px perspective. The housing, chamber, bottle, glass, identity rail, and output slot remain fixed.
-
-The chamber uses a dominant rear panel and small ceiling, side, and floor reveals rather than triangular walls. The glass remains present at approximately 1 px blur and a faint warm perimeter haze when presented.
+- Tap selects, confirms, presents, seals, classifies, or advances.
+- Horizontal drag is accepted only on an intentional cassette target.
+- Vertical page scrolling remains available through `touch-action: pan-y`.
+- Verdict handle tap, deliberate drag, Enter, and Space dispatch the same reducer event.
+- General browsing uses its own finite selector state and does not reuse the verdict reducer.
+- Rapid repeated activation is rejected while hardware is busy.
+- Every scheduled transition owns cleanup.
 
 ## Accessibility
 
-- Semantic handle button with dynamic open and close names
-- 60 × 44 px target at every supported width
-- Native Enter and Space support
-- Focus stays on the handle through motion
-- Separate Edit control after presentation
-- Polite announcements for sealed, released, presented, and evidence ready states
-- Text equivalents for confidence, product identity, job, and verdict
+- Semantic buttons and native keyboard activation.
+- Minimum 44 px controls and a minimum 60 × 44 px verdict handle target.
+- Text equivalents for cassette identity, observation status, interference, confidence, and disposition.
+- Polite announcements at meaningful semantic states only.
+- Decorative hardware remains outside the accessibility tree.
+- Reduced motion removes 3D depth and overshoot while preserving selection, release, presentation, classification, and sealing meaning.
 
-## QA evidence
+## Responsive contract
 
-Playwright captures sealed, released, micro tilted, and presented states at 402 × 874, plus sealed and presented states at 375 × 812 and 430 × 932. Interaction coverage includes rapid taps, below threshold drag, completed drag, keyboard activation, reduced motion, resize during transition, route change during transition, horizontal overflow, and runtime console errors.
+The complete assembly uses one shared width variable and scales as one object. Required verification widths are 320, 375, 390, 402, and 430 px. Hardware parts must not compress independently, identity must not cover the specimen, and no route may create horizontal overflow.
+
+## Figma source
+
+- V7 component family: node `368:3295`
+- Sealed verdict frame: node `342:2752`
+- Presented verdict frame: node `343:2578`
+
+Figma uses restrained 2D approximation. Production uses CSS perspective, `translate3d`, and `rotateX` only where depth communicates a real physical state.
