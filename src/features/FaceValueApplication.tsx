@@ -1,12 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { MockOpticalAnalysisAdapter } from '../adapters/analysis/MockOpticalAnalysisAdapter';
 import { systemClock } from '../adapters/clock/clock';
 import { useFaceValue } from '../app/faceValueContext';
-import { EvidenceNavigation } from '../components/EvidenceNavigation';
-import { EvidenceDisposition, EvidenceShell, ObservationStatus, ScreenHeader } from '../components/hardware';
-import { DisturbanceRegister } from '../components/DisturbanceRegister';
-import { TraceRail } from '../components/TraceRail';
-import type { AnalysisScenario } from '../domain/model';
+import { EvidenceShell, ScreenHeader } from '../components/hardware';
+import type { AnalysisScenario, ProductPlacement } from '../domain/model';
 import { PRODUCTS } from '../fixtures/products';
 import { Archive } from './archive/Archive';
 import { CameraViewport } from './capture-contract/CameraViewport';
@@ -19,12 +16,61 @@ import styles from '../styles/FaceValue.module.css';
 
 const analysisAdapter = new MockOpticalAnalysisAdapter();
 
+const nextStepRows: Array<{
+  value: ProductPlacement;
+  code: string;
+  label: string;
+  note: string;
+}> = [
+  { value: 'established', code: 'S4', label: 'Established routine', note: 'Keep using it for this job' },
+  { value: 'useful_elsewhere', code: 'U2', label: 'Useful elsewhere', note: 'Give it a different job' },
+  { value: 'paused', code: 'P1', label: 'Paused', note: 'Test longer before deciding' },
+  { value: 'retry_alone', code: 'R3', label: 'Retry alone', note: 'Run a cleaner single-product trial' },
+  { value: 'released', code: 'E7', label: 'Released', note: 'Close the trial and move on' },
+];
+
+const nextStepLabel = (placement: ProductPlacement) => {
+  const row = nextStepRows.find((item) => item.value === placement);
+  return row ? `${row.code} · ${row.label}` : placement.replaceAll('_', ' ');
+};
+
+const nextStepGuidance = (placement: ProductPlacement) => {
+  if (placement === 'retry_alone') return 'Try it again without another active product in the same trial.';
+  if (placement === 'established') return 'Keep using it for the job you tested and continue watching for change.';
+  if (placement === 'paused') return 'Give the trial more time before you make a stronger call.';
+  if (placement === 'useful_elsewhere') return 'Keep the product, but assign it a different job next time.';
+  if (placement === 'released') return 'Close this trial and remove the product from the active routine.';
+  return 'Keep the next step explicit and reversible.';
+};
+
+function usePrefersReducedMotion() {
+  const [reduced, setReduced] = useState(() =>
+    typeof window === 'undefined' ? false : window.matchMedia('(prefers-reduced-motion: reduce)').matches,
+  );
+
+  useEffect(() => {
+    const query = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const update = () => setReduced(query.matches);
+    update();
+    query.addEventListener('change', update);
+    return () => query.removeEventListener('change', update);
+  }, []);
+
+  return reduced;
+}
+
 export function FaceValueApplication() {
   const { state, dispatch } = useFaceValue();
   const specimen = PRODUCTS[state.selectedDrawerIndex] ?? PRODUCTS[0];
   const interferenceSpecimen = PRODUCTS.find((product) => product.accession === 'C2–01') ?? PRODUCTS[1] ?? PRODUCTS[0];
-  const [traceLabel, setTraceLabel] = useState('Less tight after cleansing');
+  const [noteDraft, setNoteDraft] = useState('Less tight after cleansing');
+  const [noteEditing, setNoteEditing] = useState(false);
   const [observationSummaryOpen, setObservationSummaryOpen] = useState(false);
+  const [nextStepOverrideOpen, setNextStepOverrideOpen] = useState(false);
+  const noteInputRef = useRef<HTMLInputElement>(null);
+  const noteTriggerRef = useRef<HTMLButtonElement>(null);
+  const analysisRequestRef = useRef<string | null>(null);
+  const reducedMotion = usePrefersReducedMotion();
   const tone = ['disturbance', 'analysis', 'progress', 'placement'].includes(state.stage) ? 'dark' : 'light';
 
   useEffect(() => {
@@ -38,10 +84,18 @@ export function FaceValueApplication() {
   }, [dispatch, state.stage]);
 
   useEffect(() => {
-    if (state.stage !== 'observation') setObservationSummaryOpen(false);
+    if (state.stage !== 'observation') {
+      setObservationSummaryOpen(false);
+      setNoteEditing(false);
+    }
+    if (state.stage !== 'placement') setNextStepOverrideOpen(false);
   }, [state.stage]);
 
-  const runAnalysis = async () => {
+  useEffect(() => {
+    if (noteEditing) noteInputRef.current?.focus();
+  }, [noteEditing]);
+
+  const runAnalysis = useCallback(async () => {
     dispatch({ type: 'ANALYSIS_STARTED' });
     try {
       const result = await analysisAdapter.compare({
@@ -52,6 +106,54 @@ export function FaceValueApplication() {
     } catch {
       dispatch({ type: 'ANALYSIS_FAILED' });
     }
+  }, [dispatch, state.analysisScenario, state.disturbance]);
+
+  useEffect(() => {
+    if (
+      state.stage !== 'analysis' ||
+      state.analysis ||
+      state.processing !== 'idle' ||
+      !state.followupCapture
+    ) return;
+
+    const requestKey = state.followupCapture.id;
+    if (analysisRequestRef.current === requestKey) return;
+    analysisRequestRef.current = requestKey;
+    void runAnalysis();
+  }, [runAnalysis, state.analysis, state.followupCapture, state.processing, state.stage]);
+
+  useEffect(() => {
+    if (state.stage !== 'placement' || !state.placementSealed || !state.record) return;
+    const timer = window.setTimeout(
+      () => dispatch({ type: 'OPEN_SAVED_RESULT' }),
+      reducedMotion ? 0 : 520,
+    );
+    return () => window.clearTimeout(timer);
+  }, [dispatch, reducedMotion, state.placementSealed, state.record, state.stage]);
+
+  const openNoteEditor = () => {
+    setNoteDraft(state.trace?.detail ?? 'Less tight after cleansing');
+    setNoteEditing(true);
+  };
+
+  const closeNoteEditor = () => {
+    setNoteEditing(false);
+    window.requestAnimationFrame(() => noteTriggerRef.current?.focus());
+  };
+
+  const saveNote = () => {
+    const detail = noteDraft.trim();
+    if (!detail) return;
+    dispatch({
+      type: 'ADD_TRACE',
+      trace: {
+        id: state.trace?.id ?? 'note-1',
+        label: 'WHAT YOU NOTICED',
+        detail,
+        observedAt: state.trace?.observedAt ?? systemClock.now(),
+      },
+    });
+    closeNoteEditor();
   };
 
   const devScenario = import.meta.env.DEV || import.meta.env.MODE === 'test' ? (
@@ -72,26 +174,15 @@ export function FaceValueApplication() {
     </label>
   ) : null;
 
-  const navigation = (
-    <EvidenceNavigation
-      onIndex={() => dispatch({ type: 'RETURN_TO_CABINET' })}
-      onCapture={() => state.assignedJob && dispatch({
-        type: 'BEGIN_CAPTURE',
-        kind: state.baselineCapture ? 'followup' : 'baseline',
-      })}
-      onRecords={() => dispatch({ type: 'VIEW_ARCHIVE' })}
-    />
-  );
-
   const renderContent = () => {
     switch (state.stage) {
       case 'welcome':
         return (
           <section className={styles.welcome} data-fv-screen="welcome">
             <div>
-              <p className={styles.eyebrow}>PERSONAL LONGITUDINAL EVIDENCE</p>
+              <p className={styles.eyebrow}>ONE PRODUCT · ONE JOB · ONE HONEST RESULT</p>
               <h1>Is your skincare actually doing anything?</h1>
-              <p>Put one product on trial. Face Value preserves repeat observations and tells you whether it is earning its place.</p>
+              <p>Put one product on trial. Face Value compares repeat scans and tells you whether it is earning its place.</p>
             </div>
             <EvidenceInstrument state="dormant" compact />
             <button
@@ -100,7 +191,7 @@ export function FaceValueApplication() {
               type="button"
               onClick={() => dispatch({ type: 'OPEN_CABINET' })}
             >
-              <span>OPEN EVIDENCE INDEX</span><span aria-hidden="true">→</span>
+              <span>VIEW YOUR TRIALS</span><span aria-hidden="true">→</span>
             </button>
             <div className={styles.privacyBadge}>PRIVATE BY DEFAULT · RAW IMAGES STAY IN MEMORY</div>
           </section>
@@ -108,47 +199,35 @@ export function FaceValueApplication() {
 
       case 'cabinet': {
         const reviewDue = state.observation === 'review_due';
+        const activeTrial = state.assignedJob !== null && state.observation !== 'none';
+        const activateTrial = () => {
+          if (reviewDue) dispatch({ type: 'OPEN_REVIEW_DUE' });
+          else if (activeTrial) dispatch({ type: 'OPEN_DRAWER' });
+          else dispatch({ type: 'BROWSE_DRAWERS' });
+        };
         return (
           <>
             <ScreenHeader />
-            <section className={styles.indexScreen} data-fv-screen="index">
-              <div className={styles.directory}><p>CASSETTE REGISTER&nbsp;&nbsp; A1</p><p>DAY 12 OF 28</p></div>
-              <h1 data-stage-focus tabIndex={-1}>EVIDENCE INDEX</h1>
-              <div className={styles.indexRegister} aria-label="Cassette status register">
-                <button type="button" onClick={() => reviewDue ? dispatch({ type: 'OPEN_REVIEW_DUE' }) : dispatch({ type: 'BROWSE_DRAWERS' })}>
-                  <span>A1</span><strong>{reviewDue ? 'REVIEW DUE' : 'ACTIVE OBSERVATION'}</strong><small>1</small>
-                </button>
-                <button type="button"><span>S4</span><strong>ESTABLISHED</strong><small>3</small></button>
-                <button type="button"><span>R3</span><strong>RETRY ALONE</strong><small>2</small></button>
-                <button type="button"><span>P1</span><strong>PAUSED</strong><small>1</small></button>
-                <button type="button" onClick={() => dispatch({ type: 'VIEW_ARCHIVE' })}>
-                  <span>E7</span><strong>EVIDENCE ARCHIVE</strong><small>{Math.max(13, state.archive.length)}</small>
-                </button>
-              </div>
+            <section className={styles.indexScreen} data-fv-screen="trials">
+              <div className={styles.directory}><p>YOUR TRIALS</p><p>{reviewDue ? 'READY' : activeTrial ? 'ACTIVE' : 'SELECT ONE'}</p></div>
+              <h1 data-stage-focus tabIndex={-1}>Your trials</h1>
+              <p>{activeTrial ? '1 active trial' : 'No active trial'} · {Math.max(13, state.archive.length)} past results</p>
               <EvidenceInstrument
                 specimen={specimen}
                 job={state.assignedJob}
-                mode={reviewDue ? 'review-due' : 'index'}
-                status={reviewDue ? 'REVIEW DUE' : 'EVIDENCE SETTLING'}
-                onActivate={() => dispatch({ type: reviewDue ? 'OPEN_REVIEW_DUE' : 'BROWSE_DRAWERS' })}
+                mode={reviewDue ? 'review-due' : activeTrial ? 'active' : 'index'}
+                status={reviewDue ? 'READY TO COMPARE' : activeTrial ? 'TRIAL IN PROGRESS' : 'SELECT A TRIAL'}
+                onActivate={activateTrial}
                 actionLabel={reviewDue
-                  ? `Review verdict for ${specimen.product}`
-                  : `Open evidence cassette ${specimen.accession}`}
+                  ? `Reveal result for ${specimen.product}`
+                  : activeTrial
+                    ? `View trial for ${specimen.product}`
+                    : `Choose a trial starting with ${specimen.product}`}
               />
-              <button
-                type="button"
-                className={styles.nextActionCard}
-                aria-label={reviewDue ? `Review verdict for ${specimen.product}` : 'Browse evidence cassettes'}
-                onClick={() => dispatch({ type: reviewDue ? 'OPEN_REVIEW_DUE' : 'BROWSE_DRAWERS' })}
-              >
-                <span>NEXT VALID ACTION</span>
-                <strong>{reviewDue ? 'Review the evidence verdict' : 'Record a comparable follow-up'}</strong>
-                <small>{reviewDue ? 'The comparison is ready' : 'Consistent conditions required'}</small>
-                <time>27 JUL</time>
-                <b aria-hidden="true">→</b>
+              <button type="button" className={styles.textButton} onClick={() => dispatch({ type: 'VIEW_ARCHIVE' })}>
+                Past results
               </button>
             </section>
-            {navigation}
           </>
         );
       }
@@ -157,9 +236,9 @@ export function FaceValueApplication() {
         return (
           <>
             <ScreenHeader />
-            <section className={styles.browseScreen} data-fv-screen="browse">
-              <div className={styles.directory}><p>A1&nbsp;&nbsp; CASSETTE INDEX</p><p>SELECT ONE</p></div>
-              <h1 className={styles.srOnly}>Browse evidence cassettes</h1>
+            <section className={styles.browseScreen} data-fv-screen="trial-selection">
+              <div className={styles.directory}><p>YOUR TRIALS</p><p>CHOOSE ONE</p></div>
+              <h1 className={styles.srOnly}>Choose a product trial</h1>
               <EvidenceCassetteSelector
                 products={PRODUCTS}
                 index={state.selectedDrawerIndex}
@@ -169,7 +248,6 @@ export function FaceValueApplication() {
                 onInspect={() => dispatch({ type: 'OPEN_DRAWER' })}
               />
             </section>
-            {navigation}
           </>
         );
 
@@ -179,21 +257,30 @@ export function FaceValueApplication() {
           return (
             <>
               <ScreenHeader />
-              <section className={styles.specimenScreen} data-fv-screen="specimen-active">
-                <div className={styles.directory}><p>{state.assignedJob}</p><p>ACTIVE</p></div>
-                <h1>{specimen.product}</h1>
-                <EvidenceInstrument specimen={specimen} job={state.assignedJob} mode="active" />
+              <section className={styles.specimenScreen} data-fv-screen="trial-ready">
+                <div className={styles.directory}><p>{specimen.product}</p><p>READY</p></div>
+                <h1>Ready for a baseline.</h1>
+                <EvidenceInstrument
+                  specimen={specimen}
+                  job={state.assignedJob}
+                  mode="active"
+                  summary={(
+                    <div className={styles.analysisSummary}>
+                      <strong>{state.assignedJob}</strong>
+                      <p>This is the one job this trial will judge.</p>
+                    </div>
+                  )}
+                  actionLabel={`Open trial summary for ${specimen.product}`}
+                />
+                <p>Take one scan now. You’ll compare it with a follow-up under similar conditions.</p>
                 <button
                   type="button"
                   data-stage-focus
-                  className={styles.parameterPanel}
-                  aria-label="Complete Capture Contract"
+                  className={styles.primaryAction}
+                  aria-label="Take baseline scan"
                   onClick={() => dispatch({ type: 'BEGIN_CAPTURE', kind: 'baseline' })}
                 >
-                  <span>ASSIGNED EVIDENCE ROLE</span>
-                  <strong>{state.assignedJob}</strong>
-                  <small>ONE PRODUCT · ONE JOB · REPEATABLE CONDITIONS</small>
-                  <b aria-hidden="true">→</b>
+                  TAKE BASELINE SCAN
                 </button>
               </section>
             </>
@@ -202,12 +289,23 @@ export function FaceValueApplication() {
         return (
           <>
             <ScreenHeader />
-            <section className={styles.specimenScreen} data-fv-screen="specimen">
-              <div className={styles.directory}><p>{specimen.accession}&nbsp;&nbsp; SPECIMEN</p><p>ASSIGN JOB</p></div>
-              <h1>{specimen.product}</h1>
-              <EvidenceInstrument specimen={specimen} state="selected" selected />
+            <section className={styles.specimenScreen} data-fv-screen="trial-job">
+              <div className={styles.directory}><p>{specimen.product}</p><p>ONE JOB</p></div>
+              <h1>What should this product change?</h1>
+              <EvidenceInstrument
+                specimen={specimen}
+                mode="active"
+                selected
+                summary={(
+                  <div className={styles.analysisSummary}>
+                    <strong>{specimen.product}</strong>
+                    <p>Choose one job so the follow-up scan has a fair question to answer.</p>
+                  </div>
+                )}
+                actionLabel={`View trial for ${specimen.product}`}
+              />
               <fieldset className={styles.jobOptions}>
-                <legend>GIVE THIS PRODUCT ONE EXPLICIT JOB</legend>
+                <legend>GIVE THIS PRODUCT ONE JOB</legend>
                 {specimen.jobOptions.map((job) => (
                   <label key={job}>
                     <input
@@ -258,12 +356,12 @@ export function FaceValueApplication() {
         return (
           <>
             <ScreenHeader />
-            <section className={styles.observationScreen} data-fv-screen="observation">
+            <section className={styles.observationScreen} data-fv-screen="trial-in-progress">
               <div className={styles.directory}>
-                <p>{state.assignedJob ?? 'ACTIVE OBSERVATION'}</p>
-                <p>{state.observation === 'active_disturbed' ? 'DISTURBED' : 'SETTLING'}</p>
+                <p>{specimen.product}</p>
+                <p>TRIAL IN PROGRESS</p>
               </div>
-              <h1>Evidence is still settling.</h1>
+              <h1>Still observing.</h1>
               <EvidenceInstrument
                 specimen={specimen}
                 job={state.assignedJob}
@@ -273,46 +371,62 @@ export function FaceValueApplication() {
                 expanded={observationSummaryOpen}
                 onActivate={() => setObservationSummaryOpen((open) => !open)}
                 onEscape={() => setObservationSummaryOpen(false)}
-                actionLabel={`${observationSummaryOpen ? 'Close' : 'Open'} active observation for ${specimen.accession}`}
+                actionLabel={`${observationSummaryOpen ? 'Close' : 'Open'} trial summary for ${specimen.product}`}
               />
               {observationSummaryOpen && (
-                <div className={styles.analysisSummary} data-fv-part="cassette-observation-summary">
-                  <strong>{state.assignedJob ?? 'ACTIVE OBSERVATION'}</strong>
-                  <p>{state.trace?.detail ?? 'No lightweight trace has been added yet.'}</p>
+                <div className={styles.analysisSummary} data-fv-part="trial-summary">
+                  <strong>{state.assignedJob ?? 'TRIAL IN PROGRESS'}</strong>
+                  <p>{state.trace?.detail ?? 'No note yet.'}</p>
                 </div>
               )}
-              <ObservationStatus observation={state.observation} comparison={state.comparison} confidence={state.confidence} />
-              <TraceRail trace={state.trace} disturbed={state.observation === 'active_disturbed'} />
-              {!state.trace && (
-                <div className={styles.traceForm}>
-                  <label>Lightweight Trace<input value={traceLabel} onChange={(event) => setTraceLabel(event.target.value)} /></label>
-                  <button
-                    type="button"
-                    className={styles.secondaryAction}
-                    onClick={() => dispatch({
-                      type: 'ADD_TRACE',
-                      trace: { id: 'trace-1', label: 'VISIBLE SIGNAL', detail: traceLabel, observedAt: systemClock.now() },
-                    })}
-                  >
-                    Add Trace
+              <p>Next useful comparison: July 27</p>
+              {state.trace && !noteEditing && <p>“{state.trace.detail}”</p>}
+
+              {noteEditing ? (
+                <div className={styles.traceForm} role="group" aria-labelledby="note-editor-heading">
+                  <label id="note-editor-heading">
+                    What did you notice?
+                    <input
+                      ref={noteInputRef}
+                      value={noteDraft}
+                      onChange={(event) => setNoteDraft(event.target.value)}
+                    />
+                  </label>
+                  <button type="button" className={styles.primaryAction} onClick={saveNote}>SAVE NOTE</button>
+                  <button type="button" className={styles.textButton} onClick={closeNoteEditor}>Cancel</button>
+                </div>
+              ) : (
+                <button ref={noteTriggerRef} type="button" className={styles.textButton} onClick={openNoteEditor}>
+                  {state.trace ? 'Edit note' : 'Add note'}
+                </button>
+              )}
+
+              {!noteEditing && (
+                <button
+                  type="button"
+                  className={styles.primaryAction}
+                  onClick={() => dispatch({ type: 'BEGIN_CAPTURE', kind: 'followup' })}
+                >
+                  TAKE FOLLOW UP SCAN
+                </button>
+              )}
+
+              <details className={styles.analysisSummary}>
+                <summary>Trial details</summary>
+                <p>{state.assignedJob}</p>
+                <p>Comparison: {state.comparison.replaceAll('_', ' ')}</p>
+                <p>Confidence: {state.confidence}</p>
+                {devScenario}
+                {state.disturbance === 'none' && (
+                  <button type="button" className={styles.secondaryAction} onClick={() => dispatch({ type: 'INTRODUCE_SECOND_PRODUCT' })}>
+                    Add another product
                   </button>
-                </div>
-              )}
-              {state.trace && state.disturbance === 'none' && (
-                <button type="button" className={styles.secondaryAction} onClick={() => dispatch({ type: 'INTRODUCE_SECOND_PRODUCT' })}>
-                  Register C2–01 Hydrating Drops in this window
+                )}
+                <button type="button" className={styles.dangerAction} onClick={() => dispatch({ type: 'DELETE_OBSERVATION' })}>
+                  End trial
                 </button>
-              )}
-              {state.trace && state.disturbance !== 'detected' && (
-                <button type="button" className={styles.primaryAction} onClick={() => dispatch({ type: 'BEGIN_CAPTURE', kind: 'followup' })}>
-                  Record a comparable follow-up
-                </button>
-              )}
-              <button type="button" className={styles.dangerAction} onClick={() => dispatch({ type: 'DELETE_OBSERVATION' })}>
-                Delete observation
-              </button>
+              </details>
             </section>
-            {navigation}
           </>
         );
 
@@ -320,29 +434,40 @@ export function FaceValueApplication() {
         return (
           <>
             <ScreenHeader dark />
-            <section className={styles.disturbanceScreen} data-fv-screen="disturbance">
-              <div className={styles.directory}><p>{state.assignedJob}</p><p>2 ACTIVE</p></div>
+            <section className={styles.disturbanceScreen} data-fv-screen="another-product">
+              <div className={styles.directory}><p>{specimen.product}</p><p>TWO PRODUCTS</p></div>
               <EvidenceInstrument
                 specimen={specimen}
                 job={state.assignedJob}
+                mode="active"
                 state="disturbed"
                 secondarySpecimen={interferenceSpecimen}
+                summary={(
+                  <div className={styles.analysisSummary}>
+                    <strong>{specimen.product} + {interferenceSpecimen.product}</strong>
+                    <p>Two products shared the same trial window.</p>
+                  </div>
+                )}
+                actionLabel={`Open trial summary for ${specimen.product} and ${interferenceSpecimen.product}`}
               />
-              <DisturbanceRegister accession={interferenceSpecimen.accession} product={interferenceSpecimen.product} />
               <div className={styles.decisionSurface}>
-                <h1>Two products share one observation window.</h1>
-                <p>{interferenceSpecimen.accession} is registered as interference. Remove it from this window, or preserve the overlap with a lower-confidence conclusion.</p>
+                <h1>{interferenceSpecimen.product} entered this trial.</h1>
+                <p>That makes it harder to know which product caused any change.</p>
                 <button
                   data-stage-focus
                   type="button"
                   className={styles.primaryAction}
                   onClick={() => dispatch({ type: 'RESOLVE_DISTURBANCE', resolution: 'cooling' })}
                 >
-                  Remove {interferenceSpecimen.accession} from this window
+                  REMOVE {interferenceSpecimen.product.toUpperCase()}
                 </button>
                 <button type="button" className={styles.darkSecondary} onClick={() => dispatch({ type: 'RESOLVE_DISTURBANCE', resolution: 'overlap' })}>
-                  Continue with lower confidence
+                  Keep both and accept a less certain result
                 </button>
+                <details>
+                  <summary>How this affects the evidence</summary>
+                  <p>Both products remain recorded, but Face Value will lower confidence and avoid giving either one clean credit.</p>
+                </details>
               </div>
             </section>
           </>
@@ -352,28 +477,29 @@ export function FaceValueApplication() {
         return (
           <>
             <ScreenHeader dark />
-            <section className={styles.analysisScreen} data-fv-screen="analysis">
-              <div className={styles.directory}><p>SIMULATED OPTICAL COMPARISON</p><p>{state.processing === 'running' ? 'PROCESSING' : 'REVIEW'}</p></div>
+            <section className={styles.analysisScreen} data-fv-screen="result-ready">
+              <div className={styles.directory}><p>FOLLOW UP SCAN</p><p>{state.processing === 'running' ? 'COMPARING' : 'READY'}</p></div>
+              <h1>{state.analysis ? 'Your result is ready.' : 'Comparing your scans.'}</h1>
               <EvidenceInstrument
                 specimen={specimen}
                 job={state.assignedJob}
                 mode="review-due"
                 compact
-                onActivate={() => state.analysis ? dispatch({ type: 'ENTER_PROGRESS' }) : void runAnalysis()}
-                actionLabel={state.analysis ? `Review verdict for ${specimen.product}` : `Run comparison for ${specimen.product}`}
+                onActivate={state.analysis ? () => dispatch({ type: 'ENTER_PROGRESS' }) : undefined}
+                summary={!state.analysis ? (
+                  <div className={styles.analysisSummary}>
+                    <strong>Comparison in progress</strong>
+                    <p>Your trial is preserved while the scans are checked.</p>
+                  </div>
+                ) : undefined}
+                actionLabel={state.analysis ? `Reveal result for ${specimen.product}` : `Open comparison status for ${specimen.product}`}
               />
-              {devScenario}
-              <p>This MVP uses deterministic local fixture results. No external analysis service has run.</p>
-              {state.analysis ? (
-                <>
-                  <ObservationStatus observation={state.observation} comparison={state.analysis.comparison} confidence={state.confidence} />
-                  <div className={styles.analysisSummary}><strong>{state.analysis.finding}</strong><p>{state.analysis.nonFinding}</p></div>
-                  <button data-stage-focus type="button" className={styles.primaryAction} onClick={() => dispatch({ type: 'ENTER_PROGRESS' })}>
-                    Enter verdict review
-                  </button>
-                </>
-              ) : (
-                <button data-stage-focus type="button" className={styles.primaryAction} onClick={runAnalysis}>Run simulated comparison</button>
+              <p>{state.analysis ? 'Pull to reveal result.' : 'The result will be ready here. No extra action is needed.'}</p>
+              {state.analysis && (
+                <div className={styles.analysisSummary}>
+                  <strong>{state.analysis.finding}</strong>
+                  <p>{state.analysis.nonFinding}</p>
+                </div>
               )}
             </section>
           </>
@@ -381,23 +507,23 @@ export function FaceValueApplication() {
 
       case 'analysis_failure':
         return (
-          <section className={styles.failureScreen}>
-            <p className={styles.eyebrow}>OPTICAL ANALYSIS UNAVAILABLE</p>
-            <h1>Your observation is still saved.</h1>
-            <p>No finding was fabricated. The structured observation remains available for a retake.</p>
-            <button type="button" className={styles.primaryAction} onClick={() => dispatch({ type: 'RETAKE_FOLLOWUP' })}>Retake follow-up</button>
-            <button type="button" className={styles.secondaryAction} onClick={() => dispatch({ type: 'RETURN_TO_CABINET' })}>Return to Evidence Index</button>
+          <section className={styles.failureScreen} data-fv-screen="analysis-failure">
+            <p className={styles.eyebrow}>COMPARISON UNAVAILABLE</p>
+            <h1>Your trial is still saved.</h1>
+            <p>Nothing was fabricated. Take another follow-up scan when conditions are stable.</p>
+            <button type="button" className={styles.primaryAction} onClick={() => dispatch({ type: 'RETAKE_FOLLOWUP' })}>RETAKE FOLLOW UP SCAN</button>
+            <button type="button" className={styles.textButton} onClick={() => dispatch({ type: 'RETURN_TO_CABINET' })}>Your trials</button>
           </section>
         );
 
       case 'comparison_refused':
         return (
-          <section className={styles.failureScreen}>
-            <p className={styles.eyebrow}>NOT SUITABLE FOR PROGRESS COMPARISON</p>
-            <h1>No progress conclusion was generated.</h1>
-            <p>Conditions changed enough that comparison would overstate the evidence.</p>
-            <button type="button" className={styles.primaryAction} onClick={() => dispatch({ type: 'RETAKE_FOLLOWUP' })}>Retake</button>
-            <button type="button" className={styles.secondaryAction} onClick={() => dispatch({ type: 'SAVE_CONTEXT_ONLY' })}>Save as context only</button>
+          <section className={styles.failureScreen} data-fv-screen="comparison-refused">
+            <p className={styles.eyebrow}>NOT FAIR TO COMPARE</p>
+            <h1>These scans are not fair to compare.</h1>
+            <p>Nothing was concluded from them.</p>
+            <button type="button" className={styles.primaryAction} onClick={() => dispatch({ type: 'RETAKE_FOLLOWUP' })}>RETAKE FOLLOW UP SCAN</button>
+            <button type="button" className={styles.textButton} onClick={() => dispatch({ type: 'SAVE_CONTEXT_ONLY' })}>Save as context only</button>
           </section>
         );
 
@@ -422,27 +548,76 @@ export function FaceValueApplication() {
         return (
           <>
             <ScreenHeader dark />
-            <section className={styles.placementScreen} data-fv-screen="placement">
-              <div className={styles.directory}><p>EVIDENCE DISPOSITION</p><p>{state.placementSealed ? 'COMMITTED' : 'REVIEW'}</p></div>
-              <h1>{state.placementSealed ? 'Cassette classified.' : 'Give the evidence a place.'}</h1>
+            <section
+              className={styles.placementScreen}
+              data-fv-screen="next-step"
+              data-fv-part="next-step"
+              data-fv-selected-placement={state.placement}
+            >
+              <div className={styles.directory}><p>NEXT STEP</p><p>{state.placementSealed ? 'SAVED' : 'REVIEW'}</p></div>
+              <h1>{state.placementSealed ? 'Saved to your evidence.' : 'One clear next step.'}</h1>
               <EvidenceInstrument
                 specimen={specimen}
                 job={state.assignedJob}
                 mode={state.placementSealed ? 'classified' : 'active'}
-                status={state.placementSealed ? 'CLASSIFIED' : 'AWAITING DISPOSITION'}
+                status={state.placementSealed ? 'SAVED RESULT' : 'NEXT STEP READY'}
                 outputReady={state.placementSealed}
-                onActivate={state.placementSealed
-                  ? () => dispatch({ type: 'GENERATE_RECORD', now: systemClock.now() })
-                  : undefined}
-                actionLabel={state.placementSealed ? `Open classified evidence record ${specimen.accession}` : undefined}
+                onActivate={state.placementSealed ? () => dispatch({ type: 'OPEN_SAVED_RESULT' }) : undefined}
+                summary={!state.placementSealed ? (
+                  <div className={styles.analysisSummary}>
+                    <strong>{nextStepLabel(state.placement)}</strong>
+                    <p>{nextStepGuidance(state.placement)}</p>
+                  </div>
+                ) : undefined}
+                actionLabel={state.placementSealed
+                  ? `Open saved result ${specimen.accession}`
+                  : `Open next step summary for ${specimen.product}`}
               />
-              <EvidenceDisposition
-                placement={state.placement}
-                classified={state.placementSealed}
-                onSelect={(placement) => dispatch({ type: 'SELECT_PLACEMENT', placement })}
-                onClassify={() => dispatch({ type: 'SEAL_PLACEMENT' })}
-                onGenerate={() => dispatch({ type: 'GENERATE_RECORD', now: systemClock.now() })}
-              />
+
+              {state.placementSealed ? (
+                <div className={styles.analysisSummary} role="status">
+                  <strong>Saved to your evidence.</strong>
+                  <p>Your scans, note, trial conditions, confidence, and next step were preserved.</p>
+                </div>
+              ) : (
+                <div className={styles.decisionSurface}>
+                  <p>We’ll save this as:</p>
+                  <h2>{nextStepLabel(state.placement)}</h2>
+                  <p>{nextStepGuidance(state.placement)}</p>
+                  <button
+                    type="button"
+                    data-stage-focus
+                    className={styles.primaryAction}
+                    onClick={() => dispatch({ type: 'SAVE_RESULT', now: systemClock.now() })}
+                  >
+                    SAVE RESULT
+                  </button>
+                  <button
+                    type="button"
+                    className={styles.darkSecondary}
+                    aria-expanded={nextStepOverrideOpen}
+                    aria-controls="next-step-options"
+                    onClick={() => setNextStepOverrideOpen((open) => !open)}
+                  >
+                    Choose a different next step
+                  </button>
+                  <fieldset id="next-step-options" className={styles.jobOptions} hidden={!nextStepOverrideOpen}>
+                    <legend>Choose a different next step</legend>
+                    {nextStepRows.map((row) => (
+                      <label key={row.value}>
+                        <input
+                          type="radio"
+                          name="next-step"
+                          value={row.value}
+                          checked={state.placement === row.value}
+                          onChange={() => dispatch({ type: 'SELECT_PLACEMENT', placement: row.value })}
+                        />
+                        <span>{row.code} · {row.label}<small>{row.note}</small></span>
+                      </label>
+                    ))}
+                  </fieldset>
+                </div>
+              )}
             </section>
           </>
         );
@@ -473,7 +648,7 @@ export function FaceValueApplication() {
   };
 
   return (
-    <EvidenceShell tone={tone} label="Face Value personal skincare evidence instrument">
+    <EvidenceShell tone={tone} label="Face Value product trial instrument">
       <div className={styles.liveRegion} aria-live="polite" aria-atomic="true">{state.announcement}</div>
       {renderContent()}
     </EvidenceShell>
