@@ -84,10 +84,12 @@ it('connects an active handle to one focused summary without repeating the note'
     />,
   );
   const handle = screen.getByRole('button', { name: /Close trial summary for Fermented Brightening Essence/i });
+  const summary = document.getElementById('trial-summary-fermented-essence');
   expect(handle).toHaveAttribute('aria-controls', 'trial-summary-fermented-essence');
   expect(handle).toHaveAttribute('aria-expanded', 'true');
-  expect(screen.getByText('Post-acne pigmentation')).toBeVisible();
-  expect(screen.queryByText('Less tight after cleansing')).not.toBeInTheDocument();
+  expect(summary).toBeVisible();
+  expect(summary).toHaveTextContent('Post-acne pigmentation');
+  expect(summary).not.toHaveTextContent('Less tight after cleansing');
 });
 
 it('exposes trial, ready, and saved-result states without relying on color', () => {
