@@ -152,6 +152,13 @@ export function EvidenceInstrument({
       return;
     }
 
+    const shouldRunMechanicalReveal = mode === 'verdict';
+    if (!shouldRunMechanicalReveal) {
+      if (expanded === undefined && hasSummary) setSummaryOpen((open) => !open);
+      onActivate?.();
+      return;
+    }
+
     const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     setTransitioning(true);
 
@@ -266,6 +273,7 @@ export function EvidenceInstrument({
           product={productName}
           label={actionLabel}
           expanded={doorState === 'open'}
+          busy={transitioning}
           controls={hasSummary ? summaryId : undefined}
           className={styles.activationTarget}
           onActivate={activate}
