@@ -75,7 +75,7 @@ Deterministic analysis scenarios remain available only through the development a
 
 ## Verification contract
 
-The repository validation stack is lint, strict typecheck, unit and component tests, production build, Playwright WebKit installation, and the complete mobile WebKit E2E suite.
+The repository validation stack is lint, strict typecheck, 47 unit and component tests, production build, Playwright WebKit installation, and the complete mobile WebKit E2E suite. CI enforces the structured Vitest report and uploads both Vitest and Playwright evidence artifacts.
 
 The canonical WebKit test must begin at `/`, never `/verdict`, and capture index, active, sealed verdict, presented verdict, classified/resealed, and Evidence Record states. It asserts fake system chrome is absent, the handle owns drag without scrolling the page, scrolling remains available elsewhere, identity is crisp, keyboard and reduced-motion paths work, disposition mapping is correct, and exactly one record is archived.
 
