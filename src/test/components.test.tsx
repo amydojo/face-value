@@ -67,6 +67,29 @@ it('reserves activation for the explicit trial handle', async () => {
   expect(inspect).toHaveBeenCalledOnce();
 });
 
+it('connects an active handle to one focused summary without repeating the note', () => {
+  render(
+    <EvidenceInstrument
+      specimen={PRODUCTS[0]}
+      job="Post-acne pigmentation"
+      mode="active"
+      expanded
+      onActivate={vi.fn()}
+      summary={(
+        <div>
+          <strong>Post-acne pigmentation</strong>
+          <p>Less tight after cleansing</p>
+        </div>
+      )}
+    />,
+  );
+  const handle = screen.getByRole('button', { name: /Close trial summary for Fermented Brightening Essence/i });
+  expect(handle).toHaveAttribute('aria-controls', 'trial-summary-fermented-essence');
+  expect(handle).toHaveAttribute('aria-expanded', 'true');
+  expect(screen.getByText('Post-acne pigmentation')).toBeVisible();
+  expect(screen.queryByText('Less tight after cleansing')).not.toBeInTheDocument();
+});
+
 it('exposes trial, ready, and saved-result states without relying on color', () => {
   const action = vi.fn();
   const { rerender } = render(<EvidenceInstrument specimen={PRODUCTS[0]} mode="index" onActivate={action} />);
