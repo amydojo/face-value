@@ -96,6 +96,7 @@ export function EvidenceCassette({
 
   const handlePointerDown = (event: ReactPointerEvent<HTMLButtonElement>) => {
     if (event.button !== 0 || busy) return;
+    event.preventDefault();
     dragRef.current = {
       pointerId: event.pointerId,
       startX: event.clientX,
@@ -109,6 +110,7 @@ export function EvidenceCassette({
     const drag = dragRef.current;
     if (!drag || drag.pointerId !== event.pointerId || drag.activated) return;
 
+    event.preventDefault();
     const deltaX = event.clientX - drag.startX;
     const deltaY = event.clientY - drag.startY;
     const distanceX = Math.abs(deltaX);
@@ -188,6 +190,7 @@ export function EvidenceCassette({
           <button
             type="button"
             className={styles.handleTarget}
+            style={{ touchAction: 'none', userSelect: 'none', WebkitTouchCallout: 'none' }}
             aria-label={presented ? 'Close evidence cassette' : 'Open evidence cassette'}
             aria-describedby="evidence-cassette-description"
             aria-disabled={busy}
