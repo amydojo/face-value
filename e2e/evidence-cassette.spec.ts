@@ -70,6 +70,7 @@ test('tap, drag, and keyboard share one deterministic transition model', async (
   await page.goto('/verdict');
   const instrument = page.getByLabel('Evidence cassette instrument');
   const handle = page.getByRole('button', { name: 'Open evidence cassette' });
+  await expect(handle).toHaveCSS('touch-action', 'none');
   const box = await handle.boundingBox();
   if (!box) throw new Error('Evidence cassette handle has no layout box.');
 
@@ -120,6 +121,7 @@ test('supported mobile viewports preserve geometry, actions, and horizontal fit'
     const handleBox = await handle.boundingBox();
     expect(handleBox?.width).toBeGreaterThanOrEqual(60);
     expect(handleBox?.height).toBeGreaterThanOrEqual(44);
+    await expect(handle).toHaveCSS('touch-action', 'none');
     expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(0);
     await openCassette(page);
     await expect(page.getByRole('button', { name: /KEEP IT/i })).toBeVisible();
