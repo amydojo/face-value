@@ -13,6 +13,7 @@ export interface CassetteHandleProps {
   expanded?: boolean;
   busy?: boolean;
   describedBy?: string;
+  controls?: string;
   className?: string;
   style?: CSSProperties;
   children?: ReactNode;
@@ -28,6 +29,7 @@ export function CassetteHandle({
   expanded = false,
   busy = false,
   describedBy,
+  controls,
   className,
   style,
   children,
@@ -39,6 +41,7 @@ export function CassetteHandle({
     startX: number;
     startY: number;
     activated: boolean;
+    moved: boolean;
   } | null>(null);
   const suppressClickRef = useRef(false);
 
@@ -46,21 +49,23 @@ export function CassetteHandle({
     if (!busy) onActivate();
   };
 
-  const clearPointer = (event: ReactPointerEvent<HTMLButtonElement>) => {
+  const releaseCapture = (event: ReactPointerEvent<HTMLButtonElement>) => {
     if (event.currentTarget.hasPointerCapture(event.pointerId)) {
       event.currentTarget.releasePointerCapture(event.pointerId);
     }
-    dragRef.current = null;
   };
 
   const handlePointerDown = (event: ReactPointerEvent<HTMLButtonElement>) => {
     if (event.button !== 0 || busy) return;
     event.preventDefault();
+    suppressClickRef.current = false;
+    event.currentTarget.focus({ preventScroll: true });
     dragRef.current = {
       pointerId: event.pointerId,
       startX: event.clientX,
       startY: event.clientY,
       activated: false,
+      moved: false,
     };
     event.currentTarget.setPointerCapture(event.pointerId);
   };
@@ -76,12 +81,29 @@ export function CassetteHandle({
     const distanceY = Math.abs(deltaY);
 
     if (distanceX >= DRAG_INTENT_PX || distanceY >= DRAG_INTENT_PX) {
+      drag.moved = true;
       suppressClickRef.current = true;
     }
     if (distanceX < DRAG_ACTIVATION_PX || distanceX <= distanceY) return;
 
     drag.activated = true;
     activate();
+  };
+
+  const handlePointerUp = (event: ReactPointerEvent<HTMLButtonElement>) => {
+    const drag = dragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    dragRef.current = null;
+    suppressClickRef.current = drag.moved;
+    releaseCapture(event);
+  };
+
+  const handlePointerCancel = (event: ReactPointerEvent<HTMLButtonElement>) => {
+    const drag = dragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    dragRef.current = null;
+    suppressClickRef.current = false;
+    releaseCapture(event);
   };
 
   const handleClick = () => {
@@ -101,14 +123,20 @@ export function CassetteHandle({
       data-cassette-mode={mode}
       aria-label={label ?? cassetteActionLabel({ mode, accession, product, expanded })}
       aria-describedby={describedBy}
+      aria-controls={controls}
       aria-expanded={mode === 'active' || mode === 'verdict' ? expanded : undefined}
       aria-disabled={busy || undefined}
       onClick={handleClick}
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
-      onPointerUp={clearPointer}
-      onPointerCancel={clearPointer}
-      onLostPointerCapture={() => { dragRef.current = null; }}
+      onPointerUp={handlePointerUp}
+      onPointerCancel={handlePointerCancel}
+      onLostPointerCapture={() => {
+        if (dragRef.current) {
+          dragRef.current = null;
+          suppressClickRef.current = false;
+        }
+      }}
       onKeyDown={(event) => {
         if (event.key === 'Escape' && onEscape) {
           event.preventDefault();
