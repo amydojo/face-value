@@ -88,7 +88,9 @@ export function EvidenceInstrument({
   const interactive = Boolean(mode && (onActivate || summary));
   const hasSummary = Boolean(summary || expanded !== undefined);
   const summaryId = `trial-summary-${specimen?.id ?? 'empty'}`;
-  const summaryContent = summary ?? <strong>{resolvedJob}</strong>;
+  const summaryContent = expanded !== undefined && mode === 'active'
+    ? <strong>{resolvedJob}</strong>
+    : summary ?? <strong>{resolvedJob}</strong>;
   const activate = () => {
     if (onActivate) onActivate();
     else if (hasSummary) setSummaryOpen((open) => !open);
