@@ -44,6 +44,12 @@ jobs:
           path: vitest-results.json
           if-no-files-found: error
       - run: npm run build
+      - name: Upload production bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: production-bundle
+          path: dist
+          if-no-files-found: error
       - run: npx playwright install --with-deps webkit
       - run: npm run test:e2e
       - name: Upload Playwright evidence
