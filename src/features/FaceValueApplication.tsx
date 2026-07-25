@@ -11,9 +11,10 @@ import { PRODUCTS } from '../fixtures/products';
 import { Archive } from './archive/Archive';
 import { CameraViewport } from './capture-contract/CameraViewport';
 import { CaptureContract } from './capture-contract/CaptureContract';
+import { EvidenceVerdict } from './evidence-cassette/EvidenceVerdict';
+import { placementForVerdict } from './evidence-cassette/verdictDisposition';
 import { EvidenceRecord } from './evidence-record/EvidenceRecord';
 import { EvidenceCassetteSelector, EvidenceInstrument } from './evidence-instrument/EvidenceInstrument';
-import { ProgressMode } from './progress-mode/ProgressMode';
 import styles from '../styles/FaceValue.module.css';
 
 const analysisAdapter = new MockOpticalAnalysisAdapter();
@@ -23,6 +24,7 @@ export function FaceValueApplication() {
   const specimen = PRODUCTS[state.selectedDrawerIndex] ?? PRODUCTS[0];
   const interferenceSpecimen = PRODUCTS.find((product) => product.accession === 'C2–01') ?? PRODUCTS[1] ?? PRODUCTS[0];
   const [traceLabel, setTraceLabel] = useState('Less tight after cleansing');
+  const [observationSummaryOpen, setObservationSummaryOpen] = useState(false);
   const tone = ['disturbance', 'analysis', 'progress', 'placement'].includes(state.stage) ? 'dark' : 'light';
 
   useEffect(() => {
@@ -34,6 +36,10 @@ export function FaceValueApplication() {
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [dispatch, state.stage]);
+
+  useEffect(() => {
+    if (state.stage !== 'observation') setObservationSummaryOpen(false);
+  }, [state.stage]);
 
   const runAnalysis = async () => {
     dispatch({ type: 'ANALYSIS_STARTED' });
@@ -100,7 +106,8 @@ export function FaceValueApplication() {
           </section>
         );
 
-      case 'cabinet':
+      case 'cabinet': {
+        const reviewDue = state.observation === 'review_due';
         return (
           <>
             <ScreenHeader />
@@ -108,8 +115,8 @@ export function FaceValueApplication() {
               <div className={styles.directory}><p>CASSETTE REGISTER&nbsp;&nbsp; A1</p><p>DAY 12 OF 28</p></div>
               <h1 data-stage-focus tabIndex={-1}>EVIDENCE INDEX</h1>
               <div className={styles.indexRegister} aria-label="Cassette status register">
-                <button type="button" onClick={() => dispatch({ type: 'BROWSE_DRAWERS' })}>
-                  <span>A1</span><strong>ACTIVE OBSERVATION</strong><small>1</small>
+                <button type="button" onClick={() => reviewDue ? dispatch({ type: 'OPEN_REVIEW_DUE' }) : dispatch({ type: 'BROWSE_DRAWERS' })}>
+                  <span>A1</span><strong>{reviewDue ? 'REVIEW DUE' : 'ACTIVE OBSERVATION'}</strong><small>1</small>
                 </button>
                 <button type="button"><span>S4</span><strong>ESTABLISHED</strong><small>3</small></button>
                 <button type="button"><span>R3</span><strong>RETRY ALONE</strong><small>2</small></button>
@@ -121,20 +128,22 @@ export function FaceValueApplication() {
               <EvidenceInstrument
                 specimen={specimen}
                 job={state.assignedJob}
-                state={state.observation === 'review_due' ? 'reviewDue' : 'active'}
-                status={state.observation === 'review_due' ? 'REVIEW DUE' : 'EVIDENCE SETTLING'}
-                onActivate={() => dispatch({ type: 'BROWSE_DRAWERS' })}
-                actionLabel={`Browse evidence cassettes. Active cassette ${specimen.accession}.`}
+                mode={reviewDue ? 'review-due' : 'index'}
+                status={reviewDue ? 'REVIEW DUE' : 'EVIDENCE SETTLING'}
+                onActivate={() => dispatch({ type: reviewDue ? 'OPEN_REVIEW_DUE' : 'BROWSE_DRAWERS' })}
+                actionLabel={reviewDue
+                  ? `Review verdict for ${specimen.product}`
+                  : `Open evidence cassette ${specimen.accession}`}
               />
               <button
                 type="button"
                 className={styles.nextActionCard}
-                aria-label="Browse evidence cassettes"
-                onClick={() => dispatch({ type: 'BROWSE_DRAWERS' })}
+                aria-label={reviewDue ? `Review verdict for ${specimen.product}` : 'Browse evidence cassettes'}
+                onClick={() => dispatch({ type: reviewDue ? 'OPEN_REVIEW_DUE' : 'BROWSE_DRAWERS' })}
               >
                 <span>NEXT VALID ACTION</span>
-                <strong>Record a comparable follow-up</strong>
-                <small>Consistent conditions required</small>
+                <strong>{reviewDue ? 'Review the evidence verdict' : 'Record a comparable follow-up'}</strong>
+                <small>{reviewDue ? 'The comparison is ready' : 'Consistent conditions required'}</small>
                 <time>27 JUL</time>
                 <b aria-hidden="true">→</b>
               </button>
@@ -142,6 +151,7 @@ export function FaceValueApplication() {
             {navigation}
           </>
         );
+      }
 
       case 'browse':
         return (
@@ -172,7 +182,7 @@ export function FaceValueApplication() {
               <section className={styles.specimenScreen} data-fv-screen="specimen-active">
                 <div className={styles.directory}><p>{state.assignedJob}</p><p>ACTIVE</p></div>
                 <h1>{specimen.product}</h1>
-                <EvidenceInstrument specimen={specimen} job={state.assignedJob} state="active" />
+                <EvidenceInstrument specimen={specimen} job={state.assignedJob} mode="active" />
                 <button
                   type="button"
                   data-stage-focus
@@ -257,9 +267,20 @@ export function FaceValueApplication() {
               <EvidenceInstrument
                 specimen={specimen}
                 job={state.assignedJob}
-                state={state.observation === 'active_disturbed' ? 'disturbed' : 'active'}
+                mode="active"
+                state={state.observation === 'active_disturbed' ? 'disturbed' : undefined}
                 secondarySpecimen={state.observation === 'active_disturbed' ? interferenceSpecimen : undefined}
+                expanded={observationSummaryOpen}
+                onActivate={() => setObservationSummaryOpen((open) => !open)}
+                onEscape={() => setObservationSummaryOpen(false)}
+                actionLabel={`${observationSummaryOpen ? 'Close' : 'Open'} active observation for ${specimen.accession}`}
               />
+              {observationSummaryOpen && (
+                <div className={styles.analysisSummary} data-fv-part="cassette-observation-summary">
+                  <strong>{state.assignedJob ?? 'ACTIVE OBSERVATION'}</strong>
+                  <p>{state.trace?.detail ?? 'No lightweight trace has been added yet.'}</p>
+                </div>
+              )}
               <ObservationStatus observation={state.observation} comparison={state.comparison} confidence={state.confidence} />
               <TraceRail trace={state.trace} disturbed={state.observation === 'active_disturbed'} />
               {!state.trace && (
@@ -333,7 +354,14 @@ export function FaceValueApplication() {
             <ScreenHeader dark />
             <section className={styles.analysisScreen} data-fv-screen="analysis">
               <div className={styles.directory}><p>SIMULATED OPTICAL COMPARISON</p><p>{state.processing === 'running' ? 'PROCESSING' : 'REVIEW'}</p></div>
-              <EvidenceInstrument specimen={specimen} job={state.assignedJob} state="reviewDue" compact />
+              <EvidenceInstrument
+                specimen={specimen}
+                job={state.assignedJob}
+                mode="review-due"
+                compact
+                onActivate={() => state.analysis ? dispatch({ type: 'ENTER_PROGRESS' }) : void runAnalysis()}
+                actionLabel={state.analysis ? `Review verdict for ${specimen.product}` : `Run comparison for ${specimen.product}`}
+              />
               {devScenario}
               <p>This MVP uses deterministic local fixture results. No external analysis service has run.</p>
               {state.analysis ? (
@@ -373,21 +401,22 @@ export function FaceValueApplication() {
           </section>
         );
 
-      case 'progress':
-        return state.analysis ? (
-          <ProgressMode
+      case 'progress': {
+        if (!state.analysis) return null;
+        const recommendedPlacement = placementForVerdict(state.analysis, state.disturbance);
+        return (
+          <EvidenceVerdict
             specimen={specimen}
             job={state.assignedJob}
             result={state.analysis}
             confidence={state.confidence}
             lowerConfidence={state.disturbance === 'overlap_retained'}
-            onContinue={() => dispatch({
-              type: 'SELECT_PLACEMENT',
-              placement: state.disturbance === 'overlap_retained' ? 'retry_alone' : 'established',
-            })}
+            recommendedPlacement={recommendedPlacement}
+            onContinue={(placement) => dispatch({ type: 'SELECT_PLACEMENT', placement })}
             onBack={() => dispatch({ type: 'BACK' })}
           />
-        ) : null;
+        );
+      }
 
       case 'placement':
         return (
@@ -399,9 +428,13 @@ export function FaceValueApplication() {
               <EvidenceInstrument
                 specimen={specimen}
                 job={state.assignedJob}
-                state={state.placementSealed ? 'classified' : 'active'}
+                mode={state.placementSealed ? 'classified' : 'active'}
                 status={state.placementSealed ? 'CLASSIFIED' : 'AWAITING DISPOSITION'}
                 outputReady={state.placementSealed}
+                onActivate={state.placementSealed
+                  ? () => dispatch({ type: 'GENERATE_RECORD', now: systemClock.now() })
+                  : undefined}
+                actionLabel={state.placementSealed ? `Open classified evidence record ${specimen.accession}` : undefined}
               />
               <EvidenceDisposition
                 placement={state.placement}
