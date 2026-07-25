@@ -1,9 +1,10 @@
-import { useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import type { Specimen } from '../../domain/model';
 import { CassetteHandle } from '../evidence-cassette/CassetteHandle';
 import type { CassetteMode } from '../evidence-cassette/cassetteContract';
 import { cassetteModeStatus } from '../evidence-cassette/cassetteContract';
 import styles from './EvidenceInstrument.module.css';
+import cassetteStyles from './EvidenceCassette.module.css';
 
 export type EvidenceHardwareState =
   | 'dormant'
@@ -15,6 +16,15 @@ export type EvidenceHardwareState =
   | 'reviewDue'
   | 'classified'
   | 'archived';
+
+export type EvidenceCassettePhase =
+  | 'followUpReady'
+  | 'processing'
+  | 'verdictReady'
+  | 'verdictRevealed';
+
+export type EvidenceCassetteDoorState = 'closed' | 'pressed' | 'released' | 'open';
+export type EvidenceCassetteGlassState = 'fogged' | 'opaque' | 'clearing' | 'clear';
 
 const statusCopy: Record<EvidenceHardwareState, string> = {
   dormant: 'STANDBY',
@@ -42,6 +52,20 @@ const toProductLines = (productName: string) => {
   return [words.slice(0, split).join(' '), words.slice(split).join(' ')];
 };
 
+const phaseFor = (mode: CassetteMode | undefined, state: EvidenceHardwareState, expanded: boolean): EvidenceCassettePhase => {
+  if (expanded && (mode === 'verdict' || state === 'classified' || state === 'archived')) return 'verdictRevealed';
+  if (mode === 'verdict' || state === 'reviewDue') return 'verdictReady';
+  if (state === 'sealed' || state === 'selected') return 'processing';
+  return 'followUpReady';
+};
+
+const glassFor = (phase: EvidenceCassettePhase, doorState: EvidenceCassetteDoorState): EvidenceCassetteGlassState => {
+  if (phase === 'verdictRevealed' || doorState === 'open') return 'clear';
+  if (doorState === 'released') return 'clearing';
+  if (phase === 'verdictReady' || phase === 'processing') return 'opaque';
+  return 'fogged';
+};
+
 export interface EvidenceInstrumentProps {
   specimen?: Specimen;
   job?: string | null;
@@ -54,11 +78,19 @@ export interface EvidenceInstrumentProps {
   expanded?: boolean;
   onActivate?: () => void;
   onEscape?: () => void;
+  onEditProduct?: () => void;
   actionLabel?: string;
   summary?: ReactNode;
   children?: ReactNode;
   compact?: boolean;
 }
+
+const timing = {
+  press: 90,
+  latch: 80,
+  pop: 120,
+  pause: 80,
+} as const;
 
 export function EvidenceInstrument({
   specimen,
@@ -72,12 +104,16 @@ export function EvidenceInstrument({
   expanded,
   onActivate,
   onEscape,
+  onEditProduct,
   actionLabel,
   summary,
   children,
   compact = false,
 }: EvidenceInstrumentProps) {
   const [summaryOpen, setSummaryOpen] = useState(false);
+  const [doorState, setDoorState] = useState<EvidenceCassetteDoorState>('closed');
+  const [transitioning, setTransitioning] = useState(false);
+  const timers = useRef<number[]>([]);
   const resolvedExpanded = expanded ?? summaryOpen;
   const productName = specimen?.product ?? 'AWAITING PRODUCT';
   const [lineOne, lineTwo] = toProductLines(productName);
@@ -85,43 +121,85 @@ export function EvidenceInstrument({
   const resolvedJob = job ?? (specimen ? 'JOB UNASSIGNED' : 'READY FOR PRODUCT');
   const resolvedState = state ?? (mode ? modeToHardwareState[mode] : 'sealed');
   const resolvedStatus = status ?? (state ? statusCopy[resolvedState] : mode ? cassetteModeStatus[mode] : statusCopy[resolvedState]);
-  const interactive = Boolean(mode && (onActivate || summary));
+  const interactive = Boolean(mode && (onActivate || summary || expanded !== undefined));
   const hasSummary = Boolean(summary || expanded !== undefined);
+  const phase = phaseFor(mode, resolvedState, resolvedExpanded);
+  const glassState = glassFor(phase, doorState);
   const summaryId = `trial-summary-${specimen?.id ?? 'empty'}`;
-  const summaryContent = expanded !== undefined && mode === 'active'
-    ? <strong>{resolvedJob}</strong>
-    : summary ?? <strong>{resolvedJob}</strong>;
-  const activate = () => {
-    if (onActivate) onActivate();
-    else if (hasSummary) setSummaryOpen((open) => !open);
+  const summaryContent = expanded !== undefined && mode === 'active' ? <strong>{resolvedJob}</strong> : summary ?? <strong>{resolvedJob}</strong>;
+
+  useEffect(() => () => {
+    timers.current.forEach(window.clearTimeout);
+  }, []);
+
+  useEffect(() => {
+    if (resolvedExpanded && doorState === 'closed') setDoorState('open');
+    if (!resolvedExpanded && !transitioning) setDoorState('closed');
+  }, [resolvedExpanded, doorState, transitioning]);
+
+  const schedule = (callback: () => void, delay: number) => {
+    const timer = window.setTimeout(callback, delay);
+    timers.current.push(timer);
   };
+
+  const activate = () => {
+    if (transitioning) return;
+
+    if (doorState === 'open') {
+      setDoorState('closed');
+      if (expanded === undefined && hasSummary) setSummaryOpen(false);
+      onEscape?.();
+      return;
+    }
+
+    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    setTransitioning(true);
+
+    if (reducedMotion) {
+      setDoorState('open');
+      if (expanded === undefined && hasSummary) setSummaryOpen(true);
+      onActivate?.();
+      setTransitioning(false);
+      return;
+    }
+
+    setDoorState('pressed');
+    schedule(() => setDoorState('released'), timing.press + timing.latch);
+    schedule(() => {
+      setDoorState('open');
+      if (expanded === undefined && hasSummary) setSummaryOpen(true);
+      onActivate?.();
+      setTransitioning(false);
+    }, timing.press + timing.latch + timing.pop + timing.pause);
+  };
+
+  const faceplateHidden = doorState !== 'open';
 
   return (
     <section
-      className={`${styles.instrument} ${compact ? styles.compact : ''}`}
+      className={`${styles.instrument} ${compact ? styles.compact : ''} ${cassetteStyles.canonicalCassette}`}
       data-evidence-instrument
+      data-evidence-cassette
       data-hardware-state={resolvedState}
       data-cassette-mode={mode}
-      data-handle-expanded={resolvedExpanded || undefined}
+      data-cassette-phase={phase}
+      data-door-state={doorState}
+      data-glass-state={glassState}
       data-output-ready={outputReady || undefined}
       data-selected={selected || undefined}
       data-optics-layered="true"
-      data-resting-identity={specimen ? 'true' : 'false'}
       aria-label={`Product trial ${accession}. ${productName}. ${resolvedStatus}.`}
     >
-      <div className={styles.housing} aria-hidden="true" />
-      <div className={styles.structuralBezel} aria-hidden="true" />
-      <div className={styles.opticalBay}>
+      <div className={styles.housing} data-cassette-part="chassis" aria-hidden="true" />
+      <div className={styles.structuralBezel} data-cassette-part="structural-bezel" aria-hidden="true" />
+
+      <div className={styles.opticalBay} data-cassette-part="specimen-bay">
         <div className={styles.rearPanel} aria-hidden="true" />
         <div className={styles.bayCeiling} aria-hidden="true" />
         <div className={styles.bayFloor} aria-hidden="true" />
-        <div className={styles.specimenDock} aria-hidden="true" />
+        <div className={styles.specimenDock} data-cassette-part="bottle-pedestal" aria-hidden="true" />
         {specimen ? (
-          <figure
-            className={styles.specimen}
-            data-fv-part="specimen-identity"
-            aria-label={`${specimen.product}, ${specimen.volume}`}
-          >
+          <figure className={styles.specimen} data-cassette-part="bottle-specimen" aria-label={`${specimen.product}, ${specimen.volume}`}>
             <div className={styles.specimenCap} aria-hidden="true" />
             <div className={styles.specimenBody} aria-hidden="true">
               <span>FACE VALUE</span>
@@ -133,17 +211,31 @@ export function EvidenceInstrument({
         ) : (
           <div className={styles.emptyDock} aria-hidden="true">+</div>
         )}
-        <div className={styles.identityRail} data-fv-part="specimen-identity">
-          <span>{accession}</span>
-          <strong>{productName}</strong>
-          <small>{resolvedJob}</small>
-        </div>
-        <div className={styles.smartGlass} data-fv-part="smart-glass" aria-hidden="true" />
+        <div className={styles.smartGlass} data-cassette-part="smart-glass" aria-hidden="true" />
       </div>
 
-      <div className={styles.cassettePerspective} aria-hidden="true">
-        <div className={styles.cassetteModule}>
-          <div className={styles.cassetteFace}>
+      <div
+        id={summaryId}
+        className={cassetteStyles.faceplate}
+        data-cassette-part="registered-product-faceplate"
+        aria-hidden={faceplateHidden}
+        inert={faceplateHidden ? '' : undefined}
+      >
+        <div className={cassetteStyles.faceplateHeader}>
+          <span>SAMPLE REGISTERED</span>
+          <span>{accession}</span>
+        </div>
+        <strong>{productName}</strong>
+        <small>JOB · {resolvedJob}</small>
+        {summary && <div className={cassetteStyles.faceplateSummary}>{summaryContent}</div>}
+        <button type="button" tabIndex={faceplateHidden ? -1 : 0} onClick={onEditProduct} disabled={faceplateHidden}>
+          EDIT / REPLACE
+        </button>
+      </div>
+
+      <div className={`${styles.cassettePerspective} ${cassetteStyles.doorPerspective}`} data-cassette-part="hinge-recess">
+        <div className={`${styles.cassetteModule} ${cassetteStyles.door}`} data-cassette-part="cassette-door">
+          <div className={`${styles.cassetteFace} ${cassetteStyles.doorFront}`}>
             <div className={styles.cassetteLabel}>
               <span>{accession}</span>
               <strong>{resolvedStatus}</strong>
@@ -157,8 +249,10 @@ export function EvidenceInstrument({
               </div>
             )}
           </div>
+          <div className={cassetteStyles.doorThickness} aria-hidden="true" />
+          <div className={cassetteStyles.doorRear} aria-hidden="true" />
           {interactive && (
-            <div className={styles.handleRecess}>
+            <div className={styles.handleRecess} data-cassette-part="handle" aria-hidden="true">
               <span className={styles.handleGrip} />
             </div>
           )}
@@ -171,30 +265,20 @@ export function EvidenceInstrument({
           accession={accession}
           product={productName}
           label={actionLabel}
-          expanded={resolvedExpanded}
+          expanded={doorState === 'open'}
           controls={hasSummary ? summaryId : undefined}
           className={styles.activationTarget}
           onActivate={activate}
           onEscape={() => {
+            if (transitioning) return;
+            setDoorState('closed');
             if (expanded === undefined && summaryOpen) setSummaryOpen(false);
-            else onEscape?.();
+            onEscape?.();
           }}
         />
       )}
 
-      {hasSummary && (
-        <div
-          id={summaryId}
-          hidden={!resolvedExpanded}
-          data-cassette-summary
-          data-fv-part="trial-summary"
-          className={styles.machineSummary}
-        >
-          {summaryContent}
-        </div>
-      )}
-
-      <div className={styles.outputSlot} aria-hidden="true">
+      <div className={styles.outputSlot} data-cassette-part="bottom-rail" aria-hidden="true">
         {outputReady && (
           <span className={styles.outputRecord}>
             <b>RESULT</b>
@@ -217,22 +301,11 @@ export interface EvidenceCassetteSelectorProps {
   onInspect: () => void;
 }
 
-export function EvidenceCassetteSelector({
-  products,
-  index,
-  job,
-  onPrevious,
-  onNext,
-  onInspect,
-}: EvidenceCassetteSelectorProps) {
+export function EvidenceCassetteSelector({ products, index, job, onPrevious, onNext, onInspect }: EvidenceCassetteSelectorProps) {
   const specimen = products[index];
 
   return (
-    <section
-      className={styles.selector}
-      aria-label={`Trial selector. Trial ${index + 1} of ${products.length}.`}
-      data-cassette-selector
-    >
+    <section className={styles.selector} aria-label={`Trial selector. Trial ${index + 1} of ${products.length}.`} data-cassette-selector>
       <div className={styles.selectorTarget}>
         <EvidenceInstrument
           specimen={specimen}
@@ -249,9 +322,7 @@ export function EvidenceCassetteSelector({
           <strong>TRIAL {String(index + 1).padStart(2, '0')} / {String(products.length).padStart(2, '0')}</strong>
           <span>{specimen.product}</span>
           <div aria-hidden="true">
-            {products.map((product, productIndex) => (
-              <i key={product.id} data-active={productIndex === index || undefined} />
-            ))}
+            {products.map((product, productIndex) => <i key={product.id} data-active={productIndex === index || undefined} />)}
           </div>
         </div>
         <button type="button" onClick={onNext} disabled={index === products.length - 1} aria-label="Next trial">›</button>
