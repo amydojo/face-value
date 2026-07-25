@@ -9,6 +9,7 @@ export interface CassetteHandleProps {
   mode: CassetteMode;
   accession: string;
   product?: string;
+  label?: string;
   expanded?: boolean;
   busy?: boolean;
   describedBy?: string;
@@ -23,6 +24,7 @@ export function CassetteHandle({
   mode,
   accession,
   product,
+  label,
   expanded = false,
   busy = false,
   describedBy,
@@ -97,7 +99,7 @@ export function CassetteHandle({
       style={{ touchAction: 'none', userSelect: 'none', WebkitTouchCallout: 'none', ...style }}
       data-cassette-handle
       data-cassette-mode={mode}
-      aria-label={cassetteActionLabel({ mode, accession, product, expanded })}
+      aria-label={label ?? cassetteActionLabel({ mode, accession, product, expanded })}
       aria-describedby={describedBy}
       aria-expanded={mode === 'active' || mode === 'verdict' ? expanded : undefined}
       aria-disabled={busy || undefined}
