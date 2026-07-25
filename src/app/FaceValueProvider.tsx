@@ -24,7 +24,7 @@ function hydrateState(): FaceValueState {
     stage: hasContinuity ? 'cabinet' : 'welcome',
     cabinet: hasContinuity ? 'open' : 'closed',
     announcement: hasContinuity
-      ? 'Structured evidence restored. Raw images were not persisted.'
+      ? 'Your trials were restored. Raw images were not saved.'
       : initialState.announcement,
   };
 }
