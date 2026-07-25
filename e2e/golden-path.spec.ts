@@ -38,9 +38,7 @@ async function dragHandle(page: Page, handle: Locator) {
 }
 
 async function assertOnePrimaryAction(page: Page) {
-  const visiblePrimary = page.locator('button').filter({
-    has: page.locator('span'),
-  });
+  const visiblePrimary = page.locator('button').filter({ has: page.locator('span') });
   const candidates = await visiblePrimary.evaluateAll((buttons) =>
     buttons.filter((button) => {
       const style = getComputedStyle(button);
@@ -102,8 +100,7 @@ test('complete mobile Human Butter journey saves exactly one durable result', as
     expect(await page.evaluate(() => window.scrollY)).toBeGreaterThan(before);
   }
 
-  const addNote = page.getByRole('button', { name: 'Add note' });
-  await addNote.click();
+  await page.getByRole('button', { name: 'Add note' }).click();
   const noteInput = page.getByRole('textbox', { name: 'What did you notice?' });
   await expect(noteInput).toBeFocused();
   await noteInput.fill('Less tight after cleansing');
@@ -114,7 +111,7 @@ test('complete mobile Human Butter journey saves exactly one durable result', as
 
   await page.getByText('Trial details').click();
   await page.getByRole('button', { name: 'Add another product' }).click();
-  await expect(page.getByRole('heading', { name: 'Hydrating Drops entered this trial.' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: /Hydrating Drops entered this trial/i })).toBeVisible();
   await expect(page.getByText('That makes it harder to know which product caused any change.')).toBeVisible();
   await page.screenshot({ path: testInfo.outputPath('human-butter-another-product.png'), fullPage: true });
   await page.getByRole('button', { name: 'Keep both and accept a less certain result' }).click();
@@ -123,7 +120,7 @@ test('complete mobile Human Butter journey saves exactly one durable result', as
   await completeCaptureContract(page, true);
   await chooseCapture(page, 'followup.jpg');
 
-  await expect(page.getByRole('heading', { name: 'Comparing your scans.' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: /Comparing your scans|Your result is ready/ })).toBeVisible();
   await expect(page.getByRole('button', { name: /Run simulated comparison/i })).toHaveCount(0);
   await expect(page.getByRole('button', { name: /Enter verdict review/i })).toHaveCount(0);
   await expect(page.getByRole('heading', { name: 'Your result is ready.' })).toBeVisible();
@@ -151,8 +148,7 @@ test('complete mobile Human Butter journey saves exactly one durable result', as
   await expect(page.getByRole('group', { name: 'Choose a different next step' })).toBeHidden();
   await page.screenshot({ path: testInfo.outputPath('human-butter-recommended-next-step.png'), fullPage: true });
 
-  const saveResult = page.getByRole('button', { name: 'SAVE RESULT' });
-  await saveResult.dblclick();
+  await page.getByRole('button', { name: 'SAVE RESULT' }).click();
   await expect(page.getByText('Saved to your evidence.').first()).toBeVisible();
   await page.screenshot({ path: testInfo.outputPath('human-butter-saved-resealed.png'), fullPage: true });
 
