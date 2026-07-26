@@ -22,7 +22,7 @@ Future design, implementation, API integration, demo, and submission work must f
 
 Face Value exposes one public state-machine journey:
 
-> **Welcome → Your trials → view trial → trial in progress → follow-up scan → automatic comparison → result → next step → saved result → Past results**
+> **Welcome → Your trials → view trial → trial in progress → follow-up scan → automatic comparison → result → next step → save and release → collect → Past results**
 
 Every default screen contains one human headline, one meaningful trial object, one useful piece of context, one primary action, and at most one quiet alternative. Notes, technical state, destructive controls, and alternate classifications use progressive disclosure.
 
@@ -37,7 +37,7 @@ Primary user-facing language is:
 - Result
 - Next step
 - Save result
-- Saved result
+- Your evidence
 - Past results
 
 Internal reducer, type, persistence, and architecture names may remain more technical. Those names are not presentation or accessibility vocabulary.
@@ -48,7 +48,7 @@ Result actions map explicitly to next steps:
 - `TEST LONGER` → `paused`
 - `RETRY IT ALONE` → `retry_alone`
 
-One `SAVE_RESULT` reducer event commits the chosen next step, performs the confident reseal, generates exactly one durable saved result, and opens it automatically. Repeated activation, back navigation, reload restoration, and Past results reopening do not create duplicates.
+The next-step decision arms the Evidence Machine. One `SAVE_RESULT` reducer event commits the chosen next step and creates exactly one durable result. The machine then dispenses that same record, waits for explicit collection, and preserves the identical record ID through evidence detail and Past results. Repeated activation, back navigation, reload restoration, and reopening do not create duplicates.
 
 ## Production hardware language
 
@@ -67,13 +67,13 @@ The fixed physical truth is:
 
 The explicit handle always means: **show me what this trial currently contains.** A visible handle is always a semantic button with a real activation path. It owns tap, Enter, Space, Escape recovery, pointer and touch drag, thresholding, cancellation, and lost-capture recovery. Gesture ownership stays scoped to the handle, so page scrolling remains available everywhere else.
 
-The V7 result sequence remains restrained and causal: latch release, pop toward the user, mechanical pause, micro-tilt, smart-glass clear, specimen presentation, identity reveal, and confident reseal. Reduced motion reaches the same semantic state without ceremonial delay.
+The V7 result sequence remains restrained and causal. After the next-step decision, the amber actuator owns save and release: pressure acknowledgement, latch release, controlled record feed, partial presentation, explicit collection, and same-object continuity. Reduced motion reaches the same semantic states without ceremonial delay.
 
-See `docs/evidence-cassette-v7.md`, `docs/design-contract.md`, and `docs/production-journey-integration.md`.
+See `docs/evidence-cassette-v7.md`, `docs/design-contract.md`, `docs/production-journey-integration.md`, and `docs/human-butter-evidence-machine-integration.md`.
 
 ## MVP scope
 
-This repository implements one responsive, fixture-backed golden path. It includes finite trial selection, one job assignment, camera or file capture, a focused note editor, repeat comparison, both second-product branches, automatic analysis, confidence preservation, the V7 result reveal, recommended and overridden next steps, exactly-once saved-result generation, Past results browsing, deletion, restoration, and recovery.
+This repository implements one responsive, fixture-backed golden path. It includes finite trial selection, one job assignment, camera or file capture, a focused note editor, repeat comparison, both second-product branches, automatic analysis, confidence preservation, the V7 result reveal, recommended and overridden next steps, exactly-once saved-result generation, machine dispensing, explicit artifact collection, Past results browsing, deletion, restoration, and recovery.
 
 The underlying domain model remains more detailed than the visible journey. Capture quality, comparison confidence, product overlap, placement state, privacy cleanup, accessibility, and reduced-motion behavior are system responsibilities rather than separate product promises.
 
@@ -106,9 +106,9 @@ npm run test:e2e
 
 The application uses Vite, React, strict TypeScript, one pure reducer state machine, scoped CSS Modules, Vitest, React Testing Library, and Playwright. Domain state is independent from React. Browser capabilities are isolated behind adapters for camera, analysis, persistence, haptics, and clock behavior.
 
-The reducer remains the single navigation, comparison, recovery, classification, persistence, and saved-result boundary. React may own temporary disclosure and editing state, but it does not invent scientific state, route around reducer transitions, or duplicate result and record state.
+The Human Butter reducer remains the single navigation, comparison, recovery, classification, persistence, and saved-result boundary. The Evidence Machine receives a controlled projection of that state and owns transient mechanical phases only. React does not invent scientific state, route around reducer transitions, duplicate result state, or create records from animation callbacks.
 
-See `docs/product-contract.md`, `docs/architecture.md`, `docs/state-model.md`, `docs/camera-contract.md`, `docs/design-contract.md`, `docs/evidence-cassette-v7.md`, and `docs/production-journey-integration.md`.
+See `docs/product-contract.md`, `docs/architecture.md`, `docs/state-model.md`, `docs/camera-contract.md`, `docs/design-contract.md`, `docs/evidence-cassette-v7.md`, `docs/production-journey-integration.md`, and `docs/human-butter-evidence-machine-integration.md`.
 
 ## Mock analysis disclosure
 
