@@ -3,6 +3,21 @@ import { confidenceSeal } from './evidenceMachineLogic';
 import type { EvidenceRecord } from './evidenceTrial';
 import styles from './EvidenceMachine.module.css';
 
+const formatArtifactDate = (value: string): string => {
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return value;
+  return new Intl.DateTimeFormat('en-US', {
+    day: '2-digit',
+    month: 'short',
+  }).format(parsed).toUpperCase();
+};
+
+const recordIndex = (id: string): string => {
+  const digits = id.replace(/\D/g, '');
+  if (digits) return digits.slice(-3).padStart(3, '0');
+  return id.replace(/^ER-/, '').slice(-3).toUpperCase();
+};
+
 export function EvidenceRecordArtifact({
   record,
   mode,
@@ -27,11 +42,11 @@ export function EvidenceRecordArtifact({
       <span className={styles.artifactIndex} aria-hidden="true" />
       <header>
         <span>FACE VALUE</span>
-        <span>EVIDENCE RECORD 014</span>
+        <span>EVIDENCE RECORD {recordIndex(record.id)}</span>
       </header>
       <section>
         <h2>{record.productName}</h2>
-        <p>{record.trialWindow.startedAt} — {record.trialWindow.endedAt}</p>
+        <p>{formatArtifactDate(record.trialWindow.startedAt)} — {formatArtifactDate(record.trialWindow.endedAt)}</p>
       </section>
       <section>
         <span>{record.finding.metric}</span>
@@ -40,7 +55,7 @@ export function EvidenceRecordArtifact({
       <footer>
         <div className={styles.confidenceSeal} data-confidence-seal={confidenceSeal(record.confidence)} aria-hidden="true" />
         <strong>{record.confidence.toUpperCase()}</strong>
-        <span>S4</span>
+        <span>{record.nextStepCode ?? '—'}</span>
         <b>{record.nextStep.toUpperCase()}</b>
       </footer>
     </article>
