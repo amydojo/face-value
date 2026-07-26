@@ -146,7 +146,6 @@ export function CanonicalFaceValueApplication() {
     };
   }, [commitTrial, trial.phase]);
 
-  const product = trial.product ?? productFromSpecimen(PRODUCTS.find((item) => item.id === selectedProductId) ?? PRODUCTS[1]);
   const machineConfig = resolveMachineConfiguration(trial);
 
   const openCapture = (kind: CaptureKind) => {

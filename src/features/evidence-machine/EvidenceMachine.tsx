@@ -28,10 +28,10 @@ export interface EvidenceMachineProps {
   compact?: boolean;
 }
 
-function stableReleaseState(trial: EvidenceTrialState): EvidenceRecordReleaseState {
-  if (trial.phase === 'release-error') return 'release-error';
-  if (['record-collected', 'disposition-required', 'complete', 'archived'].includes(trial.phase)) return 'record-collected';
-  if (trial.phase === 'record-presented') return 'record-presented';
+function stableReleaseState(phase: EvidenceTrialState['phase']): EvidenceRecordReleaseState {
+  if (phase === 'release-error') return 'release-error';
+  if (['record-collected', 'disposition-required', 'complete', 'archived'].includes(phase)) return 'record-collected';
+  if (phase === 'record-presented') return 'record-presented';
   return 'ready';
 }
 
@@ -50,7 +50,7 @@ export function EvidenceMachine({
   compact = false,
 }: EvidenceMachineProps) {
   const config = resolveMachineConfiguration(trial);
-  const [releaseState, setReleaseState] = useState<EvidenceRecordReleaseState>(() => stableReleaseState(trial));
+  const [releaseState, setReleaseState] = useState<EvidenceRecordReleaseState>(() => stableReleaseState(trial.phase));
   const [dispenseStep, setDispenseStep] = useState<DispenseStep>(() => trial.evidenceRecord ? 'seated' : 'idle');
   const [record, setRecord] = useState<EvidenceRecord | null>(trial.evidenceRecord);
   const [pressed, setPressed] = useState(false);
@@ -63,7 +63,7 @@ export function EvidenceMachine({
 
   useEffect(() => {
     if (releaseLocked.current) return;
-    const stable = stableReleaseState(trial);
+    const stable = stableReleaseState(trial.phase);
     setReleaseState(stable);
     setRecord(trial.evidenceRecord);
     setDispenseStep(trial.evidenceRecord ? 'seated' : 'idle');
