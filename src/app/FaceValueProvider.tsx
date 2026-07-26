@@ -13,7 +13,19 @@ function hydrateState(): FaceValueState {
   const persisted = loadStructuredDemoData();
   if (!persisted) return initialState;
 
-  const completedTrial = persisted.observation === 'complete' && persisted.archive.length > 0;
+  const hasPendingDecision = Boolean(
+    persisted.analysis &&
+    persisted.placement !== 'observation' &&
+    !persisted.placementSealed,
+  );
+  const hasPendingRelease = Boolean(
+    persisted.placementSealed && persisted.record,
+  );
+  const preserveTerminalJourney = hasPendingDecision || hasPendingRelease;
+  const completedTrial =
+    persisted.observation === 'complete' &&
+    persisted.archive.length > 0 &&
+    !preserveTerminalJourney;
   const hasContinuity =
     persisted.observation !== 'none' ||
     persisted.archive.length > 0 ||
@@ -22,7 +34,7 @@ function hydrateState(): FaceValueState {
   return {
     ...initialState,
     ...persisted,
-    stage: hasContinuity ? 'cabinet' : 'welcome',
+    stage: preserveTerminalJourney ? 'placement' : hasContinuity ? 'cabinet' : 'welcome',
     cabinet: hasContinuity ? 'open' : 'closed',
     observation: completedTrial ? 'none' : persisted.observation,
     assignedJob: completedTrial ? null : persisted.assignedJob,
@@ -36,9 +48,13 @@ function hydrateState(): FaceValueState {
     processing: 'idle',
     placement: completedTrial ? 'observation' : persisted.placement,
     placementSealed: completedTrial ? false : persisted.placementSealed,
-    announcement: hasContinuity
-      ? 'Your trials were restored. Raw images were not saved.'
-      : initialState.announcement,
+    announcement: hasPendingRelease
+      ? 'Your Evidence Record was restored and is ready to collect.'
+      : hasPendingDecision
+        ? 'Your selected next step was restored and is ready to save.'
+        : hasContinuity
+          ? 'Your trials were restored. Raw images were not saved.'
+          : initialState.announcement,
   };
 }
 
