@@ -192,7 +192,9 @@ export function HumanButterEvidenceMachineScreen() {
               : 'PRESS AMBER TO SAVE AND RELEASE ONE RECORD'}
           </p>
         </main>
-        <div aria-live="polite" aria-atomic="true">{state.announcement}</div>
+        <div className={styles.liveRegion} aria-live="polite" aria-atomic="true">
+          {state.announcement}
+        </div>
       </div>
     </EvidenceShell>
   );
