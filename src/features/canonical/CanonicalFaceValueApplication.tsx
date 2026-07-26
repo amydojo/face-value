@@ -106,10 +106,10 @@ export function CanonicalFaceValueApplication() {
   }, []);
 
   const showOverlay = (next: Exclude<Overlay, null>) => {
+    window.history.replaceState({ phase: trialRef.current.phase }, '');
     window.history.pushState({ phase: trialRef.current.phase, overlay: next.type }, '');
     setOverlay(next);
   };
-
 
   useEffect(() => {
     if (trial.phase !== 'trial-active') return;
@@ -262,7 +262,6 @@ export function CanonicalFaceValueApplication() {
       />
     );
   }
-
 
   if (overlay?.type === 'detail' && trial.evidenceRecord) {
     const detail = trial.evidenceRecord.detail;
