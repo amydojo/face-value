@@ -166,6 +166,7 @@
   height: 72px;
   transform-style: preserve-3d;
   overflow: visible;
+  pointer-events: none;
 }
 
 .door {
