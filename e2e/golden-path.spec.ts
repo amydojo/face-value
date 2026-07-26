@@ -6,6 +6,15 @@ async function screenshot(page: Page, testInfo: TestInfo, name: string) {
   await page.screenshot({ path: testInfo.outputPath(`${name}.png`), fullPage: true });
 }
 
+async function waitForMachineState(page: Page, attribute: string, value: string, timeout = 1200) {
+  await page.waitForFunction(
+    ({ attribute: targetAttribute, value: targetValue }) =>
+      document.querySelector('[data-evidence-machine]')?.getAttribute(targetAttribute) === targetValue,
+    { attribute, value },
+    { polling: 10, timeout },
+  );
+}
+
 async function confirmConditions(page: Page) {
   for (const checkbox of await page.getByRole('checkbox').all()) await checkbox.check();
   await page.getByRole('button', { name: 'READY TO CAPTURE' }).click();
@@ -52,32 +61,29 @@ test.beforeEach(async ({ page }: { page: Page }) => {
 test('complete Evidence Machine journey dispenses, collects, details, and files one object', async ({ page }: { page: Page }, testInfo: TestInfo) => {
   await reachVerdict(page, testInfo);
 
+  const machine = page.locator('[data-evidence-machine]');
   const releaseButton = page.getByRole('button', { name: /Release Evidence Record/i });
   await releaseButton.click();
-  await expect(page.locator('[data-evidence-machine]')).toHaveAttribute('data-release-state', 'actuator-pressed');
+  await waitForMachineState(page, 'data-release-state', 'actuator-pressed', 250);
   await screenshot(page, testInfo, '06-actuator-pressed');
 
-  await page.waitForTimeout(120);
-  await expect(page.locator('[data-evidence-machine]')).toHaveAttribute('data-door-state', 'released');
+  await waitForMachineState(page, 'data-door-state', 'released', 350);
   await screenshot(page, testInfo, '07-latch-releasing');
 
-  await page.waitForTimeout(120);
-  await expect(page.locator('[data-evidence-machine]')).toHaveAttribute('data-dispense-step', 'edge');
+  await waitForMachineState(page, 'data-dispense-step', 'edge', 500);
   await screenshot(page, testInfo, '08-artifact-edge');
 
-  await page.waitForTimeout(130);
-  await expect(page.locator('[data-evidence-machine]')).toHaveAttribute('data-dispense-step', 'feed-40');
+  await waitForMachineState(page, 'data-dispense-step', 'feed-40', 600);
   await screenshot(page, testInfo, '09-dispense-40');
 
-  await page.waitForTimeout(230);
-  await expect(page.locator('[data-evidence-machine]')).toHaveAttribute('data-dispense-step', 'alignment');
+  await waitForMachineState(page, 'data-dispense-step', 'alignment', 850);
   await screenshot(page, testInfo, '10-alignment-pause');
 
-  await page.waitForTimeout(120);
-  await expect(page.locator('[data-evidence-machine]')).toHaveAttribute('data-dispense-step', 'feed-70');
+  await waitForMachineState(page, 'data-dispense-step', 'feed-70', 1050);
   await screenshot(page, testInfo, '11-dispense-70');
 
-  await expect(page.locator('[data-fv-screen="record-presented"]')).toBeVisible({ timeout: 1500 });
+  await expect(machine).toHaveAttribute('data-release-state', 'record-presented', { timeout: 1500 });
+  await expect(page.locator('[data-fv-screen="record-presented"]')).toBeVisible();
   await expect(page.getByRole('button', { name: /Collect Evidence Record/i })).toBeVisible();
   await screenshot(page, testInfo, '12-record-presented');
   await page.getByRole('button', { name: /Collect Evidence Record/i }).click();
