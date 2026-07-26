@@ -3,8 +3,9 @@ import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ANALYSIS_SCENARIOS } from '../fixtures/analysis-scenarios';
 import { PRODUCTS } from '../fixtures/products';
-import { EvidenceMachine, nextReleaseState } from '../features/evidence-machine/EvidenceMachine';
-import { confidenceSeal, EvidenceRecordArtifact } from '../features/evidence-machine/EvidenceRecordArtifact';
+import { EvidenceMachine } from '../features/evidence-machine/EvidenceMachine';
+import { EvidenceRecordArtifact } from '../features/evidence-machine/EvidenceRecordArtifact';
+import { confidenceSeal, nextReleaseState } from '../features/evidence-machine/evidenceMachineLogic';
 import {
   createEvidenceRecordForTrial,
   createInitialEvidenceTrial,
