@@ -1,0 +1,47 @@
+name: Apply Evidence Machine lint fix
+
+on:
+  push:
+    branches:
+      - feat/evidence-machine-signature-release
+    paths:
+      - '.github/workflows/apply-evidence-machine-lint-fix.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/evidence-machine-signature-release
+          fetch-depth: 0
+      - name: Apply focused lint corrections
+        shell: bash
+        run: |
+          python <<'PY'
+          from pathlib import Path
+
+          app = Path('src/features/canonical/CanonicalFaceValueApplication.tsx')
+          text = app.read_text()
+          text = text.replace("\n  const product = trial.product ?? productFromSpecimen(PRODUCTS.find((item) => item.id === selectedProductId) ?? PRODUCTS[1]);", "")
+          app.write_text(text)
+
+          machine = Path('src/features/evidence-machine/EvidenceMachine.tsx')
+          text = machine.read_text()
+          text = text.replace(
+              "function stableReleaseState(trial: EvidenceTrialState): EvidenceRecordReleaseState {\n  if (trial.phase === 'release-error') return 'release-error';\n  if (['record-collected', 'disposition-required', 'complete', 'archived'].includes(trial.phase)) return 'record-collected';\n  if (trial.phase === 'record-presented') return 'record-presented';",
+              "function stableReleaseState(phase: EvidenceTrialState['phase']): EvidenceRecordReleaseState {\n  if (phase === 'release-error') return 'release-error';\n  if (['record-collected', 'disposition-required', 'complete', 'archived'].includes(phase)) return 'record-collected';\n  if (phase === 'record-presented') return 'record-presented';",
+          )
+          text = text.replace('stableReleaseState(trial)', 'stableReleaseState(trial.phase)')
+          machine.write_text(text)
+          PY
+          rm -f .github/workflows/evidence-machine-lint-diagnostic.yml
+          rm -f .github/workflows/apply-evidence-machine-lint-fix.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "fix: satisfy canonical Evidence Machine lint contract"
+          git push origin HEAD:feat/evidence-machine-signature-release
