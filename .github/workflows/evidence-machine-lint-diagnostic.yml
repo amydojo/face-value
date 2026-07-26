@@ -1,0 +1,39 @@
+name: Evidence Machine lint diagnostic
+
+on:
+  push:
+    branches:
+      - feat/evidence-machine-signature-release
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install --no-audit --no-fund
+      - name: Publish lint diagnostic
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set +e
+          npm run lint > lint.log 2>&1
+          code=$?
+          {
+            echo '## Temporary lint diagnostic'
+            echo
+            echo '```text'
+            cat lint.log
+            echo '```'
+            echo
+            echo "Exit code: $code"
+          } > comment.md
+          gh pr comment 36 --repo amydojo/face-value --body-file comment.md
+          exit 0
