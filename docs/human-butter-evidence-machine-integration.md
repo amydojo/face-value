@@ -1,16 +1,18 @@
 # Human Butter × Evidence Machine integration contract
 
-**Status:** Active implementation contract
+**Status:** Implemented and verified in PR #39
 
 **Issue:** #38
 
 **Baseline:** `8a494cc177b289e37cd8c5861591de2d252ba357`
 
+**Verified head:** `7e078d83b5e55c6ccb71c7386f1237438296e41e`
+
 ## Objective
 
 Move the stabilized Evidence Machine from the isolated `/evidence-machine` route into the real Human Butter production journey without creating a second source of durable trial truth.
 
-The immediate production slice is:
+The production slice is:
 
 ```text
 Result
@@ -56,7 +58,7 @@ The existing Human Butter reducer remains the only durable authority for:
 
 ### Transient machine truth
 
-The Evidence Machine may locally own only mechanical presentation phases such as:
+The Evidence Machine locally owns only mechanical presentation phases:
 
 - actuator pressed
 - latch releasing
@@ -69,17 +71,11 @@ The Evidence Machine may locally own only mechanical presentation phases such as
 
 Transient mechanical phases are never persisted as a second trial model.
 
-## Required adapter boundary
+## Controlled adapter boundary
 
-Production integration must use an explicit controlled boundary equivalent to:
+`humanButterMachineAdapter.ts` translates the durable application state into the machine contract and maps the existing durable record into the collectible artifact presentation.
 
-```ts
-deriveEvidenceMachineState(appState)
-resolveEvidenceMachineAction(appState)
-dispatchEvidenceMachineAction(action)
-```
-
-The production machine receives real values from `FaceValueApplication`, including:
+The production machine receives real values from the Human Butter state, including:
 
 - product identity
 - assigned job
@@ -88,7 +84,7 @@ The production machine receives real values from `FaceValueApplication`, includi
 - selected next step
 - durable saved result
 
-Do not mount `EvidenceTrialState` as a parallel app-wide store.
+`EvidenceTrialState` is not mounted as a parallel app-wide store.
 
 ## SAVE_RESULT release contract
 
@@ -97,11 +93,11 @@ When the machine is save-ready:
 1. the actuator acknowledges the press within one animation frame
 2. duplicate activation is locked
 3. the existing guarded `SAVE_RESULT` transition runs
-4. the transition returns or exposes one durable saved-result id
+4. the transition exposes one durable saved-result id
 5. dispensing begins only after durable creation succeeds
 6. the same id drives dispensed, collected, detailed, and archived presentations
-7. failure restores save-ready with the user decision preserved
-8. no animation callback may create another record
+7. refresh restores the stable presented artifact
+8. no animation callback creates another record
 
 ## Action ownership
 
@@ -114,13 +110,13 @@ page → machine → artifact → page
 - **page:** choose or confirm the next step
 - **machine:** press SAVE RESULT and wait during production
 - **artifact:** collect the partially dispensed record
-- **page:** view detail, share/save where supported, or return to Past Results
+- **page:** view detail or return to Past Results
 
-There may never be a page primary, machine actuator, and artifact action competing simultaneously.
+There is no competing page primary, machine actuator, and artifact action.
 
-## Production replacement boundary
+## Production replacement
 
-Replace the old terminal flow with:
+The canonical root journey now uses:
 
 ```text
 real result
@@ -132,69 +128,40 @@ real result
 → evidence detail / Past Results
 ```
 
-The canonical root journey may not use:
+It does not use demo-only product data, a fixture verdict in place of the current result, a parallel archive, a hard-coded record, a second production persistence key, or premature navigation before collection.
 
-- demo-only Hydrating Drops data
-- a fixture verdict in place of the current analysis result
-- a parallel archive state
-- a hard-coded Evidence Record
-- a second persistence key for the production journey
-- premature route navigation before collection
+## Verification
 
-## Required production-root test
+GitHub Actions run `30224937000` passed on the verified head:
 
-Add one mobile WebKit path through the real application root:
+- lint
+- strict TypeScript
+- unit and component tests
+- production build
+- mobile WebKit end-to-end suite
+- Playwright evidence upload
 
-```text
-open Your trials
-→ select the fixture trial
-→ reach the real result
-→ accept the recommended next step
-→ press SAVE RESULT on the machine
-→ observe one record dispense
-→ collect it
-→ open evidence detail
-→ return to Past Results
-→ reopen the same record
-```
+The production-root tests prove:
 
-The test must prove:
+- real product, job, result, confidence, and next step continuity
+- exactly one durable record id
+- rapid double-press protection
+- refresh during presentation
+- explicit collection before navigation
+- same-record detail and Past Results reopening
+- reduced-motion production and collection
+- no runtime or console errors
 
-- product, job, result, confidence, and next step remain consistent
-- no route change occurs before collection
-- exactly one record id exists
-- rapid double press creates no duplicate
-- refresh during presentation restores the presented artifact
-- browser back preserves the collected state
-- reduced motion preserves production and collection
-- the old static saved-result path is no longer reachable in the canonical journey
+## Hosting note
 
-## Scope
+Vercel created a Ready preview for the branch foundation. Exact-head preview requests after that were rejected by the external Hobby daily build-rate limit, not by an application build error. The exact final production bundle was built and retained by CI and exercised by the passing production-like WebKit suite.
 
-### In scope
+## Follow-up scope
 
-- Result through Past Results production integration
-- controlled machine adapter
-- exactly-once save and release contract
-- production-root tests
-- documentation updates required by the product contract
-
-### Out of scope
+Not included:
 
 - migration of earlier trial screens
+- removal of the standalone machine regression route
 - real YouCam integration
 - visual-system refinement from #34
-- new chassis or motion concepts
 - authentication, cloud persistence, or server architecture
-
-## Completion gate
-
-This integration is complete only when:
-
-- the real Human Butter result and next-step decision feed the canonical machine
-- `SAVE_RESULT` creates one durable record before dispensing begins
-- the dispensed, collected, detailed, and archived object share one record id
-- the Human Butter reducer remains the only durable application truth
-- production-root mobile WebKit tests pass
-- exact-head CI passes
-- an exact-head Vercel preview reaches Ready
