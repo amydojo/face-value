@@ -4,6 +4,7 @@ export type MachineActionId =
   | 'start-baseline-scan'
   | 'start-follow-up-scan'
   | 'reveal-verdict'
+  | 'save-result'
   | 'retry-processing'
   | 'retry-release';
 
@@ -93,6 +94,14 @@ export function resolveMachineConfiguration(state: EvidenceTrialState): MachineC
     case 'verdict-ready':
       if (state.recoverableError?.code === 'release') {
         return machineOwned('RELEASE INTERRUPTED', 'PRESS TO RETRY', 'retry-release', 'Retry Evidence Record release', true);
+      }
+      if (state.disposition) {
+        return machineOwned(
+          'SAVE READY',
+          'PRESS TO SAVE',
+          'save-result',
+          'Save result and release Evidence Record',
+        );
       }
       return machineOwned('VERDICT READY', 'PRESS TO RELEASE', 'reveal-verdict', 'Release Evidence Record');
     case 'verdict-revealing':
