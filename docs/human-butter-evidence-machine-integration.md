@@ -6,8 +6,6 @@
 
 **Baseline:** `8a494cc177b289e37cd8c5861591de2d252ba357`
 
-**Verified head:** `7e078d83b5e55c6ccb71c7386f1237438296e41e`
-
 ## Objective
 
 Move the stabilized Evidence Machine from the isolated `/evidence-machine` route into the real Human Butter production journey without creating a second source of durable trial truth.
@@ -132,7 +130,7 @@ It does not use demo-only product data, a fixture verdict in place of the curren
 
 ## Verification
 
-GitHub Actions run `30224937000` passed on the verified head:
+The final branch head must pass:
 
 - lint
 - strict TypeScript
@@ -154,7 +152,7 @@ The production-root tests prove:
 
 ## Hosting note
 
-Vercel created a Ready preview for the branch foundation. Exact-head preview requests after that were rejected by the external Hobby daily build-rate limit, not by an application build error. The exact final production bundle was built and retained by CI and exercised by the passing production-like WebKit suite.
+Vercel created a Ready preview for the branch foundation. Later exact-head preview requests were rejected by the external Hobby daily build-rate limit, not by an application build error. The exact final production bundle is built and retained by CI and exercised by the production-like WebKit suite.
 
 ## Follow-up scope
 
