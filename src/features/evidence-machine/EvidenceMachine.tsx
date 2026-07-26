@@ -22,6 +22,7 @@ export function EvidenceMachine({
   state,
   specimen,
   record,
+  restorePresented = false,
   onMachineAction,
   onRecordPresented,
   onCollect,
@@ -29,21 +30,26 @@ export function EvidenceMachine({
   state: EvidenceTrialState;
   specimen?: Specimen | null;
   record?: EvidenceRecord | null;
+  restorePresented?: boolean;
   onMachineAction?: () => void;
   onRecordPresented?: () => void;
   onCollect?: () => void;
 }) {
   const config = resolveMachineConfiguration(state);
   const reducedMotion = useReducedMotion();
-  const [releaseState, setReleaseState] = useState<EvidenceRecordReleaseState>(
-    state.phase === 'record-presented' ? 'record-presented' : state.phase === 'record-collected' ? 'record-collected' : 'ready',
-  );
+  const [releaseState, setReleaseState] = useState<EvidenceRecordReleaseState>(() => {
+    if (state.phase === 'record-collected') return 'record-collected';
+    if (state.phase === 'record-presented' || restorePresented) return 'record-presented';
+    return 'ready';
+  });
   const busyRef = useRef(false);
   const timers = useRef<number[]>([]);
   const activeRecord = record ?? state.evidenceRecord;
   const productName = specimen?.product ?? state.product?.product ?? 'AWAITING PRODUCT';
   const accession = specimen?.accession ?? state.specimenCode ?? 'A1–00';
-  const actionIsRelease = config.actuator.actionId === 'reveal-verdict' || config.actuator.actionId === 'retry-release';
+  const actionIsRelease = ['reveal-verdict', 'save-result', 'retry-release'].includes(
+    config.actuator.actionId ?? '',
+  );
   const actionable = config.primaryActionOwner === 'machine' && Boolean(config.actuator.actionId);
 
   useEffect(() => () => timers.current.forEach(window.clearTimeout), []);
@@ -146,16 +152,16 @@ export function EvidenceMachine({
     <section
       className={styles.machine}
       data-evidence-machine
-      data-primary-action-owner={config.primaryActionOwner}
+      data-primary-action-owner={releaseState === 'record-presented' ? 'artifact' : config.primaryActionOwner}
       data-release-state={releaseState}
       aria-label={`Evidence Machine. ${productName}. ${config.status.primary}. ${config.status.secondary ?? ''}`}
     >
-      {actionable ? (
+      {actionable && releaseState === 'ready' ? (
         <button
           type="button"
           className={styles.machineButton}
           aria-label={config.actuator.accessibleLabel}
-          disabled={busyRef.current || releaseState !== 'ready'}
+          disabled={busyRef.current}
           onClick={activateMachine}
           data-machine-primary
         >
