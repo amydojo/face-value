@@ -76,7 +76,7 @@ test('lost pointer capture recovers and the next deliberate activation still wor
   await expect(page.getByRole('heading', { name: 'What should this product change?' })).toBeVisible();
 });
 
-test('reduced motion reaches the same revealed result and automatic saved-result boundary', async ({ page }) => {
+test('reduced motion preserves result, record production, collection, and archive', async ({ page }) => {
   test.setTimeout(120_000);
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await reachResult(page);
@@ -88,9 +88,11 @@ test('reduced motion reaches the same revealed result and automatic saved-result
 
   await page.getByRole('button', { name: /Accept recommended next step — KEEP IT/i }).click();
   await expect(page.locator('[data-fv-part="next-step"]')).toHaveAttribute('data-fv-selected-placement', 'established');
-  await page.getByRole('button', { name: 'SAVE RESULT' }).click();
-  await expect(page.getByRole('heading', { name: 'SAVED RESULT' })).toBeVisible();
-  await page.getByRole('button', { name: 'View Past results' }).click();
+  await page.getByRole('button', { name: 'Save result and release Evidence Record' }).click();
+  await expect(page.locator('[data-evidence-machine]')).toHaveAttribute('data-release-state', 'record-presented', { timeout: 1500 });
+  await page.getByRole('button', { name: /Collect Evidence Record/i }).press('Enter');
+  await expect(page.getByRole('heading', { name: 'Your evidence.' })).toBeVisible();
+  await page.getByRole('button', { name: 'Past results' }).click();
   await expect(page.getByLabel('Past results').getByRole('button', { name: /Open saved result/i })).toHaveCount(1);
 });
 
