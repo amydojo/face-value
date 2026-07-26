@@ -1,5 +1,4 @@
 import { act, fireEvent, render, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ANALYSIS_SCENARIOS } from '../fixtures/analysis-scenarios';
 import { PRODUCTS } from '../fixtures/products';
@@ -79,19 +78,18 @@ describe('canonical Evidence Machine', () => {
     expect(screen.getByRole('button', { name: /Collect Evidence Record/i })).toBeInTheDocument();
   });
 
-  it('collects the presented artifact exactly once by semantic activation', async () => {
+  it('collects the presented artifact exactly once by semantic activation', () => {
     vi.useFakeTimers();
-    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
     const ready = stateAt('verdict-ready');
     const revealing = transitionTrial(ready, { type: 'VERDICT_REVEAL_STARTED' });
     const record = createEvidenceRecord(revealing, '2026-07-27T12:01:00.000Z');
     const collected = vi.fn();
     render(<EvidenceMachine trial={ready} onMachineAction={vi.fn()} onRecordGenerated={() => record} onRecordCollected={collected} />);
-    await user.click(screen.getByRole('button', { name: /Release Evidence Record/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Release Evidence Record/i }));
     act(() => vi.advanceTimersByTime(1000));
     const artifact = screen.getByRole('button', { name: /Collect Evidence Record/i });
-    await user.click(artifact);
-    await user.click(artifact);
+    fireEvent.click(artifact);
+    fireEvent.click(artifact);
     act(() => vi.advanceTimersByTime(500));
     expect(collected).toHaveBeenCalledOnce();
   });
