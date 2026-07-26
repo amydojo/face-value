@@ -17,7 +17,7 @@ export const PRODUCTS: Specimen[] = [
     product: 'HYDRATING DROPS',
     volume: '20 ML',
     shelf: 'cooling',
-    jobOptions: ['Visible dryness', 'Surface comfort', 'Routine support'],
+    jobOptions: ['Visible Tone Consistency', 'Visible dryness', 'Surface comfort', 'Routine support'],
   },
   {
     id: 'barrier-emulsion',

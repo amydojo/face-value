@@ -1,0 +1,119 @@
+.machine {
+  --machine-width: min(346px, calc(100vw - 40px));
+  --amber: #ff6e14;
+  position: relative;
+  width: var(--machine-width);
+  aspect-ratio: 346 / 404;
+  margin-inline: auto;
+  perspective: 980px;
+  transform-style: preserve-3d;
+  isolation: isolate;
+  overflow: visible;
+}
+
+.compact { --machine-width: min(310px, calc(100vw - 56px)); }
+.machineAction { position: absolute; z-index: 40; top: 56.5%; right: 0; width: 100%; height: max(60px, 18.5%); padding: 0; border: 0; border-radius: 12px; color: inherit; background: transparent; cursor: pointer; perspective: inherit; transform-style: preserve-3d; }
+.machineAction:focus-visible { outline: 3px solid var(--amber); outline-offset: 4px; }
+.machineAction:disabled { cursor: wait; opacity: 1; }
+
+.housing { position: absolute; inset: 0 0 auto; height: 78.2%; border: 1px solid rgba(163,161,150,.6); border-radius: 20px; background: #e8e2d7; box-shadow: 0 3px 8px -5px rgba(0,0,0,.14); }
+.bezel { position: absolute; top: 2.5%; left: 2.9%; width: 94.2%; height: 54.5%; border: 1px solid rgba(145,143,135,.65); border-radius: 16px; background: #d8d5ce; }
+.chamber { position: absolute; top: 5%; left: 5.2%; width: 89.6%; height: 48.5%; border-radius: 8px; overflow: hidden; }
+.rearWall { position: absolute; inset: 0; border-radius: inherit; background: #e7ddc9; box-shadow: inset 0 3px 7px rgba(0,0,0,.09); }
+.ceiling { position: absolute; inset: 0 0 auto; height: 5%; border-radius: 6px; background: rgba(185,177,163,.38); }
+.floor { position: absolute; inset: auto 0 0; height: 6%; background: rgba(199,193,183,.62); }
+.specimenDock { position: absolute; left: 41%; bottom: 10%; width: 18%; height: 3px; border-radius: 2px; background: #282624; box-shadow: 0 3px 5px rgba(0,0,0,.24); }
+.specimen { position: absolute; left: 36.5%; bottom: 11%; width: 27%; height: 74%; filter: drop-shadow(0 8px 8px rgba(0,0,0,.25)); }
+.specimenCap { position: absolute; top: 0; left: 23%; width: 54%; height: 23%; border-radius: 11px; background: #c8c5be; }
+.specimenBody { position: absolute; inset: 18% 10% 0; display: grid; place-content: center; gap: 5px; border-radius: 20px 20px 12px 12px; color: #171614; background: #d8d3ca; text-align: center; }
+.specimenBody b { font: 650 8px var(--fv-font-sans); }
+.specimenBody small { padding: 0 6px; font: 600 5px var(--fv-font-mono); line-height: 1.25; }
+.emptySpecimen { position: absolute; inset: 42% auto auto 47%; font: 300 28px var(--fv-font-sans); color: rgba(19,18,17,.3); }
+.smartGlass { position: absolute; inset: 0; border-radius: inherit; transition: background 220ms linear, backdrop-filter 220ms linear; }
+.machine[data-glass-state='empty'] .smartGlass { background: rgba(241,232,216,.18); }
+.machine[data-glass-state='frosted'] .smartGlass { background: rgba(241,232,216,.52); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
+.machine[data-glass-state='clear'] .smartGlass { background: rgba(241,232,216,.07); backdrop-filter: blur(1px); -webkit-backdrop-filter: blur(1px); }
+.machine[data-glass-state='scanning'] .smartGlass { background: linear-gradient(180deg, rgba(255,110,20,.05), rgba(241,232,216,.32)); backdrop-filter: blur(3px); }
+.machine[data-glass-state='processing'] .smartGlass { background: rgba(28,27,25,.62); backdrop-filter: blur(12px); }
+.machine[data-glass-state='error'] .smartGlass { background: rgba(107,65,42,.28); backdrop-filter: blur(7px); }
+
+.hingeSeam { position: absolute; top: 56.8%; left: 5.8%; width: 88.4%; height: 2px; border-radius: 2px; background: rgba(23,22,20,.35); z-index: 6; }
+.dispensingChamber { position: absolute; left: 6%; right: 6%; top: 57%; height: 12%; border-radius: 3px 3px 8px 8px; background: #151411; box-shadow: inset 0 10px 16px rgba(0,0,0,.7); z-index: 4; overflow: hidden; }
+.slotLight { position: absolute; left: 18%; right: 18%; top: 3px; height: 2px; border-radius: 2px; background: rgba(255,110,20,.12); transition: background 150ms linear; }
+.machine[data-release-state='latch-releasing'] .slotLight,
+.machine[data-release-state='record-dispensing'] .slotLight,
+.machine[data-release-state='record-presented'] .slotLight { background: rgba(255,110,20,.72); }
+.slotOcclusion { position: absolute; inset: 5px 3% auto; height: 7px; border-radius: 2px; background: #070706; box-shadow: inset 0 2px 3px #000; }
+
+.doorStage { position: absolute; top: 57.8%; left: 1.7%; width: 96.6%; height: 17.2%; z-index: 20; perspective: 980px; transform-style: preserve-3d; overflow: visible; }
+.door { position: absolute; inset: 0; transform-origin: 50% 0%; transform-style: preserve-3d; backface-visibility: visible; will-change: transform, filter; }
+.doorFront { position: absolute; inset: 0; display: flex; align-items: center; border: 1px solid rgba(143,140,133,.72); border-radius: 11px; background: #dfd9cf; box-shadow: 0 1px 3px -2px rgba(0,0,0,.08); backface-visibility: hidden; }
+.doorEdge { position: absolute; left: 0; right: 0; bottom: -6px; height: 7px; border-radius: 0 0 8px 8px; background: #aaa49a; transform: rotateX(90deg); transform-origin: 50% 0; box-shadow: inset 0 -1px rgba(0,0,0,.22); }
+.doorUnderside { position: absolute; inset: 0; border: 1px solid rgba(255,255,255,.06); border-radius: 11px; background: linear-gradient(#3b3934, #171613); box-shadow: inset 0 9px 14px rgba(0,0,0,.34); transform: rotateX(180deg) translateZ(1px); backface-visibility: hidden; }
+.identityPlate { display: grid; grid-template-columns: 52px minmax(0,1fr); width: calc(100% - 62px); margin-left: 19px; padding: 8px 10px; border-radius: 3px; background: rgba(216,210,200,.74); box-shadow: inset 0 1px 1px rgba(0,0,0,.05); text-align: left; }
+.identityPlate span { grid-row: 1 / 3; align-self: center; font: 500 8px var(--fv-font-mono); }
+.identityPlate strong { font: 650 8px var(--fv-font-mono); letter-spacing: .035em; }
+.identityPlate small { color: #5b5750; font: 500 6.5px var(--fv-font-mono); letter-spacing: .045em; }
+.actuatorTrack { position: absolute; right: 13px; top: 5px; width: 17px; height: 58px; border-radius: 7px; background: #33302b; box-shadow: inset 0 2px 5px rgba(0,0,0,.52); }
+.actuator { position: absolute; left: 3px; top: 6px; display: flex; flex-direction: column; justify-content: center; gap: 5px; width: 11px; height: 46px; border: 1px solid rgba(117,56,10,.42); border-radius: 4px; background: linear-gradient(90deg, #b74a0b, #ff8b32 45%, #c7530e); box-shadow: 1px 2px 3px rgba(0,0,0,.22); opacity: .42; transform: translateX(0); transition: transform 80ms ease, opacity 80ms linear, filter 80ms linear; }
+.actuator i { display: block; width: 7px; height: 1px; margin-inline: auto; border-radius: 2px; background: rgba(91,41,5,.52); }
+.actuator[data-actuator-state='armed'], .actuator[data-actuator-state='error'] { opacity: 1; transform: translateX(4px); }
+.actuator[data-actuator-state='pressed'] { opacity: .92; filter: brightness(.82); transform: translateX(2px); }
+.actuator[data-actuator-state='locked'] { opacity: .26; transform: translateX(-1px); }
+.actuator[data-actuator-state='complete'] { opacity: .46; transform: translateX(0); }
+
+.machine[data-door-state='closed'] .door { transform: translate3d(0,0,0) rotateX(0deg); }
+.machine[data-door-state='releasing'] .door { transform: translate3d(0,2px,18px) rotateX(0deg); filter: drop-shadow(0 7px 7px rgba(0,0,0,.26)); transition: transform 140ms cubic-bezier(.22,1,.36,1), filter 140ms ease; }
+.machine[data-door-state='released'] .door { transform: translate3d(0,3px,20px) rotateX(4deg); filter: drop-shadow(0 10px 9px rgba(0,0,0,.3)); transition: transform 110ms cubic-bezier(.22,1,.36,1); }
+.machine[data-door-state='opening'] .door,
+.machine[data-door-state='open'] .door { transform: translate3d(0,10px,22px) rotateX(55deg); filter: drop-shadow(0 17px 15px rgba(0,0,0,.34)); transition: transform 390ms cubic-bezier(.2,.72,.2,1), filter 260ms ease; }
+.machine[data-door-state='resealing'] .door { transform: translate3d(0,2px,4px) rotateX(5deg); transition: transform 360ms cubic-bezier(.3,.02,.2,1); }
+
+.outputSlot { position: absolute; left: 4%; right: 4%; top: 76.1%; height: 8px; z-index: 3; display: flex; align-items: center; padding-left: 10px; border-radius: 2px; color: rgba(236,229,216,.3); background: #181715; box-shadow: inset 0 2px 3px #000, inset 0 1px rgba(255,255,255,.08); font: 500 5px var(--fv-font-mono); letter-spacing: .11em; }
+.dispensedRecordStage { position: absolute; left: 12%; width: 76%; height: 60%; top: 18%; z-index: 12; pointer-events: none; transform-style: preserve-3d; }
+.dispensedRecordStage[data-dispense-step='edge'] { --record-y: 76%; --record-z: 0px; --face-opacity: .18; }
+.dispensedRecordStage[data-dispense-step='feed-40'] { --record-y: 53%; --record-z: 11px; --face-opacity: .72; }
+.dispensedRecordStage[data-dispense-step='alignment'] { --record-y: 50%; --record-z: 13px; --face-opacity: .78; }
+.dispensedRecordStage[data-dispense-step='feed-70'],
+.dispensedRecordStage[data-dispense-step='seated'] { --record-y: 22%; --record-z: 26px; --face-opacity: 1; }
+.dispensedRecordStage[data-dispense-step='seated'] { pointer-events: auto; }
+.collectedRecordStage { position: absolute; z-index: 35; left: 11%; top: 8%; width: 78%; height: 77%; pointer-events: none; }
+
+.recordCollectionTarget { display: block; width: 100%; height: 100%; padding: 0; border: 0; color: inherit; background: transparent; cursor: grab; touch-action: none; }
+.recordCollectionTarget:active { cursor: grabbing; }
+.recordCollectionTarget:focus-visible { outline: 3px solid var(--amber); outline-offset: 5px; }
+.recordStatic { width: 100%; height: 100%; }
+.recordArtifact { position: relative; display: block; width: 100%; aspect-ratio: 3 / 4; transform-style: preserve-3d; }
+.recordDispensed { opacity: var(--face-opacity, 1); transform: translate3d(0,var(--record-y,76%),var(--record-z,0)) rotateX(-1deg); transition: transform 250ms cubic-bezier(.22,.72,.18,1), opacity 140ms linear; }
+.recordCollected { transform: translate3d(0,0,38px) rotateX(0); animation: collectRecord 420ms cubic-bezier(.2,.72,.2,1) both; }
+.recordSubstrate { position: absolute; inset: 0 -3px -3px 0; border-radius: 8px 8px 10px 8px; background: #211f1c; transform: translateZ(-3px); box-shadow: 0 18px 24px rgba(0,0,0,.25); }
+.recordFace { position: absolute; inset: 0; display: grid; grid-template-columns: 1fr auto; grid-template-rows: auto auto 1fr auto auto auto auto; gap: 3px 12px; padding: 19px 18px 17px; overflow: hidden; border: 1px solid rgba(91,87,80,.28); border-radius: 7px; clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 0 100%); color: #171614; background: linear-gradient(115deg, rgba(255,255,255,.58), transparent 33%), #eee8dc; box-shadow: inset 0 0 0 1px rgba(255,255,255,.52); text-align: left; }
+.recordFace::after { position: absolute; inset: 0; opacity: .16; background-image: radial-gradient(rgba(33,31,28,.45) .45px, transparent .45px); background-size: 4px 4px; content: ''; pointer-events: none; }
+.recordIndexFeature { position: absolute; top: 16px; right: 0; width: 4px; height: 31px; background: var(--amber); }
+.recordNotch { position: absolute; left: 29px; top: -1px; width: 16px; height: 6px; border-radius: 0 0 4px 4px; background: #211f1c; }
+.recordBrand, .recordNumber, .recordDates, .recordMetric, .recordDisposition { font: 650 7px var(--fv-font-mono); letter-spacing: .08em; }
+.recordBrand { grid-column: 1; }
+.recordNumber { grid-column: 2; color: #666159; }
+.recordProduct { grid-column: 1 / -1; margin-top: 12px; font: 650 14px var(--fv-font-sans); letter-spacing: -.01em; }
+.recordDates { grid-column: 1 / -1; color: #68635a; }
+.recordMetric { grid-column: 1 / -1; align-self: end; margin-top: 18px; color: #5f5a52; }
+.recordFinding { grid-column: 1 / -1; font: 650 21px var(--fv-font-sans); letter-spacing: -.025em; text-transform: uppercase; }
+.recordConfidenceRow { grid-column: 1 / -1; display: flex; align-items: center; gap: 7px; margin-top: 10px; font: 650 8px var(--fv-font-mono); letter-spacing: .08em; }
+.confidenceSeal { display: inline-block; width: 14px; height: 14px; border: 1.5px solid #171614; border-radius: 50%; background: transparent; }
+.confidenceSeal[data-seal='solid'] { background: #171614; }
+.confidenceSeal[data-seal='partial'] { background: linear-gradient(90deg, #171614 55%, transparent 55%); }
+.recordDisposition { align-self: end; margin-top: 13px; color: #666159; }
+.recordNextStep { align-self: end; font: 650 8px var(--fv-font-mono); letter-spacing: .07em; }
+
+.machineAnnouncement { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+
+@keyframes collectRecord { from { transform: translate3d(0,32%,24px) rotateX(-1deg); } to { transform: translate3d(0,0,38px) rotateX(0); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .door, .smartGlass, .recordDispensed, .recordCollected, .actuator { transition-duration: 1ms !important; animation-duration: 1ms !important; }
+  .machine[data-door-state='open'] .door { transform: translate3d(0,8px,16px) rotateX(55deg); }
+}
+
+@media (max-width: 359px) { .machine { --machine-width: calc(100vw - 32px); } }
+
+.machine[data-release-state='actuator-pressed'] .housing { transform: translateY(1px); transition: transform 80ms ease-in; }

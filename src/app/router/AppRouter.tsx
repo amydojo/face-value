@@ -1,10 +1,10 @@
 import { Route, Routes } from 'react-router-dom';
-import { FaceValueApplication } from '../../features/FaceValueApplication';
+import { CanonicalFaceValueApplication } from '../../features/canonical/CanonicalFaceValueApplication';
 
 export function AppRouter() {
   return (
     <Routes>
-      <Route path="*" element={<FaceValueApplication />} />
+      <Route path="*" element={<CanonicalFaceValueApplication />} />
     </Routes>
   );
 }

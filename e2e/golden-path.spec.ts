@@ -1,184 +1,137 @@
-import { expect, test, type Locator, type Page, type TestInfo } from '@playwright/test';
+import { expect, test, type Page, type TestInfo } from '@playwright/test';
 
-function collectRuntimeErrors(page: Page) {
-  const errors: string[] = [];
-  page.on('pageerror', (error) => errors.push(error.message));
-  page.on('console', (message) => {
-    if (message.type() === 'error') errors.push(message.text());
-  });
-  return errors;
+const photo = { name: 'skin-frame.jpg', mimeType: 'image/jpeg', buffer: Buffer.from([0xff, 0xd8, 0xff, 0xd9]) };
+
+async function screenshot(page: Page, testInfo: TestInfo, name: string) {
+  await page.screenshot({ path: testInfo.outputPath(`${name}.png`), fullPage: true });
 }
 
-async function chooseCapture(page: Page, name: string) {
-  await page.getByLabel('Choose a face photo').setInputFiles({
-    name,
-    mimeType: 'image/jpeg',
-    buffer: Buffer.from('fixture'),
-  });
-  await page.getByRole('button', { name: 'Use this capture' }).click();
-}
-
-async function completeCaptureContract(page: Page, followup = false) {
+async function confirmConditions(page: Page) {
   for (const checkbox of await page.getByRole('checkbox').all()) await checkbox.check();
-  if (followup) {
-    await page.getByRole('radio', { name: 'comparable', exact: true }).check();
-    await page.getByRole('button', { name: 'Continue to follow-up' }).click();
-  } else {
-    await page.getByRole('button', { name: 'Ready to capture' }).click();
-  }
+  await page.getByRole('button', { name: 'READY TO CAPTURE' }).click();
+  await page.locator('input[type="file"]').setInputFiles(photo);
 }
 
-async function dragHandle(page: Page, handle: Locator) {
-  const box = await handle.boundingBox();
-  if (!box) throw new Error('Trial handle has no layout box.');
-  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
-  await page.mouse.down();
-  await page.mouse.move(box.x + box.width / 2 + 38, box.y + box.height / 2 + 1, { steps: 3 });
-  await page.mouse.up();
+async function reachVerdict(page: Page, testInfo?: TestInfo) {
+  await page.getByRole('button', { name: /START A PRODUCT TRIAL/i }).click();
+  await expect(page.locator('[data-fv-screen="registration"]')).toBeVisible();
+  await page.getByLabel('HYDRATING DROPS').check();
+  await page.getByRole('button', { name: /REGISTER PRODUCT/i }).click();
+  await expect(page.locator('[data-fv-screen="job-selection"]')).toBeVisible();
+  if (testInfo) await screenshot(page, testInfo, '01-awaiting-job');
+
+  await page.getByLabel('Visible Tone Consistency').check();
+  await expect(page.locator('[data-evidence-machine]')).toHaveAttribute('data-primary-owner', 'page');
+  await expect(page.locator('[data-evidence-machine]')).toContainText('JOB SELECTED');
+  await page.getByRole('button', { name: /ASSIGN THIS JOB/i }).click();
+  await expect(page.locator('[data-fv-screen="baseline-required"]')).toBeVisible();
+  if (testInfo) await screenshot(page, testInfo, '02-baseline-ready');
+
+  await page.getByRole('button', { name: /Start baseline scan/i }).click();
+  await confirmConditions(page);
+  await expect(page.locator('[data-fv-screen="baseline-recorded"]')).toBeVisible();
+  if (testInfo) await screenshot(page, testInfo, '03-baseline-recorded');
+  await page.getByRole('button', { name: /BEGIN TRIAL/i }).click();
+
+  await expect(page.locator('[data-fv-screen="follow-up-required"]')).toBeVisible({ timeout: 3000 });
+  await page.getByRole('button', { name: /Start follow-up scan/i }).click();
+  await confirmConditions(page);
+  await expect(page.locator('[data-fv-screen="processing"]')).toBeVisible();
+  if (testInfo) await screenshot(page, testInfo, '04-processing');
+  await expect(page.locator('[data-fv-screen="verdict-ready"]')).toBeVisible({ timeout: 3000 });
+  if (testInfo) await screenshot(page, testInfo, '05-verdict-ready');
 }
 
-async function assertOnePrimaryAction(page: Page) {
-  const visiblePrimary = page.locator('button').filter({ has: page.locator('span') });
-  const candidates = await visiblePrimary.evaluateAll((buttons) =>
-    buttons.filter((button) => {
-      const style = getComputedStyle(button);
-      const text = button.textContent?.trim() ?? '';
-      return style.display !== 'none' && style.visibility !== 'hidden' && /TAKE|SAVE|KEEP|RETRY|TEST|VIEW YOUR TRIALS/.test(text);
-    }).length,
-  );
-  expect(candidates).toBeLessThanOrEqual(1);
-}
-
-async function assertNoInternalJourneyJargon(page: Page) {
-  const visibleText = await page.locator('body').innerText();
-  expect(visibleText).not.toMatch(/NEXT VALID ACTION|INSPECT CASSETTE|LIGHTWEIGHT TRACE|EVIDENCE DISPOSITION|COMMIT DISPOSITION|GENERATE EVIDENCE RECORD/i);
-}
-
-test('complete mobile Human Butter journey saves exactly one durable result', async ({ page }, testInfo: TestInfo) => {
-  test.setTimeout(180_000);
-  const errors = collectRuntimeErrors(page);
-  await page.setViewportSize({ width: 402, height: 874 });
+test.beforeEach(async ({ page }: { page: Page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/');
-
-  await page.getByRole('button', { name: 'VIEW YOUR TRIALS' }).click();
-  await expect(page.getByRole('heading', { name: 'Your trials' })).toBeVisible();
-  await expect(page.getByText('1 active trial')).toHaveCount(0);
-  await assertNoInternalJourneyJargon(page);
-  await assertOnePrimaryAction(page);
-  await page.screenshot({ path: testInfo.outputPath('human-butter-your-trials.png'), fullPage: true });
-
-  const chooseTrialHandle = page.getByRole('button', { name: /Choose a trial starting with Fermented Brightening Essence/i });
-  await chooseTrialHandle.click();
-  await expect(page.getByRole('region', { name: /Trial selector/i })).toBeVisible();
-  await expect(page.getByText('Pull to view trial')).toBeVisible();
-  await expect(page.getByText(/INSPECT CASSETTE/i)).toHaveCount(0);
-  await page.screenshot({ path: testInfo.outputPath('human-butter-trial-selection.png'), fullPage: true });
-
-  await page.getByRole('button', { name: /View trial for Fermented Brightening Essence/i }).click();
-  await expect(page.getByRole('heading', { name: 'What should this product change?' })).toBeVisible();
-  await page.getByRole('radio', { name: 'Post-acne pigmentation', exact: true }).click();
-  await page.getByRole('button', { name: 'Take baseline scan' }).click();
-  await completeCaptureContract(page);
-  await chooseCapture(page, 'baseline.jpg');
-
-  await expect(page.getByRole('heading', { name: 'Still observing.' })).toBeVisible();
-  await expect(page.getByText('Next useful comparison: July 27')).toBeVisible();
-  await expect(page.getByRole('textbox', { name: 'What did you notice?' })).toHaveCount(0);
-  await expect(page.locator('.statusGrid')).toHaveCount(0);
-  await page.screenshot({ path: testInfo.outputPath('human-butter-trial-in-progress.png'), fullPage: true });
-
-  const activeHandle = page.getByRole('button', { name: /Open trial summary for Fermented Brightening Essence/i });
-  const scrollBeforeHandle = await page.evaluate(() => window.scrollY);
-  await dragHandle(page, activeHandle);
-  expect(await page.evaluate(() => window.scrollY)).toBe(scrollBeforeHandle);
-  const activeFaceplate = page.locator('[data-evidence-instrument] [data-cassette-part="registered-product-faceplate"]');
-  await expect(activeFaceplate).toBeVisible();
-  await expect(activeFaceplate).toContainText('SAMPLE REGISTERED');
-  await expect(activeFaceplate).toContainText('FERMENTED BRIGHTENING ESSENCE');
-  await expect(activeFaceplate).toContainText('JOB · Post-acne pigmentation');
-
-  const maximumScroll = await page.evaluate(() => Math.max(0, document.documentElement.scrollHeight - window.innerHeight));
-  if (maximumScroll > 0) {
-    const before = await page.evaluate(() => window.scrollY);
-    await page.mouse.move(20, 820);
-    await page.mouse.wheel(0, 360);
-    await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(before);
-  }
-
-  await page.getByRole('button', { name: 'Add note' }).click();
-  const noteInput = page.getByRole('textbox', { name: 'What did you notice?' });
-  await expect(noteInput).toBeFocused();
-  await noteInput.fill('Less tight after cleansing');
-  await page.screenshot({ path: testInfo.outputPath('human-butter-note-editing.png'), fullPage: true });
-  await page.getByRole('button', { name: 'SAVE NOTE' }).click();
-  await expect(page.getByText('“Less tight after cleansing”')).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Edit note' })).toBeFocused();
-
-  await page.getByText('Trial details').click();
-  await page.getByRole('button', { name: 'Add another product' }).click();
-  await expect(page.getByRole('heading', { name: /Hydrating Drops entered this trial/i })).toBeVisible();
-  await expect(page.getByText('That makes it harder to know which product caused any change.')).toBeVisible();
-  await page.screenshot({ path: testInfo.outputPath('human-butter-another-product.png'), fullPage: true });
-  await page.getByRole('button', { name: 'Keep both and accept a less certain result' }).click();
-
-  await page.getByRole('button', { name: 'TAKE FOLLOW UP SCAN' }).click();
-  await completeCaptureContract(page, true);
-  await chooseCapture(page, 'followup.jpg');
-
-  await expect(page.getByRole('heading', { name: /Comparing your scans|Your result is ready/ })).toBeVisible();
-  await expect(page.getByRole('button', { name: /Run simulated comparison/i })).toHaveCount(0);
-  await expect(page.getByRole('button', { name: /Enter verdict review/i })).toHaveCount(0);
-  await expect(page.getByRole('heading', { name: 'Your result is ready.' })).toBeVisible();
-  await page.screenshot({ path: testInfo.outputPath('human-butter-result-ready.png'), fullPage: true });
-
-  await page.getByRole('button', { name: /Reveal result for Fermented Brightening Essence/i }).click();
-  await expect(page.locator('[data-fv-screen="result"]')).toBeVisible();
-  const resultInstrument = page.getByLabel('Product trial result');
-  await expect(resultInstrument).toHaveAttribute('data-cassette-state', 'sealed');
-  await page.screenshot({ path: testInfo.outputPath('human-butter-result-closed.png'), fullPage: true });
-
-  const resultHandle = page.getByRole('button', { name: /Reveal result for Fermented Brightening Essence/i });
-  await dragHandle(page, resultHandle);
-  await expect(resultInstrument).toHaveAttribute('data-cassette-state', 'presented');
-  await expect(resultInstrument).toHaveAttribute('data-glass-cleared', 'true');
-  await page.screenshot({ path: testInfo.outputPath('human-butter-result-revealed.png'), fullPage: true });
-
-  await expect(page.getByText('THE RESULT IS LESS CERTAIN')).toBeVisible();
-  await expect(page.getByRole('button', { name: /Accept recommended next step — RETRY IT ALONE/i })).toBeVisible();
-  await page.getByRole('button', { name: /Accept recommended next step — RETRY IT ALONE/i }).click();
-
-  const nextStep = page.locator('[data-fv-part="next-step"]');
-  await expect(nextStep).toHaveAttribute('data-fv-selected-placement', 'retry_alone');
-  await expect(page.getByRole('heading', { name: 'R3 · Retry alone' })).toBeVisible();
-  await expect(page.getByRole('group', { name: 'Choose a different next step' })).toBeHidden();
-  await page.screenshot({ path: testInfo.outputPath('human-butter-recommended-next-step.png'), fullPage: true });
-
-  const saveResult = page.getByRole('button', { name: 'SAVE RESULT' });
-  await saveResult.evaluate((button) => {
-    (button as HTMLButtonElement).click();
-    (button as HTMLButtonElement).click();
-  });
-  await expect(page.locator('[data-output-ready="true"]')).toBeVisible();
-  await expect(page.getByText('Saved to your evidence.').first()).toBeVisible();
-  await page.screenshot({ path: testInfo.outputPath('human-butter-saved-resealed.png'), fullPage: true });
-
-  await expect(page.getByRole('heading', { name: 'SAVED RESULT' })).toBeVisible();
-  await expect(page.getByText('Less tight after cleansing', { exact: true })).toBeVisible();
-  await expect(page.getByRole('definition').filter({ hasText: 'R3 · Retry alone' })).toBeVisible();
-  await page.screenshot({ path: testInfo.outputPath('human-butter-open-saved-result.png'), fullPage: true });
-
-  await page.getByRole('button', { name: 'View Past results' }).click();
-  const pastResults = page.getByLabel('Past results');
-  const savedResultEntries = pastResults.getByRole('button', { name: /Open saved result/i });
-  await expect(savedResultEntries).toHaveCount(1);
-  await page.screenshot({ path: testInfo.outputPath('human-butter-past-results.png'), fullPage: true });
-  await pastResults.getByRole('button', { name: /Open saved result A1–03/i }).click();
-  await expect(page.getByRole('heading', { name: 'SAVED RESULT' })).toBeVisible();
-
+  await page.evaluate(() => localStorage.clear());
   await page.reload();
-  await expect(page.getByRole('heading', { name: 'Your trials' })).toBeVisible();
-  await page.getByRole('button', { name: 'Past results' }).click();
-  await expect(page.getByLabel('Past results').getByRole('button', { name: /Open saved result/i })).toHaveCount(1);
+});
 
-  expect(errors).toEqual([]);
+test('complete Evidence Machine journey dispenses, collects, details, and files one object', async ({ page }: { page: Page }, testInfo: TestInfo) => {
+  await reachVerdict(page, testInfo);
+
+  const releaseButton = page.getByRole('button', { name: /Release Evidence Record/i });
+  await releaseButton.click();
+  await expect(page.locator('[data-evidence-machine]')).toHaveAttribute('data-release-state', 'actuator-pressed');
+  await screenshot(page, testInfo, '06-actuator-pressed');
+
+  await page.waitForTimeout(120);
+  await expect(page.locator('[data-evidence-machine]')).toHaveAttribute('data-door-state', 'released');
+  await screenshot(page, testInfo, '07-latch-releasing');
+
+  await page.waitForTimeout(120);
+  await expect(page.locator('[data-evidence-machine]')).toHaveAttribute('data-dispense-step', 'edge');
+  await screenshot(page, testInfo, '08-artifact-edge');
+
+  await page.waitForTimeout(130);
+  await expect(page.locator('[data-evidence-machine]')).toHaveAttribute('data-dispense-step', 'feed-40');
+  await screenshot(page, testInfo, '09-dispense-40');
+
+  await page.waitForTimeout(230);
+  await expect(page.locator('[data-evidence-machine]')).toHaveAttribute('data-dispense-step', 'alignment');
+  await screenshot(page, testInfo, '10-alignment-pause');
+
+  await page.waitForTimeout(120);
+  await expect(page.locator('[data-evidence-machine]')).toHaveAttribute('data-dispense-step', 'feed-70');
+  await screenshot(page, testInfo, '11-dispense-70');
+
+  await expect(page.locator('[data-fv-screen="record-presented"]')).toBeVisible({ timeout: 1500 });
+  await expect(page.getByRole('button', { name: /Collect Evidence Record/i })).toBeVisible();
+  await screenshot(page, testInfo, '12-record-presented');
+  await page.getByRole('button', { name: /Collect Evidence Record/i }).click();
+
+  await expect(page.locator('[data-fv-screen="record-collected"]')).toBeVisible({ timeout: 1500 });
+  await expect(page.getByText('EVIDENCE RECORD 014')).toBeVisible();
+  await screenshot(page, testInfo, '13-collected-artifact');
+
+  await page.getByRole('button', { name: /VIEW EVIDENCE DETAIL/i }).click();
+  await expect(page.locator('[data-fv-screen="evidence-detail"]')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'OBSERVED' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'NOT ESTABLISHED' })).toBeVisible();
+  await screenshot(page, testInfo, '14-detail-open');
+  await page.getByRole('button', { name: /Your evidence/i }).click();
+
+  await page.getByLabel('S4 · Established routine').check();
+  await expect(page.locator('main')).toHaveAttribute('data-app-phase', 'complete');
+  const persisted = await page.evaluate(() => JSON.parse(localStorage.getItem('face-value:evidence-machine:v2') ?? '{}'));
+  expect(persisted.archive).toHaveLength(1);
+  expect(persisted.trial.evidenceRecord.productName).toBe('HYDRATING DROPS');
+  expect(persisted.trial.evidenceRecord.finding.summary).toBe('SLIGHTLY IMPROVED');
+});
+
+test('rapid double press creates one record and one presentation', async ({ page }: { page: Page }) => {
+  await reachVerdict(page);
+  const release = page.getByRole('button', { name: /Release Evidence Record/i });
+  await release.evaluate((element: HTMLButtonElement) => { element.click(); element.click(); });
+  await expect(page.locator('[data-fv-screen="record-presented"]')).toBeVisible({ timeout: 2000 });
+  const state = await page.evaluate(() => JSON.parse(localStorage.getItem('face-value:evidence-machine:v2') ?? '{}'));
+  expect(state.trial.evidenceRecord.id).toContain('ER-014');
+  expect(state.archive).toHaveLength(0);
+  await expect(page.locator('[data-record-id]')).toHaveCount(1);
+});
+
+test('refresh while partially presented restores the same collectible object', async ({ page }: { page: Page }) => {
+  await reachVerdict(page);
+  await page.getByRole('button', { name: /Release Evidence Record/i }).click();
+  await expect(page.locator('[data-fv-screen="record-presented"]')).toBeVisible({ timeout: 2000 });
+  const recordId = await page.locator('[data-record-id]').getAttribute('data-record-id');
+  await page.reload();
+  await expect(page.locator('[data-fv-screen="record-presented"]')).toBeVisible();
+  await expect(page.locator(`[data-record-id="${recordId}"]`)).toBeVisible();
+  await expect(page.getByRole('button', { name: /Collect Evidence Record/i })).toBeVisible();
+});
+
+test('back navigation returns from archive to the durable collected artifact', async ({ page }: { page: Page }) => {
+  await reachVerdict(page);
+  await page.getByRole('button', { name: /Release Evidence Record/i }).click();
+  await expect(page.getByRole('button', { name: /Collect Evidence Record/i })).toBeVisible({ timeout: 2000 });
+  await page.getByRole('button', { name: /Collect Evidence Record/i }).click();
+  await expect(page.locator('[data-fv-screen="record-collected"]')).toBeVisible({ timeout: 1200 });
+  await page.getByRole('button', { name: 'Past evidence' }).click();
+  await expect(page.locator('[data-fv-screen="archive"]')).toBeVisible();
+  await page.goBack();
+  await expect(page.locator('[data-fv-screen="record-collected"]')).toBeVisible();
+  await expect(page.getByText('EVIDENCE RECORD 014')).toBeVisible();
 });
