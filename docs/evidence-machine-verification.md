@@ -1,5 +1,7 @@
 # Evidence Machine verification matrix
 
+CI runs the repository’s lint, strict typecheck, Vitest, production build, and WebKit Playwright suite against the exact pull-request head.
+
 ## Automated
 
 ### Unit
