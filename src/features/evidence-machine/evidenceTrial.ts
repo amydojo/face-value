@@ -50,6 +50,7 @@ export type EvidenceRecord = {
   finding: { metric: string; summary: string };
   confidence: 'established' | 'likely' | 'possible';
   nextStep: string;
+  nextStepCode?: string;
   generatedAt: string;
   detail: EvidenceRecordDetail;
 };
@@ -209,6 +210,7 @@ export function createEvidenceRecordForTrial(state: EvidenceTrialState, generate
     finding: { metric: state.assignedJob, summary: state.verdict.finding },
     confidence,
     nextStep: 'Established routine',
+    nextStepCode: 'S4',
     generatedAt,
     detail: {
       observed: state.verdict.finding,
