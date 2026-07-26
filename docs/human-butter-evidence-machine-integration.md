@@ -130,7 +130,7 @@ It does not use demo-only product data, a fixture verdict in place of the curren
 
 ## Verification
 
-The final branch head must pass:
+The final branch head passed:
 
 - lint
 - strict TypeScript
