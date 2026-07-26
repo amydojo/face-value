@@ -1,13 +1,7 @@
+import type { EvidenceRecordArtifactMode } from './evidenceMachineLogic';
+import { confidenceSeal } from './evidenceMachineLogic';
 import type { EvidenceRecord } from './evidenceTrial';
 import styles from './EvidenceMachine.module.css';
-
-export type EvidenceRecordArtifactMode = 'dispensed' | 'collected';
-
-export const confidenceSeal = (confidence: EvidenceRecord['confidence']) => {
-  if (confidence === 'established') return 'solid';
-  if (confidence === 'likely') return 'partial';
-  return 'open';
-};
 
 export function EvidenceRecordArtifact({
   record,
