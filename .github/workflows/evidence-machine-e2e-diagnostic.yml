@@ -1,0 +1,41 @@
+name: Evidence Machine E2E diagnostic
+
+on:
+  push:
+    branches:
+      - feat/evidence-machine-signature-release
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install --no-audit --no-fund
+      - run: npx playwright install --with-deps webkit
+      - name: Publish first E2E failure
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set +e
+          npx playwright test --reporter=line --retries=0 --max-failures=1 > e2e.log 2>&1
+          code=$?
+          {
+            echo '## Temporary E2E diagnostic'
+            echo
+            echo '```text'
+            tail -n 180 e2e.log
+            echo '```'
+            echo
+            echo "Exit code: $code"
+          } > comment.md
+          gh pr comment 36 --repo amydojo/face-value --body-file comment.md
+          exit 0
