@@ -16,7 +16,10 @@ async function waitForMachineState(page: Page, attribute: string, value: string,
 }
 
 async function confirmConditions(page: Page) {
-  for (const checkbox of await page.getByRole('checkbox').all()) await checkbox.check();
+  const checkboxes = page.getByRole('checkbox');
+  await expect(checkboxes).toHaveCount(8);
+  for (let index = 0; index < 8; index += 1) await checkboxes.nth(index).check();
+  await expect(page.getByRole('button', { name: 'READY TO CAPTURE' })).toBeEnabled();
   await page.getByRole('button', { name: 'READY TO CAPTURE' }).click();
   await page.locator('input[type="file"]').setInputFiles(photo);
 }
