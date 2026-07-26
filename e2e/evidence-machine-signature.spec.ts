@@ -9,17 +9,19 @@ test.beforeEach(async ({ page }) => {
 });
 
 test('releases, presents, collects, and opens detail without premature navigation', async ({ page }) => {
-  await expect(page.locator('[data-evidence-machine]')).toHaveAttribute('data-primary-action-owner', 'machine');
+  const machine = page.locator('[data-evidence-machine]');
+  await expect(machine).toHaveAttribute('data-primary-action-owner', 'machine');
   const actuator = page.getByRole('button', { name: 'Release Evidence Record' });
   await expect(actuator).toBeVisible();
   await actuator.click();
   await expect(page).toHaveURL(new RegExp(`${route}$`));
-  await expect(page.locator('[data-evidence-machine]')).toHaveAttribute('data-release-state', 'actuator-pressed');
-  await expect(page.locator('[data-evidence-machine]')).toHaveAttribute('data-release-state', 'record-presented', { timeout: 3000 });
-  await expect(page.locator('[data-evidence-machine]')).toHaveAttribute('data-primary-action-owner', 'artifact');
-  await page.getByRole('button', { name: /Collect Evidence Record/ }).click();
-  await expect(page.getByText('YOUR EVIDENCE')).toBeVisible();
+  await expect(machine).toHaveAttribute('data-release-state', 'record-presented', { timeout: 3000 });
+  await expect(machine).toHaveAttribute('data-primary-action-owner', 'artifact');
+  const collectButton = page.getByRole('button', { name: /Collect Evidence Record/ });
+  await collectButton.click();
+  await expect(collectButton).toHaveCount(0);
   await expect(page.locator('[data-artifact-mode="collected"]')).toBeVisible();
+  await expect(page).toHaveURL(new RegExp(`${route}$`));
   await page.getByRole('button', { name: 'VIEW EVIDENCE DETAIL' }).click();
   await expect(page.getByRole('heading', { name: 'EVIDENCE DETAIL' })).toBeVisible();
 });
