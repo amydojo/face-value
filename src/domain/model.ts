@@ -209,11 +209,11 @@ export interface FaceValueState {
   analysisScenario: AnalysisScenario;
   announcement: string;
   returnStage: AppStage | null;
-  longitudinalEvidence: LongitudinalSkinEvidence;
-  analysisRole: CaptureKind | null;
-  activeAnalysisRequestId: string | null;
-  pendingAnalysisCapture: CaptureMetadata | null;
-  analysisError: AnalysisErrorState | null;
+  longitudinalEvidence?: LongitudinalSkinEvidence;
+  analysisRole?: CaptureKind | null;
+  activeAnalysisRequestId?: string | null;
+  pendingAnalysisCapture?: CaptureMetadata | null;
+  analysisError?: AnalysisErrorState | null;
 }
 
 export type AnalysisScenario =
