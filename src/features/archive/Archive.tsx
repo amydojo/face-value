@@ -2,6 +2,8 @@ import type { EvidenceRecordData } from '../../domain/model';
 import { RecordFolio } from '../evidence-record/EvidenceRecord';
 import styles from '../../styles/FaceValue.module.css';
 
+const showDemoControls = import.meta.env.DEV || import.meta.env.MODE === 'test';
+
 export function Archive({
   records,
   onOpen,
@@ -37,10 +39,12 @@ export function Archive({
           ))}
         </div>
       )}
-      <details>
-        <summary>Demo controls</summary>
-        <button type="button" className={styles.dangerAction} onClick={onClear}>Clear demo data</button>
-      </details>
+      {showDemoControls && (
+        <details>
+          <summary>Demo controls</summary>
+          <button type="button" className={styles.dangerAction} onClick={onClear}>Clear demo data</button>
+        </details>
+      )}
     </section>
   );
 }
