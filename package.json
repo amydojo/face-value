@@ -12,7 +12,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
-    "check": "npm run lint && npm run typecheck && npm run test && npm run build"
+    "verify:privacy": "node scripts/verify-client-privacy.mjs",
+    "check": "npm run lint && npm run typecheck && npm run test && npm run build && npm run verify:privacy"
   },
   "dependencies": {
     "react": "^19.1.1",
