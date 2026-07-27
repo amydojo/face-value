@@ -1,9 +1,13 @@
+import { useState } from 'react';
 import { useFaceValue } from '../app/faceValueContext';
 import styles from '../styles/FaceValue.module.css';
 import { FaceValueApplication } from './FaceValueApplication';
 import { HumanButterEvidenceMachineScreen } from './evidence-machine/HumanButterEvidenceMachineScreen';
 
 function DemoSessionRecovery() {
+  const [dismissed, setDismissed] = useState(false);
+  if (dismissed) return null;
+
   return (
     <aside
       role="alert"
@@ -35,6 +39,13 @@ function DemoSessionRecovery() {
       >
         OPEN ANALYSIS ACCESS
       </a>
+      <button
+        type="button"
+        className={styles.secondaryAction}
+        onClick={() => setDismissed(true)}
+      >
+        I OPENED ACCESS
+      </button>
     </aside>
   );
 }
