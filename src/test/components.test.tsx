@@ -1,6 +1,5 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, expect, it, vi } from 'vitest';
 import { FaceValueProvider } from '../app/FaceValueProvider';
 import { StageFocusManager } from '../app/StageFocusManager';
@@ -174,12 +173,10 @@ it('allows a pending private capture to be deleted before acceptance', async () 
 it('moves focus to Your trials and removes duplicate action jargon', async () => {
   const user = userEvent.setup();
   render(
-    <MemoryRouter>
-      <FaceValueProvider>
-        <StageFocusManager />
-        <FaceValueApplication />
-      </FaceValueProvider>
-    </MemoryRouter>,
+    <FaceValueProvider>
+      <StageFocusManager />
+      <FaceValueApplication />
+    </FaceValueProvider>,
   );
   await user.click(screen.getByRole('button', { name: 'VIEW YOUR TRIALS' }));
   await waitFor(() => {
