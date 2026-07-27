@@ -43,7 +43,7 @@ function hydrateState(): PhaseBFaceValueState {
     persisted.assignedJob !== null ||
     Boolean(persisted.longitudinalEvidence.baseline);
 
-  return normalizePhaseBState({
+  const hydrated = normalizePhaseBState({
     ...initialState,
     ...persisted,
     stage: preserveTerminalJourney
@@ -83,6 +83,10 @@ function hydrateState(): PhaseBFaceValueState {
             ? 'Your trials were restored. Raw images were not saved.'
             : initialState.announcement,
   });
+
+  return completeSignalsAwaitingComparison
+    ? faceValueReducer(hydrated, { type: 'COMPARISON_CREATED' })
+    : hydrated;
 }
 
 export function FaceValueProvider({ children }: { children: ReactNode }) {
