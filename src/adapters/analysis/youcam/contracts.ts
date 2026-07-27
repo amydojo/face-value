@@ -36,7 +36,7 @@ export interface SkinAnalysisSignal {
   rawScore: number;
   capturedAt: string;
   captureQuality: 'accepted';
-  providerTaskId: string;
+  ephemeralTaskReference: string;
 }
 
 export interface SkinAnalysisProvider {
