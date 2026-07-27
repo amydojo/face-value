@@ -204,7 +204,7 @@ export function YouCamSpike() {
             <p>Concern: {signal.concern}</p>
             <p>Raw score: {signal.rawScore.toFixed(4)}</p>
             <p>Mode: {signal.mode.toUpperCase()} · Provider: YouCam v{signal.apiVersion}</p>
-            <p>Task: {signal.providerTaskId}</p>
+            <p>Task reference: {signal.ephemeralTaskReference}</p>
           </div>
         )}
 
