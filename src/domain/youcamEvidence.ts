@@ -93,7 +93,7 @@ export function analysisResultFromComparison(
       : 'No favorable direction yet',
     nonFinding: scoreMovementCopy(comparison),
     relevantContext:
-      'This comparison may reflect normal scan variation. The prototype noise boundary has not been calibrated.',
+      'This comparison may reflect normal scan variation. Prototype noise boundary has not been calibrated.',
     recommendedAction: 'wait',
     claimBoundary:
       'Possible directional evidence only. This does not establish product efficacy or clinical significance.',
