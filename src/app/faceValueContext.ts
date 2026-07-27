@@ -1,9 +1,11 @@
 import { createContext, useContext, type Dispatch } from 'react';
-import type { FaceValueState } from '../domain/model';
-import type { FaceValueEvent } from './machine';
+import type {
+  FaceValueEvent,
+  PhaseBFaceValueState,
+} from './phaseBMachine';
 
 export interface FaceValueContextValue {
-  state: FaceValueState;
+  state: PhaseBFaceValueState;
   dispatch: Dispatch<FaceValueEvent>;
 }
 
