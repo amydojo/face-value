@@ -16,6 +16,14 @@ import {
   type FaceValueEvent as LegacyFaceValueEvent,
 } from './machine';
 
+export type PhaseBFaceValueState = FaceValueState & {
+  longitudinalEvidence: LongitudinalSkinEvidence;
+  analysisRole: 'baseline' | 'followup' | null;
+  activeAnalysisRequestId: string | null;
+  pendingAnalysisCapture: CaptureMetadata | null;
+  analysisError: AnalysisErrorState | null;
+};
+
 export type PhaseBFaceValueEvent =
   | LegacyFaceValueEvent
   | {
@@ -63,7 +71,7 @@ export const createEmptyLongitudinalEvidence = (): LongitudinalSkinEvidence => (
   comparison: null,
 });
 
-export const initialState: FaceValueState = {
+export const initialState: PhaseBFaceValueState = {
   ...legacyInitialState,
   longitudinalEvidence: createEmptyLongitudinalEvidence(),
   analysisRole: null,
@@ -72,7 +80,7 @@ export const initialState: FaceValueState = {
   analysisError: null,
 };
 
-export function normalizePhaseBState(state: FaceValueState): FaceValueState {
+export function normalizePhaseBState(state: FaceValueState): PhaseBFaceValueState {
   return {
     ...state,
     longitudinalEvidence:
@@ -84,13 +92,13 @@ export function normalizePhaseBState(state: FaceValueState): FaceValueState {
   };
 }
 
-const isCurrentRequest = (state: FaceValueState, requestId: string): boolean =>
+const isCurrentRequest = (state: PhaseBFaceValueState, requestId: string): boolean =>
   state.activeAnalysisRequestId === requestId;
 
 function enrichSavedRecord(
-  previous: FaceValueState,
-  next: FaceValueState,
-): FaceValueState {
+  previous: PhaseBFaceValueState,
+  next: PhaseBFaceValueState,
+): PhaseBFaceValueState {
   const comparison = previous.longitudinalEvidence.comparison;
   if (!next.record || !comparison || previous.analysis?.provider !== 'youcam') {
     return next;
@@ -116,9 +124,9 @@ function enrichSavedRecord(
 }
 
 export function faceValueReducer(
-  rawState: FaceValueState,
+  rawState: PhaseBFaceValueState,
   event: PhaseBFaceValueEvent,
-): FaceValueState {
+): PhaseBFaceValueState {
   const state = normalizePhaseBState(rawState);
 
   switch (event.type) {
