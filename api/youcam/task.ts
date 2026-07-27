@@ -13,15 +13,15 @@ import {
   errorResponse,
   jsonResponse,
   readJsonRequest,
-  requireSpikeAccess,
 } from '../_youcam.js';
+import { requireYouCamAccess } from '../_youcam_session.js';
 
 function readConcern(value: unknown): YouCamRednessConcern {
   if (value === YOUCAM_HD_REDNESS_CONCERN || value === YOUCAM_SD_REDNESS_CONCERN) {
     return value;
   }
   throw new YouCamServerError({
-    message: 'Only the frozen redness concerns are available in Phase A.',
+    message: 'Only the frozen redness concerns are available in the current demo.',
     status: 400,
     code: 'unsupported_concern',
     retryable: false,
@@ -48,7 +48,7 @@ function readProtocol(value: unknown): AnalysisProtocol {
     typeof source.captureProtocolVersion !== 'string'
   ) {
     throw new YouCamServerError({
-      message: 'The analysis protocol does not match the frozen Phase A contract.',
+      message: 'The analysis protocol does not match the frozen contract.',
       status: 400,
       code: 'invalid_protocol',
       retryable: false,
@@ -69,7 +69,7 @@ function readProtocol(value: unknown): AnalysisProtocol {
     assertValidProtocol(protocol);
   } catch {
     throw new YouCamServerError({
-      message: 'The analysis protocol does not match the frozen Phase A contract.',
+      message: 'The analysis protocol does not match the frozen contract.',
       status: 400,
       code: 'invalid_protocol',
       retryable: false,
@@ -114,7 +114,7 @@ async function checkTask(request: Request): Promise<Response> {
 
 export default {
   async fetch(request: Request): Promise<Response> {
-    const accessFailure = requireSpikeAccess(request);
+    const accessFailure = requireYouCamAccess(request);
     if (accessFailure) return accessFailure;
 
     try {
