@@ -20,4 +20,15 @@ export default tseslint.config(
       '@typescript-eslint/no-explicit-any': 'off'
     },
   },
+  {
+    files: ['api/**/*.ts'],
+    languageOptions: {
+      globals: { ...globals.node, ...globals.es2022 },
+    },
+    rules: {
+      'react-hooks/rules-of-hooks': 'off',
+      'react-hooks/exhaustive-deps': 'off',
+      'react-refresh/only-export-components': 'off',
+    },
+  },
 );
