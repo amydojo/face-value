@@ -16,6 +16,7 @@ export function YouCamSpike() {
   const [status, setStatus] = useState<'idle' | 'running' | 'success' | 'error'>('idle');
   const [error, setError] = useState<string | null>(null);
   const abortController = useRef<AbortController | null>(null);
+  const runInFlight = useRef(false);
 
   useEffect(
     () => () => {
@@ -25,8 +26,9 @@ export function YouCamSpike() {
   );
 
   const run = async () => {
-    if (!file || !accessToken.trim() || status === 'running') return;
+    if (!file || !accessToken.trim() || runInFlight.current) return;
 
+    runInFlight.current = true;
     abortController.current?.abort();
     const controller = new AbortController();
     abortController.current = controller;
@@ -58,13 +60,15 @@ export function YouCamSpike() {
         setError('The live YouCam score could not be produced.');
       }
       setStatus('error');
+    } finally {
+      runInFlight.current = false;
+      if (abortController.current === controller) abortController.current = null;
     }
   };
 
   const cancel = () => {
     abortController.current?.abort();
     abortController.current = null;
-    setStatus('idle');
   };
 
   return (
@@ -90,6 +94,7 @@ export function YouCamSpike() {
             aria-label="Choose a face image for the YouCam spike"
             type="file"
             accept="image/jpeg,image/png"
+            disabled={status === 'running'}
             onChange={(event) => {
               setFile(event.target.files?.[0] ?? null);
               setSignal(null);
@@ -105,6 +110,7 @@ export function YouCamSpike() {
           <input
             type="password"
             autoComplete="off"
+            disabled={status === 'running'}
             value={accessToken}
             onChange={(event) => setAccessToken(event.target.value)}
           />
