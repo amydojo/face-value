@@ -42,6 +42,10 @@ async function assertNoInternalJourneyJargon(page: Page) {
   expect(visibleText).not.toMatch(/NEXT VALID ACTION|INSPECT CASSETTE|LIGHTWEIGHT TRACE|EVIDENCE DISPOSITION|COMMIT DISPOSITION|GENERATE EVIDENCE RECORD|hd_redness|raw_score|task_id|polling/i);
 }
 
+function assertFaceFreeStorage(serialized: string | null) {
+  expect(serialized).not.toMatch(/providerTaskId|ephemeralTaskReference|data:image|blob:|YOUCAM_API_KEY|YOUCAM_SPIKE_TOKEN|Authorization: Bearer|https:\/\/[^"\\]*(?:signed|upload)/i);
+}
+
 const persistedSaveReadyTrial = {
   selectedDrawerIndex: 0,
   selectedSpecimenId: 'one-thing',
@@ -156,7 +160,7 @@ test('complete mobile ONE THING journey releases one face-free matched YouCam re
   await expect(page.getByRole('heading', { name: 'Still observing.' })).toBeVisible();
   const baselineStorage = await page.evaluate(() => localStorage.getItem('face-value:structured-demo:v1'));
   expect(baselineStorage).toContain('93.3356');
-  expect(baselineStorage).not.toMatch(/providerTaskId|data:image|blob:|signed/i);
+  assertFaceFreeStorage(baselineStorage);
   await page.screenshot({ path: testInfo.outputPath('phase-b-baseline-accepted.png'), fullPage: true });
 
   await page.getByRole('button', { name: 'TAKE FOLLOW UP SCAN' }).click();
@@ -167,7 +171,7 @@ test('complete mobile ONE THING journey releases one face-free matched YouCam re
   const matchedStorage = await page.evaluate(() => localStorage.getItem('face-value:structured-demo:v1'));
   expect(matchedStorage).toContain('100');
   expect(matchedStorage).toContain('favorable');
-  expect(matchedStorage).not.toMatch(/providerTaskId|data:image|blob:|signed/i);
+  assertFaceFreeStorage(matchedStorage);
   await page.screenshot({ path: testInfo.outputPath('phase-b-followup-accepted.png'), fullPage: true });
 
   await page.getByRole('button', { name: /Reveal result for 02 \/ ONE THING/i }).click();
