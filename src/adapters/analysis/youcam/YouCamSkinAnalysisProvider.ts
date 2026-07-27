@@ -257,7 +257,7 @@ export class YouCamSkinAnalysisProvider implements SkinAnalysisProvider {
           rawScore: checked.rawScore,
           capturedAt: input.capturedAt,
           captureQuality: 'accepted',
-          providerTaskId: checked.taskId,
+          ephemeralTaskReference: checked.taskId,
         };
       }
 
