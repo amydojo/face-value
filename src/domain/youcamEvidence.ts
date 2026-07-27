@@ -64,6 +64,21 @@ export function formatRawScore(value: number): string {
   }).format(value);
 }
 
+function scoreMovementCopy(comparison: RednessComparison): string {
+  const baseline = formatRawScore(comparison.baselineRawScore);
+  const followUp = formatRawScore(comparison.followUpRawScore);
+
+  if (comparison.direction === 'favorable') {
+    return `The redness condition score increased from ${baseline} to ${followUp}. Higher scores indicate a more favorable skin condition.`;
+  }
+
+  if (comparison.direction === 'unfavorable') {
+    return `The redness condition score decreased from ${baseline} to ${followUp}. Higher scores indicate a more favorable skin condition.`;
+  }
+
+  return `The redness condition score remained at ${baseline}. No directional movement was detected.`;
+}
+
 export function analysisResultFromComparison(
   comparison: RednessComparison,
 ): AnalysisResult {
@@ -76,10 +91,9 @@ export function analysisResultFromComparison(
     finding: favorable
       ? 'Favorable direction detected'
       : 'No favorable direction yet',
-    nonFinding: favorable
-      ? `The redness signal moved from ${formatRawScore(comparison.baselineRawScore)} to ${formatRawScore(comparison.followUpRawScore)} across this trial.`
-      : 'No favorable movement was detected in the redness signal during this trial.',
-    relevantContext: 'The prototype noise boundary is still being calibrated.',
+    nonFinding: scoreMovementCopy(comparison),
+    relevantContext:
+      'This comparison may reflect normal scan variation. The prototype noise boundary has not been calibrated.',
     recommendedAction: 'wait',
     claimBoundary:
       'Possible directional evidence only. This does not establish product efficacy or clinical significance.',
