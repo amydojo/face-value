@@ -44,8 +44,17 @@ jobs:
           path: vitest-results.json
           if-no-files-found: error
       - run: npm run build
-      - run: npm run verify:privacy
+      - name: Scan compiled client privacy
+        run: npm run verify:privacy 2>&1 | tee privacy-results.txt
+      - name: Upload privacy scan
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: privacy-results
+          path: privacy-results.txt
+          if-no-files-found: error
       - name: Upload production bundle
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: production-bundle
