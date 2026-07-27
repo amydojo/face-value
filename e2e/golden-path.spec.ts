@@ -213,6 +213,8 @@ test('complete mobile ONE THING journey releases one face-free matched YouCam re
   await expect(pastResults.getByRole('button', { name: /Open saved result/i })).toHaveCount(1);
   await page.screenshot({ path: testInfo.outputPath('phase-b-past-results.png'), fullPage: true });
   await page.reload();
+  await expect(page.getByRole('heading', { name: 'Your trials' })).toBeVisible();
+  await page.getByRole('button', { name: 'Past results' }).click();
   await expect(page.getByLabel('Past results').getByRole('button', { name: /Open saved result/i })).toHaveCount(1);
 
   expect(errors).toEqual([]);
