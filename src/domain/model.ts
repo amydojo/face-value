@@ -1,3 +1,5 @@
+import type { AnalysisProtocol } from '../adapters/analysis/youcam/contracts';
+
 export type CabinetState = 'closed' | 'opening' | 'open' | 'closing';
 export type ObservationState =
   | 'none'
@@ -99,6 +101,43 @@ export interface CaptureMetadata {
   orientationRule: 'analysis-unmirrored';
 }
 
+export interface DurableSkinSignal {
+  provider: 'youcam';
+  apiVersion: '2.1';
+  mode: 'hd';
+  concern: 'hd_redness';
+  region: null;
+  scoreType: 'raw_score';
+  captureProtocolVersion: 'face-value-youcam-1';
+  rawScore: number;
+  capturedAt: string;
+  captureQuality: 'accepted';
+}
+
+export interface RednessComparison {
+  baselineRawScore: number;
+  followUpRawScore: number;
+  delta: number;
+  direction: 'favorable' | 'unfavorable' | 'unchanged';
+  calibration: 'pending' | 'prototype_calibrated';
+  confidence: 'possible' | 'likely' | 'insufficient';
+  limitations: string[];
+}
+
+export interface LongitudinalSkinEvidence {
+  protocol: AnalysisProtocol | null;
+  baseline: DurableSkinSignal | null;
+  followUp: DurableSkinSignal | null;
+  comparison: RednessComparison | null;
+}
+
+export interface AnalysisErrorState {
+  role: CaptureKind;
+  code: string;
+  message: string;
+  retryable: boolean;
+}
+
 export interface AnalysisResult {
   captureQuality: 'accepted' | 'context_only' | 'rejected';
   comparison: ComparisonState;
@@ -109,7 +148,13 @@ export interface AnalysisResult {
   relevantContext: string;
   recommendedAction: RecommendedAction;
   claimBoundary: string;
-  simulated: true;
+  simulated: boolean;
+  provider?: 'fixture' | 'youcam';
+  baselineRawScore?: number;
+  followUpRawScore?: number;
+  delta?: number;
+  direction?: RednessComparison['direction'];
+  limitations?: string[];
 }
 
 export interface EvidenceRecordData {
@@ -132,6 +177,11 @@ export interface EvidenceRecordData {
   note?: string | null;
   baselineCapture?: CaptureMetadata | null;
   followupCapture?: CaptureMetadata | null;
+  evidenceSource?: 'YouCam Skin Analysis v2.1';
+  comparisonDirection?: RednessComparison['direction'];
+  limitations?: string[];
+  baselineRawScore?: number;
+  followUpRawScore?: number;
 }
 
 export interface FaceValueState {
@@ -159,6 +209,11 @@ export interface FaceValueState {
   analysisScenario: AnalysisScenario;
   announcement: string;
   returnStage: AppStage | null;
+  longitudinalEvidence: LongitudinalSkinEvidence;
+  analysisRole: CaptureKind | null;
+  activeAnalysisRequestId: string | null;
+  pendingAnalysisCapture: CaptureMetadata | null;
+  analysisError: AnalysisErrorState | null;
 }
 
 export type AnalysisScenario =
