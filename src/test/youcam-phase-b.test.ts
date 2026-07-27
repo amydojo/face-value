@@ -72,24 +72,39 @@ const cameraState = (kind: 'baseline' | 'followup'): PhaseBFaceValueState => ({
 });
 
 describe('Phase B provider boundary', () => {
-  it('normalizes raw_score and strips task identity and ui_score', () => {
-    const providerSignal: SkinAnalysisSignal & { ui_score: number } = {
-      provider: 'youcam', apiVersion: '2.1', mode: 'hd', concern: 'hd_redness',
-      region: null, rawScore: 93.3356, ui_score: 99,
+  it('normalizes raw_score and strips raw provider task identity and ui_score', () => {
+    const providerSignal: SkinAnalysisSignal & {
+      providerTaskId: string;
+      ui_score: number;
+    } = {
+      provider: 'youcam',
+      apiVersion: '2.1',
+      mode: 'hd',
+      concern: 'hd_redness',
+      region: null,
+      rawScore: 93.3356,
+      ui_score: 99,
       capturedAt: metadata('baseline').createdAt,
-      captureQuality: 'accepted', providerTaskId: 'task-private',
+      captureQuality: 'accepted',
+      ephemeralTaskReference: 'task-private',
+      providerTaskId: 'raw-provider-field',
     };
     const durable = normalizeSkinAnalysisSignal(providerSignal);
     expect(durable.rawScore).toBe(93.3356);
-    expect(JSON.stringify(durable)).not.toMatch(/providerTaskId|ui_score/);
+    expect(JSON.stringify(durable)).not.toMatch(/providerTaskId|ui_score|ephemeralTaskReference/);
   });
 
   it('rejects non-finite scores', () => {
     expect(() => normalizeSkinAnalysisSignal({
-      provider: 'youcam', apiVersion: '2.1', mode: 'hd', concern: 'hd_redness',
-      region: null, rawScore: Number.NaN,
+      provider: 'youcam',
+      apiVersion: '2.1',
+      mode: 'hd',
+      concern: 'hd_redness',
+      region: null,
+      rawScore: Number.NaN,
       capturedAt: metadata('baseline').createdAt,
-      captureQuality: 'accepted', providerTaskId: 'task-private',
+      captureQuality: 'accepted',
+      ephemeralTaskReference: 'task-private',
     })).toThrow(/frozen Phase B contract/);
   });
 
@@ -191,10 +206,10 @@ describe('Phase B privacy and calibration', () => {
         followUp: signal(100, 'followup'),
         comparison: compareRednessSignals(signal(93.3356), signal(100, 'followup')),
       },
-      activeAnalysisRequestId: 'providerTaskId-secret',
+      activeAnalysisRequestId: 'ephemeral-secret',
     };
     const serialized = JSON.stringify(toPersistedDemoData(state));
-    expect(serialized).not.toMatch(/YOUCAM_API_KEY|YOUCAM_SPIKE_TOKEN|Authorization: Bearer|providerTaskId|data:image|blob:|signed provider|temporary mask|raw provider payload/);
+    expect(serialized).not.toMatch(/YOUCAM_API_KEY|YOUCAM_SPIKE_TOKEN|Authorization: Bearer|providerTaskId|ephemeralTaskReference|data:image|blob:|signed provider|temporary mask|raw provider payload/);
   });
 
   it('calculates memory-only calibration statistics without inventing a threshold', () => {
