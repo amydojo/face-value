@@ -124,13 +124,13 @@ export class YouCamSkinAnalysisProvider implements SkinAnalysisProvider {
 
   constructor({
     accessToken,
-    fetcher = fetch,
+    fetcher,
     maxPollAttempts = DEFAULT_MAX_POLL_ATTEMPTS,
     fromCameraKit = false,
   }: ProviderOptions) {
     if (!accessToken.trim()) throw new Error('A YouCam spike access token is required');
     this.accessToken = accessToken;
-    this.fetcher = fetcher;
+    this.fetcher = fetcher ?? ((input, init) => globalThis.fetch(input, init));
     this.maxPollAttempts = Math.max(1, Math.floor(maxPollAttempts));
     this.fromCameraKit = fromCameraKit;
   }
