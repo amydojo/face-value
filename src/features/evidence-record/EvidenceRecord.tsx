@@ -4,10 +4,54 @@ import styles from '../../styles/FaceValue.module.css';
 
 const FOLIO_CODE = 'FV–014';
 
-const observationWindowFor = (record: EvidenceRecordData) =>
-  record.observationWindow.includes('fixture timeline')
-    ? '15 JUL — 27 JUL 2025'
-    : record.observationWindow;
+const dateFormatter = new Intl.DateTimeFormat('en-US', {
+  month: 'short',
+  day: 'numeric',
+  year: 'numeric',
+});
+
+const timeFormatter = new Intl.DateTimeFormat('en-US', {
+  hour: 'numeric',
+  minute: '2-digit',
+});
+
+const dateTimeFormatter = new Intl.DateTimeFormat('en-US', {
+  month: 'short',
+  day: 'numeric',
+  year: 'numeric',
+  hour: 'numeric',
+  minute: '2-digit',
+});
+
+const validDate = (value: string): Date | null => {
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date;
+};
+
+const sameLocalDay = (left: Date, right: Date) =>
+  left.getFullYear() === right.getFullYear() &&
+  left.getMonth() === right.getMonth() &&
+  left.getDate() === right.getDate();
+
+const observationWindowFor = (record: EvidenceRecordData) => {
+  if (record.observationWindow.includes('fixture timeline')) return '15 JUL — 27 JUL 2025';
+
+  const [startValue, endValue] = record.observationWindow.split(' to ');
+  const start = validDate(startValue);
+  const end = validDate(endValue);
+  if (!start || !end) return record.observationWindow;
+
+  if (sameLocalDay(start, end)) {
+    return `${dateFormatter.format(start)} · ${timeFormatter.format(start)}–${timeFormatter.format(end)}`;
+  }
+
+  return `${dateTimeFormatter.format(start)} – ${dateTimeFormatter.format(end)}`;
+};
+
+const timestampFor = (value: string) => {
+  const date = validDate(value);
+  return date ? dateTimeFormatter.format(date) : value;
+};
 
 const placementFor = (placement: ProductPlacement, uppercase = false) => {
   const values: Partial<Record<ProductPlacement, string>> = {
@@ -61,7 +105,7 @@ export function EvidenceRecord({
     ['ANOTHER PRODUCT', anotherProduct],
     ['CONFIDENCE', record.confidence],
     ['NEXT STEP', placementFor(record.finalPlacement)],
-    ['EXACT TIMESTAMP', record.createdAt],
+    ['SAVED', timestampFor(record.createdAt)],
   ];
 
   return (
