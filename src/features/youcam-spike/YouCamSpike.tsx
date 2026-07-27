@@ -56,8 +56,10 @@ export function YouCamSpike() {
       }
       if (caught instanceof YouCamProviderError) {
         setError(`${caught.message} (${caught.code})`);
+      } else if (caught instanceof Error) {
+        setError(`${caught.message} (${caught.name})`);
       } else {
-        setError('The live YouCam score could not be produced.');
+        setError('The live YouCam score failed with an unknown browser error.');
       }
       setStatus('error');
     } finally {
@@ -93,7 +95,7 @@ export function YouCamSpike() {
           <input
             aria-label="Choose a face image for the YouCam spike"
             type="file"
-            accept="image/jpeg,image/png"
+            accept="image/jpeg,image/png,.jpg,.jpeg,.png"
             disabled={status === 'running'}
             onChange={(event) => {
               setFile(event.target.files?.[0] ?? null);
