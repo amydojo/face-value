@@ -1,8 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import {
-  YouCamProviderError,
-  YouCamSkinAnalysisProvider,
-} from '../adapters/analysis/youcam/YouCamSkinAnalysisProvider';
+import { YouCamSkinAnalysisProvider } from '../adapters/analysis/youcam/YouCamSkinAnalysisProvider';
 import {
   HD_REDNESS_PROTOCOL,
   SD_REDNESS_PROTOCOL,
@@ -135,7 +132,7 @@ describe('YouCamSkinAnalysisProvider', () => {
         protocol: HD_REDNESS_PROTOCOL,
         capturedAt: '2026-07-27T00:00:00.000Z',
       }),
-    ).rejects.toMatchObject<Partial<YouCamProviderError>>({
+    ).rejects.toMatchObject({
       code: 'analysis_timeout',
       retryable: true,
     });
