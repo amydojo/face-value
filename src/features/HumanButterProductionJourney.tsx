@@ -3,6 +3,42 @@ import styles from '../styles/FaceValue.module.css';
 import { FaceValueApplication } from './FaceValueApplication';
 import { HumanButterEvidenceMachineScreen } from './evidence-machine/HumanButterEvidenceMachineScreen';
 
+function DemoSessionRecovery() {
+  return (
+    <aside
+      role="alert"
+      aria-label="Analysis access required"
+      style={{
+        position: 'fixed',
+        zIndex: 1000,
+        left: 16,
+        right: 16,
+        bottom: 16,
+        width: 'calc(100% - 32px)',
+        maxWidth: 520,
+        margin: '0 auto',
+        padding: 18,
+        border: '1px solid rgba(20, 18, 15, 0.24)',
+        background: '#f4f1ea',
+        boxShadow: '0 18px 48px rgba(20, 18, 15, 0.24)',
+      }}
+    >
+      <p className={styles.eyebrow}>ANALYSIS ACCESS REQUIRED</p>
+      <strong>Open the protected session in a new tab.</strong>
+      <p>Your capture stays safely staged here. Open access, return to this tab, then tap Retry analysis.</p>
+      <a
+        className={styles.primaryAction}
+        href="/youcam-spike?return=trial"
+        target="_blank"
+        rel="noopener noreferrer"
+        style={{ display: 'block', textAlign: 'center', textDecoration: 'none' }}
+      >
+        OPEN ANALYSIS ACCESS
+      </a>
+    </aside>
+  );
+}
+
 export function HumanButterProductionJourney() {
   const { state, dispatch } = useFaceValue();
 
@@ -36,5 +72,14 @@ export function HumanButterProductionJourney() {
     );
   }
 
-  return <FaceValueApplication />;
+  const needsDemoSession =
+    state.stage === 'camera' &&
+    state.analysisError?.code === 'unauthorized_demo_session';
+
+  return (
+    <>
+      <FaceValueApplication />
+      {needsDemoSession && <DemoSessionRecovery />}
+    </>
+  );
 }
