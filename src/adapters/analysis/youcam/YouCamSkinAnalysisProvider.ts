@@ -24,7 +24,7 @@ const FORBIDDEN_BROWSER_UPLOAD_HEADERS = new Set([
 ]);
 
 interface ProviderOptions {
-  accessToken: string;
+  accessToken?: string;
   fetcher?: typeof fetch;
   maxPollAttempts?: number;
   fromCameraKit?: boolean;
@@ -117,7 +117,7 @@ function delay(milliseconds: number, signal?: AbortSignal): Promise<void> {
 }
 
 export class YouCamSkinAnalysisProvider implements SkinAnalysisProvider {
-  private readonly accessToken: string;
+  private readonly accessToken: string | null;
   private readonly fetcher: typeof fetch;
   private readonly maxPollAttempts: number;
   private readonly fromCameraKit: boolean;
@@ -127,18 +127,19 @@ export class YouCamSkinAnalysisProvider implements SkinAnalysisProvider {
     fetcher,
     maxPollAttempts = DEFAULT_MAX_POLL_ATTEMPTS,
     fromCameraKit = false,
-  }: ProviderOptions) {
-    if (!accessToken.trim()) throw new Error('A YouCam spike access token is required');
-    this.accessToken = accessToken;
+  }: ProviderOptions = {}) {
+    this.accessToken = accessToken?.trim() || null;
     this.fetcher = fetcher ?? ((input, init) => globalThis.fetch(input, init));
     this.maxPollAttempts = Math.max(1, Math.floor(maxPollAttempts));
     this.fromCameraKit = fromCameraKit;
   }
 
-  private apiHeaders(): HeadersInit {
+  private apiHeaders(includeContentType = true): HeadersInit {
     return {
-      'Content-Type': 'application/json',
-      'x-face-value-spike-token': this.accessToken,
+      ...(includeContentType ? { 'Content-Type': 'application/json' } : {}),
+      ...(this.accessToken
+        ? { 'x-face-value-spike-token': this.accessToken }
+        : {}),
     };
   }
 
@@ -147,6 +148,7 @@ export class YouCamSkinAnalysisProvider implements SkinAnalysisProvider {
     const response = await this.fetcher('/api/youcam/upload-slot', {
       method: 'POST',
       headers: this.apiHeaders(),
+      credentials: 'include',
       body: JSON.stringify({
         contentType,
         fileName: sanitizeImageFileName(input.fileName, contentType),
@@ -187,6 +189,7 @@ export class YouCamSkinAnalysisProvider implements SkinAnalysisProvider {
     const response = await this.fetcher('/api/youcam/task', {
       method: 'POST',
       headers: this.apiHeaders(),
+      credentials: 'include',
       body: JSON.stringify({
         fileId,
         protocol: input.protocol,
@@ -208,9 +211,8 @@ export class YouCamSkinAnalysisProvider implements SkinAnalysisProvider {
     });
     const response = await this.fetcher(`/api/youcam/task?${params.toString()}`, {
       method: 'GET',
-      headers: {
-        'x-face-value-spike-token': this.accessToken,
-      },
+      headers: this.apiHeaders(false),
+      credentials: 'include',
       signal: input.signal,
     });
 
