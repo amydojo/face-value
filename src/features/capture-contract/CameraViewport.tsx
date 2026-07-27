@@ -8,9 +8,7 @@ import {
   requestCamera,
   type CameraFailureReason,
 } from '../../adapters/camera/browserCamera';
-import {
-  YouCamProviderError,
-} from '../../adapters/analysis/youcam/YouCamSkinAnalysisProvider';
+import { YouCamProviderError } from '../../adapters/analysis/youcam/YouCamSkinAnalysisProvider';
 import {
   analyzeLongitudinalCapture,
   LocalProtocolMismatchError,
@@ -33,7 +31,7 @@ const failureCopy: Record<CameraFailureReason, string> = {
 };
 
 interface PendingCapture {
-  blob: Blob;
+  image: Blob;
   source: 'camera' | 'file';
   previewUrl: string;
   fileName?: string;
@@ -143,11 +141,11 @@ export function CameraViewport({
     onReady();
   };
 
-  const stageBlob = (blob: Blob, source: 'camera' | 'file', fileName?: string) => {
+  const stageCapture = (image: Blob, source: 'camera' | 'file', fileName?: string) => {
     if (isAnalyzing) return;
     discardPendingCapture();
-    const previewUrl = urls.current.create(blob);
-    setPendingCapture({ blob, source, previewUrl, fileName });
+    const previewUrl = urls.current.create(image);
+    setPendingCapture({ image, source, previewUrl, fileName });
     cleanupStream();
   };
 
@@ -155,8 +153,8 @@ export function CameraViewport({
     if (!videoRef.current || isAnalyzing) return;
     onCapturing();
     try {
-      const blob = await captureFrame(videoRef.current);
-      stageBlob(blob, 'camera', `${kind}.jpg`);
+      const image = await captureFrame(videoRef.current);
+      stageCapture(image, 'camera', `${kind}.jpg`);
     } catch {
       cleanupStream();
       setFailure('unknown');
@@ -166,13 +164,13 @@ export function CameraViewport({
 
   const fileChanged = (file: File | undefined) => {
     if (!file || isAnalyzing) return;
-    stageBlob(file, 'file', file.name);
+    stageCapture(file, 'file', file.name);
   };
 
   const acceptPendingCapture = async () => {
     if (!pendingCapture || runInFlight.current) return;
 
-    const metadata = metadataForCapture(kind, pendingCapture.source, pendingCapture.blob.type);
+    const metadata = metadataForCapture(kind, pendingCapture.source, pendingCapture.image.type);
     if (!isPhaseBTrial) {
       onAccepted(metadata);
       return;
@@ -204,7 +202,7 @@ export function CameraViewport({
       const analyzed = await analyzeLongitudinalCapture({
         provider: provider.current,
         role: kind,
-        image: pendingCapture.blob,
+        image: pendingCapture.image,
         fileName: pendingCapture.fileName,
         metadata,
         frozenProtocol: state.longitudinalEvidence.protocol,
