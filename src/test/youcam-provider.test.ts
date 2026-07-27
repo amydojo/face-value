@@ -72,7 +72,7 @@ describe('YouCamSkinAnalysisProvider', () => {
       rawScore: 72.011962890625,
       capturedAt: '2026-07-27T00:00:00.000Z',
       captureQuality: 'accepted',
-      providerTaskId: 'task-id-12345678',
+      ephemeralTaskReference: 'task-id-12345678',
     });
 
     const taskRequest = calls.find(
