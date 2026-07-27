@@ -1,6 +1,6 @@
 # YouCam Phase B implementation record
 
-Status: Draft PR implementation complete through fixture-backed automation. Genuine matched live-provider verification remains an explicit manual gate.
+Status: Complete. Fixture-backed automation and one genuine matched live-provider pair have both passed the full Face Value evidence journey.
 
 Related work: #40, #43, PR #44.
 
@@ -79,6 +79,8 @@ The pure comparison function applies:
 delta = followUp.rawScore - baseline.rawScore
 ```
 
+For YouCam `hd_redness`, a higher `raw_score` represents a more favorable redness-related skin condition. The score is not an amount of redness.
+
 - positive delta: `favorable`
 - negative delta: `unfavorable`
 - zero delta: `unchanged`
@@ -97,18 +99,26 @@ Before calibration:
 Favorable direction uses the existing result reveal with:
 
 - title: `Favorable direction detected`
-- support: `The redness signal moved from {baseline} to {followUp} across this trial.`
+- support: `The redness condition score increased from {baseline} to {followUp}. Higher scores indicate a more favorable skin condition.`
+- context: `This comparison may reflect normal scan variation. The prototype noise boundary has not been calibrated.`
 - confidence: `Possible`
 - default next step: `Test longer`
 
-Unfavorable or unchanged direction uses:
+Unfavorable direction uses:
 
 - title: `No favorable direction yet`
-- support: `No favorable movement was detected in the redness signal during this trial.`
+- support: `The redness condition score decreased from {baseline} to {followUp}. Higher scores indicate a more favorable skin condition.`
 - confidence: `Possible`
 - default next step: `Test longer`
 
-Technical provenance and formatted scores are shown only in existing evidence detail surfaces.
+Unchanged direction uses:
+
+- title: `No favorable direction yet`
+- support: `The redness condition score remained at {baseline}. No directional movement was detected.`
+- confidence: `Possible`
+- default next step: `Test longer`
+
+Technical provenance and formatted scores are shown only in existing evidence detail surfaces. Saved trial windows use human-readable local dates and times rather than raw ISO strings. Demo-clearing controls are excluded from production archive builds.
 
 ## Calibration utility
 
@@ -147,8 +157,19 @@ baseline capture
 
 Screenshots are uploaded from the Playwright run for baseline accepted, follow-up accepted, result reveal, Evidence Record release, and Past Results.
 
-## Remaining manual acceptance gate
+## Live-provider verification
 
-One genuine matched baseline and follow-up pair must still be captured under the identical frozen protocol against the exact-head Vercel preview. The PR must remain draft until that run is documented with safe screenshots and Vercel runtime evidence.
+A genuine same-session matched pair was completed on July 27, 2026 against the stable Phase B preview.
 
-The Phase A scores from unrelated images do not satisfy this gate.
+- baseline `hd_redness` raw score: `94.96`
+- follow-up `hd_redness` raw score: `95.69`
+- delta: approximately `+0.73`
+- direction: `favorable`
+- calibration: `pending`
+- confidence: `possible`
+- result: `Favorable direction detected`
+- selected next step: `Paused / Test longer`
+
+Both provider tasks completed successfully under the identical frozen protocol. The live result reached next-step selection, Evidence Machine release, collection, Evidence Record detail, Past Results, and browser refresh restoration. The saved record remained face-free after refresh.
+
+This run proves the vertical slice and acceptance plumbing. It does not calibrate the provider noise boundary and does not establish product efficacy or clinical significance.
