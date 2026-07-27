@@ -136,7 +136,6 @@ const persistedSaveReadyTrial = {
 };
 
 test('complete mobile ONE THING journey releases one face-free matched YouCam result', async ({ page }, testInfo: TestInfo) => {
-  test.setTimeout(180_000);
   const errors = collectRuntimeErrors(page);
   await page.setViewportSize({ width: 402, height: 874 });
   await page.goto('/');
@@ -146,7 +145,7 @@ test('complete mobile ONE THING journey releases one face-free matched YouCam re
   await assertNoInternalJourneyJargon(page);
 
   await page.getByRole('button', { name: /Choose a trial starting with 02 \/ ONE THING/i }).click();
-  await expect(page.getByRole('region', { name: /Trial selector/i })).toBeVisible();
+  await expect(page.getByRole('button', { name: /View trial for 02 \/ ONE THING/i })).toBeVisible();
   await page.getByRole('button', { name: /View trial for 02 \/ ONE THING/i }).click();
   await expect(page.getByRole('heading', { name: 'What should this product change?' })).toBeVisible();
   await page.getByRole('radio', { name: 'Reduce visible redness', exact: true }).click();
