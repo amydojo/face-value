@@ -1,6 +1,6 @@
 # YouCam Phase A live verification
 
-**Status:** Awaiting redeployment after Vercel quota reset
+**Status:** Exact-head preview redeployment requested
 
 This file records the deployment and live-score exit gate for PR #42.
 
@@ -26,6 +26,6 @@ Verification sequence:
 
 The first live preview rendered the client route, but Vercel's function compiler reported NodeNext ESM resolution errors for extensionless imports in the three YouCam function modules. The branch now uses explicit `.js` specifiers for all cross-module Vercel Function imports and includes root and API TypeScript module-resolution configuration.
 
-A fresh deployment is required to prove the fix. Vercel's free-account daily deployment quota is currently exhausted, so exact-head redeployment is blocked until the quota resets.
+The corrected exact head passed GitHub CI. A fresh preview deployment was requested on July 27, 2026 to determine whether Vercel quota capacity has returned and to verify that both server functions compile cleanly.
 
 PR #42 must remain draft until the refreshed preview builds the functions cleanly and this sequence produces one real provider score or a provider-specific failure is diagnosed from deployment and runtime evidence.
