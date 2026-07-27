@@ -80,7 +80,7 @@ const persistedSaveReadyTrial = {
     confidence: 'possible',
     finding: 'Favorable direction detected',
     nonFinding: 'The redness condition score increased from 93.34 to 100.00. Higher scores indicate a more favorable skin condition.',
-    relevantContext: 'This comparison may reflect normal scan variation. The prototype noise boundary has not been calibrated.',
+    relevantContext: 'This comparison may reflect normal scan variation. Prototype noise boundary has not been calibrated.',
     recommendedAction: 'wait',
     claimBoundary: 'Possible directional evidence only. This does not establish product efficacy or clinical significance.',
     simulated: false,
@@ -183,7 +183,9 @@ test('complete mobile ONE THING journey releases one face-free matched YouCam re
   await expect(page.getByRole('heading', { name: 'Favorable direction detected' })).toBeVisible();
   await expect(page.getByText(/redness condition score increased from 93.34 to 100.00/i)).toBeVisible();
   await expect(page.getByText(/Higher scores indicate a more favorable skin condition/i)).toBeVisible();
+  await page.getByRole('button', { name: 'SEE WHY' }).click();
   await expect(page.getByText(/normal scan variation/i)).toBeVisible();
+  await expect(page.getByText(/Prototype noise boundary has not been calibrated/i)).toBeVisible();
   await page.getByRole('button', { name: /Accept recommended next step — TEST LONGER/i }).click();
   await page.screenshot({ path: testInfo.outputPath('phase-b-result-reveal.png'), fullPage: true });
 
