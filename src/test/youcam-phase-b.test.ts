@@ -135,14 +135,30 @@ describe('Phase B deterministic comparison', () => {
     expect(comparison.limitations).toContain(PROTOTYPE_CALIBRATION_LIMITATION);
   });
 
-  it('maps direction to an existing Face Value result without efficacy language', () => {
+  it('maps a higher raw score to favorable condition language without implying efficacy', () => {
     const result = analysisResultFromComparison(
-      compareRednessSignals(signal(93.3356), signal(100, 'followup')),
+      compareRednessSignals(signal(94.96), signal(95.69, 'followup')),
     );
     expect(result.finding).toBe('Favorable direction detected');
+    expect(result.nonFinding).toContain('redness condition score increased from 94.96 to 95.69');
+    expect(result.nonFinding).toContain('Higher scores indicate a more favorable skin condition');
+    expect(result.nonFinding).not.toContain('redness signal moved');
+    expect(result.relevantContext).toContain('normal scan variation');
+    expect(result.relevantContext).toContain(PROTOTYPE_CALIBRATION_LIMITATION);
     expect(result.confidence).toBe('possible');
     expect(result.recommendedAction).toBe('wait');
     expect(result.claimBoundary).not.toMatch(/proved|clinically significant|effective|cured|treated|guaranteed/i);
+  });
+
+  it.each([
+    [100, 93.3356, 'decreased from 100.00 to 93.34'],
+    [93.3356, 93.3356, 'remained at 93.34'],
+  ] as const)('uses explicit non-favorable score polarity for %s to %s', (baseline, followUp, copy) => {
+    const result = analysisResultFromComparison(
+      compareRednessSignals(signal(baseline), signal(followUp, 'followup')),
+    );
+    expect(result.finding).toBe('No favorable direction yet');
+    expect(result.nonFinding).toContain(copy);
   });
 });
 
