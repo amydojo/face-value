@@ -31,7 +31,7 @@ export class FixtureSkinAnalysisProvider implements SkinAnalysisProvider {
       rawScore,
       capturedAt: input.capturedAt,
       captureQuality: 'accepted',
-      providerTaskId: `fixture-${role}-${sequence}`,
+      ephemeralTaskReference: `fixture-${role}-${sequence}`,
     };
   }
 }
