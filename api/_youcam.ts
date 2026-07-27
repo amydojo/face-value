@@ -2,7 +2,7 @@ import { timingSafeEqual } from 'node:crypto';
 import {
   YOUCAM_API_VERSION,
   type YouCamRednessConcern,
-} from '../src/adapters/analysis/youcam/contracts';
+} from '../src/adapters/analysis/youcam/contracts.js';
 
 const YOUCAM_BASE_URL = 'https://yce-api-01.makeupar.com';
 const DEFAULT_POLLING_INTERVAL_MS = 1_500;

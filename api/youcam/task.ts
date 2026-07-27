@@ -5,7 +5,7 @@ import {
   assertValidProtocol,
   type AnalysisProtocol,
   type YouCamRednessConcern,
-} from '../../src/adapters/analysis/youcam/contracts';
+} from '../../src/adapters/analysis/youcam/contracts.js';
 import {
   YouCamServerError,
   checkYouCamTask,
@@ -14,7 +14,7 @@ import {
   jsonResponse,
   readJsonRequest,
   requireSpikeAccess,
-} from '../_youcam';
+} from '../_youcam.js';
 
 function readConcern(value: unknown): YouCamRednessConcern {
   if (value === YOUCAM_HD_REDNESS_CONCERN || value === YOUCAM_SD_REDNESS_CONCERN) {

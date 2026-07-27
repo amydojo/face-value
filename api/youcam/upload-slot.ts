@@ -2,7 +2,7 @@ import {
   YOUCAM_MAX_FILE_BYTES,
   normalizeImageContentType,
   sanitizeImageFileName,
-} from '../../src/adapters/analysis/youcam/contracts';
+} from '../../src/adapters/analysis/youcam/contracts.js';
 import {
   YouCamServerError,
   createYouCamUploadSlot,
@@ -10,7 +10,7 @@ import {
   jsonResponse,
   readJsonRequest,
   requireSpikeAccess,
-} from '../_youcam';
+} from '../_youcam.js';
 
 export default {
   async fetch(request: Request): Promise<Response> {
