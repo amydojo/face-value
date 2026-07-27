@@ -1,6 +1,6 @@
 # YouCam Phase A live verification
 
-**Status:** Pending real provider verification
+**Status:** Awaiting redeployment after Vercel quota reset
 
 This file records the deployment and live-score exit gate for PR #42.
 
@@ -22,4 +22,10 @@ Verification sequence:
 9. Confirm the UI receives one normalized finite `raw_score` and no `ui_score`.
 10. Confirm no image bytes, base64, signed upload URL, or credentials appear in browser storage or the Evidence Record.
 
-PR #42 must remain draft until this sequence produces one real provider score or a provider-specific failure is diagnosed from deployment and runtime evidence.
+## Deployment diagnosis
+
+The first live preview rendered the client route, but Vercel's function compiler reported NodeNext ESM resolution errors for extensionless imports in the three YouCam function modules. The branch now uses explicit `.js` specifiers for all cross-module Vercel Function imports and includes root and API TypeScript module-resolution configuration.
+
+A fresh deployment is required to prove the fix. Vercel's free-account daily deployment quota is currently exhausted, so exact-head redeployment is blocked until the quota resets.
+
+PR #42 must remain draft until the refreshed preview builds the functions cleanly and this sequence produces one real provider score or a provider-specific failure is diagnosed from deployment and runtime evidence.
