@@ -62,6 +62,11 @@ export class YouCamProviderError extends Error {
   }
 }
 
+function embeddedProviderCode(message: string | undefined): string | null {
+  const normalized = message?.trim() ?? '';
+  return /^error_[a-z0-9_]+$/i.test(normalized) ? normalized : null;
+}
+
 async function readJson<T>(response: Response): Promise<T> {
   let payload: unknown;
   try {
@@ -77,9 +82,14 @@ async function readJson<T>(response: Response): Promise<T> {
 
   if (!response.ok) {
     const body = payload as ApiErrorBody;
+    const message = body.error?.message ?? 'The skin analysis request failed.';
+    const reportedCode = body.error?.code ?? 'analysis_request_failed';
+    const recoveredCode = embeddedProviderCode(message);
     throw new YouCamProviderError({
-      message: body.error?.message ?? 'The skin analysis request failed.',
-      code: body.error?.code ?? 'analysis_request_failed',
+      message,
+      code: reportedCode === 'youcam_request_failed' && recoveredCode
+        ? recoveredCode
+        : reportedCode,
       retryable: body.error?.retryable ?? response.status >= 500,
       status: response.status,
     });
