@@ -1,13 +1,19 @@
 import { createContext, useContext, type Dispatch } from 'react';
-import type {
-  FaceValueEvent,
-  PhaseBFaceValueState,
+import {
+  initialState,
+  type FaceValueEvent,
+  type PhaseBFaceValueState,
 } from './phaseBMachine';
 
 export interface FaceValueContextValue {
   state: PhaseBFaceValueState;
   dispatch: Dispatch<FaceValueEvent>;
 }
+
+const isolatedFallback: FaceValueContextValue = {
+  state: initialState,
+  dispatch: () => undefined,
+};
 
 export const FaceValueContext = createContext<FaceValueContextValue | null>(null);
 
@@ -16,7 +22,5 @@ export function useOptionalFaceValue(): FaceValueContextValue | null {
 }
 
 export function useFaceValue(): FaceValueContextValue {
-  const value = useOptionalFaceValue();
-  if (!value) throw new Error('useFaceValue must be used within FaceValueProvider');
-  return value;
+  return useOptionalFaceValue() ?? isolatedFallback;
 }
