@@ -39,17 +39,30 @@ function readProtocol(value: unknown): AnalysisProtocol {
   }
 
   const source = value as Record<string, unknown>;
+  if (
+    source.provider !== 'youcam' ||
+    source.apiVersion !== YOUCAM_API_VERSION ||
+    (source.mode !== 'hd' && source.mode !== 'sd') ||
+    source.region !== null ||
+    source.scoreType !== 'raw_score' ||
+    typeof source.captureProtocolVersion !== 'string'
+  ) {
+    throw new YouCamServerError({
+      message: 'The analysis protocol does not match the frozen Phase A contract.',
+      status: 400,
+      code: 'invalid_protocol',
+      retryable: false,
+    });
+  }
+
   const protocol: AnalysisProtocol = {
     provider: 'youcam',
     apiVersion: YOUCAM_API_VERSION,
-    mode: source.mode === 'sd' ? 'sd' : 'hd',
+    mode: source.mode,
     concern: readConcern(source.concern),
     region: null,
     scoreType: 'raw_score',
-    captureProtocolVersion:
-      typeof source.captureProtocolVersion === 'string'
-        ? source.captureProtocolVersion
-        : '',
+    captureProtocolVersion: source.captureProtocolVersion,
   };
 
   try {
