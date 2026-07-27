@@ -79,8 +79,8 @@ const persistedSaveReadyTrial = {
     visibleSignal: 'visible redness',
     confidence: 'possible',
     finding: 'Favorable direction detected',
-    nonFinding: 'The redness signal moved from 93.34 to 100.00 across this trial.',
-    relevantContext: 'The prototype noise boundary is still being calibrated.',
+    nonFinding: 'The redness condition score increased from 93.34 to 100.00. Higher scores indicate a more favorable skin condition.',
+    relevantContext: 'This comparison may reflect normal scan variation. The prototype noise boundary has not been calibrated.',
     recommendedAction: 'wait',
     claimBoundary: 'Possible directional evidence only. This does not establish product efficacy or clinical significance.',
     simulated: false,
@@ -181,7 +181,9 @@ test('complete mobile ONE THING journey releases one face-free matched YouCam re
   await dragHandle(page, resultHandle);
   await expect(resultInstrument).toHaveAttribute('data-cassette-state', 'presented');
   await expect(page.getByRole('heading', { name: 'Favorable direction detected' })).toBeVisible();
-  await expect(page.getByText(/93.34 to 100.00/)).toBeVisible();
+  await expect(page.getByText(/redness condition score increased from 93.34 to 100.00/i)).toBeVisible();
+  await expect(page.getByText(/Higher scores indicate a more favorable skin condition/i)).toBeVisible();
+  await expect(page.getByText(/normal scan variation/i)).toBeVisible();
   await page.getByRole('button', { name: /Accept recommended next step — TEST LONGER/i }).click();
   await page.screenshot({ path: testInfo.outputPath('phase-b-result-reveal.png'), fullPage: true });
 
@@ -211,11 +213,14 @@ test('complete mobile ONE THING journey releases one face-free matched YouCam re
   await page.getByRole('button', { name: 'Past results' }).click();
   const pastResults = page.getByLabel('Past results');
   await expect(pastResults.getByRole('button', { name: /Open saved result/i })).toHaveCount(1);
+  await expect(page.getByText(/Jul 27, 2026/)).toBeVisible();
+  await expect(page.getByText('Demo controls')).toHaveCount(0);
   await page.screenshot({ path: testInfo.outputPath('phase-b-past-results.png'), fullPage: true });
   await page.reload();
   await expect(page.getByRole('heading', { name: 'Your trials' })).toBeVisible();
   await page.getByRole('button', { name: 'Past results' }).click();
   await expect(page.getByLabel('Past results').getByRole('button', { name: /Open saved result/i })).toHaveCount(1);
+  await expect(page.getByText('Demo controls')).toHaveCount(0);
 
   expect(errors).toEqual([]);
 });
