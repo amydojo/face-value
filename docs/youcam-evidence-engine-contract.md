@@ -2,7 +2,7 @@
 
 **Status:** Frozen implementation authority
 
-**Version:** 1.1
+**Version:** 1.2
 
 **Effective date:** July 27, 2026
 
@@ -240,6 +240,8 @@ Legal-transition rules:
 
 Face Value uses `raw_score` only. `ui_score`, skin age, and provider-wide beauty scores must not drive evidence or appear in the Evidence Record.
 
+For YouCam `hd_redness`, a higher `raw_score` represents a more favorable redness-related skin condition. It is not an amount of redness. Consumer wording must make this polarity explicit whenever scores are displayed.
+
 ```ts
 const delta = followUp.rawScore - baseline.rawScore;
 ```
@@ -265,15 +267,22 @@ Phase B uses the existing Face Value result reveal and Evidence Machine. It does
 Favorable direction:
 
 - title: `Favorable direction detected`
-- support: `The redness signal moved from {baseline} to {followUp} across this trial.`
+- support: `The redness condition score increased from {baseline} to {followUp}. Higher scores indicate a more favorable skin condition.`
 - confidence: `Possible`
-- limitation: `The prototype noise boundary is still being calibrated.`
+- context: `This comparison may reflect normal scan variation. The prototype noise boundary has not been calibrated.`
 - default next step: `Test longer`
 
-Unfavorable or unchanged direction:
+Unfavorable direction:
 
 - title: `No favorable direction yet`
-- support: `No favorable movement was detected in the redness signal during this trial.`
+- support: `The redness condition score decreased from {baseline} to {followUp}. Higher scores indicate a more favorable skin condition.`
+- confidence: `Possible`
+- default next step: `Test longer`
+
+Unchanged direction:
+
+- title: `No favorable direction yet`
+- support: `The redness condition score remained at {baseline}. No directional movement was detected.`
 - confidence: `Possible`
 - default next step: `Test longer`
 
@@ -299,7 +308,7 @@ The existing Evidence Record model may preserve:
 - `YouCam Skin Analysis v2.1` provenance
 - formatted baseline and follow-up raw scores in evidence detail
 
-It must remain face-free and survive result, next-step selection, cassette release, collection, detail, Past Results, and browser refresh. No parallel record type is permitted.
+It must remain face-free and survive result, next-step selection, cassette release, collection, detail, Past Results, and browser refresh. Saved trial windows must use human-readable local dates and times in consumer archive surfaces. Production archives must not expose demo-clearing controls. No parallel record type is permitted.
 
 ## 12. Provider error translation
 
