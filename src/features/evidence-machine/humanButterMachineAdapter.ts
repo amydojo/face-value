@@ -67,6 +67,12 @@ const artifactConfidence = (
   return 'possible';
 };
 
+const formatScore = (value: number): string =>
+  new Intl.NumberFormat('en-US', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(value);
+
 const trialContext = (record: EvidenceRecordData): string => {
   const context: string[] = [];
   if (record.note) context.push(`Note: ${record.note}`);
@@ -75,8 +81,24 @@ const trialContext = (record: EvidenceRecordData): string => {
   } else if (record.disturbance === 'returned_to_cooling') {
     context.push('The second product was removed before the final comparison.');
   }
+  if (record.limitations?.length) context.push(...record.limitations);
   if (context.length === 0) context.push('No additional trial context changed the result boundary.');
   return context.join(' ');
+};
+
+const technicalComparison = (record: EvidenceRecordData): string => {
+  const details = [record.comparison.replaceAll('_', ' ')];
+  if (record.evidenceSource) details.push(record.evidenceSource);
+  if (record.comparisonDirection) details.push(`${record.comparisonDirection} direction`);
+  if (
+    typeof record.baselineRawScore === 'number' &&
+    typeof record.followUpRawScore === 'number'
+  ) {
+    details.push(
+      `${formatScore(record.baselineRawScore)} → ${formatScore(record.followUpRawScore)}`,
+    );
+  }
+  return details.join(' · ');
 };
 
 export function evidenceRecordFromHumanButter(record: EvidenceRecordData): EvidenceRecord {
@@ -105,7 +127,7 @@ export function evidenceRecordFromHumanButter(record: EvidenceRecordData): Evide
       confidence: record.claimBoundary,
       nextStep: nextStep.guidance,
       metadata: {
-        comparison: record.comparison,
+        comparison: technicalComparison(record),
         generatedFrom: 'baseline-and-follow-up',
         exactTimestamp: record.createdAt,
       },
