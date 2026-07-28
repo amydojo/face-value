@@ -83,7 +83,7 @@ function resultCopy(comparison: RednessComparison): {
   }
 
   return {
-    finding: 'No directional shift showed up yet.',
+    finding: 'No favorable shift showed up yet.',
     support: 'The follow-up remained close to the baseline.',
   };
 }
