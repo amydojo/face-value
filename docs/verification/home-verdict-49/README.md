@@ -18,4 +18,7 @@ The automated mobile matrix also covers 320, 375, 390, and 430px widths with lon
 CAPTURE_HOME_VERDICT_EVIDENCE=true npx playwright test e2e/home-verdict.spec.ts
 ```
 
+Linux visual baselines were captured from the actual Ubuntu WebKit render in
+[CI run 30337940189](https://github.com/amydojo/face-value/actions/runs/30337940189).
+
 The `Demo controls` disclosure in the Previous Trials capture is enabled only by the Playwright fixture environment.
