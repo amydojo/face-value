@@ -65,6 +65,7 @@ only. It does not remove ordinary saved trials.
 
 ## Supported starting points
 
+- Trial pending
 - Follow-up ready
 - Verdict ready
 - Evidence Recorded
@@ -79,6 +80,16 @@ only. It does not remove ordinary saved trials.
 - Evidence Record summary
 - Evidence Record reasoning expanded
 - Evidence Record full technical record expanded
+
+`New trial` opens the production First Run empty-case projection.
+`Baseline locked` remains the production completion screen with its `Done`
+action. `Trial pending` opens `waiting_for_followup` with a registered product,
+accepted baseline, no follow-up evidence, and `demoTimelineAdvanced: false`.
+Its explicit fixture clock is anchored to the persisted baseline timestamp, so
+the pending action and day count remain ineligible and byte-stable across
+reloads regardless of wall-clock time. `Follow-up ready` uses the same
+production loaded-machine geometry with the existing eligibility override and
+real follow-up capture event.
 
 ## Canonical result fixtures
 

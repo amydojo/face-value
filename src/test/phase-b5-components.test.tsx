@@ -171,7 +171,7 @@ it('renders the no-history home with direct trial and previous-trials navigation
   expect(screen.getByRole('heading', { name: 'What are you putting on trial?' })).toBeVisible();
 });
 
-it('keeps active-trial status calm while exposing the latest verdict and real history count', async () => {
+it('keeps active-trial data inside the canonical loaded machine with the real history count', async () => {
   const user = userEvent.setup();
   const latest = savedRecord();
   const older = savedRecord({
@@ -210,11 +210,13 @@ it('keeps active-trial status calm while exposing the latest verdict and real hi
   expect(document.querySelector('[data-home-state="active"] > p')).toHaveTextContent(
     'FOLLOW-UP READY',
   );
-  expect(screen.getByLabelText('Active trial for Naturium Azelaic Topical Acid')).toBeVisible();
-  expect(document.querySelector('[data-cassette-variant="latest-verdict"]')).toHaveAttribute(
-    'data-cassette-state',
-    'partially-revealed',
+  expect(document.querySelector('[data-trial-machine-state="followup-ready"]')).toHaveAttribute(
+    'data-machine-implementation',
+    'oracle',
   );
+  expect(screen.getByText('Naturium')).toBeVisible();
+  expect(screen.getByText('Azelaic Topical Acid')).toBeVisible();
+  expect(document.querySelector('[data-latest-verdict-cassette]')).toBeNull();
   expect(screen.queryByRole('button', { name: 'START A NEW TRIAL' })).not.toBeInTheDocument();
 
   const previousTrials = screen.getByRole('button', {
@@ -306,9 +308,10 @@ it('starts with real registration and ends session one at Baseline locked', asyn
 
   await user.click(screen.getByRole('button', { name: 'DONE' }));
   expect(screen.getByRole('heading', { name: 'Your trials' })).toBeVisible();
-  expect(screen.getByText(/DAY 1 OF 14/)).toBeVisible();
-  expect(screen.getByText(/FOLLOW-UP IN 14 DAYS/)).toBeVisible();
-  expect(screen.queryByRole('button', { name: 'TAKE FOLLOW-UP' })).not.toBeInTheDocument();
+  expect(screen.getByText('DAY 01 OF 14')).toBeVisible();
+  expect(screen.getByText('IN 14 DAYS')).toBeVisible();
+  expect(screen.queryByRole('button', { name: /Take follow-up scan/i })).not
+    .toBeInTheDocument();
   expect(
     screen.queryByRole('button', {
       name: 'ADVANCE DEMO TIMELINE',

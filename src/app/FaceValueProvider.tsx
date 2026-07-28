@@ -16,7 +16,11 @@ import {
 } from '../adapters/persistence/demoJourneyStore';
 import type { AppStage } from '../domain/model';
 import { DEMO_LAB_ENABLED } from '../features/demo-lab/demoLabAccess';
-import { ordinaryDemoRuntime, type DemoRuntime } from '../domain/demoLab';
+import {
+  fixtureNowForDemoStartingPoint,
+  ordinaryDemoRuntime,
+  type DemoRuntime,
+} from '../domain/demoLab';
 import { FaceValueContext } from './faceValueContext';
 import {
   faceValueReducer,
@@ -139,16 +143,21 @@ interface ProviderHydration {
 }
 
 function hydrationFromDemoEnvelope(envelope: DemoEnvelope): ProviderHydration {
+  const state = hydratePersistedState(envelope.state, {
+    preserveStage: true,
+    resumeComparison: envelope.startingPoint !== 'comparison_processing',
+    synthetic: true,
+  });
   return {
-    state: hydratePersistedState(envelope.state, {
-      preserveStage: true,
-      resumeComparison: envelope.startingPoint !== 'comparison_processing',
-      synthetic: true,
-    }),
+    state,
     demoRuntime: {
       mode: envelope.mode,
       startingPoint: envelope.startingPoint,
       resultFixture: envelope.resultFixture,
+      fixtureNow: fixtureNowForDemoStartingPoint(
+        envelope.startingPoint,
+        state.baselineLockedAt,
+      ),
     },
   };
 }

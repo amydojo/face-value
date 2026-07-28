@@ -75,6 +75,80 @@
   gap: 14px;
 }
 
+.welcomeContinuity {
+  display: grid;
+  padding-top: 12px;
+  color: var(--fv-text-on-dark);
+}
+
+.welcomeContinuityEyebrow {
+  margin: 0;
+  color: #aaa49a;
+  font: 650 9px/1.3 var(--fv-font-mono);
+  letter-spacing: 0.075em;
+  text-transform: uppercase;
+}
+
+.welcomeContinuityTitle {
+  margin-top: 7px;
+  color: #eee9df;
+  font-size: clamp(28px, 8vw, 32px);
+  font-weight: 500;
+  line-height: 1.03;
+  letter-spacing: -0.035em;
+}
+
+.welcomeContinuityCopy {
+  margin: 8px 0 0;
+  color: #b9b3a8;
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 18px;
+}
+
+.welcomeContinuityAction {
+  width: 100%;
+  min-height: 50px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 10px;
+  padding: 0 14px;
+  border: 1px solid #45413a;
+  border-radius: 9px;
+  color: #eee9df;
+  background: #0b0b0a;
+  box-shadow: inset 0 1px rgba(255, 255, 255, 0.035);
+  font: 650 10px/1.3 var(--fv-font-mono);
+  letter-spacing: 0.025em;
+  text-align: left;
+  cursor: pointer;
+}
+
+.welcomeContinuityAction > span:last-child {
+  width: 24px;
+  font-size: 24px;
+  font-weight: 400;
+  line-height: 32px;
+  text-align: center;
+}
+
+.welcomeContinuityMachine {
+  min-width: 0;
+  margin-top: 8px;
+}
+
+.welcomeContinuityPrivacy {
+  min-height: 24px;
+  margin-top: 0;
+  padding-top: 8px;
+  border-top: 1px solid rgba(71, 69, 64, 0.7);
+  color: #858077;
+  font: 500 8px/1.3 var(--fv-font-mono);
+  letter-spacing: 0.04em;
+  text-align: center;
+}
+
 h1 {
   margin: 0;
   font-size: clamp(28px, 8vw, 42px);
@@ -206,6 +280,238 @@ p {
   gap: 14px;
   padding-top: 16px;
   color: var(--fv-text-on-dark);
+}
+
+.trialContinuityScreen {
+  min-width: 0;
+  display: grid;
+  padding-top: 10px;
+  color: #edebe0;
+}
+
+.continuityTrialStatus {
+  margin: 0;
+  color: #aaa49a;
+  font: 650 9px/1.3 var(--fv-font-mono);
+  letter-spacing: 0.075em;
+}
+
+.trialContinuityScreen > [data-oracle-machine] {
+  margin-top: 2px;
+}
+
+.trialTimeline {
+  position: relative;
+  width: min(330px, calc(100% - 20px));
+  height: 58px;
+  margin: 4px auto 0;
+  overflow: hidden;
+}
+
+.timelineRail {
+  position: absolute;
+  top: 10px;
+  left: 18px;
+  width: calc(100% - 36px);
+  height: 1px;
+  background: rgba(84, 82, 74, 0.34);
+}
+
+.timelinePoint {
+  position: absolute;
+  top: 0;
+  width: 72px;
+  height: 58px;
+  color: #8c8a80;
+  text-align: center;
+}
+
+.timelinePoint[data-timeline-position='baseline'] {
+  left: 0;
+}
+
+.timelinePoint[data-timeline-position='today'] {
+  left: calc(50% - 36px);
+}
+
+.timelinePoint[data-timeline-position='followup'] {
+  right: 0;
+}
+
+.timelineMarker {
+  position: absolute;
+  top: 4px;
+  width: 12px;
+  height: 12px;
+  display: grid;
+  place-items: center;
+  border: 1px solid #77756d;
+  border-radius: 50%;
+  background: #050505;
+  color: #edebe0;
+  font: normal 8px/1 var(--fv-font-sans);
+}
+
+.timelinePoint[data-timeline-position='baseline'] .timelineMarker {
+  left: 12px;
+}
+
+.timelinePoint[data-timeline-position='today'] .timelineMarker {
+  left: 30px;
+}
+
+.timelinePoint[data-timeline-position='followup'] .timelineMarker {
+  right: 12px;
+}
+
+.timelinePoint[data-timeline-state='current'] .timelineMarker {
+  border-color: #edebe0;
+  background: #edebe0;
+  box-shadow:
+    0 0 0 2px rgba(255, 121, 0, 0.08),
+    0 0 9px rgba(255, 121, 0, 0.24);
+}
+
+.timelinePoint[data-timeline-state='future'] .timelineMarker {
+  border-color: #ed7512;
+  background: #050505;
+}
+
+.timelinePoint[data-timeline-position='followup'][data-timeline-state='current']
+  .timelineMarker {
+  border-color: #ff7900;
+  background: #ff7900;
+  box-shadow:
+    0 0 0 2px rgba(255, 121, 0, 0.1),
+    0 0 11px rgba(255, 121, 0, 0.34);
+}
+
+.timelinePoint > span,
+.timelinePoint > strong {
+  position: absolute;
+  left: 0;
+  width: 72px;
+  height: 14px;
+  font-family: var(--fv-font-mono);
+  font-weight: 500;
+  line-height: 14px;
+  text-align: center;
+}
+
+.timelinePoint > span {
+  top: 25px;
+  opacity: 0.58;
+  font-size: 7px;
+  letter-spacing: 0.7px;
+}
+
+.timelinePoint > strong {
+  top: 40px;
+  color: rgba(237, 235, 224, 0.88);
+  font-size: 8px;
+  letter-spacing: 0.4px;
+}
+
+.timelinePoint[data-timeline-position='followup'] > span {
+  color: #ed7512;
+  opacity: 0.9;
+}
+
+.followUpActionRail {
+  position: relative;
+  width: min(330px, calc(100% - 20px));
+  height: 52px;
+  min-height: 52px;
+  margin: 6px auto 0;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid rgba(74, 78, 72, 0.72);
+  border-radius: 10px;
+  color: #edebe0;
+  background: #090b09;
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.04);
+  text-align: left;
+}
+
+button.followUpActionRail {
+  cursor: pointer;
+  transition:
+    border-color 120ms linear,
+    background-color 120ms linear;
+}
+
+button.followUpActionRail:hover {
+  border-color: rgba(111, 105, 91, 0.88);
+  background: #0d0f0d;
+}
+
+button.followUpActionRail:focus-visible {
+  outline-color: #f0ece4;
+}
+
+.followUpAccent {
+  position: absolute;
+  top: 22px;
+  left: 17px;
+  width: 6px;
+  height: 6px;
+  border-radius: 3px;
+  background: #ff7900;
+}
+
+.followUpActionCopy {
+  position: absolute;
+  top: 6px;
+  left: 35px;
+  width: 220px;
+}
+
+.followUpActionCopy small,
+.followUpActionCopy strong {
+  display: block;
+}
+
+.followUpActionCopy small {
+  height: 15px;
+  color: rgba(140, 138, 128, 0.62);
+  font: 500 8px/15px var(--fv-font-mono);
+  letter-spacing: 0.8px;
+}
+
+.followUpActionCopy strong {
+  margin-top: 2px;
+  color: #edebe0;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
+}
+
+.followUpArrow {
+  position: absolute;
+  top: 8px;
+  right: 14px;
+  width: 22px;
+  height: 30px;
+  color: #ed7512;
+  font: normal 22px/32px var(--fv-font-sans);
+}
+
+.continuityPreviousTrialsRow {
+  height: 44px;
+  min-height: 44px;
+  margin-top: 6px;
+  padding: 1px 0 0;
+  border-top-color: rgba(56, 56, 51, 0.45);
+  color: rgba(140, 138, 128, 0.62);
+  font-size: 9px;
+  font-weight: 500;
+  line-height: 16px;
+  letter-spacing: 0.8px;
+}
+
+.continuityPreviousTrialsRow i {
+  color: #edebe0;
+  font-size: 20px;
 }
 
 .homeStatus {
@@ -1528,6 +1834,7 @@ p {
 
   .homePrimaryAction,
   .previousTrialsRow,
+  button.followUpActionRail,
   .archiveRecord {
     transition: none;
   }

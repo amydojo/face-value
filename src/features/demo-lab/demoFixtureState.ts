@@ -28,6 +28,10 @@ import {
   type DemoResultFixtureId,
   type DemoStartingPoint,
 } from '../../domain/demoLab';
+import {
+  FOLLOW_UP_INTERVAL_DAYS,
+  addCalendarDays,
+} from '../../domain/phaseB5';
 
 const DEMO_PRODUCT = {
   accession: 'DEMO 01',
@@ -240,12 +244,20 @@ function registeredState(state: PhaseBFaceValueState): PhaseBFaceValueState {
 
 function baselineOnlyState(
   state: PhaseBFaceValueState,
-  stage: 'baseline_locked' | 'followup_ready',
+  stage: 'baseline_locked' | 'waiting_for_followup' | 'followup_ready',
 ): PhaseBFaceValueState {
+  const followUpEligibleAt = state.baselineLockedAt
+    ? addCalendarDays(state.baselineLockedAt, FOLLOW_UP_INTERVAL_DAYS)
+    : state.followUpEligibleAt;
   return {
     ...state,
     stage,
-    observation: stage === 'followup_ready' ? 'review_due' : 'active_stable',
+    observation:
+      stage === 'followup_ready'
+        ? 'review_due'
+        : stage === 'waiting_for_followup'
+          ? 'waiting'
+          : 'active_stable',
     camera: 'captured',
     comparison: 'not_available',
     confidence: 'insufficient',
@@ -269,9 +281,13 @@ function baselineOnlyState(
     oracleCollectionStarted: false,
     oracleCommittedAt: null,
     returnStage: null,
+    followUpEligibleAt,
+    demoTimelineAdvanced: stage === 'followup_ready',
     announcement:
       stage === 'followup_ready'
         ? 'Synthetic follow-up state ready.'
+        : stage === 'waiting_for_followup'
+          ? 'Synthetic active trial is waiting for follow-up eligibility.'
         : 'Synthetic baseline locked.',
   };
 }
@@ -336,6 +352,8 @@ export function buildDemoFixtureState(
       };
     case 'baseline_locked':
       return baselineOnlyState(evaluated.state, 'baseline_locked');
+    case 'trial_pending':
+      return baselineOnlyState(evaluated.state, 'waiting_for_followup');
     case 'followup_ready':
       return baselineOnlyState(evaluated.state, 'followup_ready');
     case 'comparison_processing':

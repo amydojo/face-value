@@ -30,6 +30,28 @@ async function openPreview(
   await expect(page.getByLabel('Synthetic demo state')).toContainText('SYNTHETIC DEMO DATA');
 }
 
+async function openJourney(
+  page: Page,
+  startingPoint: string,
+  resultFixture = 'clear_favorable_change',
+): Promise<void> {
+  await page.goto('/demo');
+  await page.getByRole('radio', { name: /Load demo journey/ }).check();
+  await page.getByRole('combobox', { name: /Starting point/ }).selectOption(startingPoint);
+  await page.getByRole('combobox', { name: /Result fixture/ }).selectOption(resultFixture);
+  await page.getByRole('button', { name: /OPEN DEMO STATE/ }).click();
+  await expect(
+    page.getByRole('heading', {
+      name: 'Replace isolated demo journey data?',
+    }),
+  ).toBeVisible();
+  await page.getByRole('button', { name: 'CONFIRM AND LOAD' }).click();
+  await expect(page).toHaveURL(/\?fv-demo-journey=1$/);
+  await expect(page.getByLabel('Synthetic demo state')).toContainText(
+    'LOADED DEMO JOURNEY',
+  );
+}
+
 async function captureDemoLabState(page: Page, fileName: string): Promise<void> {
   if (!captureDemoLabEvidence) return;
   await page.screenshot({
@@ -186,6 +208,57 @@ test('persistent journey survives reload and keeps Home, Previous Trials, and sa
   await assertNoHorizontalOverflow(page);
 });
 
+test('pending and ready machine journeys preserve timing and chassis geometry across reload', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await openJourney(page, 'trial_pending');
+
+  const pendingMachine = page.locator('[data-trial-machine-state="pending"]');
+  await expect(pendingMachine).toBeVisible();
+  await expect(page.locator('[data-followup-action="pending"]')).toContainText('IN 14 DAYS');
+  await expect(page.getByRole('button', { name: 'Take follow-up scan' })).toHaveCount(0);
+  const pendingBox = await pendingMachine.boundingBox();
+  const pendingTiming = await page.evaluate((key) => {
+    const raw = localStorage.getItem(key);
+    if (!raw) throw new Error('Expected a persisted pending demo journey.');
+    const state = JSON.parse(raw).state;
+    return {
+      baselineLockedAt: state.baselineLockedAt,
+      followUpEligibleAt: state.followUpEligibleAt,
+      demoTimelineAdvanced: state.demoTimelineAdvanced,
+    };
+  }, DEMO_JOURNEY_STORAGE_KEY);
+  expect(pendingTiming.demoTimelineAdvanced).toBe(false);
+
+  await page.reload();
+  await expect(page.locator('[data-trial-machine-state="pending"]')).toBeVisible();
+  await expect(page.locator('[data-followup-action="pending"]')).toContainText('IN 14 DAYS');
+  expect(
+    await page.evaluate((key) => {
+      const raw = localStorage.getItem(key);
+      if (!raw) throw new Error('Expected a reloaded pending demo journey.');
+      const state = JSON.parse(raw).state;
+      return {
+        baselineLockedAt: state.baselineLockedAt,
+        followUpEligibleAt: state.followUpEligibleAt,
+        demoTimelineAdvanced: state.demoTimelineAdvanced,
+      };
+    }, DEMO_JOURNEY_STORAGE_KEY),
+  ).toEqual(pendingTiming);
+
+  await openJourney(page, 'followup_ready');
+  const readyMachine = page.locator('[data-trial-machine-state="followup-ready"]');
+  await expect(readyMachine).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Take follow-up scan' })).toBeVisible();
+  expect(await readyMachine.boundingBox()).toEqual(pendingBox);
+
+  await page.reload();
+  await expect(page.locator('[data-trial-machine-state="followup-ready"]')).toBeVisible();
+  await page.getByRole('button', { name: 'Take follow-up scan' }).click();
+  await expect(page.getByRole('heading', { name: 'Center your face' })).toBeVisible();
+});
+
 test('Evidence Record summary, reasoning, and full technical states use production disclosure controls', async ({
   page,
 }) => {
@@ -266,9 +339,29 @@ test('Evidence Record summary, reasoning, and full technical states use producti
 });
 
 test('core synthetic starting points open real production screens', async ({ page }) => {
+  await openPreview(page, 'new_trial');
+  await expect(page.locator('[data-fv-screen="welcome"]')).toBeVisible();
+  await expect(page.locator('[data-trial-machine-state="empty"]')).toHaveAttribute(
+    'data-machine-implementation',
+    'oracle',
+  );
+
+  await openPreview(page, 'baseline_locked');
+  await expect(page.getByRole('heading', { name: 'Baseline locked.' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'DONE' })).toBeVisible();
+
+  await openPreview(page, 'trial_pending');
+  await expect(page.locator('[data-fv-screen="trial-pending"]')).toBeVisible();
+  await expect(page.locator('[data-trial-machine-state="pending"]')).toHaveAttribute(
+    'data-machine-implementation',
+    'oracle',
+  );
+  await expect(page.locator('[data-followup-action="pending"]')).toContainText('IN 14 DAYS');
+  await expect(page.getByRole('button', { name: 'Take follow-up scan' })).toHaveCount(0);
+
   await openPreview(page, 'followup_ready');
   await expect(page.locator('[data-fv-screen="followup-ready"]')).toBeVisible();
-  await expect(page.getByRole('button', { name: 'TAKE FOLLOW-UP' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Take follow-up scan' })).toBeVisible();
 
   await openPreview(page, 'comparison_processing');
   await expect(

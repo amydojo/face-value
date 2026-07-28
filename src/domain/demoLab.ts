@@ -1,5 +1,11 @@
 export const DEMO_STARTING_POINTS = [
   {
+    id: 'trial_pending',
+    label: 'Trial pending',
+    description: 'Open the real loaded-machine state before the follow-up scan is due.',
+    frequent: true,
+  },
+  {
     id: 'followup_ready',
     label: 'Follow-up ready',
     description: 'Open the real Home state with the follow-up action ready.',
@@ -136,12 +142,14 @@ export interface DemoRuntime {
   mode: DemoRuntimeMode;
   startingPoint: DemoStartingPoint | null;
   resultFixture: DemoResultFixtureId | null;
+  fixtureNow: string | null;
 }
 
 export const ordinaryDemoRuntime: DemoRuntime = {
   mode: 'ordinary',
   startingPoint: null,
   resultFixture: null,
+  fixtureNow: null,
 };
 
 const startingPointIds = new Set<string>(DEMO_STARTING_POINTS.map(({ id }) => id));
@@ -153,6 +161,13 @@ export function isDemoStartingPoint(value: unknown): value is DemoStartingPoint 
 
 export function isDemoResultFixtureId(value: unknown): value is DemoResultFixtureId {
   return typeof value === 'string' && resultFixtureIds.has(value);
+}
+
+export function fixtureNowForDemoStartingPoint(
+  startingPoint: DemoStartingPoint,
+  baselineLockedAt: string | null,
+): string | null {
+  return startingPoint === 'trial_pending' ? baselineLockedAt : null;
 }
 
 export function canonicalKeyForDemoFixture(

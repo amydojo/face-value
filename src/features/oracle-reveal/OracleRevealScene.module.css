@@ -199,6 +199,14 @@
   border-radius: 9px 9px 5px 5px;
 }
 
+.specimenSilhouette[data-specimen-state='empty'] {
+  opacity: 0.1;
+}
+
+.specimenSilhouette[data-specimen-state='loaded'] {
+  opacity: 0.34;
+}
+
 .sealedOptics {
   position: absolute;
   inset: 0;
@@ -366,6 +374,116 @@
   font-size: 7px;
 }
 
+.trialStateDisplay {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  gap: 5px;
+  padding: 11px 14px 12px;
+  color: #ebe4d7;
+  background:
+    linear-gradient(
+      90deg,
+      rgba(5, 5, 4, 0.92) 0%,
+      rgba(6, 6, 5, 0.78) 48%,
+      rgba(7, 7, 6, 0.3) 76%,
+      rgba(7, 7, 6, 0.58) 100%
+    ),
+    radial-gradient(circle at 50% 46%, rgba(130, 88, 43, 0.08), transparent 52%);
+  font-family: var(--fv-font-mono);
+}
+
+.trialStateDisplay header,
+.trialStateDisplay footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: #aaa397;
+  font-size: 6.5px;
+  letter-spacing: 0.09em;
+}
+
+.trialStateBody {
+  width: 76%;
+  min-height: 0;
+  display: grid;
+  align-content: center;
+  gap: 3px;
+}
+
+.trialStateBody > span,
+.trialStateJob > span,
+.trialStateDisplay footer > span {
+  color: #9d978d;
+  font-size: 6px;
+  letter-spacing: 0.11em;
+}
+
+.trialStateBody > strong {
+  font-size: clamp(11px, 3.4vw, 14px);
+  font-weight: 630;
+  line-height: 1.05;
+  letter-spacing: 0.01em;
+}
+
+.trialStateProduct,
+.trialStateJob,
+.trialStateInstruction {
+  margin: 0;
+}
+
+.trialStateProduct {
+  display: grid;
+  gap: 1px;
+  padding-top: 3px;
+  font-family: var(--fv-font-sans);
+}
+
+.trialStateProduct b {
+  color: #d0c9bc;
+  font-size: 8px;
+  font-weight: 560;
+  line-height: 1.1;
+}
+
+.trialStateProduct span {
+  color: #eee7da;
+  font-size: clamp(9px, 2.7vw, 11px);
+  line-height: 1.08;
+}
+
+.trialStateJob {
+  display: grid;
+  gap: 1px;
+  padding-top: 3px;
+}
+
+.trialStateJob b {
+  color: #c6beb0;
+  font-size: 7px;
+  font-weight: 550;
+  line-height: 1.15;
+}
+
+.trialStateInstruction {
+  max-width: 24ch;
+  padding-top: 6px;
+  color: #c6beb0;
+  font: 500 9px/1.25 var(--fv-font-sans);
+}
+
+.trialStateDisplay footer {
+  padding-top: 7px;
+  border-top: 1px solid rgba(213, 205, 191, 0.16);
+}
+
+.trialStateDisplay footer strong {
+  color: #d6cfc3;
+  font-size: 7px;
+}
+
 .latestMachine .displayGlass {
   background:
     radial-gradient(circle at 50% 46%, rgba(113, 85, 51, 0.16), transparent 42%),
@@ -499,6 +617,20 @@
 
 .amberControl[data-amber-state='transmitting'] span {
   background: #765021;
+}
+
+.amberControl[data-amber-state='trial-pending'] span {
+  background: #765021;
+  box-shadow:
+    inset 0 1px rgba(255, 237, 203, 0.18),
+    0 0 8px rgba(200, 121, 32, 0.16);
+}
+
+.amberControl[data-amber-state='followup-ready'] span {
+  background: var(--oracle-amber);
+  box-shadow:
+    inset 0 1px rgba(255, 237, 203, 0.36),
+    0 0 15px rgba(200, 121, 32, 0.36);
 }
 
 .amberControl[data-amber-state='dispensing'] span {
