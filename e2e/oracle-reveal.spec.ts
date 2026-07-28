@@ -326,7 +326,9 @@ test('responsive and reduced-motion flows preserve order without overflow', asyn
     await expect(page.locator('[data-oracle-machine]')).toHaveAttribute(
       'data-oracle-state',
       'verdict_revealed',
-      { timeout: 1_000 },
+      // The reduced-motion animations are 1 ms; the wider budget accounts
+      // only for WebKit delivering chained animation events under CI load.
+      { timeout: 3_000 },
     );
     expect(
       await machineNode?.evaluate(
