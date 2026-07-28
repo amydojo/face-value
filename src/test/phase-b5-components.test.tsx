@@ -405,7 +405,7 @@ it('recovers a stalled preview only from one fresh restart tap', async () => {
   expect(adapter.cancelCount).toBeGreaterThanOrEqual(1);
 });
 
-it('omits result content before reveal, then shows one answer and one amber action', async () => {
+it('keeps one canonical machine through reveal, dispense, collection, and Done', async () => {
   const user = userEvent.setup();
   saveStructuredDemoData(sealedState());
   render(
@@ -430,69 +430,102 @@ it('omits result content before reveal, then shows one answer and one amber acti
   expect(document.body.innerHTML).not.toContain(
     'A small favorable shift showed up.',
   );
-
-  await user.click(
-    screen.getByRole('button', {
-      name: /Reveal result for Azelaic Topical Acid/i,
-    }),
-  );
-  await waitFor(
-    () =>
-      expect(
-        screen.getByRole('heading', {
-          name: 'A small favorable shift showed up.',
-        }),
-      ).toBeVisible(),
-    { timeout: 1_500 },
-  );
   expect(
-    screen.getByText(
-      'Visible redness moved in the intended direction.',
-    ),
-  ).toBeVisible();
-  expect(
-    screen.getByText(
-      'This prototype cannot yet tell whether the shift is larger than normal scan variation.',
-    ),
-  ).toBeVisible();
-  expect(screen.getByRole('heading', { name: 'TEST LONGER' })).toBeVisible();
-  expect(
-    screen.queryByRole('button', {
-      name: /accept recommended next step/i,
-    }),
+    screen.queryByRole('button', { name: 'Keep this result' }),
   ).not.toBeInTheDocument();
 
-  const machine = document.querySelector('[data-evidence-machine]');
-  expect(machine).toHaveAttribute('data-primary-action-owner', 'machine');
+  const machine = document.querySelector('[data-oracle-machine]');
+  expect(machine).toHaveAttribute('data-oracle-state', 'sealed');
+  await user.click(
+    screen.getByRole('button', {
+      name: /Reveal sealed result for Azelaic Topical Acid/i,
+    }),
+  );
+  expect(machine).toHaveAttribute('data-oracle-state', 'opening');
+  fireEvent.animationEnd(
+    document.querySelector('[data-oracle-motion="opening"]')!,
+  );
+  expect(machine).toHaveAttribute('data-oracle-state', 'transmitting');
+  expect(screen.queryByText('TEST LONGER')).not.toBeInTheDocument();
+  fireEvent.animationEnd(
+    document.querySelector('[data-oracle-motion="transmission"]')!,
+  );
+  expect(machine).toHaveAttribute(
+    'data-oracle-state',
+    'verdict_revealed',
+  );
+  expect(
+    screen.getByText(
+      'A small favorable shift showed up.',
+    ),
+  ).toBeVisible();
+  const recommendationRegion = screen.getByLabelText(
+    'Oracle recommendation',
+  );
+  expect(recommendationRegion.querySelector('p')).toHaveTextContent(
+    'Visible redness moved in the intended direction.',
+  );
+  expect(
+    document.querySelector('[data-firmware-state="resolved"]'),
+  ).toHaveTextContent('TEST LONGER');
+  expect(document.querySelector('[data-oracle-machine]')).toBe(machine);
   const amber = screen.getByRole('button', {
-    name: 'Press amber to keep this evidence',
+    name: 'Keep this result',
   });
   fireEvent.click(amber);
   fireEvent.click(amber);
-
-  await waitFor(
-    () =>
-      expect(machine).toHaveAttribute(
-        'data-release-state',
-        'record-presented',
-      ),
-    { timeout: 1_500 },
+  expect(machine).toHaveAttribute('data-oracle-state', 'committing');
+  expect(screen.queryByText('EVIDENCE RECORDED')).not.toBeInTheDocument();
+  fireEvent.animationEnd(
+    document.querySelector('[data-oracle-motion="commit"]')!,
   );
-  expect(machine).toHaveAttribute('data-primary-action-owner', 'artifact');
+  expect(machine).toHaveAttribute('data-oracle-state', 'dispensing');
   expect(
-    screen.queryByRole('button', {
-      name: 'Press amber to keep this evidence',
-    }),
+    screen.queryByRole('button', { name: /Evidence record for/ }),
   ).not.toBeInTheDocument();
+  const paper = document.querySelector<HTMLButtonElement>(
+    '[data-oracle-paper]',
+  )!;
+  expect(paper).toHaveAttribute(
+    'data-paper-coordinate-system',
+    'oracle-machine',
+  );
+  expect(paper).toHaveAttribute('data-paper-rotation', '0');
+  fireEvent.animationEnd(paper);
+  const collectible = screen.getByRole('button', {
+    name: /Evidence record for Naturium · Azelaic Topical Acid/i,
+  });
+  expect(collectible).toBeVisible();
+  expect(collectible).toHaveFocus();
+  await user.click(collectible);
+  fireEvent.animationEnd(paper);
+
+  expect(machine).toHaveAttribute('data-oracle-state', 'collected');
+  expect(document.querySelector('[data-oracle-paper]')).toBeNull();
+  await waitFor(() =>
+    expect(screen.getByRole('button', { name: 'DONE' })).toHaveFocus(),
+  );
   expect(
-    screen.getByRole('button', {
-      name: /Collect Evidence Record for .*Azelaic Topical Acid/i,
-    }),
+    screen.getByRole('button', { name: 'VIEW EVIDENCE' }),
   ).toBeVisible();
 
-  const stored = JSON.parse(
-    localStorage.getItem('face-value:structured-demo:v1') ?? '{}',
-  ) as { archive?: Array<{ id: string }>; record?: { id: string } };
-  expect(stored.archive).toHaveLength(1);
-  expect(stored.archive?.[0].id).toBe(stored.record?.id);
+  await waitFor(() => {
+    const stored = JSON.parse(
+      localStorage.getItem('face-value:structured-demo:v1') ?? '{}',
+    ) as {
+      archive?: Array<{ id: string }>;
+      record?: { id: string };
+    };
+    expect(stored.archive).toHaveLength(1);
+    expect(stored.archive?.[0].id).toBe(stored.record?.id);
+  });
+
+  await user.click(screen.getByRole('button', { name: 'DONE' }));
+  expect(
+    screen.getByRole('heading', { name: 'Your trials' }),
+  ).toBeVisible();
+  expect(screen.getByText('LATEST EVIDENCE')).toBeVisible();
+  expect(
+    screen.getByRole('button', { name: 'START ANOTHER TRIAL' }),
+  ).toBeVisible();
 });

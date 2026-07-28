@@ -2,17 +2,17 @@
 
 ## Domain boundaries
 
-`src/domain/model.ts` defines observation, camera, comparison, confidence, product-overlap, placement, capture, analysis, and durable saved-result types. The pure reducer in `src/app/machine.ts` owns all guarded transitions. React renders state; it does not infer scientific state from visual effects.
+`src/domain/model.ts` defines observation, camera, comparison, confidence, product-overlap, placement, capture, analysis, and durable saved-result types. The pure reducers in `src/app/phaseBMachine.ts` and `src/domain/oracleRevealMachine.ts` own all guarded transitions. React renders state; it does not infer scientific or durable state from visual effects.
 
 A small set of original MVP field and event names remains internal for persisted-state compatibility. They are not presentation vocabulary. Default UI and accessibility use trial, note, follow-up scan, result, next step, saved result, and Past results.
 
 ## Production journey boundary
 
-The public application exposes one state-machine journey. There is no standalone result fixture route. `FaceValueApplication` passes the selected specimen, assigned job, analysis result, comparison, confidence, and product-overlap state into `EvidenceVerdict` only after reducer-authorized analysis.
+The public application exposes one state-machine journey. There is no standalone result fixture route. `FaceValueApplication` mounts `OracleRevealScene` only after reducer-authorized analysis. That scene owns one persistent dark machine from sealed result through collection; the application remains in the analysis stage until Done.
 
-Persisted `review_due` state returns through `OPEN_REVIEW_DUE`: a saved follow-up resumes automatic analysis, while a saved comparable result resumes the V7 result. The UI does not duplicate or reconstruct result navigation state.
+Persisted `review_due` state returns through `OPEN_REVIEW_DUE`: a saved follow-up resumes automatic analysis, while a comparable result resumes its stable Oracle Reveal phase. Transient motion phases resume safely from the same reducer state and the UI does not reconstruct a second result model.
 
-Temporary React state is limited to presentation concerns: disclosure state, note draft state, focus restoration, and one animation handoff. It does not own comparison, recommendation, placement, record generation, archive insertion, or route state.
+Temporary React state is limited to presentation concerns: disclosure state, note draft state, focus restoration, and pointer gesture tracking. It does not own comparison, recommendation, placement, record generation, archive insertion, or route state.
 
 ## Automatic comparison boundary
 
@@ -20,34 +20,34 @@ An accepted follow-up scan transitions the reducer into `analysis`. A guarded ef
 
 Production does not expose separate actions to run comparison or enter result review. Deterministic scenario controls remain development and test only.
 
-## Save boundary
+## Evidence collection boundary
 
-`SAVE_RESULT` is the production transaction for a completed result decision. It requires the placement stage and a valid analysis result. The reducer:
+`EVIDENCE_COLLECTED` is the production transaction for a completed result decision. It is accepted only after recommendation acceptance, dispensing, and an explicit collection start. The reducer:
 
-1. preserves the recommended or overridden placement
-2. marks the trial complete and sealed
-3. creates a durable result containing the full evidence context
-4. inserts it only when its deterministic identifier is not already present
-5. leaves the object in its classified state for the confident reseal
+1. preserves the accepted next step and commit timestamp
+2. creates a durable result containing the full evidence context
+3. inserts it only when its deterministic identifier is not already present
+4. marks the trial complete and the evidence collected
+5. keeps the completed machine mounted until `ORACLE_DONE`
 
-`OPEN_SAVED_RESULT` opens that same record after the reseal. Repeated activation, restoration, back navigation, and Past results reopening do not create duplicates.
+`ORACLE_DONE` is the only transition that returns to home base. Repeated Keep, collection, animation callbacks, restoration, back navigation, and Past Results reopening do not create duplicates.
 
-Legacy `SEAL_PLACEMENT` and `GENERATE_RECORD` events remain explicit compatibility paths; they are not separate production controls.
+Legacy event names remain internal compatibility paths for persisted-state migration. They are not production controls.
 
 ## Hardware presentation boundary
 
-`src/features/evidence-instrument` and `src/features/evidence-cassette` form one composable hardware family:
+`src/features/oracle-reveal` is the only result-machine component family:
 
-- `EvidenceInstrument` composes the enclosure, optical bay, specimen dock, smart glass, identity rail, rigid module, and output slot.
-- `EvidenceCassetteSelector` owns finite trial browsing through explicit previous and next controls while the handle owns inspection.
-- `CassetteHandle` owns tap, keyboard, pointer, touch, threshold, cancellation, lost-capture, and Escape behavior.
-- `EvidenceCassette` owns the V7 result reveal and its explicit mechanical reducer.
+- `OracleRevealScene` binds application state, focus, disclosures, haptics, and semantic actions.
+- `OracleMachine` preserves one chassis, glass opening, lower control deck, amber control, slot, rollers, rail, and paper coordinate system.
+- the reveal handle owns native click, Enter, Space, pointer drag, cancellation, and lost-capture behavior.
+- animation completion dispatches narrow reducer events; it never writes durable data.
 
-The typed internal modes remain `index`, `active`, `review-due`, `verdict`, and `classified`. A handle-shaped visual is rendered only when a meaningful action exists. The handle never delegates activation to the whole card.
+The machine phases are `sealed`, `opening`, `transmitting`, `verdict_revealed`, `committing`, `dispensing`, `collected`, and `done`. Duplicate and invalid events return the same reducer model.
 
 ## Optical boundary
 
-The specimen and identity are live HTML layers beneath a dedicated smart-glass overlay. Blur, tint, reflection, and clearing are applied only to glass. Presented and reduced-motion identity is full resolution with no inherited filter, opacity loss, or rasterized transform.
+The sealed glass renders optical haze and a non-semantic silhouette only. Result and recommendation nodes are not created until their authorized phases. Firmware remains live HTML inside the fixed display opening; reduced motion preserves the same state order with one-millisecond mechanical transitions.
 
 ## Adapter boundaries
 
@@ -59,9 +59,9 @@ The specimen and identity are live HTML layers beneath a dedicated smart-glass o
 
 ## Data flow
 
-User action → typed reducer event → guarded domain transition → semantic trial-object mode → optional adapter request → typed result event → explicit result-to-next-step mapping → `SAVE_RESULT` → confident reseal → idempotent saved result.
+User action → typed reducer event → guarded domain transition → optional adapter request → typed result event → sealed oracle → Reveal → transmission → Keep → dispense → explicit collection → idempotent saved result → Done → home base.
 
-Visual motion never advances scientific state. Timers coordinate only a presentation transition already authorized by reducer state.
+Visual motion never advances scientific state or persists a record. `animationend` callbacks advance only the already-authorized mechanical state.
 
 ## Image lifecycle
 
@@ -71,4 +71,4 @@ Camera or file bytes are held only inside `CameraViewport`. A temporary object U
 
 The golden path needs continuity of trial state, not a permanent face-image archive. Excluding images minimizes risk, keeps saved results portable, and preserves a clean future boundary for encrypted storage, explicit consent records, and authenticated server processing.
 
-See `production-journey-integration.md` for the language, hierarchy, gesture, optics, focus, save, fixture, and verification contracts.
+See `oracle-reveal-v1.md` for the transition, motion, persistence, accessibility, and verification contracts.

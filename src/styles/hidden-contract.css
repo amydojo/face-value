@@ -1,7 +1,3 @@
 [hidden] {
   display: none !important;
 }
-
-[data-evidence-instrument] + [data-fv-part="trial-summary"] {
-  display: none !important;
-}

@@ -18,7 +18,9 @@ import styles from '../styles/FaceValue.module.css';
 import { Archive } from './archive/Archive';
 import { CaptureContextSurface } from './capture-context/CaptureContextSurface';
 import { CameraViewport } from './capture-contract/CameraViewport';
-import { EvidenceCassette } from './evidence-cassette/EvidenceCassette';
+import { EvidenceRecord } from './evidence-record/EvidenceRecord';
+import { OracleRevealScene } from './oracle-reveal/OracleRevealScene';
+import { oracleNextStep } from './oracle-reveal/oraclePresentation';
 import { ProductRegistration } from './product-registration/ProductRegistration';
 
 const showDemoControls =
@@ -60,11 +62,12 @@ export function FaceValueApplication() {
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
+      if (state.stage === 'analysis' && state.analysis) return;
       if (event.key === 'Escape') dispatch({ type: 'BACK' });
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [dispatch]);
+  }, [dispatch, state.analysis, state.stage]);
 
   useEffect(() => {
     if (
@@ -123,6 +126,7 @@ export function FaceValueApplication() {
   ]);
 
   const renderTrialIndex = () => {
+    const latestEvidence = state.archive[0] ?? null;
     const hasActiveTrial = Boolean(
       state.registeredProduct &&
         state.longitudinalEvidence.baseline &&
@@ -158,7 +162,15 @@ export function FaceValueApplication() {
         >
           <div className={styles.directory}>
             <p>YOUR TRIALS</p>
-            <p>{eligible ? 'FOLLOW-UP READY' : hasActiveTrial ? 'ACTIVE' : 'EMPTY'}</p>
+            <p>
+              {eligible
+                ? 'FOLLOW-UP READY'
+                : hasActiveTrial
+                  ? 'ACTIVE'
+                  : latestEvidence
+                    ? 'EVIDENCE READY'
+                    : 'EMPTY'}
+            </p>
           </div>
           <h1 data-stage-focus tabIndex={-1}>
             {eligible ? 'Let’s see what changed.' : 'Your trials'}
@@ -205,7 +217,25 @@ export function FaceValueApplication() {
             </article>
           ) : (
             <div className={styles.emptyTrials}>
-              <p>No active product trial.</p>
+              <p>No active trial</p>
+              {latestEvidence && (
+                <article
+                  className={styles.latestEvidence}
+                  aria-labelledby="latest-evidence-heading"
+                  tabIndex={-1}
+                >
+                  <p>LATEST EVIDENCE</p>
+                  <h2 id="latest-evidence-heading">
+                    {latestEvidence.productBrand
+                      ? `${latestEvidence.productBrand} · ${latestEvidence.product}`
+                      : latestEvidence.product}
+                  </h2>
+                  <strong>{latestEvidence.finding}</strong>
+                  <span>
+                    {oracleNextStep(latestEvidence.finalPlacement)}
+                  </span>
+                </article>
+              )}
               <button
                 type="button"
                 className={styles.primaryAction}
@@ -213,7 +243,11 @@ export function FaceValueApplication() {
                   dispatch({ type: 'START_PRODUCT_REGISTRATION' })
                 }
               >
-                <span>START A PRODUCT TRIAL</span>
+                <span>
+                  {latestEvidence
+                    ? 'START ANOTHER TRIAL'
+                    : 'START A PRODUCT TRIAL'}
+                </span>
                 <span aria-hidden="true">→</span>
               </button>
             </div>
@@ -595,34 +629,7 @@ export function FaceValueApplication() {
             </section>
           );
         }
-        return (
-          <>
-            <ScreenHeader dark />
-            <section
-              className={styles.sealedResult}
-              data-fv-screen="result-sealed"
-            >
-              <p className={styles.eyebrow}>ONE SEALED RESULT</p>
-              <h1 data-stage-focus tabIndex={-1}>
-                Your result is ready.
-              </h1>
-              <p>Pull to reveal.</p>
-              <div className={styles.sealedCassette}>
-                <EvidenceCassette
-                  accessionCode={registeredSpecimen.accession}
-                  productName={registeredSpecimen.product}
-                  volume={registeredSpecimen.volume}
-                  job={state.assignedJob ?? 'REDUCE VISIBLE REDNESS'}
-                  verdict="RESULT READY"
-                  onReveal={() => dispatch({ type: 'REVEAL_RESULT' })}
-                />
-              </div>
-              <p className={styles.sealPrivacy}>
-                RESULT READY · CONTENT SEALED UNTIL REVEAL
-              </p>
-            </section>
-          </>
-        );
+        return <OracleRevealScene />;
 
       case 'analysis_failure':
         return (
@@ -689,6 +696,17 @@ export function FaceValueApplication() {
             }
             onBack={() => dispatch({ type: 'BACK' })}
             onClear={() => dispatch({ type: 'CLEAR_DEMO_DATA' })}
+          />
+        );
+
+      case 'record':
+        if (!state.record) return renderTrialIndex();
+        return (
+          <EvidenceRecord
+            record={state.record}
+            onArchive={() => dispatch({ type: 'VIEW_ARCHIVE' })}
+            onIndex={() => dispatch({ type: 'RETURN_TO_CABINET' })}
+            onBack={() => dispatch({ type: 'BACK' })}
           />
         );
 
