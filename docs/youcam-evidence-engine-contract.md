@@ -15,6 +15,13 @@
 
 **Repository:** `amydojo/face-value`
 
+> **July 28, 2026 supersession:** This file remains authoritative for the
+> secure YouCam provider workflow, HD/raw-score protocol, privacy, and error
+> boundary. Its former `calibration: pending`, sign-only verdict derivation,
+> prototype copy, and result mapping are superseded by
+> `docs/redness-evidence-engine-v1.md` and the connected canonical redness
+> documents recorded there. They are not an alternate production engine.
+
 ## 1. Objective
 
 Replace Face Value's fixture-backed optical comparison with one secure, testable, longitudinal YouCam integration without creating a second source of trial truth.

@@ -6,6 +6,12 @@ Face Value uses one pure reducer. Events that do not satisfy their guard return 
 
 A small set of original MVP event keys and persisted field names remains internal to avoid an unnecessary storage migration. Those names are implementation details only. Default presentation vocabulary is Your trials, trial, note, follow-up scan, result, next step, saved result, and Past results.
 
+Canonical redness records add a versioned evaluation snapshot without changing
+the storage envelope. Current registered redness trials derive effect,
+measurement, attribution, evidence, safety, and action through
+`src/domain/evidence/redness`. Pre-engine records remain readable but are never
+reinterpreted as canonical evidence.
+
 ## Application stages
 
 - `welcome`: private-by-default entry and dormant instrument.
@@ -70,7 +76,11 @@ This reducer coordinates only presentation. It cannot create an analysis result,
 - `partially_comparable`: changed conditions or product overlap reduce interpretability.
 - `not_comparable`: a result is refused.
 
-Confidence is `insufficient`, `possible`, `likely`, or `confirmed`. The reducer permanently caps retained overlap at `possible` and rewrites the recommendation to `continue_with_overlap`.
+The compatibility confidence field remains `insufficient`, `possible`,
+`likely`, or `confirmed`. Canonical redness uses its separate evidence-quality
+dimension (`insufficient`, `possible`, or `likely`). Active product overlap
+blocks attribution and deterministically maps to `retry_alone`; it is not
+averaged into a generic confidence value.
 
 ## Result-to-next-step mapping
 
@@ -84,6 +94,19 @@ The exhaustive mapping happens before the placement stage opens:
 | persisted `overlap_retained` | `retry_alone` |
 
 Unknown recommendation values throw at the mapping boundary rather than silently choosing a default.
+
+For canonical redness, the authoritative mapping is:
+
+| Redness action        | Compatibility placement |
+| --------------------- | ----------------------- |
+| `keep`                | `established`           |
+| `test_longer`         | `paused`                |
+| `retry_alone`         | `retry_alone`           |
+| `not_proving_job`     | `useful_elsewhere`      |
+| `safety_interruption` | `released`              |
+
+React receives this mapping through the typed presentation adapter and does not
+infer it.
 
 ## Guarded production transitions
 

@@ -21,14 +21,14 @@ import {
   oracleTrialIdentityForRecord,
   type OracleTrialIdentity,
 } from '../../domain/oracleTrialIdentity';
-import { formatRawScore } from '../../domain/youcamEvidence';
 import {
+  evidenceDetailViewModelFromRecord,
   verdictProduct,
   verdictViewModelFromAnalysis,
   verdictViewModelFromRecord,
   type VerdictViewModel,
 } from '../verdict/verdictViewModel';
-import { oracleMachineControlLabel, oracleNextStep } from './oraclePresentation';
+import { oracleMachineControlLabel } from './oraclePresentation';
 import styles from './OracleRevealScene.module.css';
 
 const DRAG_INTENT_PX = 5;
@@ -603,26 +603,11 @@ export function LatestVerdictCassette({
 function EvidenceDetail({
   record,
   trialIdentity,
-  recommendation,
 }: {
   record: EvidenceRecordData;
   trialIdentity: OracleTrialIdentity;
-  recommendation: string;
 }) {
-  const scoreSummary =
-    typeof record.baselineRawScore === 'number' && typeof record.followUpRawScore === 'number'
-      ? `${formatRawScore(record.baselineRawScore)} → ${formatRawScore(record.followUpRawScore)}`
-      : 'Raw scores unavailable';
-  const context = [
-    record.baselineContext?.note,
-    record.followUpContext?.note,
-    ...(record.limitations ?? []),
-    record.demoOriginated
-      ? 'Demo timeline was advanced explicitly; the original baseline timestamp was not changed.'
-      : null,
-  ]
-    .filter(Boolean)
-    .join(' ');
+  const detail = evidenceDetailViewModelFromRecord(record);
 
   return (
     <section
@@ -636,35 +621,15 @@ function EvidenceDetail({
           <dt>TRIAL</dt>
           <dd data-oracle-trial-identity>{trialIdentity.folio}</dd>
         </div>
-        <div>
-          <dt>OBSERVED</dt>
-          <dd>{record.finding}</dd>
-        </div>
-        <div>
-          <dt>NOT ESTABLISHED</dt>
-          <dd>{record.nonFinding}</dd>
-        </div>
-        <div>
-          <dt>CONTEXT</dt>
-          <dd>{context || 'No additional trial context changed the boundary.'}</dd>
-        </div>
-        <div>
-          <dt>CONFIDENCE</dt>
-          <dd>{record.confidence.toUpperCase()}</dd>
-        </div>
-        <div>
-          <dt>NEXT STEP</dt>
-          <dd>{recommendation}</dd>
-        </div>
-        <div>
-          <dt>TECHNICAL METADATA</dt>
-          <dd>
-            {record.evidenceSource ?? 'Baseline and follow-up'} ·{' '}
-            {record.comparison.replaceAll('_', ' ')} · {scoreSummary}
-          </dd>
-        </div>
+        {detail.rows.map((row) => (
+          <div key={row.label}>
+            <dt>{row.label}</dt>
+            <dd>{row.value}</dd>
+          </div>
+        ))}
       </dl>
-      <p>{record.claimBoundary}</p>
+      {detail.technicalNote && <p>{detail.technicalNote}</p>}
+      <p>{detail.claimBoundary}</p>
     </section>
   );
 }
@@ -727,8 +692,6 @@ export function OracleRevealScene({ haptics = browserHaptics }: { haptics?: Hapt
     ],
   );
   const viewModel = pendingRecord ? verdictViewModelFromRecord(pendingRecord) : analysisViewModel;
-  const recommendation = viewModel?.nextStepLabel ?? oracleNextStep(state.placement);
-
   useEffect(() => {
     if (phase !== 'verdict_revealed') {
       setWhyOpen(false);
@@ -973,11 +936,7 @@ export function OracleRevealScene({ haptics = browserHaptics }: { haptics?: Hapt
               </button>
               <div id="oracle-evidence-detail" hidden={!detailOpen}>
                 {detailOpen && (
-                  <EvidenceDetail
-                    record={collectedRecord}
-                    trialIdentity={trialIdentity}
-                    recommendation={recommendation}
-                  />
+                  <EvidenceDetail record={collectedRecord} trialIdentity={trialIdentity} />
                 )}
               </div>
             </div>

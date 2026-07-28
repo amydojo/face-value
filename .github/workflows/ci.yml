@@ -24,6 +24,7 @@ jobs:
       - run: npm ci --no-audit --no-fund
       - run: npm run lint
       - run: npm run typecheck
+      - run: npm run verify:redness-architecture
       - name: Unit and component tests
         run: npm run test -- --reporter=default --reporter=json --outputFile=vitest-results.json
       - name: Upload Vitest report

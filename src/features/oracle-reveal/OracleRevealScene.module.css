@@ -1144,9 +1144,11 @@
 }
 
 .evidenceDetail dd {
+  min-width: 0;
   color: #28241e;
   font-size: 10px;
   line-height: 1.45;
+  overflow-wrap: anywhere;
 }
 
 .evidenceDetail > p {

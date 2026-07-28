@@ -2,7 +2,17 @@ import { defineConfig, devices } from '@playwright/test';
 
 const capturingHomeVerdictEvidence =
   process.env.CAPTURE_HOME_VERDICT_EVIDENCE === 'true';
-const serverPort = capturingHomeVerdictEvidence ? 4174 : 4173;
+const capturingRednessEvidence =
+  process.env.CAPTURE_REDNESS_EVIDENCE === 'true';
+const requestedPort = Number(process.env.PLAYWRIGHT_PORT);
+const serverPort =
+  Number.isInteger(requestedPort) && requestedPort > 0
+    ? requestedPort
+    : capturingHomeVerdictEvidence
+      ? 4174
+      : capturingRednessEvidence
+        ? 4175
+        : 4173;
 const baseURL = `http://127.0.0.1:${serverPort}`;
 
 export default defineConfig({
@@ -20,7 +30,11 @@ export default defineConfig({
       capturingHomeVerdictEvidence ? '' : 'VITE_SHOW_DEMO_CONTROLS=true '
     }VITE_CAMERA_KIT_MODE=fixture npm run dev -- --host 127.0.0.1 --port ${serverPort}`,
     url: baseURL,
-    reuseExistingServer: !process.env.CI && !capturingHomeVerdictEvidence,
+    reuseExistingServer:
+      !process.env.CI &&
+      !capturingHomeVerdictEvidence &&
+      !capturingRednessEvidence &&
+      !process.env.PLAYWRIGHT_PORT,
   },
   projects: [{ name: 'mobile-webkit', use: { ...devices['iPhone 13'] } }],
 });

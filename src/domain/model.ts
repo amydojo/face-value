@@ -1,4 +1,5 @@
 import type { AnalysisProtocol } from '../adapters/analysis/youcam/contracts';
+import type { ObservationWindowDays, RednessEvaluationSnapshot } from './evidence/redness/types';
 import type { OracleRevealState } from './oracleRevealMachine';
 
 export type CabinetState = 'closed' | 'opening' | 'open' | 'closing';
@@ -23,10 +24,7 @@ export type CameraState =
   | 'overconstrained'
   | 'error';
 export type ComparisonState =
-  | 'not_available'
-  | 'comparable'
-  | 'partially_comparable'
-  | 'not_comparable';
+  'not_available' | 'comparable' | 'partially_comparable' | 'not_comparable';
 export type EvidenceConfidence = 'insufficient' | 'possible' | 'likely' | 'confirmed';
 export type AnalysisProcessingState = 'idle' | 'running' | 'succeeded' | 'failed';
 export type ProductPlacement =
@@ -46,20 +44,12 @@ export type RecommendedAction =
   | 'return_to_cooling'
   | 'continue_with_overlap'
   | 'seek_professional_guidance';
-export type DisturbanceState =
-  | 'none'
-  | 'detected'
-  | 'returned_to_cooling'
-  | 'overlap_retained';
+export type DisturbanceState = 'none' | 'detected' | 'returned_to_cooling' | 'overlap_retained';
 export type CaptureKind = 'baseline' | 'followup';
 export type SupportedAssignedJob = 'Reduce visible redness';
 export type RegisteredProductProtocolId = 'youcam-redness-v1';
 export type CaptureContractOutcome =
-  | 'ready'
-  | 'comparable'
-  | 'partially_comparable'
-  | 'not_comparable'
-  | 'context_only';
+  'ready' | 'comparable' | 'partially_comparable' | 'not_comparable' | 'context_only';
 export type AppStage =
   | 'welcome'
   | 'product_registration'
@@ -103,6 +93,7 @@ export interface RegisteredProduct {
   volume: string | null;
   assignedJob: SupportedAssignedJob;
   protocolId: RegisteredProductProtocolId;
+  expectedObservationWindowDays?: ObservationWindowDays;
   createdAt: string;
 }
 
@@ -114,9 +105,7 @@ export interface CaptureContext {
   note: string | null;
 }
 
-export type CameraCaptureProfileId =
-  | 'youcam-camera-kit-hd-1080p'
-  | 'youcam-camera-kit-hd-1920p';
+export type CameraCaptureProfileId = 'youcam-camera-kit-hd-1080p' | 'youcam-camera-kit-hd-1920p';
 
 export interface TraceEntry {
   id: string;
@@ -153,7 +142,7 @@ export interface RednessComparison {
   followUpRawScore: number;
   delta: number;
   direction: 'favorable' | 'unfavorable' | 'unchanged';
-  calibration: 'pending' | 'prototype_calibrated';
+  calibration: 'pending' | 'prototype_calibrated' | 'provisional_fixture';
   confidence: 'possible' | 'likely' | 'insufficient';
   limitations: string[];
 }
@@ -163,6 +152,7 @@ export interface LongitudinalSkinEvidence {
   baseline: DurableSkinSignal | null;
   followUp: DurableSkinSignal | null;
   comparison: RednessComparison | null;
+  evaluation?: RednessEvaluationSnapshot | null;
 }
 
 export interface AnalysisErrorState {
@@ -189,6 +179,7 @@ export interface AnalysisResult {
   delta?: number;
   direction?: RednessComparison['direction'];
   limitations?: string[];
+  rednessEvaluation?: RednessEvaluationSnapshot;
 }
 
 export interface EvidenceRecordData {
@@ -222,6 +213,7 @@ export interface EvidenceRecordData {
   baselineContext?: CaptureContext | null;
   followUpContext?: CaptureContext | null;
   demoOriginated?: boolean;
+  rednessEvaluation?: RednessEvaluationSnapshot;
 }
 
 export interface FaceValueState {
@@ -268,9 +260,4 @@ export interface FaceValueState {
 }
 
 export type AnalysisScenario =
-  | 'no_change'
-  | 'likely_change'
-  | 'partial'
-  | 'not_comparable'
-  | 'failure'
-  | 'overlap_reduced';
+  'no_change' | 'likely_change' | 'partial' | 'not_comparable' | 'failure' | 'overlap_reduced';

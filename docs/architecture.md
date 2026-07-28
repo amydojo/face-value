@@ -16,9 +16,17 @@ Temporary React state is limited to presentation concerns: disclosure state, not
 
 ## Automatic comparison boundary
 
-An accepted follow-up scan transitions the reducer into `analysis`. A guarded effect invokes the existing typed `AnalysisAdapter` once per follow-up capture identifier and dispatches `ANALYSIS_STARTED`, then `ANALYSIS_SUCCEEDED` or `ANALYSIS_FAILED`.
+An accepted follow-up scan transitions the reducer into `analysis`. A guarded
+effect dispatches `COMPARISON_CREATED` once for the matched durable signals.
+The reducer invokes `buildMvpRednessEvaluation`, which constructs honest
+one-session evidence and calls the deterministic redness evaluator. The
+resulting versioned snapshot is adapted once into the existing comparison,
+analysis, placement, and `VerdictViewModel` boundaries.
 
-Production does not expose separate actions to run comparison or enter result review. Deterministic scenario controls remain development and test only.
+Production does not accept a caller-supplied redness verdict and does not expose
+separate actions to run comparison or enter result review. Scientific
+thresholds, direction, attribution, and safety logic live under
+`src/domain/evidence/redness`; no React component owns them.
 
 ## Evidence collection boundary
 
@@ -52,14 +60,20 @@ The sealed glass renders optical haze and a non-semantic silhouette only. Result
 ## Adapter boundaries
 
 - `adapters/camera`: browser support, permission negotiation, stable errors, stream lifecycle, frame capture, and object URL cleanup.
-- `adapters/analysis`: typed comparison request and deterministic mock implementation.
-- `adapters/persistence`: structured local demo persistence only.
+- `adapters/analysis`: typed provider requests, durable `raw_score`
+  normalization, and the single YouCam-to-redness-evidence adapter.
+- `adapters/persistence`: structured local persistence, canonical snapshot
+  validation, and non-destructive legacy compatibility.
 - `adapters/haptics`: optional capability behind safe no-op behavior.
 - `adapters/clock`: injectable time source for durable artifacts.
 
 ## Data flow
 
-User action → typed reducer event → guarded domain transition → optional adapter request → typed result event → sealed oracle → Reveal → transmission → Keep → dispense → explicit collection → idempotent saved result → Done → home base.
+User action → typed reducer event → guarded provider request → normalized
+`hd_redness.raw_score` → canonical evidence adapter → deterministic evaluator →
+versioned snapshot → `VerdictViewModel` → sealed oracle → Reveal → transmission
+→ Keep → dispense → explicit collection → idempotent saved result → Done → home
+base.
 
 Visual motion never advances scientific state or persists a record. `animationend` callbacks advance only the already-authorized mechanical state.
 
@@ -72,3 +86,5 @@ Camera or file bytes are held only inside `CameraViewport`. A temporary object U
 The golden path needs continuity of trial state, not a permanent face-image archive. Excluding images minimizes risk, keeps saved results portable, and preserves a clean future boundary for encrypted storage, explicit consent records, and authenticated server processing.
 
 See `oracle-reveal-v1.md` for the transition, motion, persistence, accessibility, and verification contracts.
+See `redness-evidence-engine-v1.md` for source provenance, evaluator,
+threshold, migration, fixture, and claims contracts.

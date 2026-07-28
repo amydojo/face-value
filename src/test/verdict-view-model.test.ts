@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
+import { clearImprovementFixture, evaluateRedness } from '../domain/evidence/redness';
 import type { EvidenceRecordData } from '../domain/model';
-import { verdictProduct, verdictViewModelFromRecord } from '../features/verdict/verdictViewModel';
+import {
+  evidenceDetailViewModelFromRecord,
+  verdictProduct,
+  verdictViewModelFromRecord,
+} from '../features/verdict/verdictViewModel';
 
 const record: EvidenceRecordData = {
   id: 'ER-202607151230',
@@ -35,9 +40,54 @@ describe('VerdictViewModel', () => {
       headline: record.finding,
       explanation: record.nonFinding,
       confidence: 'POSSIBLE',
+      evidenceQuality: 'POSSIBLE',
       nextStepLabel: 'TEST LONGER',
       evaluatedAt: record.createdAt,
     });
     expect(verdictProduct(viewModel)).toBe('Naturium · Azelaic Topical Acid');
+  });
+
+  it('populates the frozen presentation boundary from one canonical snapshot', () => {
+    const evaluation = evaluateRedness(structuredClone(clearImprovementFixture));
+    const canonicalRecord: EvidenceRecordData = {
+      ...record,
+      finding: 'stale compatibility finding',
+      nonFinding: 'stale compatibility limitation',
+      finalPlacement: 'paused',
+      recommendedAction: 'wait',
+      rednessEvaluation: evaluation,
+    };
+
+    const viewModel = verdictViewModelFromRecord(canonicalRecord);
+    expect(viewModel).toMatchObject({
+      verdictCode: 'STRONG IMPROVEMENT',
+      headline: evaluation.interpretation.finding,
+      explanation: evaluation.interpretation.explanation,
+      confidence: 'LIKELY',
+      measurementQuality: 'ADEQUATE',
+      attributionQuality: 'STRONG',
+      safetyStatus: 'CLEAR',
+      canonicalAction: 'keep',
+      nextStepLabel: 'KEEP USING IT',
+      evaluatedAt: evaluation.evaluatedAt,
+    });
+    expect(viewModel.headline).not.toBe(canonicalRecord.finding);
+
+    const detail = evidenceDetailViewModelFromRecord(canonicalRecord);
+    expect(detail.canonical).toBe(true);
+    expect(detail.rows).toEqual(
+      expect.arrayContaining([
+        {
+          label: 'THRESHOLD',
+          value: expect.stringContaining('redness-provisional-v1'),
+        },
+        {
+          label: 'THRESHOLD CONFIG',
+          value: evaluation.threshold.configHash,
+        },
+        { label: 'NEXT STEP', value: 'KEEP USING IT' },
+      ]),
+    );
+    expect(detail.technicalNote).toBe('Production thresholds require repeat-scan calibration.');
   });
 });
