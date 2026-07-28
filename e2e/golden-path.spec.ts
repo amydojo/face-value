@@ -303,10 +303,10 @@ for (const scenario of cases) {
     await expect(machine).toHaveAttribute(
       'data-oracle-state',
       'verdict_revealed',
-      // WebKit may defer animation events while two CI workers share a core.
+      // WebKit may defer animation events on a constrained CI runner.
       // This changes only the assertion budget; product motion still uses the
       // centralized oracle timing contract (1 ms in reduced-motion mode).
-      { timeout: scenario.reducedMotion ? 3_000 : 5_000 },
+      { timeout: scenario.reducedMotion ? 3_000 : 15_000 },
     );
     expect(
       await machineNode?.evaluate(

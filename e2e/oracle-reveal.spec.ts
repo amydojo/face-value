@@ -95,7 +95,7 @@ async function installPausedAnimations(page: Page) {
 }
 
 async function screenshotState(page: Page, name: string) {
-  await expect(page).toHaveScreenshot(`${name}.png`, {
+  await expect.soft(page).toHaveScreenshot(`${name}.png`, {
     animations: 'allow',
     fullPage: true,
     maxDiffPixelRatio: 0.012,
