@@ -424,10 +424,18 @@ test('keeps the same paper node from commit through completed feed', async ({ pa
 
 test('captures a clean reduced-motion feed midpoint', async ({ page }) => {
   await installPausedAnimations(page);
-  await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.setViewportSize({ width: 390, height: 844 });
   await loadState(page, stateFor('dispensing'));
-  await pauseMachineAt(page, 0.55);
+  await expect(page.locator('[data-oracle-paper]')).toHaveAttribute(
+    'data-paper-position',
+    'feeding',
+  );
+  await page.addStyleTag({
+    content:
+      "#root [data-oracle-paper][data-paper-position='feeding']{animation-duration:1000ms!important}",
+  });
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await pauseMachineAt(page, 550);
 
   await expect(page.locator('[data-oracle-paper]')).toHaveCSS('opacity', '1');
   await expect(page.locator('[data-oracle-evidence-path]')).toHaveCSS('overflow', 'hidden');

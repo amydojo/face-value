@@ -425,6 +425,7 @@ function CanonicalMachineShell({
   showSealedOptics = false,
   amberState,
   amberAction,
+  preserveOracleHardwareMarker = false,
   handleActive = false,
   handleProduct = 'Face Value product',
   motionEnabled = false,
@@ -447,6 +448,7 @@ function CanonicalMachineShell({
     label: string;
     onActivate: () => void;
   };
+  preserveOracleHardwareMarker?: boolean;
   handleActive?: boolean;
   handleProduct?: string;
   motionEnabled?: boolean;
@@ -505,7 +507,9 @@ function CanonicalMachineShell({
             className={styles.amberControl}
             data-amber-state={amberState}
             data-machine-amber-control
-            data-oracle-keep-action={amberAction ? 'hardware' : undefined}
+            data-oracle-keep-action={
+              preserveOracleHardwareMarker ? 'hardware' : undefined
+            }
             aria-label={amberAction?.label}
             aria-hidden={!amberAction}
             tabIndex={amberAction ? 0 : -1}
@@ -771,6 +775,7 @@ function OracleMachine({
             }
           : undefined
       }
+      preserveOracleHardwareMarker={!latestVerdict}
       handleActive={!latestVerdict && phase === 'sealed'}
       handleProduct={viewModel.productName}
       motionEnabled={!latestVerdict}

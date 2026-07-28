@@ -119,9 +119,11 @@ async function assertViewportContract(
             }
             const rect = element.getBoundingClientRect();
             if (rect.width <= 1 || rect.height <= 1) return false;
+            const clipsX = style.overflowX === 'hidden' || style.overflowX === 'clip';
+            const clipsY = style.overflowY === 'hidden' || style.overflowY === 'clip';
             return (
-              element.scrollWidth > element.clientWidth + 1 ||
-              element.scrollHeight > element.clientHeight + 1 ||
+              (clipsX && element.scrollWidth > element.clientWidth + 1) ||
+              (clipsY && element.scrollHeight > element.clientHeight + 1) ||
               rect.left < -0.5 ||
               rect.right > viewport.width + 0.5 ||
               rect.top < -0.5 ||
