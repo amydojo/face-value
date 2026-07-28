@@ -17,6 +17,7 @@ import {
   type OracleRevealModel,
   type OracleRevealState,
 } from '../domain/oracleRevealMachine';
+import { oracleTrialIdentity } from '../domain/oracleTrialIdentity';
 import {
   FOLLOW_UP_INTERVAL_DAYS,
   addCalendarDays,
@@ -27,10 +28,7 @@ import {
   isValidRegisteredProduct,
   normalizeCaptureContext,
 } from '../domain/phaseB5';
-import {
-  analysisResultFromComparison,
-  compareRednessSignals,
-} from '../domain/youcamEvidence';
+import { analysisResultFromComparison, compareRednessSignals } from '../domain/youcamEvidence';
 import {
   createEvidenceRecord,
   faceValueReducer as legacyFaceValueReducer,
@@ -165,8 +163,7 @@ export function normalizePhaseBState(state: FaceValueState): PhaseBFaceValueStat
           : 'sealed';
   return {
     ...state,
-    longitudinalEvidence:
-      state.longitudinalEvidence ?? createEmptyLongitudinalEvidence(),
+    longitudinalEvidence: state.longitudinalEvidence ?? createEmptyLongitudinalEvidence(),
     analysisRole: state.analysisRole ?? null,
     activeAnalysisRequestId: state.activeAnalysisRequestId ?? null,
     pendingAnalysisCapture: state.pendingAnalysisCapture ?? null,
@@ -180,21 +177,17 @@ export function normalizePhaseBState(state: FaceValueState): PhaseBFaceValueStat
     resultRevealed: state.resultRevealed ?? false,
     oracleRevealState: state.oracleRevealState ?? legacyOracleState,
     oracleEvidenceDispensed:
-      state.oracleEvidenceDispensed ??
-      Boolean(state.placementSealed && state.record),
+      state.oracleEvidenceDispensed ?? Boolean(state.placementSealed && state.record),
     oracleCollectionStarted: state.oracleCollectionStarted ?? false,
     oracleCommittedAt:
-      state.oracleCommittedAt ??
-      (state.placementSealed ? state.record?.createdAt ?? null : null),
+      state.oracleCommittedAt ?? (state.placementSealed ? (state.record?.createdAt ?? null) : null),
   };
 }
 
 const isCurrentRequest = (state: PhaseBFaceValueState, requestId: string): boolean =>
   state.activeAnalysisRequestId === requestId;
 
-const oracleModelFor = (
-  state: PhaseBFaceValueState,
-): OracleRevealModel => ({
+const oracleModelFor = (state: PhaseBFaceValueState): OracleRevealModel => ({
   phase: state.oracleRevealState,
   evidenceDispensed: state.oracleEvidenceDispensed,
   collectionStarted: state.oracleCollectionStarted,
@@ -215,10 +208,7 @@ const applyOracleEvent = (
   };
 };
 
-function enrichRecord(
-  state: PhaseBFaceValueState,
-  record: EvidenceRecordData,
-): EvidenceRecordData {
+function enrichRecord(state: PhaseBFaceValueState, record: EvidenceRecordData): EvidenceRecordData {
   const comparison = state.longitudinalEvidence.comparison;
   if (!comparison || state.analysis?.provider !== 'youcam') return record;
 
@@ -239,16 +229,21 @@ function enrichRecord(
   };
 }
 
-export function createOracleEvidenceRecord(
-  state: PhaseBFaceValueState,
-): EvidenceRecordData | null {
+export function createOracleEvidenceRecord(state: PhaseBFaceValueState): EvidenceRecordData | null {
   if (!state.oracleCommittedAt || !state.analysis || !state.assignedJob) {
     return null;
   }
-  return enrichRecord(
-    state,
-    createEvidenceRecord(state, state.oracleCommittedAt),
-  );
+  const record = enrichRecord(state, createEvidenceRecord(state, state.oracleCommittedAt));
+  const identity = oracleTrialIdentity({
+    baselineAt: state.baselineLockedAt ?? state.baselineCapture?.createdAt,
+    followUpAt: state.followUpEligibleAt ?? state.followupCapture?.createdAt,
+    accession: record.accession,
+  });
+
+  return {
+    ...record,
+    accession: identity.folio,
+  };
 }
 
 function enrichSavedRecord(
@@ -261,9 +256,7 @@ function enrichSavedRecord(
   return {
     ...next,
     record: enriched,
-    archive: next.archive.map((record) =>
-      record.id === enriched.id ? enriched : record,
-    ),
+    archive: next.archive.map((record) => (record.id === enriched.id ? enriched : record)),
   };
 }
 
@@ -284,10 +277,7 @@ export function faceValueReducer(
       };
 
     case 'REGISTER_PRODUCT':
-      if (
-        state.stage !== 'product_registration' ||
-        !isValidRegisteredProduct(event.product)
-      ) {
+      if (state.stage !== 'product_registration' || !isValidRegisteredProduct(event.product)) {
         return state;
       }
       return {
@@ -334,9 +324,7 @@ export function faceValueReducer(
 
     case 'BEGIN_CAPTURE':
       if (!state.registeredProduct) {
-        return normalizePhaseBState(
-          legacyFaceValueReducer(state, event as LegacyFaceValueEvent),
-        );
+        return normalizePhaseBState(legacyFaceValueReducer(state, event as LegacyFaceValueEvent));
       }
 
       if (event.kind === 'baseline') {
@@ -352,9 +340,13 @@ export function faceValueReducer(
           !event.now ||
           !state.longitudinalEvidence.baseline ||
           state.longitudinalEvidence.followUp ||
-          !['waiting_for_followup', 'followup_ready', 'cabinet', 'analysis_failure', 'comparison_refused'].includes(
-            state.stage,
-          ) ||
+          ![
+            'waiting_for_followup',
+            'followup_ready',
+            'cabinet',
+            'analysis_failure',
+            'comparison_refused',
+          ].includes(state.stage) ||
           !followUpIsEligible({
             followUpEligibleAt: state.followUpEligibleAt,
             demoTimelineAdvanced: state.demoTimelineAdvanced,
@@ -372,8 +364,7 @@ export function faceValueReducer(
         camera: 'idle',
         processing: 'idle',
         analysisError: null,
-        returnStage:
-          event.kind === 'baseline' ? 'job' : 'followup_ready',
+        returnStage: event.kind === 'baseline' ? 'job' : 'followup_ready',
         announcement:
           event.kind === 'baseline'
             ? 'Guided baseline capture opened.'
@@ -384,8 +375,7 @@ export function faceValueReducer(
       const context = normalizeCaptureContext(event.context);
       if (
         event.kind === 'baseline' &&
-        (state.stage === 'baseline_context' ||
-          state.stage === 'baseline_locked') &&
+        (state.stage === 'baseline_context' || state.stage === 'baseline_locked') &&
         state.longitudinalEvidence.baseline
       ) {
         return {
@@ -412,10 +402,7 @@ export function faceValueReducer(
     }
 
     case 'FINISH_BASELINE_SESSION':
-      if (
-        state.stage !== 'baseline_locked' ||
-        !state.longitudinalEvidence.baseline
-      ) {
+      if (state.stage !== 'baseline_locked' || !state.longitudinalEvidence.baseline) {
         return state;
       }
       return {
@@ -460,8 +447,7 @@ export function faceValueReducer(
         stage: 'followup_ready',
         observation: 'review_due',
         demoTimelineAdvanced: true,
-        announcement:
-          'Demo timeline advanced explicitly. The original baseline date is unchanged.',
+        announcement: 'Demo timeline advanced explicitly. The original baseline date is unchanged.',
       };
 
     case 'REVEAL_STARTED': {
@@ -497,8 +483,7 @@ export function faceValueReducer(
       return {
         ...next,
         resultRevealed: true,
-        announcement:
-          'Result revealed. The finding and recommended next step are ready.',
+        announcement: 'Result revealed. The finding and recommended next step are ready.',
       };
     }
 
@@ -514,9 +499,7 @@ export function faceValueReducer(
           announcement: `Next step selected: ${event.placement.replaceAll('_', ' ')}.`,
         };
       }
-      return normalizePhaseBState(
-        legacyFaceValueReducer(state, event as LegacyFaceValueEvent),
-      );
+      return normalizePhaseBState(legacyFaceValueReducer(state, event as LegacyFaceValueEvent));
 
     case 'RECOMMENDATION_ACCEPTED': {
       if (
@@ -644,8 +627,7 @@ export function faceValueReducer(
         ...revealed,
         placement: defaultPlacementForResult(state.analysis),
         resultRevealed: true,
-        announcement:
-          'Result revealed. The finding and recommended next step are ready.',
+        announcement: 'Result revealed. The finding and recommended next step are ready.',
       };
     }
 
@@ -705,10 +687,7 @@ export function faceValueReducer(
         pendingAnalysisCapture: null,
         analysisError: null,
         baselineLockedAt,
-        followUpEligibleAt: addCalendarDays(
-          baselineLockedAt,
-          FOLLOW_UP_INTERVAL_DAYS,
-        ),
+        followUpEligibleAt: addCalendarDays(baselineLockedAt, FOLLOW_UP_INTERVAL_DAYS),
         baselineContext: null,
         demoTimelineAdvanced: false,
         announcement: state.registeredProduct
@@ -757,8 +736,7 @@ export function faceValueReducer(
         (state.baselineCapture?.source === 'camera' &&
           event.metadata.source === 'camera' &&
           state.baselineCapture.cameraProfileId &&
-          event.metadata.cameraProfileId !==
-            state.baselineCapture.cameraProfileId) ||
+          event.metadata.cameraProfileId !== state.baselineCapture.cameraProfileId) ||
         (state.registeredProduct &&
           !followUpIsEligible({
             followUpEligibleAt: state.followUpEligibleAt,
@@ -826,9 +804,7 @@ export function faceValueReducer(
 
     case 'RETAKE_FOLLOWUP':
       if (!state.registeredProduct) {
-        return normalizePhaseBState(
-          legacyFaceValueReducer(state, event as LegacyFaceValueEvent),
-        );
+        return normalizePhaseBState(legacyFaceValueReducer(state, event as LegacyFaceValueEvent));
       }
       if (
         !['analysis_failure', 'comparison_refused'].includes(state.stage) ||
@@ -859,8 +835,7 @@ export function faceValueReducer(
         oracleEvidenceDispensed: false,
         oracleCollectionStarted: false,
         oracleCommittedAt: null,
-        announcement:
-          'Follow-up retry ready. Your baseline and product are unchanged.',
+        announcement: 'Follow-up retry ready. Your baseline and product are unchanged.',
       };
 
     case 'COMPARISON_CREATED': {
@@ -922,7 +897,8 @@ export function faceValueReducer(
         oracleEvidenceDispensed: false,
         oracleCollectionStarted: false,
         oracleCommittedAt: null,
-        announcement: 'Comparison unavailable. These scans could not be compared under the same conditions.',
+        announcement:
+          'Comparison unavailable. These scans could not be compared under the same conditions.',
       };
 
     case 'ANALYSIS_CANCELLED':
@@ -960,9 +936,7 @@ export function faceValueReducer(
       if (state.stage === 'camera' && state.registeredProduct) {
         return {
           ...state,
-          stage:
-            state.returnStage ??
-            (state.captureKind === 'baseline' ? 'job' : 'followup_ready'),
+          stage: state.returnStage ?? (state.captureKind === 'baseline' ? 'job' : 'followup_ready'),
           camera: 'idle',
           processing: 'idle',
           analysisRole: null,
@@ -997,10 +971,7 @@ export function faceValueReducer(
           announcement: 'Your trial is running.',
         };
       }
-      if (
-        state.stage === 'waiting_for_followup' ||
-        state.stage === 'followup_ready'
-      ) {
+      if (state.stage === 'waiting_for_followup' || state.stage === 'followup_ready') {
         return {
           ...state,
           stage: 'cabinet',
@@ -1008,10 +979,7 @@ export function faceValueReducer(
           announcement: 'Returned to Your trials.',
         };
       }
-      if (
-        state.registeredProduct &&
-        (state.stage === 'analysis' || state.stage === 'placement')
-      ) {
+      if (state.registeredProduct && (state.stage === 'analysis' || state.stage === 'placement')) {
         return {
           ...state,
           announcement:
@@ -1020,9 +988,7 @@ export function faceValueReducer(
               : 'Your revealed result remains ready to keep.',
         };
       }
-      return normalizePhaseBState(
-        legacyFaceValueReducer(state, event as LegacyFaceValueEvent),
-      );
+      return normalizePhaseBState(legacyFaceValueReducer(state, event as LegacyFaceValueEvent));
 
     case 'CLEAR_DEMO_DATA': {
       const next = normalizePhaseBState(

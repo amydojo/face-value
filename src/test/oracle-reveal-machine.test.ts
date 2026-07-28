@@ -5,6 +5,8 @@ import {
   oracleRevealReducer,
   oracleTiming,
 } from '../domain/oracleRevealMachine';
+import { oracleTrialIdentity } from '../domain/oracleTrialIdentity';
+import { oracleMachineControlLabel } from '../features/oracle-reveal/oraclePresentation';
 
 describe('Oracle Reveal reducer', () => {
   it('moves through every state in one guarded order', () => {
@@ -66,12 +68,8 @@ describe('Oracle Reveal reducer', () => {
     const opening = oracleRevealReducer(initialOracleRevealModel, {
       type: 'REVEAL_STARTED',
     });
-    expect(
-      oracleRevealReducer(opening, { type: 'REVEAL_STARTED' }),
-    ).toBe(opening);
-    expect(
-      oracleRevealReducer(opening, { type: 'ORACLE_DONE' }),
-    ).toBe(opening);
+    expect(oracleRevealReducer(opening, { type: 'REVEAL_STARTED' })).toBe(opening);
+    expect(oracleRevealReducer(opening, { type: 'ORACLE_DONE' })).toBe(opening);
   });
 
   it('centralizes the complete mechanical timing contract', () => {
@@ -97,6 +95,37 @@ describe('Oracle Reveal reducer', () => {
       commit: 250,
       dispense: 995,
       collection: 260,
+    });
+  });
+
+  it('maps every reducer state to one non-conflicting machine legend', () => {
+    expect(
+      [
+        'sealed',
+        'opening',
+        'transmitting',
+        'verdict_revealed',
+        'committing',
+        'dispensing',
+        'collected',
+        'done',
+      ].map((phase) =>
+        oracleMachineControlLabel(phase as Parameters<typeof oracleMachineControlLabel>[0]),
+      ),
+    ).toEqual(['REVEAL', 'REVEAL', null, 'KEEP', null, null, null, null]);
+  });
+
+  it('derives one 014 presentation identity from the trial interval', () => {
+    expect(
+      oracleTrialIdentity({
+        baselineAt: '2026-07-01T12:00:00.000Z',
+        followUpAt: '2026-07-15T12:00:00.000Z',
+        accession: 'SPECIMEN 01',
+      }),
+    ).toEqual({
+      number: '014',
+      folio: 'FV–014',
+      firmware: 'TRIAL 014',
     });
   });
 });

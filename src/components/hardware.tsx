@@ -29,7 +29,8 @@ export function ScreenHeader({ code = 'FV–014', dark = false }: { code?: strin
       data-fv-part="screen-header"
     >
       <div className={headerStyles.brandBar} data-fv-part="brand-bar">
-        <strong>FACE VALUE</strong><span>{code}</span>
+        <strong>FACE VALUE</strong>
+        <span data-oracle-trial-identity>{code}</span>
       </div>
     </header>
   );

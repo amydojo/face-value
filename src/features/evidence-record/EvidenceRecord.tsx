@@ -1,8 +1,7 @@
 import type { EvidenceRecordData, ProductPlacement } from '../../domain/model';
+import { oracleTrialIdentityForRecord } from '../../domain/oracleTrialIdentity';
 import { ScreenHeader } from '../../components/hardware';
 import styles from '../../styles/FaceValue.module.css';
-
-const FOLIO_CODE = 'FV–014';
 
 const dateFormatter = new Intl.DateTimeFormat('en-US', {
   month: 'short',
@@ -68,15 +67,31 @@ const placementFor = (placement: ProductPlacement, uppercase = false) => {
 
 export function RecordFolio({ record }: { record: EvidenceRecordData }) {
   const observationWindow = observationWindowFor(record);
+  const identity = oracleTrialIdentityForRecord(record);
   return (
-    <div className={styles.recordFolio} data-fv-part="record-folio" aria-label={`Saved result ${record.id}`}>
-      <div data-fv-part="folio-tab">{FOLIO_CODE}</div>
-      <div data-fv-part="folio-specimen-field"><i aria-hidden="true" /><span aria-hidden="true" /></div>
+    <div
+      className={styles.recordFolio}
+      data-fv-part="record-folio"
+      aria-label={`Saved result ${record.id}`}
+    >
+      <div data-fv-part="folio-tab" data-oracle-trial-identity>
+        {identity.folio}
+      </div>
+      <div data-fv-part="folio-specimen-field">
+        <i aria-hidden="true" />
+        <span aria-hidden="true" />
+      </div>
       <strong>{record.product}</strong>
       <small>{observationWindow}</small>
-      <p>{record.finding}<br />{record.nonFinding}</p>
+      <p>
+        {record.finding}
+        <br />
+        {record.nonFinding}
+      </p>
       <em>{placementFor(record.finalPlacement, true)}</em>
-      <div data-fv-part="confidence-rail"><i /></div>
+      <div data-fv-part="confidence-rail">
+        <i />
+      </div>
       <b>{record.confidence.toUpperCase()}</b>
     </div>
   );
@@ -93,12 +108,20 @@ export function EvidenceRecord({
   onIndex: () => void;
   onBack: () => void;
 }) {
-  const anotherProduct = record.disturbance === 'none' || record.disturbance === 'returned_to_cooling'
-    ? 'No second product remained during the comparison'
-    : 'Two products shared this trial';
+  const identity = oracleTrialIdentityForRecord(record);
+  const anotherProduct =
+    record.disturbance === 'none' || record.disturbance === 'returned_to_cooling'
+      ? 'No second product remained during the comparison'
+      : 'Two products shared this trial';
   const rows = [
+    ['TRIAL', identity.folio],
     ['TRIAL WINDOW', observationWindowFor(record)],
-    ['COMPARISON', record.comparison === 'comparable' ? 'Comparable across two scans' : record.comparison.replaceAll('_', ' ')],
+    [
+      'COMPARISON',
+      record.comparison === 'comparable'
+        ? 'Comparable across two scans'
+        : record.comparison.replaceAll('_', ' '),
+    ],
     ['FINDING', record.finding],
     ['WHAT WAS NOT CONCLUDED', record.nonFinding],
     ['NOTE', record.note ?? 'No note added'],
@@ -110,12 +133,18 @@ export function EvidenceRecord({
 
   return (
     <>
-      <ScreenHeader />
-      <section className={styles.recordScreen} data-fv-screen="saved-result" aria-labelledby="saved-result-heading">
+      <ScreenHeader code={identity.folio} />
+      <section
+        className={styles.recordScreen}
+        data-fv-screen="saved-result"
+        aria-labelledby="saved-result-heading"
+      >
         <div className={styles.recordHeading} data-fv-part="record-heading">
-          <button type="button" className={styles.textButton} onClick={onBack}>←</button>
+          <button type="button" className={styles.textButton} onClick={onBack}>
+            ←
+          </button>
           <h1 id="saved-result-heading">SAVED RESULT</h1>
-          <span>{FOLIO_CODE}</span>
+          <span data-oracle-trial-identity>{identity.folio}</span>
         </div>
         <p>Saved to your evidence.</p>
         <div className={styles.recordOutputAssembly} aria-label="Preserved trial result">
@@ -130,12 +159,24 @@ export function EvidenceRecord({
             </div>
           ))}
         </dl>
-        <p className={styles.claimBoundary} data-fv-part="record-claim-boundary">{record.claimBoundary}</p>
-        <div className={styles.privacyBadge} data-fv-part="record-privacy">PRIVATE BY DEFAULT · FACE EXCLUDED</div>
-        <button type="button" className={styles.primaryAction} aria-label="View Past results" onClick={onArchive}>
-          <span>PAST RESULTS</span><span aria-hidden="true">→</span>
+        <p className={styles.claimBoundary} data-fv-part="record-claim-boundary">
+          {record.claimBoundary}
+        </p>
+        <div className={styles.privacyBadge} data-fv-part="record-privacy">
+          PRIVATE BY DEFAULT · FACE EXCLUDED
+        </div>
+        <button
+          type="button"
+          className={styles.primaryAction}
+          aria-label="View Past results"
+          onClick={onArchive}
+        >
+          <span>PAST RESULTS</span>
+          <span aria-hidden="true">→</span>
         </button>
-        <button type="button" className={styles.textButton} onClick={onIndex}>Your trials</button>
+        <button type="button" className={styles.textButton} onClick={onIndex}>
+          Your trials
+        </button>
       </section>
     </>
   );

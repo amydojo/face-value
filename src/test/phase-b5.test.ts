@@ -413,6 +413,7 @@ describe('Phase B.5 sealed result and atomic release', () => {
     expect(collected.record).toMatchObject({
       id: 'ER-202607151230',
       specimenId: collected.registeredProduct?.id,
+      accession: 'FV–014',
       product: 'Azelaic Topical Acid',
       productBrand: 'Naturium',
       finalPlacement: 'paused',

@@ -8,10 +8,7 @@ import {
   type PointerEvent as ReactPointerEvent,
   type RefObject,
 } from 'react';
-import {
-  browserHaptics,
-  type HapticsAdapter,
-} from '../../adapters/haptics/haptics';
+import { browserHaptics, type HapticsAdapter } from '../../adapters/haptics/haptics';
 import { specimenFromRegisteredProduct } from '../../adapters/product/specimenFromRegisteredProduct';
 import { systemClock } from '../../adapters/clock/clock';
 import { useFaceValue } from '../../app/faceValueContext';
@@ -23,12 +20,10 @@ import type {
   ProductPlacement,
   Specimen,
 } from '../../domain/model';
-import {
-  oracleMotionDuration,
-  type OracleRevealState,
-} from '../../domain/oracleRevealMachine';
+import { oracleMotionDuration, type OracleRevealState } from '../../domain/oracleRevealMachine';
+import { oracleTrialIdentity, type OracleTrialIdentity } from '../../domain/oracleTrialIdentity';
 import { formatRawScore } from '../../domain/youcamEvidence';
-import { oracleNextStep } from './oraclePresentation';
+import { oracleMachineControlLabel, oracleNextStep } from './oraclePresentation';
 import styles from './OracleRevealScene.module.css';
 
 const DRAG_INTENT_PX = 5;
@@ -89,22 +84,17 @@ const selectableNextSteps: Array<{
 ];
 
 function recordProduct(record: EvidenceRecordData): string {
-  return record.productBrand
-    ? `${record.productBrand} · ${record.product}`
-    : record.product;
-}
-
-function trialNumber(specimen: Specimen): string {
-  const digits = specimen.accession.replace(/\D/g, '');
-  return (digits || '14').slice(-3).padStart(3, '0');
+  return record.productBrand ? `${record.productBrand} · ${record.product}` : record.product;
 }
 
 function OraclePullHandle({
   active,
+  phase,
   product,
   onReveal,
 }: {
   active: boolean;
+  phase: OracleRevealState;
   product: string;
   onReveal: () => void;
 }) {
@@ -116,14 +106,13 @@ function OraclePullHandle({
     activated: boolean;
   } | null>(null);
   const suppressClickRef = useRef(false);
+  const controlLabel = oracleMachineControlLabel(phase);
 
   const activate = () => {
     if (active) onReveal();
   };
 
-  const releaseCapture = (
-    event: ReactPointerEvent<HTMLButtonElement>,
-  ) => {
+  const releaseCapture = (event: ReactPointerEvent<HTMLButtonElement>) => {
     if (
       typeof event.currentTarget.hasPointerCapture === 'function' &&
       event.currentTarget.hasPointerCapture(event.pointerId)
@@ -137,10 +126,18 @@ function OraclePullHandle({
       type="button"
       className={styles.pullHandle}
       data-oracle-handle
+      data-oracle-control-label={controlLabel ?? 'none'}
+      data-oracle-control-busy={['opening', 'committing', 'dispensing'].includes(phase)}
       disabled={!active}
       tabIndex={active ? 0 : -1}
       aria-hidden={!active}
-      aria-label={`Reveal sealed result for ${product}`}
+      aria-label={
+        controlLabel === 'KEEP'
+          ? 'Keep this result'
+          : controlLabel === 'REVEAL'
+            ? `Reveal sealed result for ${product}`
+            : undefined
+      }
       onClick={() => {
         if (suppressClickRef.current) {
           suppressClickRef.current = false;
@@ -164,27 +161,17 @@ function OraclePullHandle({
       }}
       onPointerMove={(event) => {
         const drag = dragRef.current;
-        if (
-          !drag ||
-          drag.pointerId !== event.pointerId ||
-          drag.activated
-        ) {
+        if (!drag || drag.pointerId !== event.pointerId || drag.activated) {
           return;
         }
         event.preventDefault();
         const distanceX = Math.abs(event.clientX - drag.startX);
         const distanceY = Math.abs(event.clientY - drag.startY);
-        if (
-          distanceX >= DRAG_INTENT_PX ||
-          distanceY >= DRAG_INTENT_PX
-        ) {
+        if (distanceX >= DRAG_INTENT_PX || distanceY >= DRAG_INTENT_PX) {
           drag.moved = true;
           suppressClickRef.current = true;
         }
-        if (
-          distanceX >= DRAG_ACTIVATION_PX &&
-          distanceX > distanceY
-        ) {
+        if (distanceX >= DRAG_ACTIVATION_PX && distanceX > distanceY) {
           drag.activated = true;
           activate();
         }
@@ -208,7 +195,7 @@ function OraclePullHandle({
     >
       <span aria-hidden="true">
         <i />
-        <b>REVEAL</b>
+        <b>{controlLabel}</b>
       </span>
     </button>
   );
@@ -216,49 +203,35 @@ function OraclePullHandle({
 
 function FirmwareDisplay({
   phase,
-  specimen,
+  trialIdentity,
   analysis,
   recommendation,
   onTransmissionComplete,
 }: {
   phase: OracleRevealState;
-  specimen: Specimen;
+  trialIdentity: OracleTrialIdentity;
   analysis: AnalysisResult;
   recommendation: string;
   onTransmissionComplete: () => void;
 }) {
-  const resolved = [
-    'verdict_revealed',
-    'committing',
-    'dispensing',
-    'collected',
-  ].includes(phase);
+  const resolved = ['verdict_revealed', 'committing', 'dispensing', 'collected'].includes(phase);
 
   return (
     <div
       className={styles.firmware}
       data-firmware-state={
-        phase === 'transmitting'
-          ? 'transmitting'
-          : resolved
-            ? 'resolved'
-            : 'off'
+        phase === 'transmitting' ? 'transmitting' : resolved ? 'resolved' : 'off'
       }
-      data-oracle-motion={
-        phase === 'transmitting' ? 'transmission' : undefined
-      }
+      data-oracle-motion={phase === 'transmitting' ? 'transmission' : undefined}
       onAnimationEnd={(event) => {
-        if (
-          phase === 'transmitting' &&
-          event.target === event.currentTarget
-        ) {
+        if (phase === 'transmitting' && event.target === event.currentTarget) {
           onTransmissionComplete();
         }
       }}
     >
       <header>
         <span>FACE VALUE</span>
-        <span>TRIAL {trialNumber(specimen)}</span>
+        <span data-oracle-trial-identity>{trialIdentity.firmware}</span>
       </header>
       <div className={styles.firmwareFinding}>
         <span>OBSERVED</span>
@@ -277,6 +250,7 @@ function FirmwareDisplay({
 
 function OracleEvidencePaper({
   record,
+  trialIdentity,
   recommendation,
   dispensed,
   collecting,
@@ -285,6 +259,7 @@ function OracleEvidencePaper({
   onCollected,
 }: {
   record: EvidenceRecordData;
+  trialIdentity: OracleTrialIdentity;
   recommendation: string;
   dispensed: boolean;
   collecting: boolean;
@@ -306,12 +281,12 @@ function OracleEvidencePaper({
       type="button"
       className={styles.paper}
       data-oracle-paper
-      data-paper-position={
-        collecting ? 'collecting' : dispensed ? 'final' : 'feeding'
-      }
+      data-paper-position={collecting ? 'collecting' : dispensed ? 'final' : 'feeding'}
       data-record-id={record.id}
       data-paper-coordinate-system="oracle-machine"
       data-paper-rotation="0"
+      data-paper-scale="1"
+      data-paper-horizontal-offset="0"
       disabled={!dispensed || collecting}
       tabIndex={dispensed && !collecting ? 0 : -1}
       aria-hidden={!dispensed}
@@ -326,7 +301,7 @@ function OracleEvidencePaper({
       <article aria-label={`${record.finding}. Next: ${recommendation}.`}>
         <header>
           <span>FACE VALUE</span>
-          <span>{record.id}</span>
+          <span data-oracle-trial-identity>{trialIdentity.folio}</span>
         </header>
         <section>
           <small>{recordProduct(record)}</small>
@@ -336,7 +311,10 @@ function OracleEvidencePaper({
         <footer>
           <span>NEXT</span>
           <strong>{recommendation}</strong>
-          <small>FACE EXCLUDED · PRIVATE BY DEFAULT</small>
+          <small>
+            <span data-oracle-trial-identity>{trialIdentity.folio}</span> · FACE EXCLUDED · PRIVATE
+            BY DEFAULT
+          </small>
         </footer>
       </article>
     </button>
@@ -346,6 +324,7 @@ function OracleEvidencePaper({
 function OracleMachine({
   phase,
   specimen,
+  trialIdentity,
   analysis,
   record,
   recommendation,
@@ -362,6 +341,7 @@ function OracleMachine({
 }: {
   phase: OracleRevealState;
   specimen: Specimen;
+  trialIdentity: OracleTrialIdentity;
   analysis: AnalysisResult;
   record: EvidenceRecordData | null;
   recommendation: string;
@@ -406,22 +386,16 @@ function OracleMachine({
     >
       <div className={styles.chassis} data-oracle-chassis>
         <div className={styles.carbonTexture} aria-hidden="true" />
-        <div
-          className={styles.displayBezel}
-          data-oracle-display-opening
-        >
+        <div className={styles.displayBezel} data-oracle-display-opening>
           <div className={styles.displayGlass}>
-            <div
-              className={styles.specimenSilhouette}
-              aria-hidden="true"
-            >
+            <div className={styles.specimenSilhouette} aria-hidden="true">
               <i />
               <span />
             </div>
             {displayOn && (
               <FirmwareDisplay
                 phase={phase}
-                specimen={specimen}
+                trialIdentity={trialIdentity}
                 analysis={analysis}
                 recommendation={recommendation}
                 onTransmissionComplete={onTransmissionComplete}
@@ -432,15 +406,16 @@ function OracleMachine({
                 <span />
               </div>
             )}
+            <div
+              className={styles.glassReflection}
+              data-oracle-glass-reflection
+              aria-hidden="true"
+            />
           </div>
         </div>
 
         <div className={styles.lowerDeck}>
-          <div
-            className={styles.slotAssembly}
-            data-oracle-slot
-            aria-hidden="true"
-          >
+          <div className={styles.slotAssembly} data-oracle-slot aria-hidden="true">
             <i className={styles.slotSeam} />
             <span className={styles.rollerLeft} />
             <span className={styles.rollerRight} />
@@ -462,6 +437,7 @@ function OracleMachine({
           </button>
           <OraclePullHandle
             active={phase === 'sealed'}
+            phase={phase}
             product={specimen.product}
             onReveal={onReveal}
           />
@@ -495,37 +471,40 @@ function OracleMachine({
       </div>
 
       <div
-        className={styles.paperCoordinate}
+        className={styles.evidencePath}
+        data-oracle-evidence-path
         data-paper-axis="vertical"
+        data-paper-coordinate-system="oracle-machine"
       >
-        {record &&
-          (phase === 'committing' || phase === 'dispensing') && (
-            <OracleEvidencePaper
-              record={record}
-              recommendation={recommendation}
-              dispensed={evidenceDispensed}
-              collecting={collectionStarted}
-              onDispensed={onDispensed}
-              onCollect={onCollect}
-              onCollected={onCollected}
-            />
-          )}
+        {record && (phase === 'committing' || phase === 'dispensing') && (
+          <OracleEvidencePaper
+            record={record}
+            trialIdentity={trialIdentity}
+            recommendation={recommendation}
+            dispensed={evidenceDispensed}
+            collecting={collectionStarted}
+            onDispensed={onDispensed}
+            onCollect={onCollect}
+            onCollected={onCollected}
+          />
+        )}
       </div>
-      <div className={styles.exitOcclusion} aria-hidden="true" />
+      <div className={styles.slotLip} data-oracle-slot-lip aria-hidden="true" />
     </section>
   );
 }
 
 function EvidenceDetail({
   record,
+  trialIdentity,
   recommendation,
 }: {
   record: EvidenceRecordData;
+  trialIdentity: OracleTrialIdentity;
   recommendation: string;
 }) {
   const scoreSummary =
-    typeof record.baselineRawScore === 'number' &&
-    typeof record.followUpRawScore === 'number'
+    typeof record.baselineRawScore === 'number' && typeof record.followUpRawScore === 'number'
       ? `${formatRawScore(record.baselineRawScore)} → ${formatRawScore(record.followUpRawScore)}`
       : 'Raw scores unavailable';
   const context = [
@@ -547,6 +526,10 @@ function EvidenceDetail({
     >
       <h3 id="oracle-evidence-detail-heading">EVIDENCE DETAIL</h3>
       <dl>
+        <div>
+          <dt>TRIAL</dt>
+          <dd data-oracle-trial-identity>{trialIdentity.folio}</dd>
+        </div>
         <div>
           <dt>OBSERVED</dt>
           <dd>{record.finding}</dd>
@@ -581,16 +564,10 @@ function EvidenceDetail({
 }
 
 function focusAfterClose(ref: RefObject<HTMLButtonElement | null>) {
-  window.requestAnimationFrame(() =>
-    ref.current?.focus({ preventScroll: true }),
-  );
+  window.requestAnimationFrame(() => ref.current?.focus({ preventScroll: true }));
 }
 
-export function OracleRevealScene({
-  haptics = browserHaptics,
-}: {
-  haptics?: HapticsAdapter;
-}) {
+export function OracleRevealScene({ haptics = browserHaptics }: { haptics?: HapticsAdapter }) {
   const { state, dispatch } = useFaceValue();
   const [whyOpen, setWhyOpen] = useState(false);
   const [choicesOpen, setChoicesOpen] = useState(false);
@@ -601,17 +578,26 @@ export function OracleRevealScene({
   const detailRef = useRef<HTMLButtonElement>(null);
 
   const specimen = useMemo(
-    () =>
-      state.registeredProduct
-        ? specimenFromRegisteredProduct(state.registeredProduct)
-        : null,
+    () => (state.registeredProduct ? specimenFromRegisteredProduct(state.registeredProduct) : null),
     [state.registeredProduct],
   );
   const recommendation = oracleNextStep(state.placement);
-  const pendingRecord = useMemo(
-    () => state.record ?? createOracleEvidenceRecord(state),
-    [state],
+  const trialIdentity = useMemo(
+    () =>
+      oracleTrialIdentity({
+        baselineAt: state.baselineLockedAt ?? state.baselineCapture?.createdAt,
+        followUpAt: state.followUpEligibleAt ?? state.followupCapture?.createdAt,
+        accession: state.registeredProduct?.accession,
+      }),
+    [
+      state.baselineCapture?.createdAt,
+      state.baselineLockedAt,
+      state.followUpEligibleAt,
+      state.followupCapture?.createdAt,
+      state.registeredProduct?.accession,
+    ],
   );
+  const pendingRecord = useMemo(() => state.record ?? createOracleEvidenceRecord(state), [state]);
   const phase = state.oracleRevealState;
 
   useEffect(() => {
@@ -673,8 +659,7 @@ export function OracleRevealScene({
     haptics.confirm();
   };
 
-  const collectedRecord =
-    phase === 'collected' ? state.record : null;
+  const collectedRecord = phase === 'collected' ? state.record : null;
   const headline =
     phase === 'collected'
       ? 'Evidence recorded.'
@@ -686,7 +671,7 @@ export function OracleRevealScene({
 
   return (
     <>
-      <ScreenHeader dark />
+      <ScreenHeader code={trialIdentity.folio} dark />
       <section
         className={styles.scene}
         data-fv-screen="oracle-reveal"
@@ -717,38 +702,24 @@ export function OracleRevealScene({
         <OracleMachine
           phase={phase}
           specimen={specimen}
+          trialIdentity={trialIdentity}
           analysis={state.analysis}
           record={pendingRecord}
           recommendation={recommendation}
           evidenceDispensed={state.oracleEvidenceDispensed}
           collectionStarted={state.oracleCollectionStarted}
           onReveal={reveal}
-          onOpeningComplete={() =>
-            dispatch({ type: 'REVEAL_PULL_COMPLETED' })
-          }
-          onTransmissionComplete={() =>
-            dispatch({ type: 'TRANSMISSION_COMPLETED' })
-          }
+          onOpeningComplete={() => dispatch({ type: 'REVEAL_PULL_COMPLETED' })}
+          onTransmissionComplete={() => dispatch({ type: 'TRANSMISSION_COMPLETED' })}
           onKeep={keep}
-          onCommitComplete={() =>
-            dispatch({ type: 'DISPENSE_STARTED' })
-          }
-          onDispensed={() =>
-            dispatch({ type: 'EVIDENCE_DISPENSED' })
-          }
-          onCollect={() =>
-            dispatch({ type: 'EVIDENCE_COLLECTION_STARTED' })
-          }
-          onCollected={() =>
-            dispatch({ type: 'EVIDENCE_COLLECTED' })
-          }
+          onCommitComplete={() => dispatch({ type: 'DISPENSE_STARTED' })}
+          onDispensed={() => dispatch({ type: 'EVIDENCE_DISPENSED' })}
+          onCollect={() => dispatch({ type: 'EVIDENCE_COLLECTION_STARTED' })}
+          onCollected={() => dispatch({ type: 'EVIDENCE_COLLECTED' })}
         />
 
         {phase === 'verdict_revealed' && (
-          <section
-            className={styles.verdictActions}
-            aria-label="Oracle recommendation"
-          >
+          <section className={styles.verdictActions} aria-label="Oracle recommendation">
             <p>{state.analysis.nonFinding}</p>
             <button
               type="button"
@@ -770,11 +741,7 @@ export function OracleRevealScene({
               <span>SEE WHY</span>
               <span aria-hidden="true">{whyOpen ? '−' : '+'}</span>
             </button>
-            <div
-              id="oracle-why"
-              className={styles.whyPanel}
-              hidden={!whyOpen}
-            >
+            <div id="oracle-why" className={styles.whyPanel} hidden={!whyOpen}>
               <dl>
                 <div>
                   <dt>CONFIDENCE</dt>
@@ -843,11 +810,7 @@ export function OracleRevealScene({
             data-collection-started={state.oracleCollectionStarted}
             role="status"
           >
-            <p>
-              {state.oracleEvidenceDispensed
-                ? 'EVIDENCE PRODUCED'
-                : 'PRODUCING EVIDENCE'}
-            </p>
+            <p>{state.oracleEvidenceDispensed ? 'EVIDENCE PRODUCED' : 'PRODUCING EVIDENCE'}</p>
             <strong>
               {state.oracleEvidenceDispensed
                 ? 'Take your record.'
@@ -859,6 +822,9 @@ export function OracleRevealScene({
         {phase === 'collected' && collectedRecord && (
           <section className={styles.completion}>
             <p>EVIDENCE RECORDED</p>
+            <small className={styles.completionIdentity} data-oracle-trial-identity>
+              {trialIdentity.folio}
+            </small>
             <h2>{recordProduct(collectedRecord)}</h2>
             <strong>{collectedRecord.finding}</strong>
             <span>{recommendation}</span>
@@ -885,6 +851,7 @@ export function OracleRevealScene({
               {detailOpen && (
                 <EvidenceDetail
                   record={collectedRecord}
+                  trialIdentity={trialIdentity}
                   recommendation={recommendation}
                 />
               )}
