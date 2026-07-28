@@ -4,19 +4,27 @@ import { systemClock } from '../adapters/clock/clock';
 import { useFaceValue } from '../app/faceValueContext';
 import { EvidenceShell, ScreenHeader } from '../components/hardware';
 import {
+  FOLLOW_UP_INTERVAL_DAYS,
   createRegisteredProduct,
   emptyCaptureContext,
   followUpIsEligible,
   trialDaySummary,
 } from '../domain/phaseB5';
-import { oracleTrialIdentityForRecord } from '../domain/oracleTrialIdentity';
+import {
+  oracleTrialIdentity,
+  oracleTrialIdentityForRecord,
+} from '../domain/oracleTrialIdentity';
 import styles from '../styles/FaceValue.module.css';
 import { Archive } from './archive/Archive';
 import { CaptureContextSurface } from './capture-context/CaptureContextSurface';
 import { CameraViewport } from './capture-contract/CameraViewport';
 import { evidenceRecordDisclosureStateForDemo } from './demo-lab/evidenceRecordDemoAdapter';
 import { EvidenceRecord } from './evidence-record/EvidenceRecord';
-import { LatestVerdictCassette, OracleRevealScene } from './oracle-reveal/OracleRevealScene';
+import {
+  ContinuityProjection,
+  LatestVerdictCassette,
+  OracleRevealScene,
+} from './oracle-reveal/OracleRevealScene';
 import { ProductRegistration } from './product-registration/ProductRegistration';
 
 const localDateFormatter = new Intl.DateTimeFormat(undefined, {
@@ -33,6 +41,98 @@ const formatLocalDate = (value: string | null): string => {
     ? 'after your baseline interval'
     : localDateFormatter.format(date);
 };
+
+const readTrialNow = (fixtureNow: string | null): string =>
+  fixtureNow ?? systemClock.now();
+
+function TrialTimeline({
+  day,
+  intervalDays,
+  eligible,
+}: {
+  day: number;
+  intervalDays: number;
+  eligible: boolean;
+}) {
+  const paddedDay = String(day).padStart(2, '0');
+  const paddedInterval = String(intervalDays).padStart(2, '0');
+
+  return (
+    <div
+      className={styles.trialTimeline}
+      data-trial-timeline
+      data-followup-state={eligible ? 'ready' : 'pending'}
+      role="list"
+      aria-label="Trial timeline"
+    >
+      <i className={styles.timelineRail} aria-hidden="true" />
+      <div
+        className={styles.timelinePoint}
+        data-timeline-position="baseline"
+        data-timeline-state="complete"
+        role="listitem"
+        aria-label="Baseline captured"
+      >
+        <i className={styles.timelineMarker} aria-hidden="true">
+          ✓
+        </i>
+        <span>BASELINE</span>
+        <strong>CAPTURED</strong>
+      </div>
+      <div
+        className={styles.timelinePoint}
+        data-timeline-position="today"
+        data-timeline-state={eligible ? 'complete' : 'current'}
+        role="listitem"
+        aria-label={`Today, day ${day}`}
+      >
+        <i className={styles.timelineMarker} aria-hidden="true" />
+        <span>TODAY</span>
+        <strong>DAY {paddedDay}</strong>
+      </div>
+      <div
+        className={styles.timelinePoint}
+        data-timeline-position="followup"
+        data-timeline-state={eligible ? 'current' : 'future'}
+        role="listitem"
+        aria-label={
+          eligible
+            ? 'Follow-up ready'
+            : `Follow-up scheduled for day ${intervalDays}`
+        }
+      >
+        <i className={styles.timelineMarker} aria-hidden="true" />
+        <span>FOLLOW-UP</span>
+        <strong>{eligible ? 'READY' : `DAY ${paddedInterval}`}</strong>
+      </div>
+    </div>
+  );
+}
+
+function FollowUpActionContents({
+  eligible,
+  daysRemaining,
+}: {
+  eligible: boolean;
+  daysRemaining: number;
+}) {
+  return (
+    <>
+      <i className={styles.followUpAccent} aria-hidden="true" />
+      <span className={styles.followUpActionCopy}>
+        <small>{eligible ? 'FOLLOW-UP READY' : 'FOLLOW-UP SCAN'}</small>
+        <strong>
+          {eligible
+            ? 'TAKE FOLLOW-UP SCAN'
+            : `IN ${daysRemaining} DAY${daysRemaining === 1 ? '' : 'S'}`}
+        </strong>
+      </span>
+      <i className={styles.followUpArrow} aria-hidden="true">
+        →
+      </i>
+    </>
+  );
+}
 
 export function FaceValueApplication() {
   const { state, dispatch, demoRuntime } = useFaceValue();
@@ -106,13 +206,14 @@ export function FaceValueApplication() {
     const check = () =>
       dispatch({
         type: 'CHECK_FOLLOWUP_ELIGIBILITY',
-        now: systemClock.now(),
+        now: readTrialNow(demoRuntime.fixtureNow),
       });
     check();
     const interval = window.setInterval(check, 60_000);
     return () => window.clearInterval(interval);
   }, [
     dispatch,
+    demoRuntime.fixtureNow,
     state.longitudinalEvidence.baseline,
     state.longitudinalEvidence.followUp,
     state.stage,
@@ -127,7 +228,7 @@ export function FaceValueApplication() {
       ['active_stable', 'active_disturbed', 'waiting', 'review_due'].includes(state.observation) &&
       !state.placementSealed,
     );
-    const now = systemClock.now();
+    const now = readTrialNow(demoRuntime.fixtureNow);
     const eligible = followUpIsEligible({
       followUpEligibleAt: state.followUpEligibleAt,
       demoTimelineAdvanced: state.demoTimelineAdvanced,
@@ -137,65 +238,110 @@ export function FaceValueApplication() {
       hasActiveTrial && state.baselineLockedAt && state.followUpEligibleAt
         ? trialDaySummary(state.baselineLockedAt, state.followUpEligibleAt, now)
         : null;
+    const intervalDays =
+      summary?.intervalDays ??
+      state.registeredProduct?.expectedObservationWindowDays?.minimum ??
+      FOLLOW_UP_INTERVAL_DAYS;
+    const day = summary?.day ?? (eligible ? intervalDays : 1);
+    const daysRemaining = eligible ? 0 : (summary?.daysRemaining ?? intervalDays);
+    const activeIdentity =
+      hasActiveTrial && state.registeredProduct
+        ? oracleTrialIdentity({
+            baselineAt:
+              state.baselineLockedAt ?? state.longitudinalEvidence.baseline?.capturedAt,
+            followUpAt: state.followUpEligibleAt,
+            accession: state.registeredProduct.accession,
+          })
+        : null;
+
+    if (hasActiveTrial && state.registeredProduct) {
+      return (
+        <>
+          <ScreenHeader code={activeIdentity?.folio} dark continuity />
+          <section
+            className={styles.trialContinuityScreen}
+            data-fv-screen={eligible ? 'followup-ready' : 'trial-pending'}
+            data-home-state="active"
+            aria-labelledby="trial-index-heading"
+          >
+            <h1 id="trial-index-heading" className={styles.srOnly} data-stage-focus tabIndex={-1}>
+              Your trials
+            </h1>
+            <p className={styles.continuityTrialStatus} data-continuity-status>
+              {eligible ? 'FOLLOW-UP READY' : 'TRIAL IN PROGRESS'}
+            </p>
+
+            <ContinuityProjection
+              projection={eligible ? 'followup-ready' : 'trial-pending'}
+              product={state.registeredProduct}
+              day={day}
+              intervalDays={intervalDays}
+            />
+
+            <TrialTimeline day={day} intervalDays={intervalDays} eligible={eligible} />
+
+            {eligible ? (
+              <button
+                type="button"
+                className={styles.followUpActionRail}
+                data-followup-action="ready"
+                aria-label="Take follow-up scan"
+                onClick={() =>
+                  dispatch({
+                    type: 'BEGIN_CAPTURE',
+                    kind: 'followup',
+                    now: readTrialNow(demoRuntime.fixtureNow),
+                  })
+                }
+              >
+                <FollowUpActionContents eligible daysRemaining={0} />
+              </button>
+            ) : (
+              <div
+                className={styles.followUpActionRail}
+                data-followup-action="pending"
+                role="status"
+                aria-label={`Follow-up scan available in ${daysRemaining} day${
+                  daysRemaining === 1 ? '' : 's'
+                }`}
+              >
+                <FollowUpActionContents eligible={false} daysRemaining={daysRemaining} />
+              </div>
+            )}
+
+            <button
+              type="button"
+              className={`${styles.previousTrialsRow} ${styles.continuityPreviousTrialsRow}`}
+              data-continuity-previous-trials
+              aria-label={`Previous trials, ${state.archive.length} saved result${
+                state.archive.length === 1 ? '' : 's'
+              }`}
+              onClick={() => dispatch({ type: 'VIEW_ARCHIVE' })}
+            >
+              <span>PREVIOUS TRIALS</span>
+              <span>
+                <b>{state.archive.length}</b>
+                <i aria-hidden="true">→</i>
+              </span>
+            </button>
+          </section>
+        </>
+      );
+    }
 
     return (
       <>
         <ScreenHeader code={latestIdentity?.folio} dark />
         <section
           className={`${styles.indexScreen} ${styles.homeScreen}`}
-          data-fv-screen={eligible && hasActiveTrial ? 'followup-ready' : 'trials'}
-          data-home-state={hasActiveTrial ? 'active' : 'idle'}
+          data-fv-screen="trials"
+          data-home-state="idle"
           aria-labelledby="trial-index-heading"
         >
           <h1 id="trial-index-heading" className={styles.srOnly} data-stage-focus tabIndex={-1}>
             Your trials
           </h1>
-          <p className={styles.homeStatus}>
-            {eligible && hasActiveTrial
-              ? 'FOLLOW-UP READY'
-              : hasActiveTrial
-                ? 'TRIAL IN PROGRESS'
-                : 'NO TRIAL IN PROGRESS'}
-          </p>
-
-          {hasActiveTrial && state.registeredProduct && (
-            <article
-              className={styles.trialCard}
-              aria-label={`Active trial for ${state.registeredProduct.brand} ${state.registeredProduct.productName}`}
-            >
-              <p>{state.registeredProduct.brand}</p>
-              <h2>{state.registeredProduct.productName}</h2>
-              {state.registeredProduct.strength && <p>{state.registeredProduct.strength}</p>}
-              <dl>
-                <div>
-                  <dt>ITS JOB</dt>
-                  <dd>REDUCE VISIBLE REDNESS</dd>
-                </div>
-                <div>
-                  <dt>STATUS</dt>
-                  <dd>
-                    {eligible
-                      ? 'FOLLOW-UP READY'
-                      : summary
-                        ? `DAY ${summary.day} OF ${summary.intervalDays}`
-                        : 'TRIAL ACTIVE'}
-                  </dd>
-                </div>
-              </dl>
-              <p className={styles.trialCountdown}>
-                {eligible
-                  ? 'Let’s see what changed.'
-                  : summary
-                    ? `FOLLOW-UP IN ${summary.daysRemaining} DAY${summary.daysRemaining === 1 ? '' : 'S'}`
-                    : `FOLLOW-UP READY ${formatLocalDate(state.followUpEligibleAt)}`}
-              </p>
-              {state.demoTimelineAdvanced && (
-                <p className={styles.demoMarker}>
-                  DEMO TIMELINE ADVANCED · BASELINE DATE UNCHANGED
-                </p>
-              )}
-            </article>
-          )}
+          <p className={styles.homeStatus}>NO TRIAL IN PROGRESS</p>
 
           {latestEvidence && (
             <section className={styles.latestVerdict} aria-label="Latest verdict">
@@ -206,33 +352,14 @@ export function FaceValueApplication() {
             </section>
           )}
 
-          {!hasActiveTrial && (
-            <button
-              type="button"
-              className={styles.homePrimaryAction}
-              onClick={() => dispatch({ type: 'START_PRODUCT_REGISTRATION' })}
-            >
-              <span>START A NEW TRIAL</span>
-              <span aria-hidden="true">→</span>
-            </button>
-          )}
-
-          {eligible && hasActiveTrial && (
-            <button
-              type="button"
-              className={styles.homePrimaryAction}
-              onClick={() =>
-                dispatch({
-                  type: 'BEGIN_CAPTURE',
-                  kind: 'followup',
-                  now: systemClock.now(),
-                })
-              }
-            >
-              <span>TAKE FOLLOW-UP</span>
-              <span aria-hidden="true">→</span>
-            </button>
-          )}
+          <button
+            type="button"
+            className={styles.homePrimaryAction}
+            onClick={() => dispatch({ type: 'START_PRODUCT_REGISTRATION' })}
+          >
+            <span>START A NEW TRIAL</span>
+            <span aria-hidden="true">→</span>
+          </button>
 
           <button
             type="button"
@@ -255,41 +382,37 @@ export function FaceValueApplication() {
     switch (state.stage) {
       case 'welcome':
         return (
-          <section className={styles.welcome} data-fv-screen="welcome">
-            <div>
-              <p className={styles.eyebrow}>ONE PRODUCT · ONE JOB · ONE HONEST RESULT</p>
-              <h1 data-stage-focus tabIndex={-1}>
+          <>
+            <ScreenHeader continuity />
+            <section className={styles.welcomeContinuity} data-fv-screen="welcome">
+              <p className={styles.welcomeContinuityEyebrow}>
+                ONE PRODUCT · ONE JOB · ONE HONEST RESULT
+              </p>
+              <h1 className={styles.welcomeContinuityTitle} data-stage-focus tabIndex={-1}>
                 Is your skincare actually doing anything?
               </h1>
-              <p>
-                Put one product on trial. Face Value compares repeat scans and tells you whether it
-                is earning its place.
+              <p className={styles.welcomeContinuityCopy}>
+                Put one product on trial. Compare repeat scans.
+                <br />
+                Get one honest result.
               </p>
-            </div>
-            <div className={styles.welcomeSpecimen} aria-hidden="true">
-              <span />
-              <strong>FACE VALUE</strong>
-              <small>ONE HONEST TRIAL</small>
-            </div>
-            <button
-              className={styles.primaryAction}
-              type="button"
-              onClick={() => dispatch({ type: 'START_PRODUCT_REGISTRATION' })}
-            >
-              <span>START A PRODUCT TRIAL</span>
-              <span aria-hidden="true">→</span>
-            </button>
-            <button
-              type="button"
-              className={styles.textButton}
-              onClick={() => dispatch({ type: 'OPEN_CABINET' })}
-            >
-              Your trials
-            </button>
-            <div className={styles.privacyBadge}>
-              PRIVATE BY DEFAULT · FACE IMAGES STAY IN MEMORY
-            </div>
-          </section>
+              <button
+                className={styles.welcomeContinuityAction}
+                type="button"
+                data-welcome-action
+                onClick={() => dispatch({ type: 'START_PRODUCT_REGISTRATION' })}
+              >
+                <span>START A PRODUCT TRIAL</span>
+                <span aria-hidden="true">→</span>
+              </button>
+              <div className={styles.welcomeContinuityMachine}>
+                <ContinuityProjection projection="empty" />
+              </div>
+              <footer className={styles.welcomeContinuityPrivacy} data-welcome-privacy>
+                PRIVATE BY DEFAULT · FACE IMAGES STAY IN MEMORY
+              </footer>
+            </section>
+          </>
         );
 
       case 'product_registration':

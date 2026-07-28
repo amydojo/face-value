@@ -20,6 +20,7 @@ import {
 } from '../adapters/persistence/localObservationStore';
 import { FaceValueContext } from '../app/faceValueContext';
 import { canonicalRednessFixtures, evaluateRedness } from '../domain/evidence/redness';
+import { followUpIsEligible } from '../domain/phaseB5';
 import { DemoLab } from '../features/demo-lab/DemoLab';
 import { buildDemoFixtureState } from '../features/demo-lab/demoFixtureState';
 import { demoLabAccessEnabled } from '../features/demo-lab/demoLabAccess';
@@ -179,6 +180,32 @@ describe('Demo Lab persistence modes', () => {
     expect(secondLoad?.state.registeredProduct?.productName).toBe('One Thing Redness Trial');
   });
 
+  it('keeps the trial_pending fixture ineligible and timing-stable after reload', () => {
+    const state = buildDemoFixtureState('trial_pending', 'early_favorable_change');
+    if (!state.baselineLockedAt) throw new Error('Expected a deterministic fixture clock.');
+
+    saveDemoJourney({
+      mode: 'journey',
+      startingPoint: 'trial_pending',
+      resultFixture: 'early_favorable_change',
+      state,
+    });
+    const firstLoad = loadDemoJourney();
+    const secondLoad = loadDemoJourney();
+
+    expect(firstLoad).toEqual(secondLoad);
+    expect(secondLoad?.startingPoint).toBe('trial_pending');
+    expect(secondLoad?.state.stage).toBe('waiting_for_followup');
+    expect(secondLoad?.state.demoTimelineAdvanced).toBe(false);
+    expect(
+      followUpIsEligible({
+        followUpEligibleAt: secondLoad?.state.followUpEligibleAt ?? null,
+        demoTimelineAdvanced: secondLoad?.state.demoTimelineAdvanced ?? false,
+        now: state.baselineLockedAt,
+      }),
+    ).toBe(false);
+  });
+
   it('clears demo data without removing ordinary saved trials', () => {
     const ordinaryState = buildDemoFixtureState('home_saved_result', 'no_clear_change');
     saveStructuredDemoData(ordinaryState);
@@ -276,6 +303,7 @@ describe('Demo Lab controls and production-screen reuse', () => {
               mode: 'preview',
               startingPoint,
               resultFixture: 'clear_favorable_change',
+              fixtureNow: null,
             },
           }}
         >

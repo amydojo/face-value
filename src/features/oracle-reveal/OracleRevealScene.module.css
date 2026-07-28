@@ -589,6 +589,452 @@
   box-shadow: 0 3px 5px rgba(0, 0, 0, 0.72);
 }
 
+.continuityMachine {
+  --oracle-amber: #ff7900;
+  width: min(330px, calc(100% - 20px));
+  aspect-ratio: 330 / 405.4286;
+}
+
+.continuityMachine .chassis {
+  height: 100%;
+  border-color: #2b2b29;
+  border-radius: 26.4px;
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.035), transparent 24%),
+    #0e0f0e;
+  box-shadow:
+    0 16.971px 28.286px rgba(0, 0, 0, 0.3),
+    inset 0 0.943px rgba(255, 255, 255, 0.06);
+}
+
+.continuityMachine .carbonTexture {
+  opacity: 0.2;
+  background-size: 6px 6px;
+}
+
+.continuityMachine .displayBezel {
+  top: 4.185%;
+  left: 5.143%;
+  width: 89.714%;
+  height: 58.14%;
+  padding: 0;
+  border-color: #33332e;
+  border-radius: 19.8px;
+  background: #060706;
+  box-shadow:
+    0 5.657px 13.2px rgba(0, 0, 0, 0.32),
+    inset 0 0.943px 1.886px rgba(255, 255, 255, 0.05);
+}
+
+.continuityMachine .displayGlass {
+  border: 0;
+  border-radius: inherit;
+  background: #060706;
+  box-shadow: none;
+}
+
+.continuityMachine .displayGlass::after {
+  opacity: 0.44;
+}
+
+.continuityMachine .glassReflection {
+  opacity: 0.035;
+}
+
+.continuityMachine .lowerDeck {
+  top: 66.278%;
+  left: 5.143%;
+  bottom: auto;
+  width: 89.714%;
+  height: 29.302%;
+  border-color: #2e2e2b;
+  border-radius: 17.914px;
+  background: #0b0c0b;
+  box-shadow: inset 0 0.943px rgba(255, 255, 255, 0.035);
+}
+
+.continuityMachine .slotAssembly {
+  top: 23.81%;
+  left: 11.784%;
+  width: 66.878%;
+  height: 13.492%;
+}
+
+.continuityMachine .slotSeam {
+  top: 47.06%;
+  height: 0.943px;
+  background: #3b3b36;
+  box-shadow: none;
+}
+
+.continuityMachine .rollerLeft,
+.continuityMachine .rollerRight {
+  display: none;
+}
+
+.continuityMachine .guideLeft,
+.continuityMachine .guideRight {
+  top: 0;
+  height: 100%;
+  background: #757369;
+}
+
+.continuityMachine .guideLeft {
+  left: 0;
+}
+
+.continuityMachine .guideRight {
+  right: 0;
+}
+
+.continuityMachine .amberControl {
+  top: 21.431%;
+  right: 2.865%;
+  width: 18.469%;
+  min-width: 0;
+  height: 46.033%;
+  min-height: 0;
+  border-color: #4b4235;
+  background: #17130e;
+}
+
+.continuityMachine .amberControl:disabled {
+  opacity: 1;
+}
+
+.continuityMachine .amberControl span {
+  inset: 22.414%;
+}
+
+.continuityMachine .amberControl[data-amber-state='idle'] span {
+  background: #683611;
+  box-shadow: inset 0 0 0 1px rgba(255, 210, 145, 0.08);
+}
+
+.continuityMachine .amberControl[data-amber-state='pending'] span {
+  background: #f87512;
+  box-shadow:
+    inset 0 1px rgba(255, 237, 203, 0.28),
+    0 0 13px rgba(248, 117, 18, 0.24);
+}
+
+.continuityMachine .amberControl[data-amber-state='followup-ready'] {
+  border-color: #75532d;
+}
+
+.continuityMachine .amberControl[data-amber-state='followup-ready'] span {
+  background: var(--oracle-amber);
+  box-shadow:
+    inset 0 1px rgba(255, 244, 222, 0.4),
+    0 0 19px rgba(255, 121, 0, 0.42);
+}
+
+.continuityMachine .pullHandle {
+  top: 52.381%;
+  right: auto;
+  bottom: auto;
+  left: 25.793%;
+  width: 52.865%;
+  min-width: 0;
+  height: 33.333%;
+  min-height: 0;
+}
+
+.continuityMachine .pullHandle:disabled {
+  opacity: 1;
+}
+
+.continuityMachine .pullHandle > span {
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border-color: #30302e;
+  border-radius: 9.429px;
+  background: #121312;
+  box-shadow: none;
+}
+
+.continuityMachine .pullHandle i {
+  width: 59.036%;
+  height: 9.524%;
+  background: #383833;
+}
+
+.continuityMachine .pullHandle b {
+  display: none;
+}
+
+.continuityMachine .bottomRail {
+  bottom: -5px;
+  opacity: 0.62;
+}
+
+.continuityMachine .evidencePath,
+.continuityMachine .slotLip {
+  display: none;
+}
+
+.emptyContinuityDisplay,
+.loadedContinuityDisplay {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  color: #edebe0;
+}
+
+.continuityState {
+  position: absolute;
+  top: 10.8%;
+  left: 7.325%;
+  width: 70%;
+  height: 18.857px;
+  margin: 0;
+  color: #a8a699;
+  font: 500 10.371px/15.086px var(--fv-font-mono);
+  letter-spacing: 0.66px;
+  text-transform: uppercase;
+}
+
+.emptySpecimen {
+  position: absolute;
+  top: 21.198%;
+  left: 40.442%;
+  width: 18.471%;
+  height: 36.8%;
+  overflow: hidden;
+  border-radius: 9.429px;
+  background: #333029;
+  opacity: 0.28;
+}
+
+.emptySpecimen i,
+.emptySpecimen span {
+  position: absolute;
+  display: block;
+}
+
+.emptySpecimen i {
+  top: 0;
+  left: 20.69%;
+  width: 58.62%;
+  height: 21.739%;
+  border-radius: 7.543px;
+  background: #4a453b;
+}
+
+.emptySpecimen span {
+  top: 16.304%;
+  left: 8.62%;
+  width: 82.76%;
+  height: 83.696%;
+  border-radius: 9.429px;
+  background: #3d3830;
+}
+
+.emptyPedestal,
+.loadedPedestal {
+  position: absolute;
+  display: block;
+  border-radius: 50%;
+  background: radial-gradient(ellipse, #2f2f2b 0 54%, rgba(47, 47, 43, 0) 57%);
+}
+
+.emptyPedestal {
+  top: 53.994%;
+  left: 31.847%;
+  width: 35.669%;
+  height: 7.199%;
+}
+
+.emptyDisplayRule,
+.continuityDisplayRule {
+  position: absolute;
+  display: block;
+  height: 0.943px;
+  background: #383833;
+  opacity: 0.9;
+}
+
+.emptyDisplayRule {
+  top: 60.397%;
+  left: 7.325%;
+  width: 84.713%;
+}
+
+.emptyInstruction {
+  position: absolute;
+  top: 70.001%;
+  left: 7.325%;
+  width: 79.617%;
+  height: 18.857px;
+  margin: 0;
+  color: #b2b0a3;
+  font: 400 12.257px/17.914px var(--fv-font-sans);
+}
+
+.loadedContinuityDisplay .continuityState {
+  top: 9.201%;
+  color: #ed7512;
+}
+
+.continuityDisplayRule {
+  top: 30.8%;
+  left: 7.325%;
+  width: 54.141%;
+}
+
+.loadedProduct,
+.loadedJob {
+  position: absolute;
+  left: 7.325%;
+  width: 57.3%;
+  text-transform: uppercase;
+}
+
+.loadedProduct {
+  top: 36.4%;
+}
+
+.loadedProduct > span,
+.loadedJob > span {
+  display: block;
+  height: 13.2px;
+  color: #8c8a80;
+  font: 500 8.486px/13.2px var(--fv-font-mono);
+  letter-spacing: 0.566px;
+}
+
+.loadedProduct strong {
+  display: grid;
+  margin-top: 4.71px;
+  color: #edebe0;
+  font: 600 15.086px/17.914px var(--fv-font-sans);
+  letter-spacing: 0.094px;
+}
+
+.loadedProduct strong b {
+  font: inherit;
+  overflow-wrap: anywhere;
+}
+
+.loadedProductCompact strong {
+  font-size: 12.4px;
+  line-height: 14.2px;
+}
+
+.loadedJob {
+  top: 65.201%;
+}
+
+.loadedJob strong {
+  display: block;
+  margin-top: 3.771px;
+  color: #edebe0;
+  font: 500 11.314px/16.029px var(--fv-font-mono);
+  letter-spacing: 0.283px;
+}
+
+.loadedDay {
+  position: absolute;
+  top: 86.799%;
+  left: 7.325%;
+  width: 41.4%;
+  height: 18.857px;
+  margin: 0;
+  color: #ed7512;
+  font: 500 9.429px/14.143px var(--fv-font-mono);
+  letter-spacing: 0.754px;
+  white-space: nowrap;
+}
+
+.loadedSpecimen {
+  position: absolute;
+  top: 24.398%;
+  left: 69.747%;
+  width: 18.471%;
+  height: 52.8%;
+  overflow: hidden;
+  border-radius: 13.2px;
+  background: #21201c;
+  box-shadow: 0 7.543px 11.314px rgba(0, 0, 0, 0.45);
+}
+
+.loadedSpecimenCap,
+.loadedSpecimenCollar,
+.loadedSpecimenBody,
+.loadedSpecimenLabel {
+  position: absolute;
+  display: block;
+}
+
+.loadedSpecimenCap {
+  top: 0;
+  left: 10.345%;
+  width: 79.31%;
+  height: 25.758%;
+  border-radius: 11.314px;
+  background: #33302b;
+}
+
+.loadedSpecimenCollar {
+  top: 21.212%;
+  left: 6.897%;
+  width: 86.207%;
+  height: 6.061%;
+  border-radius: 1.886px;
+  background: #141413;
+}
+
+.loadedSpecimenBody {
+  top: 25.758%;
+  left: 8.621%;
+  width: 82.759%;
+  height: 74.242%;
+  border-radius: 9.429px;
+  background: #2b2924;
+}
+
+.loadedSpecimenLabel {
+  top: 43.939%;
+  left: 17.241%;
+  width: 65.517%;
+  height: 36.364%;
+  padding: 5.657px 3.771px 2px;
+  overflow: hidden;
+  border-radius: 3.771px;
+  color: #141311;
+  background: #b8b09c;
+  font-style: normal;
+}
+
+.loadedSpecimenLabel small,
+.loadedSpecimenLabel b,
+.loadedSpecimenLabel em {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  font-style: normal;
+  white-space: nowrap;
+}
+
+.loadedSpecimenLabel small {
+  font: 500 4.714px/6.6px var(--fv-font-mono);
+  letter-spacing: 0.471px;
+}
+
+.loadedSpecimenLabel b,
+.loadedSpecimenLabel em {
+  font: 500 6.6px/8.486px var(--fv-font-sans);
+}
+
+.loadedPedestal {
+  top: 78.798%;
+  left: 64.965%;
+  width: 26.752%;
+  height: 5.6%;
+}
+
 .openingMechanism,
 .commitMechanism {
   position: absolute;

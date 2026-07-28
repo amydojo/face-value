@@ -163,16 +163,16 @@ for (const scenario of cases) {
 
     await page.getByRole('button', { name: 'DONE' }).click();
     await expect(page.getByRole('heading', { name: 'Your trials' })).toBeVisible();
-    await expect(page.getByText(/DAY 1 OF 14/)).toBeVisible();
-    await expect(page.getByText(/FOLLOW-UP IN 14 DAYS/)).toBeVisible();
-    await expect(page.getByRole('button', { name: 'TAKE FOLLOW-UP' })).toHaveCount(0);
+    await expect(page.getByText('DAY 01 OF 14')).toBeVisible();
+    await expect(page.getByText('IN 14 DAYS')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Take follow-up scan' })).toHaveCount(0);
     await assertNoHorizontalOverflow(page);
 
     await page.reload();
     await expect(page.getByRole('heading', { name: 'Your trials' })).toBeVisible();
     await expect(page.getByText('Naturium', { exact: true })).toBeVisible();
     await expect(page.getByText('Azelaic Topical Acid', { exact: true })).toBeVisible();
-    await expect(page.getByRole('button', { name: 'TAKE FOLLOW-UP' })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Take follow-up scan' })).toHaveCount(0);
 
     await page.evaluate((key) => {
       const raw = localStorage.getItem(key);
@@ -185,8 +185,8 @@ for (const scenario of cases) {
     }, STORAGE_KEY);
     await page.reload();
     await expect(page.getByText('FOLLOW-UP READY').first()).toBeVisible();
-    await expect(page.getByRole('button', { name: 'TAKE FOLLOW-UP' })).toBeVisible();
-    await expect(page.getByText('DEMO TIMELINE ADVANCED · BASELINE DATE UNCHANGED')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Take follow-up scan' })).toBeVisible();
+    await expect(page.getByText('READY', { exact: true })).toBeVisible();
 
     const advancedStorage = await page.evaluate((key) => {
       return localStorage.getItem(key);
@@ -195,7 +195,7 @@ for (const scenario of cases) {
     expect(advancedStorage).toContain(JSON.parse(baselineStorage!).baselineLockedAt);
     assertFaceFreeStorage(advancedStorage);
 
-    await page.getByRole('button', { name: 'TAKE FOLLOW-UP' }).click();
+    await page.getByRole('button', { name: 'Take follow-up scan' }).click();
     await takeGuidedCapture(page, 'followup');
     await expect(
       page.getByRole('heading', {

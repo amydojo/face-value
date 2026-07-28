@@ -22,10 +22,20 @@ export function EvidenceShell({
   );
 }
 
-export function ScreenHeader({ code = 'FV–014', dark = false }: { code?: string; dark?: boolean }) {
+export function ScreenHeader({
+  code = 'FV–014',
+  dark = false,
+  continuity = false,
+}: {
+  code?: string;
+  dark?: boolean;
+  continuity?: boolean;
+}) {
   return (
     <header
-      className={`${headerStyles.header} ${dark ? headerStyles.dark : ''}`}
+      className={`${headerStyles.header} ${dark ? headerStyles.dark : ''} ${
+        continuity ? headerStyles.continuity : ''
+      }`}
       data-fv-part="screen-header"
     >
       <div className={headerStyles.brandBar} data-fv-part="brand-bar">

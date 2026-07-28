@@ -73,18 +73,21 @@ it('hands the file fallback off immediately without preview approval', async () 
   expect(onDelete).not.toHaveBeenCalled();
 });
 
-it('moves focus to Your trials and removes duplicate action jargon', async () => {
-  const user = userEvent.setup();
+it('moves focus to the first-run headline and removes duplicate action jargon', async () => {
   render(
     <FaceValueProvider>
       <StageFocusManager />
       <FaceValueApplication />
     </FaceValueProvider>,
   );
-  await user.click(screen.getByRole('button', { name: 'Your trials' }));
   await waitFor(() => {
-    expect(screen.getByRole('heading', { name: 'Your trials' })).toHaveFocus();
+    expect(
+      screen.getByRole('heading', {
+        name: 'Is your skincare actually doing anything?',
+      }),
+    ).toHaveFocus();
   });
+  expect(screen.queryByRole('button', { name: 'Your trials' })).not.toBeInTheDocument();
   expect(screen.queryByText('9:41')).not.toBeInTheDocument();
   expect(document.querySelector('[data-fv-part="status-bar"]')).toBeNull();
   expect(document.body).not.toHaveTextContent(/NEXT VALID ACTION|INSPECT CASSETTE|EVIDENCE INDEX/i);

@@ -6,6 +6,7 @@ import {
   type AnimationEvent,
   type CSSProperties,
   type PointerEvent as ReactPointerEvent,
+  type ReactNode,
   type RefObject,
 } from 'react';
 import { browserHaptics, type HapticsAdapter } from '../../adapters/haptics/haptics';
@@ -14,7 +15,11 @@ import { systemClock } from '../../adapters/clock/clock';
 import { useFaceValue } from '../../app/faceValueContext';
 import { createOracleEvidenceRecord } from '../../app/phaseBMachine';
 import { ScreenHeader } from '../../components/hardware';
-import type { EvidenceRecordData, ProductPlacement } from '../../domain/model';
+import type {
+  EvidenceRecordData,
+  ProductPlacement,
+  RegisteredProduct,
+} from '../../domain/model';
 import { oracleMotionDuration, type OracleRevealState } from '../../domain/oracleRevealMachine';
 import {
   oracleTrialIdentity,
@@ -389,6 +394,274 @@ function LatestVerdictPaper({
   );
 }
 
+type CanonicalMachineProjection =
+  | 'empty'
+  | 'trial-pending'
+  | 'followup-ready'
+  | 'verdict'
+  | 'latest-verdict';
+
+type CanonicalAmberState =
+  | 'idle'
+  | 'pending'
+  | 'followup-ready'
+  | 'transmitting'
+  | 'ready'
+  | 'committed'
+  | 'dispensing'
+  | 'complete'
+  | 'latest';
+
+function CanonicalMachineShell({
+  className = '',
+  phase,
+  projection,
+  variant,
+  cassetteState,
+  ariaLabel,
+  displayContent,
+  evidenceContent,
+  showSpecimenSilhouette = true,
+  showSealedOptics = false,
+  amberState,
+  amberAction,
+  handleActive = false,
+  handleProduct = 'Face Value product',
+  motionEnabled = false,
+  onReveal = () => undefined,
+  onOpeningComplete = () => undefined,
+  onCommitComplete = () => undefined,
+}: {
+  className?: string;
+  phase: OracleRevealState;
+  projection: CanonicalMachineProjection;
+  variant: 'reveal' | 'latest-verdict' | 'continuity';
+  cassetteState: string;
+  ariaLabel: string;
+  displayContent?: ReactNode;
+  evidenceContent?: ReactNode;
+  showSpecimenSilhouette?: boolean;
+  showSealedOptics?: boolean;
+  amberState: CanonicalAmberState;
+  amberAction?: {
+    label: string;
+    onActivate: () => void;
+  };
+  handleActive?: boolean;
+  handleProduct?: string;
+  motionEnabled?: boolean;
+  onReveal?: () => void;
+  onOpeningComplete?: () => void;
+  onCommitComplete?: () => void;
+}) {
+  return (
+    <section
+      className={`${styles.machine} ${className}`.trim()}
+      style={oracleTimingProperties}
+      data-oracle-machine
+      data-oracle-state={phase}
+      data-cassette-variant={variant}
+      data-cassette-state={cassetteState}
+      data-machine-projection={projection}
+      data-machine-shell="canonical"
+      data-machine-material="carbon"
+      data-machine-instance="face-value-oracle"
+      aria-label={ariaLabel}
+    >
+      <div className={styles.chassis} data-oracle-chassis data-machine-chassis="canonical">
+        <div className={styles.carbonTexture} aria-hidden="true" />
+        <div className={styles.displayBezel} data-oracle-display-opening>
+          <div className={styles.displayGlass} data-machine-smart-glass>
+            {showSpecimenSilhouette && (
+              <div className={styles.specimenSilhouette} aria-hidden="true">
+                <i />
+                <span />
+              </div>
+            )}
+            {displayContent}
+            {showSealedOptics && (
+              <div className={styles.sealedOptics} aria-hidden="true">
+                <span />
+              </div>
+            )}
+            <div
+              className={styles.glassReflection}
+              data-oracle-glass-reflection
+              aria-hidden="true"
+            />
+          </div>
+        </div>
+
+        <div className={styles.lowerDeck} data-machine-lower-deck>
+          <div className={styles.slotAssembly} data-oracle-slot aria-hidden="true">
+            <i className={styles.slotSeam} />
+            <span className={styles.rollerLeft} />
+            <span className={styles.rollerRight} />
+            <b className={styles.guideLeft} />
+            <b className={styles.guideRight} />
+          </div>
+          <button
+            type="button"
+            className={styles.amberControl}
+            data-amber-state={amberState}
+            data-machine-amber-control
+            data-oracle-keep-action={amberAction ? 'hardware' : undefined}
+            aria-label={amberAction?.label}
+            aria-hidden={!amberAction}
+            tabIndex={amberAction ? 0 : -1}
+            disabled={!amberAction}
+            onClick={amberAction?.onActivate}
+          >
+            <span aria-hidden="true" />
+          </button>
+          <OraclePullHandle
+            active={handleActive}
+            phase={phase}
+            product={handleProduct}
+            onReveal={onReveal}
+          />
+          <div className={styles.bottomRail} data-machine-bottom-rail aria-hidden="true" />
+        </div>
+
+        {motionEnabled && phase === 'opening' && (
+          <div
+            className={styles.openingMechanism}
+            data-oracle-motion="opening"
+            aria-hidden="true"
+            onAnimationEnd={(event) => {
+              if (event.target === event.currentTarget) {
+                onOpeningComplete();
+              }
+            }}
+          />
+        )}
+        {motionEnabled && phase === 'committing' && (
+          <div
+            className={styles.commitMechanism}
+            data-oracle-motion="commit"
+            aria-hidden="true"
+            onAnimationEnd={(event) => {
+              if (event.target === event.currentTarget) {
+                onCommitComplete();
+              }
+            }}
+          />
+        )}
+      </div>
+
+      <div
+        className={styles.evidencePath}
+        data-oracle-evidence-path
+        data-paper-axis="vertical"
+        data-paper-coordinate-system="oracle-machine"
+      >
+        {evidenceContent}
+      </div>
+      <div className={styles.slotLip} data-oracle-slot-lip aria-hidden="true" />
+    </section>
+  );
+}
+
+const compactSpecimenLabel = (value: string, maximumLength: number): string => {
+  const firstWord = value.trim().split(/\s+/)[0] ?? '';
+  return firstWord.slice(0, maximumLength).toUpperCase();
+};
+
+export type ContinuityProjectionProps =
+  | {
+      projection: 'empty';
+    }
+  | {
+      projection: 'trial-pending' | 'followup-ready';
+      product: RegisteredProduct;
+      day: number;
+      intervalDays: number;
+    };
+
+export function ContinuityProjection(props: ContinuityProjectionProps) {
+  const loaded = props.projection !== 'empty';
+  const product = loaded ? props.product : null;
+  const specimen = product ? specimenFromRegisteredProduct(product) : null;
+  const displayContent =
+    product && specimen && loaded ? (
+      <div className={styles.loadedContinuityDisplay}>
+        <p className={styles.continuityState}>SPECIMEN LOADED</p>
+        <i className={styles.continuityDisplayRule} aria-hidden="true" />
+        <div
+          className={`${styles.loadedProduct} ${
+            product.brand.length + product.productName.length > 34
+              ? styles.loadedProductCompact
+              : ''
+          }`}
+        >
+          <span>PRODUCT</span>
+          <strong>
+            <b>{product.brand}</b>
+            <b>{product.productName}</b>
+          </strong>
+        </div>
+        <div className={styles.loadedJob}>
+          <span>JOB</span>
+          <strong>{product.assignedJob}</strong>
+        </div>
+        <p className={styles.loadedDay}>
+          DAY {String(props.day).padStart(2, '0')} OF{' '}
+          {String(props.intervalDays).padStart(2, '0')}
+        </p>
+        <div
+          className={styles.loadedSpecimen}
+          data-registered-specimen-projection={specimen.id}
+          aria-hidden="true"
+        >
+          <i className={styles.loadedSpecimenCap} />
+          <i className={styles.loadedSpecimenCollar} />
+          <i className={styles.loadedSpecimenBody} />
+          <span className={styles.loadedSpecimenLabel}>
+            <small>{compactSpecimenLabel(specimen.brand, 8)}</small>
+            <b>{compactSpecimenLabel(specimen.product, 8)}</b>
+            {product.strength && <em>{product.strength.toUpperCase()}</em>}
+          </span>
+        </div>
+        <i className={styles.loadedPedestal} aria-hidden="true" />
+      </div>
+    ) : (
+      <div className={styles.emptyContinuityDisplay}>
+        <p className={styles.continuityState}>NO TRIAL LOADED</p>
+        <div className={styles.emptySpecimen} aria-hidden="true">
+          <i />
+          <span />
+        </div>
+        <i className={styles.emptyPedestal} aria-hidden="true" />
+        <i className={styles.emptyDisplayRule} aria-hidden="true" />
+        <p className={styles.emptyInstruction}>Insert one product to begin.</p>
+      </div>
+    );
+
+  return (
+    <CanonicalMachineShell
+      className={styles.continuityMachine}
+      phase="collected"
+      projection={props.projection}
+      variant="continuity"
+      cassetteState={props.projection}
+      ariaLabel={
+        product
+          ? `${props.projection === 'followup-ready' ? 'Follow-up ready' : 'Trial pending'} for ${product.brand} ${product.productName}. Specimen loaded.`
+          : 'Dormant Face Value machine. No trial loaded. Insert one product to begin.'
+      }
+      displayContent={displayContent}
+      showSpecimenSilhouette={false}
+      amberState={
+        props.projection === 'followup-ready'
+          ? 'followup-ready'
+          : props.projection === 'trial-pending'
+            ? 'pending'
+            : 'idle'
+      }
+    />
+  );
+}
+
 function OracleMachine({
   variant = 'reveal',
   phase,
@@ -440,135 +713,71 @@ function OracleMachine({
               ? 'transmitting'
               : 'idle';
 
+  const displayContent = (
+    <>
+      {displayOn && !latestVerdict && (
+        <FirmwareDisplay
+          phase={phase}
+          trialIdentity={trialIdentity}
+          viewModel={viewModel}
+          onTransmissionComplete={onTransmissionComplete}
+        />
+      )}
+      {latestVerdict && <LatestVerdictDisplay viewModel={viewModel} />}
+    </>
+  );
+  const evidenceContent = (
+    <>
+      {latestVerdict && record && (
+        <LatestVerdictPaper record={record} viewModel={viewModel} onViewTrial={onViewTrial} />
+      )}
+      {!latestVerdict && record && (phase === 'committing' || phase === 'dispensing') && (
+        <OracleEvidencePaper
+          record={record}
+          viewModel={viewModel}
+          dispensed={evidenceDispensed}
+          collecting={collectionStarted}
+          onDispensed={onDispensed}
+          onCollect={onCollect}
+          onCollected={onCollected}
+        />
+      )}
+    </>
+  );
+
   return (
-    <section
-      className={`${styles.machine} ${latestVerdict ? styles.latestMachine : ''}`}
-      style={oracleTimingProperties}
-      data-oracle-machine
-      data-oracle-state={phase}
-      data-cassette-variant={variant}
-      data-cassette-state={latestVerdict ? 'partially-revealed' : phase}
-      data-machine-material="carbon"
-      data-machine-instance="face-value-oracle"
-      aria-label={
+    <CanonicalMachineShell
+      className={latestVerdict ? styles.latestMachine : ''}
+      phase={phase}
+      projection={latestVerdict ? 'latest-verdict' : 'verdict'}
+      variant={variant}
+      cassetteState={latestVerdict ? 'partially-revealed' : phase}
+      ariaLabel={
         latestVerdict
           ? `Latest verdict cassette for ${verdictProduct(viewModel)}. ${viewModel.headline}`
           : phase === 'sealed' || phase === 'opening'
             ? 'Sealed Face Value result cassette. Result content is unavailable until reveal.'
             : `Face Value result cassette. ${viewModel.headline}`
       }
-    >
-      <div className={styles.chassis} data-oracle-chassis>
-        <div className={styles.carbonTexture} aria-hidden="true" />
-        <div className={styles.displayBezel} data-oracle-display-opening>
-          <div className={styles.displayGlass}>
-            <div className={styles.specimenSilhouette} aria-hidden="true">
-              <i />
-              <span />
-            </div>
-            {displayOn && !latestVerdict && (
-              <FirmwareDisplay
-                phase={phase}
-                trialIdentity={trialIdentity}
-                viewModel={viewModel}
-                onTransmissionComplete={onTransmissionComplete}
-              />
-            )}
-            {latestVerdict && <LatestVerdictDisplay viewModel={viewModel} />}
-            {!displayOn && !latestVerdict && (
-              <div className={styles.sealedOptics} aria-hidden="true">
-                <span />
-              </div>
-            )}
-            <div
-              className={styles.glassReflection}
-              data-oracle-glass-reflection
-              aria-hidden="true"
-            />
-          </div>
-        </div>
-
-        <div className={styles.lowerDeck}>
-          <div className={styles.slotAssembly} data-oracle-slot aria-hidden="true">
-            <i className={styles.slotSeam} />
-            <span className={styles.rollerLeft} />
-            <span className={styles.rollerRight} />
-            <b className={styles.guideLeft} />
-            <b className={styles.guideRight} />
-          </div>
-          <button
-            type="button"
-            className={styles.amberControl}
-            data-amber-state={amberState}
-            data-oracle-keep-action={!latestVerdict ? 'hardware' : undefined}
-            aria-label={
-              !latestVerdict && phase === 'verdict_revealed' ? 'Keep this result' : undefined
+      displayContent={displayContent}
+      evidenceContent={evidenceContent}
+      showSealedOptics={!displayOn && !latestVerdict}
+      amberState={amberState}
+      amberAction={
+        !latestVerdict && phase === 'verdict_revealed'
+          ? {
+              label: 'Keep this result',
+              onActivate: onKeep,
             }
-            aria-hidden={latestVerdict || phase !== 'verdict_revealed'}
-            tabIndex={!latestVerdict && phase === 'verdict_revealed' ? 0 : -1}
-            disabled={latestVerdict || phase !== 'verdict_revealed'}
-            onClick={onKeep}
-          >
-            <span aria-hidden="true" />
-          </button>
-          <OraclePullHandle
-            active={!latestVerdict && phase === 'sealed'}
-            phase={phase}
-            product={viewModel.productName}
-            onReveal={onReveal}
-          />
-          <div className={styles.bottomRail} aria-hidden="true" />
-        </div>
-
-        {!latestVerdict && phase === 'opening' && (
-          <div
-            className={styles.openingMechanism}
-            data-oracle-motion="opening"
-            aria-hidden="true"
-            onAnimationEnd={(event) => {
-              if (event.target === event.currentTarget) {
-                onOpeningComplete();
-              }
-            }}
-          />
-        )}
-        {!latestVerdict && phase === 'committing' && (
-          <div
-            className={styles.commitMechanism}
-            data-oracle-motion="commit"
-            aria-hidden="true"
-            onAnimationEnd={(event) => {
-              if (event.target === event.currentTarget) {
-                onCommitComplete();
-              }
-            }}
-          />
-        )}
-      </div>
-
-      <div
-        className={styles.evidencePath}
-        data-oracle-evidence-path
-        data-paper-axis="vertical"
-        data-paper-coordinate-system="oracle-machine"
-      >
-        {latestVerdict && record && (
-          <LatestVerdictPaper record={record} viewModel={viewModel} onViewTrial={onViewTrial} />
-        )}
-        {!latestVerdict && record && (phase === 'committing' || phase === 'dispensing') && (
-          <OracleEvidencePaper
-            record={record}
-            viewModel={viewModel}
-            dispensed={evidenceDispensed}
-            collecting={collectionStarted}
-            onDispensed={onDispensed}
-            onCollect={onCollect}
-            onCollected={onCollected}
-          />
-        )}
-      </div>
-      <div className={styles.slotLip} data-oracle-slot-lip aria-hidden="true" />
-    </section>
+          : undefined
+      }
+      handleActive={!latestVerdict && phase === 'sealed'}
+      handleProduct={viewModel.productName}
+      motionEnabled={!latestVerdict}
+      onReveal={onReveal}
+      onOpeningComplete={onOpeningComplete}
+      onCommitComplete={onCommitComplete}
+    />
   );
 }
 
