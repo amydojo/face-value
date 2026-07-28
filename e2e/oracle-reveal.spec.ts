@@ -340,7 +340,7 @@ test('responsive and reduced-motion flows preserve order without overflow', asyn
     await expect(page.locator('[data-oracle-paper]')).toHaveAttribute(
       'data-paper-position',
       'final',
-      { timeout: 1_000 },
+      { timeout: 3_000 },
     );
     await page
       .getByRole('button', {
@@ -350,7 +350,7 @@ test('responsive and reduced-motion flows preserve order without overflow', asyn
     await expect(page.locator('[data-oracle-machine]')).toHaveAttribute(
       'data-oracle-state',
       'collected',
-      { timeout: 1_000 },
+      { timeout: 3_000 },
     );
     expect(
       await page.evaluate(

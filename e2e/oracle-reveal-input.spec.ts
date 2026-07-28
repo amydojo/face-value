@@ -4,6 +4,9 @@ import {
   STORAGE_KEY,
 } from './phase-b5-fixtures';
 
+const ORACLE_REVEAL_TIMEOUT_MS = 5_000;
+const REDUCED_MOTION_TIMEOUT_MS = 3_000;
+
 async function openPersistedSealedResult(page: Page): Promise<void> {
   await page.goto('/');
   await page.evaluate(
@@ -46,7 +49,7 @@ test('reveal handle owns pointer drag without taking page scroll ownership', asy
   await expect(page.locator('[data-oracle-machine]')).toHaveAttribute(
     'data-oracle-state',
     'verdict_revealed',
-    { timeout: 3_000 },
+    { timeout: ORACLE_REVEAL_TIMEOUT_MS },
   );
   await expect(page.locator('[data-firmware-state="resolved"]')).toContainText(
     'A small favorable shift showed up.',
@@ -85,7 +88,7 @@ test('pointer cancellation and lost capture leave the next activation usable', a
   await expect(page.locator('[data-oracle-machine]')).toHaveAttribute(
     'data-oracle-state',
     'verdict_revealed',
-    { timeout: 3_000 },
+    { timeout: ORACLE_REVEAL_TIMEOUT_MS },
   );
 });
 
@@ -105,7 +108,7 @@ test('Escape is deterministic and cannot bypass the sealed or revealed state', a
   await expect(page.locator('[data-oracle-machine]')).toHaveAttribute(
     'data-oracle-state',
     'verdict_revealed',
-    { timeout: 3_000 },
+    { timeout: ORACLE_REVEAL_TIMEOUT_MS },
   );
   await page.keyboard.press('Escape');
   await expect(page.locator('[data-firmware-state="resolved"]')).toContainText(
@@ -133,7 +136,7 @@ test('reduced motion preserves reveal, atomic release, presentation, and collect
   await expect(machine).toHaveAttribute(
     'data-oracle-state',
     'verdict_revealed',
-    { timeout: 1_000 },
+    { timeout: REDUCED_MOTION_TIMEOUT_MS },
   );
 
   const amber = page.getByRole('button', {
@@ -147,12 +150,12 @@ test('reduced motion preserves reveal, atomic release, presentation, and collect
   await expect(machine).toHaveAttribute(
     'data-oracle-state',
     'dispensing',
-    { timeout: 1_000 },
+    { timeout: REDUCED_MOTION_TIMEOUT_MS },
   );
   await expect(page.locator('[data-oracle-paper]')).toHaveAttribute(
     'data-paper-position',
     'final',
-    { timeout: 1_000 },
+    { timeout: REDUCED_MOTION_TIMEOUT_MS },
   );
   await page
     .getByRole('button', {

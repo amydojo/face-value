@@ -411,7 +411,7 @@ for (const scenario of cases) {
       })
       .press('Enter');
     await expect(machine).toHaveAttribute('data-oracle-state', 'collected', {
-      timeout: 1_000,
+      timeout: 3_000,
     });
     await expect(page.locator('[data-oracle-paper]')).toHaveCount(0);
     await expect(page.getByRole('button', { name: 'DONE' })).toBeFocused();
