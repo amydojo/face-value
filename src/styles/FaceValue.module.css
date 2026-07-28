@@ -402,6 +402,38 @@ p {
   padding: 20px 0;
 }
 
+.emptyTrials > p {
+  margin: 0;
+  color: var(--fv-text-muted);
+}
+
+.latestEvidence {
+  display: grid;
+  gap: 7px;
+  padding: 18px;
+  border: 1px solid var(--fv-rule-default);
+  border-radius: 10px;
+  background: var(--fv-surface-paper);
+}
+
+.latestEvidence p,
+.latestEvidence span {
+  margin: 0;
+  color: var(--fv-text-muted);
+  font: 650 9px var(--fv-font-mono);
+  letter-spacing: 0.045em;
+}
+
+.latestEvidence h2 {
+  font-size: 20px;
+}
+
+.latestEvidence strong {
+  font-size: 13px;
+  font-weight: 520;
+  line-height: 1.4;
+}
+
 .contextDefault,
 .contextOptions label {
   min-height: 52px;

@@ -280,12 +280,11 @@ for (const scenario of cases) {
       '93.34',
       '100.00',
     ];
-    const sealedHtml = await page
-      .locator('[data-fv-screen="result-sealed"]')
-      .innerHTML();
-    const sealedAria = await page
-      .locator('[data-fv-screen="result-sealed"]')
-      .ariaSnapshot();
+    const oracleScene = page.locator('[data-fv-screen="oracle-reveal"]');
+    const machine = page.locator('[data-oracle-machine]');
+    const machineNode = await machine.elementHandle();
+    const sealedHtml = await oracleScene.innerHTML();
+    const sealedAria = await oracleScene.ariaSnapshot();
     for (const forbidden of forbiddenResultText) {
       expect(sealedHtml).not.toContain(forbidden);
       expect(sealedAria).not.toContain(forbidden);
@@ -298,36 +297,42 @@ for (const scenario of cases) {
     );
 
     const reveal = page.getByRole('button', {
-      name: /Reveal result for Azelaic Topical Acid/i,
+      name: /Reveal sealed result for Azelaic Topical Acid/i,
     });
     await reveal.press('Enter');
-    await expect(
-      page.getByRole('heading', {
-        name: 'A small favorable shift showed up.',
-      }),
-    ).toBeVisible({ timeout: 2_000 });
-    await expect(
-      page.getByText(
-        'Visible redness moved in the intended direction.',
+    await expect(machine).toHaveAttribute(
+      'data-oracle-state',
+      'verdict_revealed',
+      // WebKit may defer animation events on a constrained CI runner.
+      // This changes only the assertion budget; product motion still uses the
+      // centralized oracle timing contract (1 ms in reduced-motion mode).
+      { timeout: scenario.reducedMotion ? 3_000 : 15_000 },
+    );
+    expect(
+      await machineNode?.evaluate(
+        (original) =>
+          original === document.querySelector('[data-oracle-machine]'),
       ),
-    ).toBeVisible();
+    ).toBe(true);
     await expect(
-      page.getByText(
-        'This prototype cannot yet tell whether the shift is larger than normal scan variation.',
-      ),
-    ).toBeVisible();
+      page.locator('[data-firmware-state="resolved"]'),
+    ).toContainText('A small favorable shift showed up.');
     await expect(
-      page.getByRole('heading', { name: 'TEST LONGER' }),
+      page.getByLabel('Oracle recommendation').locator(':scope > p'),
     ).toBeVisible();
+    await expect(page.locator('[data-firmware-state="resolved"]')).toContainText(
+      'TEST LONGER',
+    );
     await expect(
-      page.locator('[data-fv-screen="result-revealed"]'),
-    ).toHaveAttribute('data-fv-selected-placement', 'paused');
+      page.locator('[data-oracle-keep-action="text"]'),
+    ).toBeVisible();
     await expect(
       page.getByRole('button', {
-        name: /accept recommended next step/i,
+        name: 'Keep this result',
+        exact: true,
       }),
-    ).toHaveCount(0);
-    await expect(page.getByText(/P1 · Paused/i)).toBeHidden();
+    ).toBeVisible();
+    await expect(page.getByText(/P1 · Test longer/i)).toBeHidden();
     await assertNoHorizontalOverflow(page);
     await saveScreenshot(
       page,
@@ -337,45 +342,94 @@ for (const scenario of cases) {
     );
 
     await page.getByRole('button', { name: 'SEE WHY' }).click();
-    await expect(page.getByText('93.34')).toBeVisible();
-    await expect(page.getByText('100.00')).toBeVisible();
     await expect(
-      page.getByText(/YouCam Skin Analysis v2.1 · calibration pending/i),
+      page.getByText(
+        'This prototype cannot yet tell whether the shift is larger than normal scan variation.',
+      ),
     ).toBeVisible();
 
-    const machine = page.locator('[data-evidence-machine]');
-    await expect(machine).toHaveAttribute(
-      'data-primary-action-owner',
-      'machine',
-    );
     const amber = page.getByRole('button', {
-      name: 'Press amber to keep this evidence',
+      name: 'Keep this result',
+      exact: true,
     });
     await amber.evaluate((element) => {
       (element as HTMLButtonElement).click();
       (element as HTMLButtonElement).click();
     });
     await expect(machine).toHaveAttribute(
-      'data-release-state',
-      'record-presented',
+      'data-oracle-state',
+      'dispensing',
       { timeout: scenario.reducedMotion ? 1_000 : 2_000 },
-    );
-    await expect(machine).toHaveAttribute(
-      'data-primary-action-owner',
-      'artifact',
     );
     await expect(
       page.getByRole('button', {
-        name: 'Press amber to keep this evidence',
+        name: 'Keep this result',
+        exact: true,
       }),
     ).toHaveCount(0);
+    const paper = page.locator('[data-oracle-paper]');
     await expect(
-      page.locator('[data-evidence-record-artifact]'),
-    ).toHaveCount(1);
-    const recordId = await page
-      .locator('[data-evidence-record-artifact]')
-      .getAttribute('data-record-id');
+      paper,
+    ).toHaveAttribute('data-paper-position', 'final', {
+      timeout: scenario.reducedMotion ? 1_000 : 2_000,
+    });
+    await expect(paper).toHaveAttribute(
+      'data-paper-coordinate-system',
+      'oracle-machine',
+    );
+    await expect(paper).toHaveAttribute('data-paper-rotation', '0');
+    const recordId = await paper.getAttribute('data-record-id');
     expect(recordId).toBeTruthy();
+
+    const uncollectedStorage = await page.evaluate((key) => {
+      return localStorage.getItem(key);
+    }, STORAGE_KEY);
+    const uncollectedData = JSON.parse(uncollectedStorage!) as {
+      archive: Array<{ id: string; demoOriginated?: boolean }>;
+      record: { id: string; demoOriginated?: boolean } | null;
+    };
+    expect(uncollectedData.archive).toHaveLength(0);
+    expect(uncollectedData.record).toBeNull();
+    assertFaceFreeStorage(uncollectedStorage);
+    await saveScreenshot(
+      page,
+      testInfo,
+      scenario.captureEvidence,
+      'phase-b5-evidence-dispensed',
+    );
+
+    await page.reload();
+    await expect(machine).toHaveAttribute(
+      'data-oracle-state',
+      'dispensing',
+    );
+    await expect(paper).toHaveAttribute('data-record-id', recordId!);
+
+    await page
+      .getByRole('button', {
+        name: /Evidence record for Naturium · Azelaic Topical Acid/i,
+      })
+      .press('Enter');
+    await expect(machine).toHaveAttribute('data-oracle-state', 'collected', {
+      timeout: 3_000,
+    });
+    await expect(page.locator('[data-oracle-paper]')).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'DONE' })).toBeFocused();
+    await expect(
+      page.getByRole('button', { name: 'DONE' }),
+    ).toHaveCount(1);
+    await page.getByRole('button', { name: 'VIEW EVIDENCE' }).click();
+    await expect(
+      page.getByRole('heading', { name: 'EVIDENCE DETAIL' }),
+    ).toBeVisible();
+    await expect(
+      page.getByText(
+        /Demo timeline was advanced explicitly; the original baseline timestamp was not changed/i,
+      ),
+    ).toBeVisible();
+    await expect(
+      page.getByText(/YouCam Skin Analysis v2.1/i),
+    ).toBeVisible();
 
     const savedStorage = await page.evaluate((key) => {
       return localStorage.getItem(key);
@@ -389,46 +443,18 @@ for (const scenario of cases) {
     expect(savedData.record.id).toBe(recordId);
     expect(savedData.record.demoOriginated).toBe(true);
     assertFaceFreeStorage(savedStorage);
-    await saveScreenshot(
-      page,
-      testInfo,
-      scenario.captureEvidence,
-      'phase-b5-record-presented',
-    );
 
-    await page.reload();
-    await expect(machine).toHaveAttribute(
-      'data-release-state',
-      'record-presented',
-    );
-    await expect(
-      page.locator('[data-evidence-record-artifact]'),
-    ).toHaveAttribute('data-record-id', recordId!);
-
-    await page
-      .getByRole('button', {
-        name: /Collect Evidence Record for .*Azelaic Topical Acid/i,
-      })
-      .press('Enter');
-    await expect(
-      page.getByRole('heading', { name: 'Your evidence.' }),
-    ).toBeVisible();
-    await expect(
-      page.locator('[data-artifact-mode="collected"]'),
-    ).toHaveAttribute('data-record-id', recordId!);
-    await page
-      .getByRole('button', { name: 'VIEW EVIDENCE DETAIL' })
-      .click();
+    await page.getByRole('button', { name: 'VIEW EVIDENCE' }).click();
     await expect(
       page.getByRole('heading', { name: 'EVIDENCE DETAIL' }),
-    ).toBeVisible();
+    ).toHaveCount(0);
+    await page.getByRole('button', { name: 'DONE' }).click();
     await expect(
-      page.getByText(
-        /Demo timeline was advanced explicitly; the original baseline timestamp was not changed/i,
-      ),
+      page.getByRole('heading', { name: 'Your trials' }),
     ).toBeVisible();
+    await expect(page.getByText('LATEST EVIDENCE')).toBeVisible();
     await expect(
-      page.getByText(/YouCam Skin Analysis v2.1/i),
+      page.getByRole('button', { name: 'START ANOTHER TRIAL' }),
     ).toBeVisible();
 
     await page.getByRole('button', { name: 'Past results' }).click();

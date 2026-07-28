@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { useFaceValue } from '../app/faceValueContext';
 import styles from '../styles/FaceValue.module.css';
 import { FaceValueApplication } from './FaceValueApplication';
-import { HumanButterEvidenceMachineScreen } from './evidence-machine/HumanButterEvidenceMachineScreen';
 
 function DemoSessionRecovery() {
   const [dismissed, setDismissed] = useState(false);
@@ -52,10 +51,6 @@ function DemoSessionRecovery() {
 
 export function HumanButterProductionJourney() {
   const { state, dispatch } = useFaceValue();
-
-  if (state.stage === 'placement' || state.stage === 'record') {
-    return <HumanButterEvidenceMachineScreen />;
-  }
 
   if (state.stage === 'comparison_refused' && state.analysisError?.code === 'protocol_mismatch') {
     return (

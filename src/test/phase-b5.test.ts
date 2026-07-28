@@ -325,62 +325,115 @@ describe('Phase B.5 timing and context laws', () => {
 });
 
 describe('Phase B.5 sealed result and atomic release', () => {
-  it('keeps the result sealed, reveals once, and defaults to TEST LONGER', () => {
+  it('keeps one route and accepts only the causal reveal order', () => {
     const sealed = comparedTrial();
     expect(sealed.stage).toBe('analysis');
     expect(sealed.resultRevealed).toBe(false);
+    expect(sealed.oracleRevealState).toBe('sealed');
     expect(sealed.analysis?.finding).toBe(
       'A small favorable shift showed up.',
     );
 
-    const revealed = faceValueReducer(sealed, { type: 'REVEAL_RESULT' });
-    const duplicateReveal = faceValueReducer(revealed, {
-      type: 'REVEAL_RESULT',
+    const opening = faceValueReducer(sealed, {
+      type: 'REVEAL_STARTED',
     });
-    expect(revealed.stage).toBe('placement');
+    const invalidTransmission = faceValueReducer(opening, {
+      type: 'TRANSMISSION_COMPLETED',
+    });
+    const transmitting = faceValueReducer(opening, {
+      type: 'REVEAL_PULL_COMPLETED',
+    });
+    const revealed = faceValueReducer(transmitting, {
+      type: 'TRANSMISSION_COMPLETED',
+    });
+    const duplicateReveal = faceValueReducer(revealed, {
+      type: 'TRANSMISSION_COMPLETED',
+    });
+
+    expect(opening.oracleRevealState).toBe('opening');
+    expect(invalidTransmission).toEqual(opening);
+    expect(transmitting.oracleRevealState).toBe('transmitting');
+    expect(revealed.stage).toBe('analysis');
+    expect(revealed.oracleRevealState).toBe('verdict_revealed');
     expect(revealed.resultRevealed).toBe(true);
     expect(revealed.placement).toBe('paused');
     expect(duplicateReveal).toEqual(revealed);
   });
 
-  it('commits placement and produces exactly one continuous record', () => {
-    const revealed = faceValueReducer(comparedTrial(true), {
-      type: 'REVEAL_RESULT',
+  it('persists once at collection and returns home only after Done', () => {
+    const opening = faceValueReducer(comparedTrial(true), {
+      type: 'REVEAL_STARTED',
     });
-    const first = faceValueReducer(revealed, {
-      type: 'COMMIT_RESULT_AND_RELEASE',
+    const transmitting = faceValueReducer(opening, {
+      type: 'REVEAL_PULL_COMPLETED',
+    });
+    const revealed = faceValueReducer(transmitting, {
+      type: 'TRANSMISSION_COMPLETED',
+    });
+    const committed = faceValueReducer(revealed, {
+      type: 'RECOMMENDATION_ACCEPTED',
       placement: 'paused',
       now: '2026-07-15T12:30:00.000Z',
     });
-    const duplicate = faceValueReducer(first, {
-      type: 'COMMIT_RESULT_AND_RELEASE',
+    const duplicateCommit = faceValueReducer(committed, {
+      type: 'RECOMMENDATION_ACCEPTED',
       placement: 'paused',
       now: '2026-07-15T12:31:00.000Z',
     });
+    const invalidCollection = faceValueReducer(committed, {
+      type: 'EVIDENCE_COLLECTED',
+    });
+    const dispensing = faceValueReducer(committed, {
+      type: 'DISPENSE_STARTED',
+    });
+    const presented = faceValueReducer(dispensing, {
+      type: 'EVIDENCE_DISPENSED',
+    });
+    const collectionStarted = faceValueReducer(presented, {
+      type: 'EVIDENCE_COLLECTION_STARTED',
+    });
+    const collected = faceValueReducer(collectionStarted, {
+      type: 'EVIDENCE_COLLECTED',
+    });
+    const duplicateCollection = faceValueReducer(collected, {
+      type: 'EVIDENCE_COLLECTED',
+    });
 
-    expect(first.placementSealed).toBe(true);
-    expect(first.archive).toHaveLength(1);
-    expect(first.record).toMatchObject({
+    expect(committed.oracleRevealState).toBe('committing');
+    expect(committed.placementSealed).toBe(false);
+    expect(committed.archive).toHaveLength(0);
+    expect(committed.record).toBeNull();
+    expect(duplicateCommit).toEqual(committed);
+    expect(invalidCollection).toEqual(committed);
+    expect(dispensing.oracleRevealState).toBe('dispensing');
+    expect(presented.oracleEvidenceDispensed).toBe(true);
+    expect(collected.oracleRevealState).toBe('collected');
+    expect(collected.placementSealed).toBe(true);
+    expect(collected.archive).toHaveLength(1);
+    expect(collected.record).toMatchObject({
       id: 'ER-202607151230',
-      specimenId: first.registeredProduct?.id,
+      specimenId: collected.registeredProduct?.id,
+      accession: 'FV–014',
       product: 'Azelaic Topical Acid',
       productBrand: 'Naturium',
       finalPlacement: 'paused',
       includesFaceImage: false,
     });
-    expect(duplicate.archive).toHaveLength(1);
-    expect(duplicate.record?.id).toBe(first.record?.id);
+    expect(duplicateCollection).toEqual(collected);
 
-    const collected = faceValueReducer(first, {
-      type: 'OPEN_SAVED_RESULT',
-    });
     const archive = faceValueReducer(collected, { type: 'VIEW_ARCHIVE' });
     const reopened = faceValueReducer(archive, {
       type: 'VIEW_RECORD',
       record: archive.archive[0],
     });
-    expect(collected.record?.id).toBe(first.record?.id);
-    expect(reopened.record?.id).toBe(first.record?.id);
+    expect(reopened.record?.id).toBe(collected.record?.id);
+
+    const done = faceValueReducer(collected, { type: 'ORACLE_DONE' });
+    expect(done.oracleRevealState).toBe('done');
+    expect(done.stage).toBe('cabinet');
+    expect(done.observation).toBe('none');
+    expect(done.registeredProduct).toBeNull();
+    expect(done.archive).toHaveLength(1);
   });
 
   it('preserves accepted baseline through failure, cancel, retry, and back', () => {

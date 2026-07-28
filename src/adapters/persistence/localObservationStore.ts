@@ -17,6 +17,7 @@ import type {
   RegisteredProduct,
   TraceEntry,
 } from '../../domain/model';
+import type { OracleRevealState } from '../../domain/oracleRevealMachine';
 import {
   FOLLOW_UP_INTERVAL_DAYS,
   addCalendarDays,
@@ -51,6 +52,10 @@ export interface PersistedDemoData {
   followUpContext: CaptureContext | null;
   demoTimelineAdvanced: boolean;
   resultRevealed: boolean;
+  oracleRevealState: OracleRevealState;
+  oracleEvidenceDispensed: boolean;
+  oracleCollectionStarted: boolean;
+  oracleCommittedAt: string | null;
 }
 
 const emptyLongitudinalEvidence = (): LongitudinalSkinEvidence => ({
@@ -134,6 +139,16 @@ const captureMimeTypes = new Set<CaptureMetadata['mimeType']>([
 const cameraCaptureProfiles = new Set([
   'youcam-camera-kit-hd-1080p',
   'youcam-camera-kit-hd-1920p',
+]);
+const oracleRevealStates = new Set<OracleRevealState>([
+  'sealed',
+  'opening',
+  'transmitting',
+  'verdict_revealed',
+  'committing',
+  'dispensing',
+  'collected',
+  'done',
 ]);
 
 const isObject = (value: unknown): value is Record<string, unknown> =>
@@ -310,6 +325,10 @@ export function toPersistedDemoData(state: FaceValueState): PersistedDemoData {
     followUpContext: state.followUpContext ?? null,
     demoTimelineAdvanced: state.demoTimelineAdvanced ?? false,
     resultRevealed: state.resultRevealed ?? false,
+    oracleRevealState: state.oracleRevealState ?? 'sealed',
+    oracleEvidenceDispensed: state.oracleEvidenceDispensed ?? false,
+    oracleCollectionStarted: state.oracleCollectionStarted ?? false,
+    oracleCommittedAt: state.oracleCommittedAt ?? null,
   };
 }
 
@@ -353,6 +372,27 @@ export function loadStructuredDemoData(
     const followUpContext = value.followUpContext ?? null;
     const demoTimelineAdvanced = value.demoTimelineAdvanced ?? false;
     const resultRevealed = value.resultRevealed ?? false;
+    const oracleRevealState =
+      typeof value.oracleRevealState === 'string' &&
+      oracleRevealStates.has(value.oracleRevealState as OracleRevealState)
+        ? (value.oracleRevealState as OracleRevealState)
+        : value.stage === 'record' && record
+          ? 'collected'
+          : value.placementSealed === true && record
+            ? 'dispensing'
+            : resultRevealed
+              ? 'verdict_revealed'
+              : 'sealed';
+    const oracleEvidenceDispensed =
+      value.oracleEvidenceDispensed ??
+      Boolean(value.placementSealed === true && record);
+    const oracleCollectionStarted =
+      value.oracleCollectionStarted ?? false;
+    const oracleCommittedAt =
+      value.oracleCommittedAt ??
+      (value.placementSealed === true && isObject(record)
+        ? record.createdAt ?? null
+        : null);
     const registeredProductValue = value.registeredProduct ?? null;
 
     if (
@@ -390,7 +430,14 @@ export function loadStructuredDemoData(
       !(baselineContext === null || isCaptureContext(baselineContext)) ||
       !(followUpContext === null || isCaptureContext(followUpContext)) ||
       typeof demoTimelineAdvanced !== 'boolean' ||
-      typeof resultRevealed !== 'boolean'
+      typeof resultRevealed !== 'boolean' ||
+      !oracleRevealStates.has(oracleRevealState) ||
+      typeof oracleEvidenceDispensed !== 'boolean' ||
+      typeof oracleCollectionStarted !== 'boolean' ||
+      !(
+        oracleCommittedAt === null ||
+        typeof oracleCommittedAt === 'string'
+      )
     ) {
       throw new Error('Invalid persisted data');
     }
@@ -436,6 +483,10 @@ export function loadStructuredDemoData(
         | 'followUpContext'
         | 'demoTimelineAdvanced'
         | 'resultRevealed'
+        | 'oracleRevealState'
+        | 'oracleEvidenceDispensed'
+        | 'oracleCollectionStarted'
+        | 'oracleCommittedAt'
       >),
       stage,
       captureKind,
@@ -449,6 +500,10 @@ export function loadStructuredDemoData(
       followUpContext,
       demoTimelineAdvanced,
       resultRevealed,
+      oracleRevealState,
+      oracleEvidenceDispensed,
+      oracleCollectionStarted,
+      oracleCommittedAt,
     };
   } catch {
     storage.removeItem(STORAGE_KEY);

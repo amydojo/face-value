@@ -4,11 +4,20 @@ import type {
   CaptureContext,
   CaptureMetadata,
   DurableSkinSignal,
+  EvidenceRecordData,
   FaceValueState,
   LongitudinalSkinEvidence,
   ProductPlacement,
   RegisteredProduct,
 } from '../domain/model';
+import {
+  initialOracleRevealModel,
+  oracleRevealReducer,
+  type OracleRevealEvent,
+  type OracleRevealModel,
+  type OracleRevealState,
+} from '../domain/oracleRevealMachine';
+import { oracleTrialIdentity } from '../domain/oracleTrialIdentity';
 import {
   FOLLOW_UP_INTERVAL_DAYS,
   addCalendarDays,
@@ -19,11 +28,9 @@ import {
   isValidRegisteredProduct,
   normalizeCaptureContext,
 } from '../domain/phaseB5';
+import { analysisResultFromComparison, compareRednessSignals } from '../domain/youcamEvidence';
 import {
-  analysisResultFromComparison,
-  compareRednessSignals,
-} from '../domain/youcamEvidence';
-import {
+  createEvidenceRecord,
   faceValueReducer as legacyFaceValueReducer,
   initialState as legacyInitialState,
   type FaceValueEvent as LegacyFaceValueEvent,
@@ -42,6 +49,10 @@ export type PhaseBFaceValueState = FaceValueState & {
   followUpContext: CaptureContext | null;
   demoTimelineAdvanced: boolean;
   resultRevealed: boolean;
+  oracleRevealState: OracleRevealState;
+  oracleEvidenceDispensed: boolean;
+  oracleCollectionStarted: boolean;
+  oracleCommittedAt: string | null;
 };
 
 export type PhaseBFaceValueEvent =
@@ -56,6 +67,20 @@ export type PhaseBFaceValueEvent =
   | { type: 'FINISH_BASELINE_SESSION' }
   | { type: 'CHECK_FOLLOWUP_ELIGIBILITY'; now: string }
   | { type: 'ADVANCE_DEMO_TIMELINE'; now: string }
+  | { type: 'REVEAL_STARTED' }
+  | { type: 'REVEAL_PULL_COMPLETED' }
+  | { type: 'TRANSMISSION_COMPLETED' }
+  | {
+      type: 'RECOMMENDATION_ACCEPTED';
+      placement: ProductPlacement;
+      now: string;
+    }
+  | { type: 'DISPENSE_STARTED' }
+  | { type: 'EVIDENCE_DISPENSED' }
+  | { type: 'EVIDENCE_COLLECTION_STARTED' }
+  | { type: 'EVIDENCE_COLLECTED' }
+  | { type: 'ORACLE_DONE' }
+  // Phase B.5 compatibility aliases. Production controls use the events above.
   | { type: 'REVEAL_RESULT' }
   | {
       type: 'COMMIT_RESULT_AND_RELEASE';
@@ -121,13 +146,24 @@ export const initialState: PhaseBFaceValueState = {
   followUpContext: null,
   demoTimelineAdvanced: false,
   resultRevealed: false,
+  oracleRevealState: initialOracleRevealModel.phase,
+  oracleEvidenceDispensed: initialOracleRevealModel.evidenceDispensed,
+  oracleCollectionStarted: initialOracleRevealModel.collectionStarted,
+  oracleCommittedAt: null,
 };
 
 export function normalizePhaseBState(state: FaceValueState): PhaseBFaceValueState {
+  const legacyOracleState: OracleRevealState =
+    state.stage === 'record' && state.record
+      ? 'collected'
+      : state.placementSealed && state.record
+        ? 'dispensing'
+        : state.resultRevealed
+          ? 'verdict_revealed'
+          : 'sealed';
   return {
     ...state,
-    longitudinalEvidence:
-      state.longitudinalEvidence ?? createEmptyLongitudinalEvidence(),
+    longitudinalEvidence: state.longitudinalEvidence ?? createEmptyLongitudinalEvidence(),
     analysisRole: state.analysisRole ?? null,
     activeAnalysisRequestId: state.activeAnalysisRequestId ?? null,
     pendingAnalysisCapture: state.pendingAnalysisCapture ?? null,
@@ -139,43 +175,88 @@ export function normalizePhaseBState(state: FaceValueState): PhaseBFaceValueStat
     followUpContext: state.followUpContext ?? null,
     demoTimelineAdvanced: state.demoTimelineAdvanced ?? false,
     resultRevealed: state.resultRevealed ?? false,
+    oracleRevealState: state.oracleRevealState ?? legacyOracleState,
+    oracleEvidenceDispensed:
+      state.oracleEvidenceDispensed ?? Boolean(state.placementSealed && state.record),
+    oracleCollectionStarted: state.oracleCollectionStarted ?? false,
+    oracleCommittedAt:
+      state.oracleCommittedAt ?? (state.placementSealed ? (state.record?.createdAt ?? null) : null),
   };
 }
 
 const isCurrentRequest = (state: PhaseBFaceValueState, requestId: string): boolean =>
   state.activeAnalysisRequestId === requestId;
 
-function enrichSavedRecord(
-  previous: PhaseBFaceValueState,
-  next: PhaseBFaceValueState,
-): PhaseBFaceValueState {
-  const comparison = previous.longitudinalEvidence.comparison;
-  if (!next.record || !comparison || previous.analysis?.provider !== 'youcam') {
-    return next;
-  }
+const oracleModelFor = (state: PhaseBFaceValueState): OracleRevealModel => ({
+  phase: state.oracleRevealState,
+  evidenceDispensed: state.oracleEvidenceDispensed,
+  collectionStarted: state.oracleCollectionStarted,
+});
 
-  const enriched = {
-    ...next.record,
-    observationWindow: `${previous.baselineLockedAt ?? previous.baselineCapture?.createdAt ?? 'Baseline'} to ${previous.followupCapture?.createdAt ?? 'follow-up'}`,
-    evidenceSource: 'YouCam Skin Analysis v2.1' as const,
+const applyOracleEvent = (
+  state: PhaseBFaceValueState,
+  event: OracleRevealEvent,
+): PhaseBFaceValueState => {
+  const current = oracleModelFor(state);
+  const next = oracleRevealReducer(current, event);
+  if (next === current) return state;
+  return {
+    ...state,
+    oracleRevealState: next.phase,
+    oracleEvidenceDispensed: next.evidenceDispensed,
+    oracleCollectionStarted: next.collectionStarted,
+  };
+};
+
+function enrichRecord(state: PhaseBFaceValueState, record: EvidenceRecordData): EvidenceRecordData {
+  const comparison = state.longitudinalEvidence.comparison;
+  if (!comparison || state.analysis?.provider !== 'youcam') return record;
+
+  return {
+    ...record,
+    observationWindow: `${state.baselineLockedAt ?? state.baselineCapture?.createdAt ?? 'Baseline'} to ${state.followupCapture?.createdAt ?? 'follow-up'}`,
+    evidenceSource: 'YouCam Skin Analysis v2.1',
     comparisonDirection: comparison.direction,
     limitations: [...comparison.limitations],
     baselineRawScore: comparison.baselineRawScore,
     followUpRawScore: comparison.followUpRawScore,
-    productBrand: previous.registeredProduct?.brand,
-    productStrength: previous.registeredProduct?.strength,
-    productVolume: previous.registeredProduct?.volume,
-    baselineContext: previous.baselineContext,
-    followUpContext: previous.followUpContext,
-    demoOriginated: previous.demoTimelineAdvanced,
+    productBrand: state.registeredProduct?.brand,
+    productStrength: state.registeredProduct?.strength,
+    productVolume: state.registeredProduct?.volume,
+    baselineContext: state.baselineContext,
+    followUpContext: state.followUpContext,
+    demoOriginated: state.demoTimelineAdvanced,
   };
+}
+
+export function createOracleEvidenceRecord(state: PhaseBFaceValueState): EvidenceRecordData | null {
+  if (!state.oracleCommittedAt || !state.analysis || !state.assignedJob) {
+    return null;
+  }
+  const record = enrichRecord(state, createEvidenceRecord(state, state.oracleCommittedAt));
+  const identity = oracleTrialIdentity({
+    baselineAt: state.baselineLockedAt ?? state.baselineCapture?.createdAt,
+    followUpAt: state.followUpEligibleAt ?? state.followupCapture?.createdAt,
+    accession: record.accession,
+  });
+
+  return {
+    ...record,
+    accession: identity.folio,
+  };
+}
+
+function enrichSavedRecord(
+  previous: PhaseBFaceValueState,
+  next: PhaseBFaceValueState,
+): PhaseBFaceValueState {
+  if (!next.record) return next;
+  const enriched = enrichRecord(previous, next.record);
 
   return {
     ...next,
     record: enriched,
-    archive: next.archive.map((record) =>
-      record.id === enriched.id ? enriched : record,
-    ),
+    archive: next.archive.map((record) => (record.id === enriched.id ? enriched : record)),
   };
 }
 
@@ -196,10 +277,7 @@ export function faceValueReducer(
       };
 
     case 'REGISTER_PRODUCT':
-      if (
-        state.stage !== 'product_registration' ||
-        !isValidRegisteredProduct(event.product)
-      ) {
+      if (state.stage !== 'product_registration' || !isValidRegisteredProduct(event.product)) {
         return state;
       }
       return {
@@ -236,15 +314,17 @@ export function faceValueReducer(
         followUpContext: null,
         demoTimelineAdvanced: false,
         resultRevealed: false,
+        oracleRevealState: 'sealed',
+        oracleEvidenceDispensed: false,
+        oracleCollectionStarted: false,
+        oracleCommittedAt: null,
         returnStage: 'product_registration',
         announcement: `${event.product.brand} ${event.product.productName} registered for visible redness.`,
       };
 
     case 'BEGIN_CAPTURE':
       if (!state.registeredProduct) {
-        return normalizePhaseBState(
-          legacyFaceValueReducer(state, event as LegacyFaceValueEvent),
-        );
+        return normalizePhaseBState(legacyFaceValueReducer(state, event as LegacyFaceValueEvent));
       }
 
       if (event.kind === 'baseline') {
@@ -260,9 +340,13 @@ export function faceValueReducer(
           !event.now ||
           !state.longitudinalEvidence.baseline ||
           state.longitudinalEvidence.followUp ||
-          !['waiting_for_followup', 'followup_ready', 'cabinet', 'analysis_failure', 'comparison_refused'].includes(
-            state.stage,
-          ) ||
+          ![
+            'waiting_for_followup',
+            'followup_ready',
+            'cabinet',
+            'analysis_failure',
+            'comparison_refused',
+          ].includes(state.stage) ||
           !followUpIsEligible({
             followUpEligibleAt: state.followUpEligibleAt,
             demoTimelineAdvanced: state.demoTimelineAdvanced,
@@ -280,8 +364,7 @@ export function faceValueReducer(
         camera: 'idle',
         processing: 'idle',
         analysisError: null,
-        returnStage:
-          event.kind === 'baseline' ? 'job' : 'followup_ready',
+        returnStage: event.kind === 'baseline' ? 'job' : 'followup_ready',
         announcement:
           event.kind === 'baseline'
             ? 'Guided baseline capture opened.'
@@ -292,8 +375,7 @@ export function faceValueReducer(
       const context = normalizeCaptureContext(event.context);
       if (
         event.kind === 'baseline' &&
-        (state.stage === 'baseline_context' ||
-          state.stage === 'baseline_locked') &&
+        (state.stage === 'baseline_context' || state.stage === 'baseline_locked') &&
         state.longitudinalEvidence.baseline
       ) {
         return {
@@ -320,10 +402,7 @@ export function faceValueReducer(
     }
 
     case 'FINISH_BASELINE_SESSION':
-      if (
-        state.stage !== 'baseline_locked' ||
-        !state.longitudinalEvidence.baseline
-      ) {
+      if (state.stage !== 'baseline_locked' || !state.longitudinalEvidence.baseline) {
         return state;
       }
       return {
@@ -368,50 +447,196 @@ export function faceValueReducer(
         stage: 'followup_ready',
         observation: 'review_due',
         demoTimelineAdvanced: true,
-        announcement:
-          'Demo timeline advanced explicitly. The original baseline date is unchanged.',
+        announcement: 'Demo timeline advanced explicitly. The original baseline date is unchanged.',
       };
 
-    case 'REVEAL_RESULT':
+    case 'REVEAL_STARTED': {
       if (
         state.stage !== 'analysis' ||
         !state.analysis ||
         !state.longitudinalEvidence.comparison ||
-        state.resultRevealed
+        state.oracleRevealState !== 'sealed'
       ) {
         return state;
       }
+      const next = applyOracleEvent(state, event);
       return {
-        ...state,
-        stage: 'placement',
+        ...next,
         placement: defaultPlacementForResult(state.analysis),
         placementSealed: false,
-        resultRevealed: true,
-        announcement:
-          'Result revealed. Verdict, limitation, and recommendation are available.',
+        announcement: 'Reveal started. The oracle latch is releasing.',
       };
+    }
 
-    case 'COMMIT_RESULT_AND_RELEASE': {
+    case 'REVEAL_PULL_COMPLETED': {
+      const next = applyOracleEvent(state, event);
+      if (next === state) return state;
+      return {
+        ...next,
+        announcement: 'The oracle display is transmitting the result.',
+      };
+    }
+
+    case 'TRANSMISSION_COMPLETED': {
+      const next = applyOracleEvent(state, event);
+      if (next === state) return state;
+      return {
+        ...next,
+        resultRevealed: true,
+        announcement: 'Result revealed. The finding and recommended next step are ready.',
+      };
+    }
+
+    case 'SELECT_PLACEMENT':
       if (
-        state.stage !== 'placement' ||
-        !state.resultRevealed ||
+        state.stage === 'analysis' &&
+        state.oracleRevealState === 'verdict_revealed' &&
+        !state.placementSealed
+      ) {
+        return {
+          ...state,
+          placement: event.placement,
+          announcement: `Next step selected: ${event.placement.replaceAll('_', ' ')}.`,
+        };
+      }
+      return normalizePhaseBState(legacyFaceValueReducer(state, event as LegacyFaceValueEvent));
+
+    case 'RECOMMENDATION_ACCEPTED': {
+      if (
+        state.stage !== 'analysis' ||
+        state.oracleRevealState !== 'verdict_revealed' ||
         !state.analysis ||
-        state.placementSealed
+        state.placementSealed ||
+        !event.now
       ) {
         return state;
       }
-      const withPlacement: PhaseBFaceValueState = {
-        ...state,
+      const next = applyOracleEvent(state, {
+        type: 'RECOMMENDATION_ACCEPTED',
+      });
+      if (next === state) return state;
+      return {
+        ...next,
         placement: event.placement,
+        oracleCommittedAt: event.now,
+        announcement: 'Result kept. The evidence dispenser is engaging.',
       };
-      const saved = normalizePhaseBState(
-        legacyFaceValueReducer(withPlacement, {
-          type: 'SAVE_RESULT',
-          now: event.now,
-        }),
-      );
-      return enrichSavedRecord(withPlacement, saved);
     }
+
+    case 'DISPENSE_STARTED': {
+      const next = applyOracleEvent(state, event);
+      if (next === state) return state;
+      return {
+        ...next,
+        announcement: 'The evidence record is dispensing.',
+      };
+    }
+
+    case 'EVIDENCE_DISPENSED': {
+      const next = applyOracleEvent(state, event);
+      if (next === state) return state;
+      return {
+        ...next,
+        announcement: 'Evidence produced. Take your record.',
+      };
+    }
+
+    case 'EVIDENCE_COLLECTION_STARTED': {
+      const next = applyOracleEvent(state, event);
+      if (next === state) return state;
+      return {
+        ...next,
+        announcement: 'Collecting the evidence record.',
+      };
+    }
+
+    case 'EVIDENCE_COLLECTED': {
+      const next = applyOracleEvent(state, event);
+      if (next === state) return state;
+      const record = state.record ?? createOracleEvidenceRecord(state);
+      if (!record) return state;
+      const archive = state.archive.some((item) => item.id === record.id)
+        ? state.archive
+        : [record, ...state.archive];
+      return {
+        ...next,
+        observation: 'complete',
+        placementSealed: true,
+        record,
+        archive,
+        announcement: `Evidence recorded. ${record.finding} Next: ${record.finalPlacement.replaceAll('_', ' ')}.`,
+      };
+    }
+
+    case 'ORACLE_DONE': {
+      if (!state.record) return state;
+      const next = applyOracleEvent(state, event);
+      if (next === state) return state;
+      return {
+        ...next,
+        stage: 'cabinet',
+        cabinet: 'open',
+        observation: 'none',
+        camera: 'idle',
+        comparison: 'not_available',
+        confidence: 'insufficient',
+        processing: 'idle',
+        disturbance: 'none',
+        assignedJob: null,
+        captureKind: 'baseline',
+        contractOutcome: null,
+        baselineCapture: null,
+        followupCapture: null,
+        trace: null,
+        analysis: null,
+        longitudinalEvidence: createEmptyLongitudinalEvidence(),
+        analysisRole: null,
+        activeAnalysisRequestId: null,
+        pendingAnalysisCapture: null,
+        analysisError: null,
+        registeredProduct: null,
+        baselineLockedAt: null,
+        followUpEligibleAt: null,
+        baselineContext: null,
+        followUpContext: null,
+        demoTimelineAdvanced: false,
+        returnStage: null,
+        announcement: 'Evidence recorded. Returned to Your trials.',
+      };
+    }
+
+    case 'REVEAL_RESULT': {
+      if (
+        state.stage !== 'analysis' ||
+        !state.analysis ||
+        !state.longitudinalEvidence.comparison ||
+        state.oracleRevealState !== 'sealed'
+      ) {
+        return state;
+      }
+      const opening = applyOracleEvent(state, {
+        type: 'REVEAL_STARTED',
+      });
+      const transmitting = applyOracleEvent(opening, {
+        type: 'REVEAL_PULL_COMPLETED',
+      });
+      const revealed = applyOracleEvent(transmitting, {
+        type: 'TRANSMISSION_COMPLETED',
+      });
+      return {
+        ...revealed,
+        placement: defaultPlacementForResult(state.analysis),
+        resultRevealed: true,
+        announcement: 'Result revealed. The finding and recommended next step are ready.',
+      };
+    }
+
+    case 'COMMIT_RESULT_AND_RELEASE':
+      return faceValueReducer(state, {
+        type: 'RECOMMENDATION_ACCEPTED',
+        placement: event.placement,
+        now: event.now,
+      });
 
     case 'BASELINE_ANALYSIS_STARTED':
       if (
@@ -462,10 +687,7 @@ export function faceValueReducer(
         pendingAnalysisCapture: null,
         analysisError: null,
         baselineLockedAt,
-        followUpEligibleAt: addCalendarDays(
-          baselineLockedAt,
-          FOLLOW_UP_INTERVAL_DAYS,
-        ),
+        followUpEligibleAt: addCalendarDays(baselineLockedAt, FOLLOW_UP_INTERVAL_DAYS),
         baselineContext: null,
         demoTimelineAdvanced: false,
         announcement: state.registeredProduct
@@ -514,8 +736,7 @@ export function faceValueReducer(
         (state.baselineCapture?.source === 'camera' &&
           event.metadata.source === 'camera' &&
           state.baselineCapture.cameraProfileId &&
-          event.metadata.cameraProfileId !==
-            state.baselineCapture.cameraProfileId) ||
+          event.metadata.cameraProfileId !== state.baselineCapture.cameraProfileId) ||
         (state.registeredProduct &&
           !followUpIsEligible({
             followUpEligibleAt: state.followUpEligibleAt,
@@ -583,9 +804,7 @@ export function faceValueReducer(
 
     case 'RETAKE_FOLLOWUP':
       if (!state.registeredProduct) {
-        return normalizePhaseBState(
-          legacyFaceValueReducer(state, event as LegacyFaceValueEvent),
-        );
+        return normalizePhaseBState(legacyFaceValueReducer(state, event as LegacyFaceValueEvent));
       }
       if (
         !['analysis_failure', 'comparison_refused'].includes(state.stage) ||
@@ -612,8 +831,11 @@ export function faceValueReducer(
           comparison: null,
         },
         resultRevealed: false,
-        announcement:
-          'Follow-up retry ready. Your baseline and product are unchanged.',
+        oracleRevealState: 'sealed',
+        oracleEvidenceDispensed: false,
+        oracleCollectionStarted: false,
+        oracleCommittedAt: null,
+        announcement: 'Follow-up retry ready. Your baseline and product are unchanged.',
       };
 
     case 'COMPARISON_CREATED': {
@@ -642,11 +864,18 @@ export function faceValueReducer(
         confidence: analysis.confidence,
         processing: 'succeeded',
         observation: 'review_due',
+        placement: defaultPlacementForResult(analysis),
+        placementSealed: false,
+        record: null,
         longitudinalEvidence: {
           ...state.longitudinalEvidence,
           comparison,
         },
         resultRevealed: false,
+        oracleRevealState: 'sealed',
+        oracleEvidenceDispensed: false,
+        oracleCollectionStarted: false,
+        oracleCommittedAt: null,
         announcement: 'Result ready. Pull the handle to reveal it.',
       };
     }
@@ -663,7 +892,13 @@ export function faceValueReducer(
         activeAnalysisRequestId: null,
         pendingAnalysisCapture: null,
         analysisError: event.error,
-        announcement: 'Comparison unavailable. These scans could not be compared under the same conditions.',
+        resultRevealed: false,
+        oracleRevealState: 'sealed',
+        oracleEvidenceDispensed: false,
+        oracleCollectionStarted: false,
+        oracleCommittedAt: null,
+        announcement:
+          'Comparison unavailable. These scans could not be compared under the same conditions.',
       };
 
     case 'ANALYSIS_CANCELLED':
@@ -701,9 +936,7 @@ export function faceValueReducer(
       if (state.stage === 'camera' && state.registeredProduct) {
         return {
           ...state,
-          stage:
-            state.returnStage ??
-            (state.captureKind === 'baseline' ? 'job' : 'followup_ready'),
+          stage: state.returnStage ?? (state.captureKind === 'baseline' ? 'job' : 'followup_ready'),
           camera: 'idle',
           processing: 'idle',
           analysisRole: null,
@@ -738,10 +971,7 @@ export function faceValueReducer(
           announcement: 'Your trial is running.',
         };
       }
-      if (
-        state.stage === 'waiting_for_followup' ||
-        state.stage === 'followup_ready'
-      ) {
+      if (state.stage === 'waiting_for_followup' || state.stage === 'followup_ready') {
         return {
           ...state,
           stage: 'cabinet',
@@ -749,10 +979,7 @@ export function faceValueReducer(
           announcement: 'Returned to Your trials.',
         };
       }
-      if (
-        state.registeredProduct &&
-        (state.stage === 'analysis' || state.stage === 'placement')
-      ) {
+      if (state.registeredProduct && (state.stage === 'analysis' || state.stage === 'placement')) {
         return {
           ...state,
           announcement:
@@ -761,9 +988,7 @@ export function faceValueReducer(
               : 'Your revealed result remains ready to keep.',
         };
       }
-      return normalizePhaseBState(
-        legacyFaceValueReducer(state, event as LegacyFaceValueEvent),
-      );
+      return normalizePhaseBState(legacyFaceValueReducer(state, event as LegacyFaceValueEvent));
 
     case 'CLEAR_DEMO_DATA': {
       const next = normalizePhaseBState(
@@ -783,6 +1008,10 @@ export function faceValueReducer(
         followUpContext: null,
         demoTimelineAdvanced: false,
         resultRevealed: false,
+        oracleRevealState: 'sealed',
+        oracleEvidenceDispensed: false,
+        oracleCollectionStarted: false,
+        oracleCommittedAt: null,
       };
     }
 
