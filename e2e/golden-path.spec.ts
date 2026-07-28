@@ -214,8 +214,11 @@ test('complete mobile ONE THING journey releases one face-free matched YouCam re
 
   await page.getByRole('button', { name: 'Past results' }).click();
   const pastResults = page.getByLabel('Past results');
-  await expect(pastResults.getByRole('button', { name: /Open saved result/i })).toHaveCount(1);
-  await expect(page.getByText(/Jul 27, 2026/)).toBeVisible();
+  const savedRecord = pastResults.getByRole('button', { name: /Open saved result/i });
+  await expect(savedRecord).toHaveCount(1);
+  const savedRecordText = await savedRecord.innerText();
+  expect(savedRecordText).toMatch(/[A-Z][a-z]{2} \d{1,2}, 2026 · \d{1,2}:\d{2} [AP]M–\d{1,2}:\d{2} [AP]M/);
+  expect(savedRecordText).not.toMatch(/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/);
   await expect(page.getByText('Demo controls')).toHaveCount(0);
   await page.screenshot({ path: testInfo.outputPath('phase-b-past-results.png'), fullPage: true });
   await page.reload();
