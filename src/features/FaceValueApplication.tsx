@@ -21,9 +21,9 @@ import { CameraViewport } from './capture-contract/CameraViewport';
 import { evidenceRecordDisclosureStateForDemo } from './demo-lab/evidenceRecordDemoAdapter';
 import { EvidenceRecord } from './evidence-record/EvidenceRecord';
 import {
-  ContinuityProjection,
   LatestVerdictCassette,
   OracleRevealScene,
+  OracleTrialStateMachine,
 } from './oracle-reveal/OracleRevealScene';
 import { ProductRegistration } from './product-registration/ProductRegistration';
 
@@ -145,6 +145,7 @@ export function FaceValueApplication() {
   const [baselineNoteDraft, setBaselineNoteDraft] = useState(state.baselineContext?.note ?? '');
   const homeStage = ['cabinet', 'waiting_for_followup', 'followup_ready'].includes(state.stage);
   const tone =
+    state.stage === 'welcome' ||
     state.stage === 'camera' ||
     state.stage === 'analysis' ||
     state.stage === 'archive' ||
@@ -257,7 +258,7 @@ export function FaceValueApplication() {
     if (hasActiveTrial && state.registeredProduct) {
       return (
         <>
-          <ScreenHeader code={activeIdentity?.folio} dark continuity />
+          <ScreenHeader code={activeIdentity?.folio} dark />
           <section
             className={styles.trialContinuityScreen}
             data-fv-screen={eligible ? 'followup-ready' : 'trial-pending'}
@@ -271,8 +272,8 @@ export function FaceValueApplication() {
               {eligible ? 'FOLLOW-UP READY' : 'TRIAL IN PROGRESS'}
             </p>
 
-            <ContinuityProjection
-              projection={eligible ? 'followup-ready' : 'trial-pending'}
+            <OracleTrialStateMachine
+              state={eligible ? 'followup-ready' : 'pending'}
               product={state.registeredProduct}
               day={day}
               intervalDays={intervalDays}
@@ -383,7 +384,7 @@ export function FaceValueApplication() {
       case 'welcome':
         return (
           <>
-            <ScreenHeader continuity />
+            <ScreenHeader dark />
             <section className={styles.welcomeContinuity} data-fv-screen="welcome">
               <p className={styles.welcomeContinuityEyebrow}>
                 ONE PRODUCT · ONE JOB · ONE HONEST RESULT
@@ -406,7 +407,7 @@ export function FaceValueApplication() {
                 <span aria-hidden="true">→</span>
               </button>
               <div className={styles.welcomeContinuityMachine}>
-                <ContinuityProjection projection="empty" />
+                <OracleTrialStateMachine state="empty" />
               </div>
               <footer className={styles.welcomeContinuityPrivacy} data-welcome-privacy>
                 PRIVATE BY DEFAULT · FACE IMAGES STAY IN MEMORY

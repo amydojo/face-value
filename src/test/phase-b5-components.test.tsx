@@ -210,9 +210,9 @@ it('keeps active-trial data inside the canonical loaded machine with the real hi
   expect(document.querySelector('[data-home-state="active"] > p')).toHaveTextContent(
     'FOLLOW-UP READY',
   );
-  expect(document.querySelector('[data-machine-projection="followup-ready"]')).toHaveAttribute(
-    'data-machine-shell',
-    'canonical',
+  expect(document.querySelector('[data-trial-machine-state="followup-ready"]')).toHaveAttribute(
+    'data-machine-implementation',
+    'oracle',
   );
   expect(screen.getByText('Naturium')).toBeVisible();
   expect(screen.getByText('Azelaic Topical Acid')).toBeVisible();

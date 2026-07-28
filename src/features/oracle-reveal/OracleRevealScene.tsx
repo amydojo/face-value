@@ -6,7 +6,6 @@ import {
   type AnimationEvent,
   type CSSProperties,
   type PointerEvent as ReactPointerEvent,
-  type ReactNode,
   type RefObject,
 } from 'react';
 import { browserHaptics, type HapticsAdapter } from '../../adapters/haptics/haptics';
@@ -394,94 +393,223 @@ function LatestVerdictPaper({
   );
 }
 
-type CanonicalMachineProjection =
-  | 'empty'
-  | 'trial-pending'
-  | 'followup-ready'
-  | 'verdict'
-  | 'latest-verdict';
+export type OracleTrialState = 'empty' | 'pending' | 'followup-ready';
 
-type CanonicalAmberState =
-  | 'idle'
-  | 'pending'
-  | 'followup-ready'
-  | 'transmitting'
-  | 'ready'
-  | 'committed'
-  | 'dispensing'
-  | 'complete'
-  | 'latest';
+export type OracleTrialStateMachineProps =
+  | {
+      state: 'empty';
+    }
+  | {
+      state: 'pending' | 'followup-ready';
+      product: RegisteredProduct;
+      day: number;
+      intervalDays: number;
+    };
 
-function CanonicalMachineShell({
-  className = '',
-  phase,
-  projection,
-  variant,
-  cassetteState,
-  ariaLabel,
-  displayContent,
-  evidenceContent,
-  showSpecimenSilhouette = true,
-  showSealedOptics = false,
-  amberState,
-  amberAction,
-  preserveOracleHardwareMarker = false,
-  handleActive = false,
-  handleProduct = 'Face Value product',
-  motionEnabled = false,
-  onReveal = () => undefined,
-  onOpeningComplete = () => undefined,
-  onCommitComplete = () => undefined,
-}: {
-  className?: string;
+type OracleVerdictMachineProps = {
+  variant?: 'reveal' | 'latest-verdict';
   phase: OracleRevealState;
-  projection: CanonicalMachineProjection;
-  variant: 'reveal' | 'latest-verdict' | 'continuity';
-  cassetteState: string;
-  ariaLabel: string;
-  displayContent?: ReactNode;
-  evidenceContent?: ReactNode;
-  showSpecimenSilhouette?: boolean;
-  showSealedOptics?: boolean;
-  amberState: CanonicalAmberState;
-  amberAction?: {
-    label: string;
-    onActivate: () => void;
-  };
-  preserveOracleHardwareMarker?: boolean;
-  handleActive?: boolean;
-  handleProduct?: string;
-  motionEnabled?: boolean;
+  trialIdentity: OracleTrialIdentity;
+  viewModel: VerdictViewModel;
+  record: EvidenceRecordData | null;
+  evidenceDispensed?: boolean;
+  collectionStarted?: boolean;
   onReveal?: () => void;
   onOpeningComplete?: () => void;
+  onTransmissionComplete?: () => void;
+  onKeep?: () => void;
   onCommitComplete?: () => void;
+  onDispensed?: () => void;
+  onCollect?: () => void;
+  onCollected?: () => void;
+  onViewTrial?: () => void;
+};
+
+type OracleTrialMachineProps = {
+  variant: 'trial-state';
+  trialState: OracleTrialState;
+  product: RegisteredProduct | null;
+  day: number | null;
+  intervalDays: number | null;
+};
+
+type OracleMachineProps = OracleVerdictMachineProps | OracleTrialMachineProps;
+
+function TrialStateDisplay({
+  state,
+  product,
+  day,
+  intervalDays,
+}: {
+  state: OracleTrialState;
+  product: RegisteredProduct | null;
+  day: number | null;
+  intervalDays: number | null;
 }) {
+  const loaded = state !== 'empty' && product !== null;
+
+  return (
+    <div
+      className={styles.trialStateDisplay}
+      data-oracle-trial-display
+      data-trial-state={state}
+    >
+      <header>
+        <span>FACE VALUE</span>
+        <span>{state === 'followup-ready' ? 'FOLLOW-UP' : loaded ? 'ACTIVE TRIAL' : 'STANDBY'}</span>
+      </header>
+      <div className={styles.trialStateBody}>
+        <span>CASE STATUS</span>
+        <strong>{loaded ? 'SPECIMEN LOADED' : 'NO TRIAL LOADED'}</strong>
+        {loaded ? (
+          <>
+            <p className={styles.trialStateProduct}>
+              <b>{product.brand}</b>
+              <span>{product.productName}</span>
+            </p>
+            <p className={styles.trialStateJob}>
+              <span>JOB</span>
+              <b>{product.assignedJob}</b>
+            </p>
+          </>
+        ) : (
+          <p className={styles.trialStateInstruction}>Insert one product to begin.</p>
+        )}
+      </div>
+      <footer>
+        <span>{loaded ? 'PROTOCOL' : 'SYSTEM'}</span>
+        <strong>
+          {loaded && day !== null && intervalDays !== null
+            ? `DAY ${String(day).padStart(2, '0')} OF ${String(intervalDays).padStart(2, '0')}`
+            : 'READY'}
+        </strong>
+      </footer>
+    </div>
+  );
+}
+
+function OracleMachine(props: OracleMachineProps) {
+  const trialMachine = props.variant === 'trial-state' ? props : null;
+  const verdictMachine = props.variant === 'trial-state' ? null : props;
+  const latestVerdict = verdictMachine?.variant === 'latest-verdict';
+  const phase = trialMachine ? 'done' : verdictMachine?.phase ?? 'sealed';
+  const viewModel = verdictMachine?.viewModel ?? null;
+  const trialIdentity = verdictMachine?.trialIdentity ?? null;
+  const record = verdictMachine?.record ?? null;
+  const displayOn =
+    trialMachine !== null ||
+    latestVerdict ||
+    !['sealed', 'opening'].includes(phase);
+  const amberState = trialMachine
+    ? trialMachine.trialState === 'followup-ready'
+      ? 'followup-ready'
+      : trialMachine.trialState === 'pending'
+        ? 'trial-pending'
+        : 'idle'
+    : latestVerdict
+      ? 'latest'
+      : phase === 'verdict_revealed'
+        ? 'ready'
+        : phase === 'committing'
+          ? 'committed'
+          : phase === 'dispensing'
+            ? 'dispensing'
+            : phase === 'collected'
+              ? 'complete'
+              : phase === 'transmitting'
+                ? 'transmitting'
+                : 'idle';
+  const cassetteVariant = trialMachine
+    ? 'trial-state'
+    : latestVerdict
+      ? 'latest-verdict'
+      : 'reveal';
+  const cassetteState = trialMachine
+    ? trialMachine.trialState
+    : latestVerdict
+      ? 'partially-revealed'
+      : phase;
+  const machineLabel = trialMachine
+    ? trialMachine.trialState === 'empty'
+      ? 'Dormant Face Value machine. No trial loaded. Insert one product to begin.'
+      : `${trialMachine.trialState === 'followup-ready' ? 'Follow-up ready' : 'Trial pending'} for ${trialMachine.product?.brand ?? ''} ${trialMachine.product?.productName ?? ''}. Specimen loaded.`
+    : latestVerdict && viewModel
+      ? `Latest verdict cassette for ${verdictProduct(viewModel)}. ${viewModel.headline}`
+      : viewModel && (phase === 'sealed' || phase === 'opening')
+        ? 'Sealed Face Value result cassette. Result content is unavailable until reveal.'
+        : viewModel
+          ? `Face Value result cassette. ${viewModel.headline}`
+          : 'Face Value result cassette.';
+  const onReveal = verdictMachine?.onReveal ?? (() => undefined);
+  const onOpeningComplete =
+    verdictMachine?.onOpeningComplete ?? (() => undefined);
+  const onTransmissionComplete =
+    verdictMachine?.onTransmissionComplete ?? (() => undefined);
+  const onKeep = verdictMachine?.onKeep ?? (() => undefined);
+  const onCommitComplete =
+    verdictMachine?.onCommitComplete ?? (() => undefined);
+  const onDispensed = verdictMachine?.onDispensed ?? (() => undefined);
+  const onCollect = verdictMachine?.onCollect ?? (() => undefined);
+  const onCollected = verdictMachine?.onCollected ?? (() => undefined);
+  const onViewTrial = verdictMachine?.onViewTrial ?? (() => undefined);
+  const evidenceDispensed = verdictMachine?.evidenceDispensed ?? false;
+  const collectionStarted = verdictMachine?.collectionStarted ?? false;
+
   return (
     <section
-      className={`${styles.machine} ${className}`.trim()}
+      className={`${styles.machine} ${latestVerdict ? styles.latestMachine : ''}`}
       style={oracleTimingProperties}
       data-oracle-machine
       data-oracle-state={phase}
-      data-cassette-variant={variant}
+      data-cassette-variant={cassetteVariant}
       data-cassette-state={cassetteState}
-      data-machine-projection={projection}
-      data-machine-shell="canonical"
+      data-machine-implementation="oracle"
+      data-trial-machine-state={trialMachine?.trialState}
       data-machine-material="carbon"
       data-machine-instance="face-value-oracle"
-      aria-label={ariaLabel}
+      aria-label={machineLabel}
     >
-      <div className={styles.chassis} data-oracle-chassis data-machine-chassis="canonical">
-        <div className={styles.carbonTexture} aria-hidden="true" />
+      <div className={styles.chassis} data-oracle-chassis>
+        <div
+          className={styles.carbonTexture}
+          data-oracle-carbon-texture
+          aria-hidden="true"
+        />
         <div className={styles.displayBezel} data-oracle-display-opening>
-          <div className={styles.displayGlass} data-machine-smart-glass>
-            {showSpecimenSilhouette && (
-              <div className={styles.specimenSilhouette} aria-hidden="true">
-                <i />
-                <span />
-              </div>
+          <div className={styles.displayGlass} data-oracle-display-glass>
+            <div
+              className={styles.specimenSilhouette}
+              data-oracle-specimen-silhouette
+              data-specimen-state={
+                trialMachine
+                  ? trialMachine.trialState === 'empty'
+                    ? 'empty'
+                    : 'loaded'
+                  : undefined
+              }
+              aria-hidden="true"
+            >
+              <i />
+              <span />
+            </div>
+            {trialMachine && (
+              <TrialStateDisplay
+                state={trialMachine.trialState}
+                product={trialMachine.product}
+                day={trialMachine.day}
+                intervalDays={trialMachine.intervalDays}
+              />
             )}
-            {displayContent}
-            {showSealedOptics && (
+            {!trialMachine && displayOn && !latestVerdict && viewModel && trialIdentity && (
+              <FirmwareDisplay
+                phase={phase}
+                trialIdentity={trialIdentity}
+                viewModel={viewModel}
+                onTransmissionComplete={onTransmissionComplete}
+              />
+            )}
+            {latestVerdict && viewModel && <LatestVerdictDisplay viewModel={viewModel} />}
+            {!trialMachine && !displayOn && !latestVerdict && (
               <div className={styles.sealedOptics} aria-hidden="true">
                 <span />
               </div>
@@ -494,7 +622,7 @@ function CanonicalMachineShell({
           </div>
         </div>
 
-        <div className={styles.lowerDeck} data-machine-lower-deck>
+        <div className={styles.lowerDeck} data-oracle-lower-deck>
           <div className={styles.slotAssembly} data-oracle-slot aria-hidden="true">
             <i className={styles.slotSeam} />
             <span className={styles.rollerLeft} />
@@ -506,28 +634,36 @@ function CanonicalMachineShell({
             type="button"
             className={styles.amberControl}
             data-amber-state={amberState}
-            data-machine-amber-control
-            data-oracle-keep-action={
-              preserveOracleHardwareMarker ? 'hardware' : undefined
+            data-oracle-amber-control
+            data-oracle-keep-action={!trialMachine && !latestVerdict ? 'hardware' : undefined}
+            aria-label={
+              !trialMachine && !latestVerdict && phase === 'verdict_revealed'
+                ? 'Keep this result'
+                : undefined
             }
-            aria-label={amberAction?.label}
-            aria-hidden={!amberAction}
-            tabIndex={amberAction ? 0 : -1}
-            disabled={!amberAction}
-            onClick={amberAction?.onActivate}
+            aria-hidden={Boolean(
+              trialMachine || latestVerdict || phase !== 'verdict_revealed',
+            )}
+            tabIndex={
+              !trialMachine && !latestVerdict && phase === 'verdict_revealed' ? 0 : -1
+            }
+            disabled={Boolean(
+              trialMachine || latestVerdict || phase !== 'verdict_revealed',
+            )}
+            onClick={onKeep}
           >
             <span aria-hidden="true" />
           </button>
           <OraclePullHandle
-            active={handleActive}
+            active={!trialMachine && !latestVerdict && phase === 'sealed'}
             phase={phase}
-            product={handleProduct}
+            product={trialMachine?.product?.productName ?? viewModel?.productName ?? 'Face Value product'}
             onReveal={onReveal}
           />
-          <div className={styles.bottomRail} data-machine-bottom-rail aria-hidden="true" />
+          <div className={styles.bottomRail} data-oracle-bottom-rail aria-hidden="true" />
         </div>
 
-        {motionEnabled && phase === 'opening' && (
+        {!trialMachine && !latestVerdict && phase === 'opening' && (
           <div
             className={styles.openingMechanism}
             data-oracle-motion="opening"
@@ -539,7 +675,7 @@ function CanonicalMachineShell({
             }}
           />
         )}
-        {motionEnabled && phase === 'committing' && (
+        {!trialMachine && !latestVerdict && phase === 'committing' && (
           <div
             className={styles.commitMechanism}
             data-oracle-motion="commit"
@@ -559,229 +695,38 @@ function CanonicalMachineShell({
         data-paper-axis="vertical"
         data-paper-coordinate-system="oracle-machine"
       >
-        {evidenceContent}
+        {!trialMachine && latestVerdict && record && viewModel && (
+          <LatestVerdictPaper record={record} viewModel={viewModel} onViewTrial={onViewTrial} />
+        )}
+        {!trialMachine &&
+          !latestVerdict &&
+          record &&
+          viewModel &&
+          (phase === 'committing' || phase === 'dispensing') && (
+          <OracleEvidencePaper
+            record={record}
+            viewModel={viewModel}
+            dispensed={evidenceDispensed}
+            collecting={collectionStarted}
+            onDispensed={onDispensed}
+            onCollect={onCollect}
+            onCollected={onCollected}
+          />
+        )}
       </div>
       <div className={styles.slotLip} data-oracle-slot-lip aria-hidden="true" />
     </section>
   );
 }
 
-const compactSpecimenLabel = (value: string, maximumLength: number): string => {
-  const firstWord = value.trim().split(/\s+/)[0] ?? '';
-  return firstWord.slice(0, maximumLength).toUpperCase();
-};
-
-export type ContinuityProjectionProps =
-  | {
-      projection: 'empty';
-    }
-  | {
-      projection: 'trial-pending' | 'followup-ready';
-      product: RegisteredProduct;
-      day: number;
-      intervalDays: number;
-    };
-
-export function ContinuityProjection(props: ContinuityProjectionProps) {
-  const loaded = props.projection !== 'empty';
-  const product = loaded ? props.product : null;
-  const specimen = product ? specimenFromRegisteredProduct(product) : null;
-  const displayContent =
-    product && specimen && loaded ? (
-      <div className={styles.loadedContinuityDisplay}>
-        <p className={styles.continuityState}>SPECIMEN LOADED</p>
-        <i className={styles.continuityDisplayRule} aria-hidden="true" />
-        <div
-          className={`${styles.loadedProduct} ${
-            product.brand.length + product.productName.length > 34
-              ? styles.loadedProductCompact
-              : ''
-          }`}
-        >
-          <span>PRODUCT</span>
-          <strong>
-            <b>{product.brand}</b>
-            <b>{product.productName}</b>
-          </strong>
-        </div>
-        <div className={styles.loadedJob}>
-          <span>JOB</span>
-          <strong>{product.assignedJob}</strong>
-        </div>
-        <p className={styles.loadedDay}>
-          DAY {String(props.day).padStart(2, '0')} OF{' '}
-          {String(props.intervalDays).padStart(2, '0')}
-        </p>
-        <div
-          className={styles.loadedSpecimen}
-          data-registered-specimen-projection={specimen.id}
-          aria-hidden="true"
-        >
-          <i className={styles.loadedSpecimenCap} />
-          <i className={styles.loadedSpecimenCollar} />
-          <i className={styles.loadedSpecimenBody} />
-          <span className={styles.loadedSpecimenLabel}>
-            <small>{compactSpecimenLabel(specimen.brand, 8)}</small>
-            <b>{compactSpecimenLabel(specimen.product, 8)}</b>
-            {product.strength && <em>{product.strength.toUpperCase()}</em>}
-          </span>
-        </div>
-        <i className={styles.loadedPedestal} aria-hidden="true" />
-      </div>
-    ) : (
-      <div className={styles.emptyContinuityDisplay}>
-        <p className={styles.continuityState}>NO TRIAL LOADED</p>
-        <div className={styles.emptySpecimen} aria-hidden="true">
-          <i />
-          <span />
-        </div>
-        <i className={styles.emptyPedestal} aria-hidden="true" />
-        <i className={styles.emptyDisplayRule} aria-hidden="true" />
-        <p className={styles.emptyInstruction}>Insert one product to begin.</p>
-      </div>
-    );
-
+export function OracleTrialStateMachine(props: OracleTrialStateMachineProps) {
   return (
-    <CanonicalMachineShell
-      className={styles.continuityMachine}
-      phase="collected"
-      projection={props.projection}
-      variant="continuity"
-      cassetteState={props.projection}
-      ariaLabel={
-        product
-          ? `${props.projection === 'followup-ready' ? 'Follow-up ready' : 'Trial pending'} for ${product.brand} ${product.productName}. Specimen loaded.`
-          : 'Dormant Face Value machine. No trial loaded. Insert one product to begin.'
-      }
-      displayContent={displayContent}
-      showSpecimenSilhouette={false}
-      amberState={
-        props.projection === 'followup-ready'
-          ? 'followup-ready'
-          : props.projection === 'trial-pending'
-            ? 'pending'
-            : 'idle'
-      }
-    />
-  );
-}
-
-function OracleMachine({
-  variant = 'reveal',
-  phase,
-  trialIdentity,
-  viewModel,
-  record,
-  evidenceDispensed = false,
-  collectionStarted = false,
-  onReveal = () => undefined,
-  onOpeningComplete = () => undefined,
-  onTransmissionComplete = () => undefined,
-  onKeep = () => undefined,
-  onCommitComplete = () => undefined,
-  onDispensed = () => undefined,
-  onCollect = () => undefined,
-  onCollected = () => undefined,
-  onViewTrial = () => undefined,
-}: {
-  variant?: 'reveal' | 'latest-verdict';
-  phase: OracleRevealState;
-  trialIdentity: OracleTrialIdentity;
-  viewModel: VerdictViewModel;
-  record: EvidenceRecordData | null;
-  evidenceDispensed?: boolean;
-  collectionStarted?: boolean;
-  onReveal?: () => void;
-  onOpeningComplete?: () => void;
-  onTransmissionComplete?: () => void;
-  onKeep?: () => void;
-  onCommitComplete?: () => void;
-  onDispensed?: () => void;
-  onCollect?: () => void;
-  onCollected?: () => void;
-  onViewTrial?: () => void;
-}) {
-  const latestVerdict = variant === 'latest-verdict';
-  const displayOn = latestVerdict || !['sealed', 'opening'].includes(phase);
-  const amberState = latestVerdict
-    ? 'latest'
-    : phase === 'verdict_revealed'
-      ? 'ready'
-      : phase === 'committing'
-        ? 'committed'
-        : phase === 'dispensing'
-          ? 'dispensing'
-          : phase === 'collected'
-            ? 'complete'
-            : phase === 'transmitting'
-              ? 'transmitting'
-              : 'idle';
-
-  const displayContent = (
-    <>
-      {displayOn && !latestVerdict && (
-        <FirmwareDisplay
-          phase={phase}
-          trialIdentity={trialIdentity}
-          viewModel={viewModel}
-          onTransmissionComplete={onTransmissionComplete}
-        />
-      )}
-      {latestVerdict && <LatestVerdictDisplay viewModel={viewModel} />}
-    </>
-  );
-  const evidenceContent = (
-    <>
-      {latestVerdict && record && (
-        <LatestVerdictPaper record={record} viewModel={viewModel} onViewTrial={onViewTrial} />
-      )}
-      {!latestVerdict && record && (phase === 'committing' || phase === 'dispensing') && (
-        <OracleEvidencePaper
-          record={record}
-          viewModel={viewModel}
-          dispensed={evidenceDispensed}
-          collecting={collectionStarted}
-          onDispensed={onDispensed}
-          onCollect={onCollect}
-          onCollected={onCollected}
-        />
-      )}
-    </>
-  );
-
-  return (
-    <CanonicalMachineShell
-      className={latestVerdict ? styles.latestMachine : ''}
-      phase={phase}
-      projection={latestVerdict ? 'latest-verdict' : 'verdict'}
-      variant={variant}
-      cassetteState={latestVerdict ? 'partially-revealed' : phase}
-      ariaLabel={
-        latestVerdict
-          ? `Latest verdict cassette for ${verdictProduct(viewModel)}. ${viewModel.headline}`
-          : phase === 'sealed' || phase === 'opening'
-            ? 'Sealed Face Value result cassette. Result content is unavailable until reveal.'
-            : `Face Value result cassette. ${viewModel.headline}`
-      }
-      displayContent={displayContent}
-      evidenceContent={evidenceContent}
-      showSealedOptics={!displayOn && !latestVerdict}
-      amberState={amberState}
-      amberAction={
-        !latestVerdict && phase === 'verdict_revealed'
-          ? {
-              label: 'Keep this result',
-              onActivate: onKeep,
-            }
-          : undefined
-      }
-      preserveOracleHardwareMarker={!latestVerdict}
-      handleActive={!latestVerdict && phase === 'sealed'}
-      handleProduct={viewModel.productName}
-      motionEnabled={!latestVerdict}
-      onReveal={onReveal}
-      onOpeningComplete={onOpeningComplete}
-      onCommitComplete={onCommitComplete}
+    <OracleMachine
+      variant="trial-state"
+      trialState={props.state}
+      product={props.state === 'empty' ? null : props.product}
+      day={props.state === 'empty' ? null : props.day}
+      intervalDays={props.state === 'empty' ? null : props.intervalDays}
     />
   );
 }

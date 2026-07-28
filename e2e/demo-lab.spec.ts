@@ -214,7 +214,7 @@ test('pending and ready machine journeys preserve timing and chassis geometry ac
   await page.setViewportSize({ width: 390, height: 844 });
   await openJourney(page, 'trial_pending');
 
-  const pendingMachine = page.locator('[data-machine-projection="trial-pending"]');
+  const pendingMachine = page.locator('[data-trial-machine-state="pending"]');
   await expect(pendingMachine).toBeVisible();
   await expect(page.locator('[data-followup-action="pending"]')).toContainText('IN 14 DAYS');
   await expect(page.getByRole('button', { name: 'Take follow-up scan' })).toHaveCount(0);
@@ -232,7 +232,7 @@ test('pending and ready machine journeys preserve timing and chassis geometry ac
   expect(pendingTiming.demoTimelineAdvanced).toBe(false);
 
   await page.reload();
-  await expect(page.locator('[data-machine-projection="trial-pending"]')).toBeVisible();
+  await expect(page.locator('[data-trial-machine-state="pending"]')).toBeVisible();
   await expect(page.locator('[data-followup-action="pending"]')).toContainText('IN 14 DAYS');
   expect(
     await page.evaluate((key) => {
@@ -248,13 +248,13 @@ test('pending and ready machine journeys preserve timing and chassis geometry ac
   ).toEqual(pendingTiming);
 
   await openJourney(page, 'followup_ready');
-  const readyMachine = page.locator('[data-machine-projection="followup-ready"]');
+  const readyMachine = page.locator('[data-trial-machine-state="followup-ready"]');
   await expect(readyMachine).toBeVisible();
   await expect(page.getByRole('button', { name: 'Take follow-up scan' })).toBeVisible();
   expect(await readyMachine.boundingBox()).toEqual(pendingBox);
 
   await page.reload();
-  await expect(page.locator('[data-machine-projection="followup-ready"]')).toBeVisible();
+  await expect(page.locator('[data-trial-machine-state="followup-ready"]')).toBeVisible();
   await page.getByRole('button', { name: 'Take follow-up scan' }).click();
   await expect(page.getByRole('heading', { name: 'Center your face' })).toBeVisible();
 });
@@ -341,7 +341,10 @@ test('Evidence Record summary, reasoning, and full technical states use producti
 test('core synthetic starting points open real production screens', async ({ page }) => {
   await openPreview(page, 'new_trial');
   await expect(page.locator('[data-fv-screen="welcome"]')).toBeVisible();
-  await expect(page.locator('[data-machine-projection="empty"]')).toBeVisible();
+  await expect(page.locator('[data-trial-machine-state="empty"]')).toHaveAttribute(
+    'data-machine-implementation',
+    'oracle',
+  );
 
   await openPreview(page, 'baseline_locked');
   await expect(page.getByRole('heading', { name: 'Baseline locked.' })).toBeVisible();
@@ -349,7 +352,10 @@ test('core synthetic starting points open real production screens', async ({ pag
 
   await openPreview(page, 'trial_pending');
   await expect(page.locator('[data-fv-screen="trial-pending"]')).toBeVisible();
-  await expect(page.locator('[data-machine-projection="trial-pending"]')).toBeVisible();
+  await expect(page.locator('[data-trial-machine-state="pending"]')).toHaveAttribute(
+    'data-machine-implementation',
+    'oracle',
+  );
   await expect(page.locator('[data-followup-action="pending"]')).toContainText('IN 14 DAYS');
   await expect(page.getByRole('button', { name: 'Take follow-up scan' })).toHaveCount(0);
 
