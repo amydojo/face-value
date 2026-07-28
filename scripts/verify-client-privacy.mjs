@@ -17,6 +17,8 @@ const forbidden = [
   'raw provider payload',
   'ADVANCE DEMO TIMELINE',
   'VITE_SHOW_DEMO_CONTROLS',
+  'Demo controls',
+  'Clear demo data',
 ];
 
 async function filesUnder(directory) {

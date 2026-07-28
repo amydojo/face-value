@@ -18,7 +18,8 @@ import { EvidenceRecord } from './evidence-record/EvidenceRecord';
 import { LatestVerdictCassette, OracleRevealScene } from './oracle-reveal/OracleRevealScene';
 import { ProductRegistration } from './product-registration/ProductRegistration';
 
-const showDemoControls = import.meta.env.VITE_SHOW_DEMO_CONTROLS === 'true';
+const showDemoControls =
+  import.meta.env.DEV && import.meta.env.VITE_SHOW_DEMO_CONTROLS === 'true';
 
 const localDateFormatter = new Intl.DateTimeFormat(undefined, {
   weekday: 'short',
@@ -46,7 +47,12 @@ export function FaceValueApplication() {
   const [baselineNoteDraft, setBaselineNoteDraft] = useState(state.baselineContext?.note ?? '');
   const homeStage = ['cabinet', 'waiting_for_followup', 'followup_ready'].includes(state.stage);
   const tone =
-    state.stage === 'camera' || state.stage === 'analysis' || homeStage ? 'dark' : 'light';
+    state.stage === 'camera' ||
+    state.stage === 'analysis' ||
+    state.stage === 'archive' ||
+    homeStage
+      ? 'dark'
+      : 'light';
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {

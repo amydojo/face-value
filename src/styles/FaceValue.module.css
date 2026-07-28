@@ -1376,25 +1376,196 @@ p {
 
 .archiveIndex {
   display: grid;
-  gap: 12px;
+  gap: 10px;
+}
+
+.archive {
+  gap: 14px;
+  padding-bottom: var(--fv-safe-bottom);
+}
+
+.archive > .textButton {
+  width: fit-content;
+  color: #d8d2c8;
+  font-size: 14px;
+}
+
+.archiveHeading {
+  display: grid;
+  gap: 9px;
+  margin-bottom: 2px;
+}
+
+.archiveHeading h1 {
+  color: #f0ece4;
+  font-size: clamp(30px, 9vw, 36px);
+  line-height: 1;
+}
+
+.archiveSummary {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 3px 0 0;
+  padding-top: 11px;
+  border-top: 1px solid #3c3934;
+  color: #958f85;
+  font: 650 8px/1.3 var(--fv-font-mono);
+  letter-spacing: 0.065em;
+}
+
+.archiveEmpty {
+  margin: 8px 0 0;
+  padding: 18px 0;
+  border-top: 1px solid #3c3934;
+  border-bottom: 1px solid #3c3934;
+  color: #b9b3a8;
+  font-size: 13px;
 }
 
 .archiveRecord {
   position: relative;
   width: 100%;
-  padding: 0;
-  border: 0;
-  background: transparent;
+  min-height: 44px;
+  display: grid;
+  gap: 8px;
+  padding: 15px 16px 14px 19px;
+  overflow: hidden;
+  border: 1px solid #6b655c;
+  border-radius: 9px;
+  color: #1c1915;
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.32), transparent 38%),
+    #e8e0d3;
+  box-shadow:
+    0 12px 22px -19px rgba(0, 0, 0, 0.95),
+    inset 0 1px rgba(255, 255, 255, 0.48);
   text-align: left;
+  cursor: pointer;
+  transition:
+    transform 120ms var(--fv-ease-damped),
+    border-color 120ms linear,
+    background-color 120ms linear,
+    box-shadow 120ms linear;
+}
+
+.archiveRecord::before {
+  position: absolute;
+  top: 15px;
+  bottom: 15px;
+  left: 0;
+  width: 3px;
+  content: '';
+  border-radius: 0 2px 2px 0;
+  background: var(--fv-signal-active);
+}
+
+.archiveRecord:hover {
+  border-color: #938a7e;
+  background-color: #eee6d9;
+  box-shadow:
+    0 15px 26px -19px rgba(0, 0, 0, 0.98),
+    inset 0 1px rgba(255, 255, 255, 0.55);
+}
+
+.archiveRecord:active {
+  transform: translate3d(0, 1px, 0);
+  border-color: #756d62;
+  box-shadow:
+    0 8px 18px -17px rgba(0, 0, 0, 0.9),
+    inset 0 1px rgba(255, 255, 255, 0.42);
+}
+
+.archiveRecord:focus-visible {
+  outline-color: var(--fv-signal-active);
+  outline-offset: 3px;
+}
+
+.archiveRecordMeta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 7px;
+  border-bottom: 1px solid rgba(63, 57, 48, 0.25);
+  color: #615a51;
+  font: 650 8px/1.3 var(--fv-font-mono);
+  letter-spacing: 0.065em;
 }
 
 .archiveAccession {
-  position: absolute;
-  top: 10px;
-  left: 12px;
-  z-index: 2;
-  color: var(--fv-signal-active);
-  font: 600 7px var(--fv-font-mono);
+  color: #2b2722;
+}
+
+.archiveRecordMeta time {
+  color: #6f685e;
+  white-space: nowrap;
+}
+
+.archiveProduct,
+.archiveFinding,
+.archiveSupport {
+  overflow-wrap: anywhere;
+}
+
+.archiveProduct {
+  color: #181512;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+.archiveFinding {
+  color: #211d18;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.38;
+}
+
+.archiveSupport {
+  color: #625b52;
+  font-size: 11px;
+  line-height: 1.42;
+}
+
+.archiveRecordFooter {
+  min-height: 24px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto 20px;
+  align-items: end;
+  gap: 10px;
+  padding-top: 7px;
+  border-top: 1px solid rgba(63, 57, 48, 0.25);
+  font: 650 8px/1.2 var(--fv-font-mono);
+  letter-spacing: 0.055em;
+}
+
+.archiveRecordFooter b {
+  color: #2c2721;
+  overflow-wrap: anywhere;
+}
+
+.archiveRecordFooter span {
+  color: #6b6359;
+}
+
+.archiveRecordFooter i {
+  color: #1d1915;
+  font: normal 17px/1 var(--fv-font-sans);
+  text-align: right;
+}
+
+.archive > details {
+  margin-top: 4px;
+  color: #aaa399;
+  font-size: 12px;
+}
+
+.archive > details summary {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
 }
 
 .bottomNav {
@@ -1448,6 +1619,18 @@ p {
   .captureIdentity small {
     display: none;
   }
+
+  .archiveRecord {
+    padding-inline: 17px 13px;
+  }
+
+  .archiveRecordMeta {
+    gap: 8px;
+  }
+
+  .archiveRecordFooter {
+    gap: 7px;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -1456,7 +1639,8 @@ p {
   }
 
   .homePrimaryAction,
-  .previousTrialsRow {
+  .previousTrialsRow,
+  .archiveRecord {
     transition: none;
   }
 }

@@ -295,9 +295,11 @@ function EvidencePaperContent({
       <footer>
         <span>NEXT</span>
         <strong>{viewModel.nextStepLabel}</strong>
-        <small>
+        <small data-latest-paper-action={latest ? '' : undefined}>
           {latest ? (
-            <>VIEW TRIAL&nbsp; →</>
+            <>
+              VIEW TRIAL <i aria-hidden="true">→</i>
+            </>
           ) : (
             <>
               <span data-oracle-trial-identity>{viewModel.trialId}</span> · FACE EXCLUDED · PRIVATE

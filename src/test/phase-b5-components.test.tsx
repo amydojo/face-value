@@ -222,7 +222,23 @@ it('keeps active-trial status calm while exposing the latest verdict and real hi
   expect(previousTrials).toBeVisible();
   await user.click(previousTrials);
   expect(screen.getByRole('heading', { name: 'Previous trials' })).toBeVisible();
-  expect(screen.getAllByRole('button', { name: /Open saved result/ })).toHaveLength(2);
+  expect(screen.queryByText('Demo controls')).not.toBeInTheDocument();
+  const archivedResults = screen.getAllByRole('button', { name: /Open saved result/ });
+  expect(archivedResults).toHaveLength(2);
+  expect(archivedResults.map((record) => record.getAttribute('data-record-id'))).toEqual([
+    latest.id,
+    older.id,
+  ]);
+  expect(within(archivedResults[0]).getByText('FV–014')).toBeVisible();
+  expect(within(archivedResults[0]).getByText('Naturium · Azelaic Topical Acid')).toBeVisible();
+  expect(
+    within(archivedResults[0]).getByText('A small favorable shift showed up.'),
+  ).toBeVisible();
+  expect(
+    within(archivedResults[0]).getByText('Visible redness moved in the intended direction.'),
+  ).toBeVisible();
+  expect(within(archivedResults[0]).getByText('POSSIBLE')).toBeVisible();
+  expect(within(archivedResults[0]).getByText('TEST LONGER')).toBeVisible();
 });
 
 it('starts with real registration and ends session one at Baseline locked', async () => {

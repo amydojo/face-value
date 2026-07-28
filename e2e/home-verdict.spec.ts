@@ -149,6 +149,12 @@ test('home keeps one hierarchy and the exact verdict across home, detail, and hi
   const latestPaper = cassette.locator('[data-latest-verdict-record]');
   await expect(latestPaper).toContainText('RESULT');
   await expect(latestPaper).not.toContainText('COMPARABLE');
+  await expect(latestPaper.locator('[data-latest-paper-action]')).toContainText('VIEW TRIAL');
+  await latestPaper.focus();
+  await expect(latestPaper).toBeFocused();
+  expect(
+    await latestPaper.evaluate((element) => getComputedStyle(element).outlineStyle),
+  ).not.toBe('none');
 
   const viewTrial = page.getByRole('button', {
     name: 'View trial FV–014 for Naturium · Azelaic Topical Acid',
@@ -186,10 +192,24 @@ test('home keeps one hierarchy and the exact verdict across home, detail, and hi
     .getByLabel('Previous trials')
     .getByRole('button', { name: /Open saved result/i });
   await expect(savedRecords).toHaveCount(2);
+  await expect(savedRecords.nth(0)).toHaveAttribute('data-record-id', evidenceRecord.id);
+  await expect(savedRecords.nth(1)).toHaveAttribute('data-record-id', olderEvidenceRecord.id);
   await expect(savedRecords.first()).toContainText('FV–014');
   await expect(savedRecords.first()).toContainText('Naturium · Azelaic Topical Acid');
   await expect(savedRecords.first()).toContainText('A small favorable shift showed up.');
+  await expect(savedRecords.first()).toContainText('Visible redness moved in the intended direction.');
+  await expect(savedRecords.first()).toContainText('POSSIBLE');
   await expect(savedRecords.first()).toContainText('TEST LONGER');
+  await expect(savedRecords.first()).toContainText('→');
+  expect((await savedRecords.first().boundingBox())?.height).toBeGreaterThanOrEqual(44);
+  for (let index = 0; index < 4; index += 1) {
+    if (await savedRecords.first().evaluate((element) => document.activeElement === element)) break;
+    await page.keyboard.press('Tab');
+  }
+  await expect(savedRecords.first()).toBeFocused();
+  expect(
+    await savedRecords.first().evaluate((element) => getComputedStyle(element).outlineStyle),
+  ).not.toBe('none');
   await savedRecords.first().click();
   await expect(savedResult).toContainText('FV–014');
   await expect(savedResult).toContainText('Naturium · Azelaic Topical Acid');
@@ -276,6 +296,33 @@ test('mobile widths, long verdict content, focus, and reduced motion remain stab
   });
 });
 
+test('previous-trials case files remain compact, ordered, and overflow-safe', async ({ page }) => {
+  for (const viewport of [
+    { width: 320, height: 700 },
+    { width: 390, height: 844 },
+    { width: 430, height: 932 },
+  ]) {
+    await page.setViewportSize(viewport);
+    await loadState(page, completedState([evidenceRecord, olderEvidenceRecord]));
+    await page
+      .getByRole('button', { name: 'Previous trials, 2 saved results' })
+      .click();
+
+    const archive = page.getByLabel('Previous trials');
+    const cards = archive.getByRole('button', { name: /Open saved result/i });
+    await expect(cards).toHaveCount(2);
+    await expect(cards.nth(0)).toHaveAttribute('data-record-id', evidenceRecord.id);
+    await expect(cards.nth(1)).toHaveAttribute('data-record-id', olderEvidenceRecord.id);
+    await expect(cards.first()).toContainText('Naturium · Azelaic Topical Acid');
+    await expect(cards.first()).toContainText('A small favorable shift showed up.');
+    await expect(cards.first()).toContainText('Visible redness moved in the intended direction.');
+    await expect(cards.first()).toContainText('TEST LONGER');
+    await expect(cards.first()).toContainText('POSSIBLE');
+    expect((await cards.first().boundingBox())?.height).toBeGreaterThanOrEqual(44);
+    await noHorizontalOverflow(page);
+  }
+});
+
 test('saving and collectible states use one concise status at mobile widths', async ({ page }) => {
   await installPausedAnimations(page);
 
@@ -330,7 +377,13 @@ test('recorded result preserves the approved action spacing and factual copy', a
   ]) {
     await page.setViewportSize(viewport);
     await loadState(page, revealState('collected'));
-    await expect(page.getByRole('heading', { name: 'EVIDENCE RECORDED' })).toBeVisible();
+    const completionHeading = page.getByRole('heading', { name: 'EVIDENCE RECORDED' });
+    await expect(completionHeading).toBeVisible();
+    expect(
+      await completionHeading.evaluate((element) =>
+        Number.parseFloat(getComputedStyle(element).fontSize),
+      ),
+    ).toBeLessThanOrEqual(12);
     await expect(page.getByText('Evidence recorded.', { exact: true })).toHaveCount(0);
     await expect(page.getByText('Your result is saved.')).toBeVisible();
     await expect(page.getByRole('button', { name: 'DONE' })).toBeFocused();
@@ -391,9 +444,27 @@ test('captures final mobile verification evidence', async ({ page }) => {
   await loadState(page, completedState([evidenceRecord, olderEvidenceRecord]));
   await captureEvidence(page, '01-home-latest-verdict-390');
 
+  const latestPaper = page.locator('[data-latest-verdict-record]');
+  await latestPaper.focus();
+  await expect(latestPaper).toBeFocused();
+  await captureEvidence(page, '10-home-paper-focused-390');
+
+  await page
+    .getByRole('button', { name: 'Previous trials, 2 saved results' })
+    .click();
+  await expect(page.getByText('Demo controls')).toHaveCount(0);
+  await captureEvidence(page, '06-previous-trials');
+
   await page.setViewportSize({ width: 320, height: 700 });
   await loadState(page, completedState([evidenceRecord, olderEvidenceRecord]));
   await captureEvidence(page, '02-home-narrow-320');
+
+  await page
+    .getByRole('button', { name: 'Previous trials, 2 saved results' })
+    .click();
+  await expect(page.getByText('Demo controls')).toHaveCount(0);
+  await noHorizontalOverflow(page);
+  await captureEvidence(page, '11-previous-trials-narrow-320');
 
   await page.setViewportSize({ width: 430, height: 932 });
   await loadState(page, revealState('collected'));

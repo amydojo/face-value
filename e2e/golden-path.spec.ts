@@ -359,9 +359,7 @@ for (const scenario of cases) {
     });
     await expect(savedRecord).toHaveCount(1);
     const savedRecordText = await savedRecord.innerText();
-    expect(savedRecordText).toMatch(
-      /[A-Z][a-z]{2} \d{1,2}, 2026 · \d{1,2}:\d{2} [AP]M–\d{1,2}:\d{2} [AP]M/,
-    );
+    expect(savedRecordText).toMatch(/\d{2}\s[A-Z]{3}\s2026/);
     expect(savedRecordText).not.toMatch(/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/);
     await page.reload();
     await expect(page.getByRole('heading', { name: 'Previous trials' })).toBeVisible();
