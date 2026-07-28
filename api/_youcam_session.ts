@@ -51,6 +51,13 @@ function accessError(status: 401 | 503, code: string, message: string): Response
 }
 
 export function requireYouCamAccess(request: Request): Response | null {
+  return requireYouCamAccessWithOptions(request);
+}
+
+export function requireYouCamAccessWithOptions(
+  request: Request,
+  { allowLegacyHeader = true }: { allowLegacyHeader?: boolean } = {},
+): Response | null {
   const secret = expectedSecret();
   if (!secret) {
     return accessError(
@@ -61,7 +68,7 @@ export function requireYouCamAccess(request: Request): Response | null {
   }
 
   const legacyHeader = request.headers.get('x-face-value-spike-token') ?? '';
-  if (legacyHeader && equalSecret(legacyHeader, secret)) return null;
+  if (allowLegacyHeader && legacyHeader && equalSecret(legacyHeader, secret)) return null;
   if (validSession(cookieValue(request), secret)) return null;
 
   return accessError(
@@ -99,7 +106,7 @@ export function createYouCamDemoSession(token: string): Response {
       headers: {
         'cache-control': 'no-store, max-age=0',
         'content-type': 'application/json; charset=utf-8',
-        'set-cookie': `${SESSION_COOKIE}=${value}; Path=/api/youcam; Max-Age=${SESSION_TTL_SECONDS}; Secure; HttpOnly; SameSite=Strict`,
+        'set-cookie': `${SESSION_COOKIE}=${value}; Path=/; Max-Age=${SESSION_TTL_SECONDS}; Secure; HttpOnly; SameSite=Strict`,
       },
     },
   );

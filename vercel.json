@@ -6,6 +6,10 @@
   "outputDirectory": "dist",
   "routes": [
     {
+      "src": "/demo/?",
+      "dest": "/api/demo"
+    },
+    {
       "handle": "filesystem"
     },
     {

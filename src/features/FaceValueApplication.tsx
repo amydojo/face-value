@@ -298,16 +298,32 @@ export function FaceValueApplication() {
                 <FollowUpActionContents eligible daysRemaining={0} />
               </button>
             ) : (
-              <div
-                className={styles.followUpActionRail}
-                data-followup-action="pending"
-                role="status"
-                aria-label={`Follow-up scan available in ${daysRemaining} day${
-                  daysRemaining === 1 ? '' : 's'
-                }`}
-              >
-                <FollowUpActionContents eligible={false} daysRemaining={daysRemaining} />
-              </div>
+              <>
+                <div
+                  className={styles.followUpActionRail}
+                  data-followup-action="pending"
+                  role="status"
+                  aria-label={`Follow-up scan available in ${daysRemaining} day${
+                    daysRemaining === 1 ? '' : 's'
+                  }`}
+                >
+                  <FollowUpActionContents eligible={false} daysRemaining={daysRemaining} />
+                </div>
+                {demoRuntime.mode !== 'ordinary' && (
+                  <button
+                    type="button"
+                    className={styles.secondaryAction}
+                    onClick={() =>
+                      dispatch({
+                        type: 'ADVANCE_DEMO_TIMELINE',
+                        now: readTrialNow(demoRuntime.fixtureNow),
+                      })
+                    }
+                  >
+                    ADVANCE DEMO TIMELINE
+                  </button>
+                )}
+              </>
             )}
 
             <button

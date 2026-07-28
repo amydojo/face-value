@@ -15,15 +15,9 @@ const forbidden = [
   'temporary mask URL',
   'signed provider URL',
   'raw provider payload',
-  'ADVANCE DEMO TIMELINE',
-  'VITE_SHOW_DEMO_CONTROLS',
-  'Demo controls',
-  'Clear demo data',
-  'CLEAR DEMO DATA',
-  'DEMO LAB',
-  'SYNTHETIC DEMO DATA',
-  'OPEN DEMO STATE',
-  'face-value:demo-lab',
+  ...[process.env.YOUCAM_API_KEY, process.env.YOUCAM_SPIKE_TOKEN]
+    .map((value) => value?.trim())
+    .filter((value) => value),
 ];
 
 async function filesUnder(directory) {

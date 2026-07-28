@@ -2,23 +2,39 @@
 
 Issue: [#55](https://github.com/amydojo/face-value/issues/55)
 
-The Demo Lab is a development-only internal route for opening real Face Value
-screens from canonical typed fixtures. It is not a security boundary and is not
+The Demo Lab is a protected internal route for opening real Face Value screens
+from canonical typed fixtures. It is not itself a security boundary and is not
 part of consumer navigation.
 
 ## Access
 
-The `/demo` route renders only when both conditions are true:
+### Protected production domain
 
-- `import.meta.env.DEV`
-- `VITE_SHOW_DEMO_CONTROLS=true`
+The deployed `/demo` route is protected by the existing server-side YouCam
+engineering session:
 
-Vite production builds set `import.meta.env.DEV` to `false`. The Demo Lab route,
-storage keys, controls, synthetic-data banner, and copy are tree-shaken from
-ordinary Vercel previews and production bundles. Do not weaken this gate to
-make a Vercel preview expose the lab.
+1. Open `/youcam-spike` on the same production domain and browser.
+2. Exchange the protected engineering token for the existing signed session.
+3. Open or bookmark `/demo`.
 
-Local use:
+The server validates the short-lived `Secure`, `HttpOnly`, `SameSite=Strict`
+cookie before it serves the application shell at `/demo`. The cookie is scoped
+to the same origin so it can protect both the provider API and this route. An
+unauthorized `/demo` request redirects to the ordinary consumer app. The raw
+token is cleared after exchange and is not stored in browser storage or placed
+in the client bundle.
+
+The production bundle switch is not the security boundary. Vercel routes
+`/demo` through the signed-session check before the Vite SPA fallback, and
+normal consumer navigation contains no Demo Lab link.
+
+The session lasts 30 minutes and is specific to the browser and device where it
+was opened. Repeat the `/youcam-spike` exchange when it expires.
+
+### Local development
+
+Local development still requires both `import.meta.env.DEV` and
+`VITE_SHOW_DEMO_CONTROLS=true`:
 
 ```sh
 VITE_SHOW_DEMO_CONTROLS=true npm run dev
