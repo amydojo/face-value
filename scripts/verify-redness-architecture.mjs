@@ -65,6 +65,45 @@ if (!reducer.includes('buildMvpRednessEvaluation')) {
   violations.push('phaseBMachine.ts is not wired to the canonical redness evidence adapter');
 }
 
+const evidenceRecordComponent = await readFile(
+  new URL('../src/features/evidence-record/EvidenceRecord.tsx', import.meta.url),
+  'utf8',
+);
+for (const forbiddenEvidenceRecordDependency of [
+  'evaluateRedness',
+  'buildMvpRednessEvaluation',
+  'classifyEffect',
+  'PROVISIONAL_REDNESS_THRESHOLDS',
+  "domain/evidence/redness/thresholds",
+]) {
+  if (evidenceRecordComponent.includes(forbiddenEvidenceRecordDependency)) {
+    violations.push(
+      `EvidenceRecord.tsx references scientific decision dependency ${forbiddenEvidenceRecordDependency}`,
+    );
+  }
+}
+
+const evidenceRecordAdapter = await readFile(
+  new URL(
+    '../src/features/evidence-record/evidenceRecordViewModel.ts',
+    import.meta.url,
+  ),
+  'utf8',
+);
+for (const forbiddenPresentationDependency of [
+  'evaluateRedness',
+  'buildMvpRednessEvaluation',
+  'classifyEffect',
+  'PROVISIONAL_REDNESS_THRESHOLDS',
+  "domain/evidence/redness/thresholds",
+]) {
+  if (evidenceRecordAdapter.includes(forbiddenPresentationDependency)) {
+    violations.push(
+      `evidenceRecordViewModel.ts references scientific decision dependency ${forbiddenPresentationDependency}`,
+    );
+  }
+}
+
 if (violations.length) {
   console.error('Redness architecture verification failed:');
   for (const violation of violations) console.error(`- ${violation}`);

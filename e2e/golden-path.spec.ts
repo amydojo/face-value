@@ -434,11 +434,16 @@ for (const scenario of cases) {
       .getByLabel('Previous trials')
       .getByRole('button', { name: /Open saved result/i })
       .click();
-    await expect(page.getByRole('heading', { name: 'SAVED RESULT' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Evidence record' })).toBeVisible();
     await expect(page.getByText('Visible redness moved in a favorable direction.')).not.toHaveCount(
       0,
     );
-    await expect(page.getByText(/provisional_fixture · redness-provisional-v1/i)).toBeVisible();
+    await expect(page.getByText('redness-provisional-v1')).toHaveCount(0);
+    await page.getByRole('button', { name: /Full evidence record/i }).click();
+    await expect(page.getByText('redness-provisional-v1', { exact: true })).toBeVisible();
+    await expect(
+      page.getByText('Production thresholds require repeat-scan calibration.'),
+    ).toBeVisible();
     const restoredArchive = await page.evaluate((key) => {
       return localStorage.getItem(key);
     }, STORAGE_KEY);
