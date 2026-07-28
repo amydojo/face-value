@@ -837,7 +837,12 @@ export function OracleRevealScene({
         )}
 
         {phase === 'dispensing' && (
-          <section className={styles.operationStatus} role="status">
+          <section
+            className={styles.operationStatus}
+            data-oracle-operation-status
+            data-collection-started={state.oracleCollectionStarted}
+            role="status"
+          >
             <p>
               {state.oracleEvidenceDispensed
                 ? 'EVIDENCE PRODUCED'

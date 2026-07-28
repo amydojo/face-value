@@ -781,6 +781,10 @@
   margin-top: 104px;
 }
 
+.operationStatus[data-collection-started='true'] {
+  visibility: hidden;
+}
+
 .operationStatus strong {
   color: #c9c2b6;
   font-size: 13px;

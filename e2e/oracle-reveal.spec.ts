@@ -303,6 +303,31 @@ test('collection leaves an empty slot, detail is escapable, and Done restores ho
   expect(runtimeErrors).toEqual([]);
 });
 
+test('collection removal reserves space without overlaying obsolete instructions', async ({
+  page,
+}) => {
+  await installPausedAnimations(page);
+  await loadState(
+    page,
+    stateFor('dispensing', {
+      oracleEvidenceDispensed: true,
+      oracleCollectionStarted: true,
+    }),
+  );
+
+  await expect(page.locator('[data-oracle-paper]')).toHaveAttribute(
+    'data-paper-position',
+    'collecting',
+  );
+  await expect(
+    page.locator('[data-oracle-operation-status]'),
+  ).toHaveCSS('visibility', 'hidden');
+  const statusBox = await page
+    .locator('[data-oracle-operation-status]')
+    .boundingBox();
+  expect(statusBox?.height).toBeGreaterThan(0);
+});
+
 test('responsive and reduced-motion flows preserve order without overflow', async ({
   page,
 }) => {
