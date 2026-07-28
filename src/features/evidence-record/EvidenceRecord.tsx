@@ -1,6 +1,7 @@
-import type { EvidenceRecordData, ProductPlacement } from '../../domain/model';
+import type { EvidenceRecordData } from '../../domain/model';
 import { oracleTrialIdentityForRecord } from '../../domain/oracleTrialIdentity';
 import { ScreenHeader } from '../../components/hardware';
+import { verdictProduct, verdictViewModelFromRecord } from '../verdict/verdictViewModel';
 import styles from '../../styles/FaceValue.module.css';
 
 const dateFormatter = new Intl.DateTimeFormat('en-US', {
@@ -52,22 +53,10 @@ const timestampFor = (value: string) => {
   return date ? dateTimeFormatter.format(date) : value;
 };
 
-const placementFor = (placement: ProductPlacement, uppercase = false) => {
-  const values: Partial<Record<ProductPlacement, string>> = {
-    established: 'S4 · Established routine',
-    useful_elsewhere: 'U2 · Useful elsewhere',
-    paused: 'P1 · Paused',
-    retry_alone: 'R3 · Retry alone',
-    released: 'E7 · Released',
-    cooling: 'C2 · Outside trial window',
-  };
-  const value = values[placement] ?? placement.replaceAll('_', ' ');
-  return uppercase ? value.toUpperCase() : value;
-};
-
 export function RecordFolio({ record }: { record: EvidenceRecordData }) {
   const observationWindow = observationWindowFor(record);
   const identity = oracleTrialIdentityForRecord(record);
+  const viewModel = verdictViewModelFromRecord(record);
   return (
     <div
       className={styles.recordFolio}
@@ -81,14 +70,14 @@ export function RecordFolio({ record }: { record: EvidenceRecordData }) {
         <i aria-hidden="true" />
         <span aria-hidden="true" />
       </div>
-      <strong>{record.product}</strong>
+      <strong>{verdictProduct(viewModel)}</strong>
       <small>{observationWindow}</small>
       <p>
         {record.finding}
         <br />
         {record.nonFinding}
       </p>
-      <em>{placementFor(record.finalPlacement, true)}</em>
+      <em>{viewModel.nextStepLabel}</em>
       <div data-fv-part="confidence-rail">
         <i />
       </div>
@@ -109,6 +98,7 @@ export function EvidenceRecord({
   onBack: () => void;
 }) {
   const identity = oracleTrialIdentityForRecord(record);
+  const viewModel = verdictViewModelFromRecord(record);
   const anotherProduct =
     record.disturbance === 'none' || record.disturbance === 'returned_to_cooling'
       ? 'No second product remained during the comparison'
@@ -127,7 +117,7 @@ export function EvidenceRecord({
     ['NOTE', record.note ?? 'No note added'],
     ['ANOTHER PRODUCT', anotherProduct],
     ['CONFIDENCE', record.confidence],
-    ['NEXT STEP', placementFor(record.finalPlacement)],
+    ['NEXT STEP', viewModel.nextStepLabel],
     ['SAVED', timestampFor(record.createdAt)],
   ];
 
@@ -168,10 +158,10 @@ export function EvidenceRecord({
         <button
           type="button"
           className={styles.primaryAction}
-          aria-label="View Past results"
+          aria-label="View previous trials"
           onClick={onArchive}
         >
-          <span>PAST RESULTS</span>
+          <span>PREVIOUS TRIALS</span>
           <span aria-hidden="true">→</span>
         </button>
         <button type="button" className={styles.textButton} onClick={onIndex}>

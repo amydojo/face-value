@@ -15,8 +15,7 @@ import { Archive } from './archive/Archive';
 import { CaptureContextSurface } from './capture-context/CaptureContextSurface';
 import { CameraViewport } from './capture-contract/CameraViewport';
 import { EvidenceRecord } from './evidence-record/EvidenceRecord';
-import { OracleRevealScene } from './oracle-reveal/OracleRevealScene';
-import { oracleNextStep } from './oracle-reveal/oraclePresentation';
+import { LatestVerdictCassette, OracleRevealScene } from './oracle-reveal/OracleRevealScene';
 import { ProductRegistration } from './product-registration/ProductRegistration';
 
 const showDemoControls = import.meta.env.VITE_SHOW_DEMO_CONTROLS === 'true';
@@ -45,7 +44,9 @@ export function FaceValueApplication() {
   const comparisonRequestRef = useRef<string | null>(null);
   const [baselineNoteEditing, setBaselineNoteEditing] = useState(false);
   const [baselineNoteDraft, setBaselineNoteDraft] = useState(state.baselineContext?.note ?? '');
-  const tone = state.stage === 'camera' || state.stage === 'analysis' ? 'dark' : 'light';
+  const homeStage = ['cabinet', 'waiting_for_followup', 'followup_ready'].includes(state.stage);
+  const tone =
+    state.stage === 'camera' || state.stage === 'analysis' || homeStage ? 'dark' : 'light';
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -132,28 +133,25 @@ export function FaceValueApplication() {
 
     return (
       <>
-        <ScreenHeader code={latestIdentity?.folio} />
+        <ScreenHeader code={latestIdentity?.folio} dark />
         <section
-          className={styles.indexScreen}
-          data-fv-screen={eligible ? 'followup-ready' : 'trials'}
+          className={`${styles.indexScreen} ${styles.homeScreen}`}
+          data-fv-screen={eligible && hasActiveTrial ? 'followup-ready' : 'trials'}
+          data-home-state={hasActiveTrial ? 'active' : 'idle'}
+          aria-labelledby="trial-index-heading"
         >
-          <div className={styles.directory}>
-            <p>YOUR TRIALS</p>
-            <p>
-              {eligible
-                ? 'FOLLOW-UP READY'
-                : hasActiveTrial
-                  ? 'ACTIVE'
-                  : latestEvidence
-                    ? 'EVIDENCE READY'
-                    : 'EMPTY'}
-            </p>
-          </div>
-          <h1 data-stage-focus tabIndex={-1}>
-            {eligible ? 'Let’s see what changed.' : 'Your trials'}
+          <h1 id="trial-index-heading" className={styles.srOnly} data-stage-focus tabIndex={-1}>
+            Your trials
           </h1>
+          <p className={styles.homeStatus}>
+            {eligible && hasActiveTrial
+              ? 'FOLLOW-UP READY'
+              : hasActiveTrial
+                ? 'TRIAL IN PROGRESS'
+                : 'NO TRIAL IN PROGRESS'}
+          </p>
 
-          {hasActiveTrial && state.registeredProduct ? (
+          {hasActiveTrial && state.registeredProduct && (
             <article
               className={styles.trialCard}
               aria-label={`Active trial for ${state.registeredProduct.brand} ${state.registeredProduct.productName}`}
@@ -190,41 +188,32 @@ export function FaceValueApplication() {
                 </p>
               )}
             </article>
-          ) : (
-            <div className={styles.emptyTrials}>
-              <p>No active trial</p>
-              {latestEvidence && (
-                <article
-                  className={styles.latestEvidence}
-                  aria-labelledby="latest-evidence-heading"
-                  tabIndex={-1}
-                >
-                  <p>LATEST EVIDENCE</p>
-                  <span data-oracle-trial-identity>{latestIdentity?.folio}</span>
-                  <h2 id="latest-evidence-heading">
-                    {latestEvidence.productBrand
-                      ? `${latestEvidence.productBrand} · ${latestEvidence.product}`
-                      : latestEvidence.product}
-                  </h2>
-                  <strong>{latestEvidence.finding}</strong>
-                  <span>{oracleNextStep(latestEvidence.finalPlacement)}</span>
-                </article>
-              )}
-              <button
-                type="button"
-                className={styles.primaryAction}
-                onClick={() => dispatch({ type: 'START_PRODUCT_REGISTRATION' })}
-              >
-                <span>{latestEvidence ? 'START ANOTHER TRIAL' : 'START A PRODUCT TRIAL'}</span>
-                <span aria-hidden="true">→</span>
-              </button>
-            </div>
+          )}
+
+          {latestEvidence && (
+            <section className={styles.latestVerdict} aria-label="Latest verdict">
+              <LatestVerdictCassette
+                record={latestEvidence}
+                onViewTrial={() => dispatch({ type: 'VIEW_RECORD', record: latestEvidence })}
+              />
+            </section>
+          )}
+
+          {!hasActiveTrial && (
+            <button
+              type="button"
+              className={styles.homePrimaryAction}
+              onClick={() => dispatch({ type: 'START_PRODUCT_REGISTRATION' })}
+            >
+              <span>START A NEW TRIAL</span>
+              <span aria-hidden="true">→</span>
+            </button>
           )}
 
           {eligible && hasActiveTrial && (
             <button
               type="button"
-              className={styles.primaryAction}
+              className={styles.homePrimaryAction}
               onClick={() =>
                 dispatch({
                   type: 'BEGIN_CAPTURE',
@@ -255,10 +244,15 @@ export function FaceValueApplication() {
 
           <button
             type="button"
-            className={styles.textButton}
+            className={styles.previousTrialsRow}
+            aria-label={`Previous trials, ${state.archive.length} saved result${state.archive.length === 1 ? '' : 's'}`}
             onClick={() => dispatch({ type: 'VIEW_ARCHIVE' })}
           >
-            Past results
+            <span>PREVIOUS TRIALS</span>
+            <span>
+              <b>{state.archive.length}</b>
+              <i aria-hidden="true">→</i>
+            </span>
           </button>
         </section>
       </>

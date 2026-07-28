@@ -14,15 +14,20 @@ import { systemClock } from '../../adapters/clock/clock';
 import { useFaceValue } from '../../app/faceValueContext';
 import { createOracleEvidenceRecord } from '../../app/phaseBMachine';
 import { ScreenHeader } from '../../components/hardware';
-import type {
-  AnalysisResult,
-  EvidenceRecordData,
-  ProductPlacement,
-  Specimen,
-} from '../../domain/model';
+import type { EvidenceRecordData, ProductPlacement } from '../../domain/model';
 import { oracleMotionDuration, type OracleRevealState } from '../../domain/oracleRevealMachine';
-import { oracleTrialIdentity, type OracleTrialIdentity } from '../../domain/oracleTrialIdentity';
+import {
+  oracleTrialIdentity,
+  oracleTrialIdentityForRecord,
+  type OracleTrialIdentity,
+} from '../../domain/oracleTrialIdentity';
 import { formatRawScore } from '../../domain/youcamEvidence';
+import {
+  verdictProduct,
+  verdictViewModelFromAnalysis,
+  verdictViewModelFromRecord,
+  type VerdictViewModel,
+} from '../verdict/verdictViewModel';
 import { oracleMachineControlLabel, oracleNextStep } from './oraclePresentation';
 import styles from './OracleRevealScene.module.css';
 
@@ -82,10 +87,6 @@ const selectableNextSteps: Array<{
     guidance: 'Conclude this trial without keeping the product active.',
   },
 ];
-
-function recordProduct(record: EvidenceRecordData): string {
-  return record.productBrand ? `${record.productBrand} · ${record.product}` : record.product;
-}
 
 function OraclePullHandle({
   active,
@@ -204,17 +205,17 @@ function OraclePullHandle({
 function FirmwareDisplay({
   phase,
   trialIdentity,
-  analysis,
-  recommendation,
+  viewModel,
   onTransmissionComplete,
 }: {
   phase: OracleRevealState;
   trialIdentity: OracleTrialIdentity;
-  analysis: AnalysisResult;
-  recommendation: string;
+  viewModel: VerdictViewModel;
   onTransmissionComplete: () => void;
 }) {
   const resolved = ['verdict_revealed', 'committing', 'dispensing', 'collected'].includes(phase);
+  const recording = ['committing', 'dispensing'].includes(phase);
+  const recorded = phase === 'collected';
 
   return (
     <div
@@ -234,13 +235,21 @@ function FirmwareDisplay({
         <span data-oracle-trial-identity>{trialIdentity.firmware}</span>
       </header>
       <div className={styles.firmwareFinding}>
-        <span>OBSERVED</span>
-        <strong data-oracle-finding>{analysis.finding}</strong>
+        <span>{recorded ? 'RECORD STATUS' : recording ? 'EVIDENCE RECORD' : 'OBSERVED'}</span>
+        <strong data-oracle-finding={!recording && !recorded ? true : undefined}>
+          {recorded ? 'SAVED' : recording ? 'IN PROGRESS' : viewModel.headline}
+        </strong>
       </div>
-      {resolved && (
+      {resolved && !recording && !recorded && (
         <div className={styles.firmwareNext}>
           <span>NEXT</span>
-          <strong>{recommendation}</strong>
+          <strong>{viewModel.nextStepLabel}</strong>
+        </div>
+      )}
+      {recording && (
+        <div className={styles.firmwareNext}>
+          <span>STATUS</span>
+          <strong>RECORDING</strong>
         </div>
       )}
       <i className={styles.syncLine} aria-hidden="true" />
@@ -248,10 +257,68 @@ function FirmwareDisplay({
   );
 }
 
+function LatestVerdictDisplay({ viewModel }: { viewModel: VerdictViewModel }) {
+  return (
+    <div
+      className={styles.latestDisplay}
+      data-verdict-code={viewModel.verdictCode}
+      aria-label={`Latest verdict for ${verdictProduct(viewModel)}`}
+    >
+      <header>
+        <span>LATEST VERDICT</span>
+        <span>{viewModel.trialId}</span>
+      </header>
+      <div>
+        <span>PRODUCT</span>
+        <strong>{verdictProduct(viewModel)}</strong>
+      </div>
+      <footer>
+        <span>CONFIDENCE</span>
+        <strong>{viewModel.confidence}</strong>
+      </footer>
+    </div>
+  );
+}
+
+function EvidencePaperContent({
+  viewModel,
+  latest = false,
+}: {
+  viewModel: VerdictViewModel;
+  latest?: boolean;
+}) {
+  return (
+    <article aria-label={`${viewModel.headline} Next: ${viewModel.nextStepLabel}.`}>
+      <header>
+        <span>{latest ? 'LATEST VERDICT' : 'FACE VALUE'}</span>
+        <span data-oracle-trial-identity>{viewModel.trialId}</span>
+      </header>
+      <section>
+        <small>{latest ? viewModel.verdictCode : verdictProduct(viewModel)}</small>
+        <span>{latest ? 'RESULT' : 'OBSERVED'}</span>
+        <strong data-evidence-finding>{viewModel.headline}</strong>
+      </section>
+      <footer>
+        <span>NEXT</span>
+        <strong>{viewModel.nextStepLabel}</strong>
+        <small>
+          {latest ? (
+            <>VIEW TRIAL&nbsp; →</>
+          ) : (
+            <>
+              <span data-oracle-trial-identity>{viewModel.trialId}</span> · FACE EXCLUDED · PRIVATE
+              BY DEFAULT
+            </>
+          )}
+        </small>
+      </footer>
+    </article>
+  );
+}
+
 function OracleEvidencePaper({
   record,
-  trialIdentity,
-  recommendation,
+  viewModel,
   dispensed,
   collecting,
   onDispensed,
@@ -259,8 +326,7 @@ function OracleEvidencePaper({
   onCollected,
 }: {
   record: EvidenceRecordData;
-  trialIdentity: OracleTrialIdentity;
-  recommendation: string;
+  viewModel: VerdictViewModel;
   dispensed: boolean;
   collecting: boolean;
   onDispensed: () => void;
@@ -290,7 +356,7 @@ function OracleEvidencePaper({
       disabled={!dispensed || collecting}
       tabIndex={dispensed && !collecting ? 0 : -1}
       aria-hidden={!dispensed}
-      aria-label={`Evidence record for ${recordProduct(record)}. Activate to take it.`}
+      aria-label={`Evidence record for ${verdictProduct(viewModel)}. Activate to take it.`}
       onClick={onCollect}
       onAnimationEnd={(event: AnimationEvent<HTMLButtonElement>) => {
         if (event.target !== event.currentTarget) return;
@@ -298,67 +364,75 @@ function OracleEvidencePaper({
         else if (!dispensed) onDispensed();
       }}
     >
-      <article aria-label={`${record.finding}. Next: ${recommendation}.`}>
-        <header>
-          <span>FACE VALUE</span>
-          <span data-oracle-trial-identity>{trialIdentity.folio}</span>
-        </header>
-        <section>
-          <small>{recordProduct(record)}</small>
-          <span>OBSERVED</span>
-          <strong data-evidence-finding>{record.finding}</strong>
-        </section>
-        <footer>
-          <span>NEXT</span>
-          <strong>{recommendation}</strong>
-          <small>
-            <span data-oracle-trial-identity>{trialIdentity.folio}</span> · FACE EXCLUDED · PRIVATE
-            BY DEFAULT
-          </small>
-        </footer>
-      </article>
+      <EvidencePaperContent viewModel={viewModel} />
+    </button>
+  );
+}
+
+function LatestVerdictPaper({
+  record,
+  viewModel,
+  onViewTrial,
+}: {
+  record: EvidenceRecordData;
+  viewModel: VerdictViewModel;
+  onViewTrial: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      className={`${styles.paper} ${styles.latestPaper}`}
+      data-latest-verdict-record
+      data-paper-position="partially-revealed"
+      data-record-id={record.id}
+      aria-label={`View trial ${viewModel.trialId} for ${verdictProduct(viewModel)}`}
+      onClick={onViewTrial}
+    >
+      <EvidencePaperContent viewModel={viewModel} latest />
     </button>
   );
 }
 
 function OracleMachine({
+  variant = 'reveal',
   phase,
-  specimen,
   trialIdentity,
-  analysis,
+  viewModel,
   record,
-  recommendation,
-  evidenceDispensed,
-  collectionStarted,
-  onReveal,
-  onOpeningComplete,
-  onTransmissionComplete,
-  onKeep,
-  onCommitComplete,
-  onDispensed,
-  onCollect,
-  onCollected,
+  evidenceDispensed = false,
+  collectionStarted = false,
+  onReveal = () => undefined,
+  onOpeningComplete = () => undefined,
+  onTransmissionComplete = () => undefined,
+  onKeep = () => undefined,
+  onCommitComplete = () => undefined,
+  onDispensed = () => undefined,
+  onCollect = () => undefined,
+  onCollected = () => undefined,
+  onViewTrial = () => undefined,
 }: {
+  variant?: 'reveal' | 'latest-verdict';
   phase: OracleRevealState;
-  specimen: Specimen;
   trialIdentity: OracleTrialIdentity;
-  analysis: AnalysisResult;
+  viewModel: VerdictViewModel;
   record: EvidenceRecordData | null;
-  recommendation: string;
-  evidenceDispensed: boolean;
-  collectionStarted: boolean;
-  onReveal: () => void;
-  onOpeningComplete: () => void;
-  onTransmissionComplete: () => void;
-  onKeep: () => void;
-  onCommitComplete: () => void;
-  onDispensed: () => void;
-  onCollect: () => void;
-  onCollected: () => void;
+  evidenceDispensed?: boolean;
+  collectionStarted?: boolean;
+  onReveal?: () => void;
+  onOpeningComplete?: () => void;
+  onTransmissionComplete?: () => void;
+  onKeep?: () => void;
+  onCommitComplete?: () => void;
+  onDispensed?: () => void;
+  onCollect?: () => void;
+  onCollected?: () => void;
+  onViewTrial?: () => void;
 }) {
-  const displayOn = !['sealed', 'opening'].includes(phase);
-  const amberState =
-    phase === 'verdict_revealed'
+  const latestVerdict = variant === 'latest-verdict';
+  const displayOn = latestVerdict || !['sealed', 'opening'].includes(phase);
+  const amberState = latestVerdict
+    ? 'latest'
+    : phase === 'verdict_revealed'
       ? 'ready'
       : phase === 'committing'
         ? 'committed'
@@ -372,16 +446,20 @@ function OracleMachine({
 
   return (
     <section
-      className={styles.machine}
+      className={`${styles.machine} ${latestVerdict ? styles.latestMachine : ''}`}
       style={oracleTimingProperties}
       data-oracle-machine
       data-oracle-state={phase}
+      data-cassette-variant={variant}
+      data-cassette-state={latestVerdict ? 'partially-revealed' : phase}
       data-machine-material="carbon"
       data-machine-instance="face-value-oracle"
       aria-label={
-        phase === 'sealed' || phase === 'opening'
-          ? 'Sealed Face Value oracle. Result content is unavailable until reveal.'
-          : `Face Value oracle. ${analysis.finding}`
+        latestVerdict
+          ? `Latest verdict cassette for ${verdictProduct(viewModel)}. ${viewModel.headline}`
+          : phase === 'sealed' || phase === 'opening'
+            ? 'Sealed Face Value result cassette. Result content is unavailable until reveal.'
+            : `Face Value result cassette. ${viewModel.headline}`
       }
     >
       <div className={styles.chassis} data-oracle-chassis>
@@ -392,16 +470,16 @@ function OracleMachine({
               <i />
               <span />
             </div>
-            {displayOn && (
+            {displayOn && !latestVerdict && (
               <FirmwareDisplay
                 phase={phase}
                 trialIdentity={trialIdentity}
-                analysis={analysis}
-                recommendation={recommendation}
+                viewModel={viewModel}
                 onTransmissionComplete={onTransmissionComplete}
               />
             )}
-            {!displayOn && (
+            {latestVerdict && <LatestVerdictDisplay viewModel={viewModel} />}
+            {!displayOn && !latestVerdict && (
               <div className={styles.sealedOptics} aria-hidden="true">
                 <span />
               </div>
@@ -426,25 +504,27 @@ function OracleMachine({
             type="button"
             className={styles.amberControl}
             data-amber-state={amberState}
-            data-oracle-keep-action="hardware"
-            aria-label="Keep this result"
-            aria-hidden={phase !== 'verdict_revealed'}
-            tabIndex={phase === 'verdict_revealed' ? 0 : -1}
-            disabled={phase !== 'verdict_revealed'}
+            data-oracle-keep-action={!latestVerdict ? 'hardware' : undefined}
+            aria-label={
+              !latestVerdict && phase === 'verdict_revealed' ? 'Keep this result' : undefined
+            }
+            aria-hidden={latestVerdict || phase !== 'verdict_revealed'}
+            tabIndex={!latestVerdict && phase === 'verdict_revealed' ? 0 : -1}
+            disabled={latestVerdict || phase !== 'verdict_revealed'}
             onClick={onKeep}
           >
             <span aria-hidden="true" />
           </button>
           <OraclePullHandle
-            active={phase === 'sealed'}
+            active={!latestVerdict && phase === 'sealed'}
             phase={phase}
-            product={specimen.product}
+            product={viewModel.productName}
             onReveal={onReveal}
           />
           <div className={styles.bottomRail} aria-hidden="true" />
         </div>
 
-        {phase === 'opening' && (
+        {!latestVerdict && phase === 'opening' && (
           <div
             className={styles.openingMechanism}
             data-oracle-motion="opening"
@@ -456,7 +536,7 @@ function OracleMachine({
             }}
           />
         )}
-        {phase === 'committing' && (
+        {!latestVerdict && phase === 'committing' && (
           <div
             className={styles.commitMechanism}
             data-oracle-motion="commit"
@@ -476,11 +556,13 @@ function OracleMachine({
         data-paper-axis="vertical"
         data-paper-coordinate-system="oracle-machine"
       >
-        {record && (phase === 'committing' || phase === 'dispensing') && (
+        {latestVerdict && record && (
+          <LatestVerdictPaper record={record} viewModel={viewModel} onViewTrial={onViewTrial} />
+        )}
+        {!latestVerdict && record && (phase === 'committing' || phase === 'dispensing') && (
           <OracleEvidencePaper
             record={record}
-            trialIdentity={trialIdentity}
-            recommendation={recommendation}
+            viewModel={viewModel}
             dispensed={evidenceDispensed}
             collecting={collectionStarted}
             onDispensed={onDispensed}
@@ -491,6 +573,34 @@ function OracleMachine({
       </div>
       <div className={styles.slotLip} data-oracle-slot-lip aria-hidden="true" />
     </section>
+  );
+}
+
+export function LatestVerdictCassette({
+  record,
+  onViewTrial,
+}: {
+  record: EvidenceRecordData;
+  onViewTrial: () => void;
+}) {
+  const viewModel = verdictViewModelFromRecord(record);
+  const trialIdentity = oracleTrialIdentityForRecord(record);
+
+  return (
+    <div className={styles.latestCassetteFrame} data-latest-verdict-cassette>
+      <p className={styles.cassetteSummary}>
+        Latest verdict for {verdictProduct(viewModel)}. {viewModel.headline} Confidence:{' '}
+        {viewModel.confidence}. Next: {viewModel.nextStepLabel}.
+      </p>
+      <OracleMachine
+        variant="latest-verdict"
+        phase="collected"
+        trialIdentity={trialIdentity}
+        viewModel={viewModel}
+        record={record}
+        onViewTrial={onViewTrial}
+      />
+    </div>
   );
 }
 
@@ -581,7 +691,6 @@ export function OracleRevealScene({ haptics = browserHaptics }: { haptics?: Hapt
     () => (state.registeredProduct ? specimenFromRegisteredProduct(state.registeredProduct) : null),
     [state.registeredProduct],
   );
-  const recommendation = oracleNextStep(state.placement);
   const trialIdentity = useMemo(
     () =>
       oracleTrialIdentity({
@@ -599,6 +708,30 @@ export function OracleRevealScene({ haptics = browserHaptics }: { haptics?: Hapt
   );
   const pendingRecord = useMemo(() => state.record ?? createOracleEvidenceRecord(state), [state]);
   const phase = state.oracleRevealState;
+  const analysisViewModel = useMemo(
+    () =>
+      state.analysis && specimen
+        ? verdictViewModelFromAnalysis({
+            trialId: trialIdentity.folio,
+            productName: specimen.product,
+            productBrand: specimen.brand,
+            analysis: state.analysis,
+            confidence: state.confidence,
+            placement: state.placement,
+            evaluatedAt: state.followupCapture?.createdAt,
+          })
+        : null,
+    [
+      specimen,
+      state.analysis,
+      state.confidence,
+      state.followupCapture?.createdAt,
+      state.placement,
+      trialIdentity.folio,
+    ],
+  );
+  const viewModel = pendingRecord ? verdictViewModelFromRecord(pendingRecord) : analysisViewModel;
+  const recommendation = viewModel?.nextStepLabel ?? oracleNextStep(state.placement);
 
   useEffect(() => {
     if (phase !== 'verdict_revealed') {
@@ -660,14 +793,18 @@ export function OracleRevealScene({ haptics = browserHaptics }: { haptics?: Hapt
   };
 
   const collectedRecord = phase === 'collected' ? state.record : null;
-  const headline =
-    phase === 'collected'
-      ? 'Evidence recorded.'
-      : phase === 'sealed' || phase === 'opening'
-        ? 'Your result is ready.'
-        : 'The oracle has answered.';
+  const leadCopy =
+    phase === 'sealed'
+      ? { eyebrow: 'VERDICT READY', headline: 'The result is in.' }
+      : phase === 'opening' || phase === 'transmitting'
+        ? { eyebrow: 'REVEALING RESULT', headline: 'Preparing your evidence record.' }
+        : phase === 'verdict_revealed'
+          ? { eyebrow: 'VERDICT READY', headline: 'The result is in.' }
+          : phase === 'committing' || phase === 'dispensing'
+            ? { eyebrow: 'RECORDING EVIDENCE', headline: 'Saving your result.' }
+            : null;
 
-  if (!state.analysis || !specimen) return null;
+  if (!state.analysis || !specimen || !viewModel) return null;
 
   return (
     <>
@@ -677,35 +814,20 @@ export function OracleRevealScene({ haptics = browserHaptics }: { haptics?: Hapt
         data-fv-screen="oracle-reveal"
         data-oracle-scene-state={phase}
       >
-        <div className={styles.lead}>
-          <p>
-            {phase === 'collected'
-              ? 'EVIDENCE RECORDED'
-              : phase === 'sealed' || phase === 'opening'
-                ? 'ONE SEALED RESULT'
-                : 'ONE ORACLE READING'}
-          </p>
-          <h1 data-stage-focus tabIndex={-1}>
-            {headline}
-          </h1>
-          <span>
-            {phase === 'sealed' || phase === 'opening'
-              ? 'Pull to reveal.'
-              : phase === 'transmitting'
-                ? 'Calibrating the display.'
-                : phase === 'collected'
-                  ? 'The system remembered.'
-                  : 'The verdict remains inside the glass.'}
-          </span>
-        </div>
+        {leadCopy && (
+          <div className={styles.lead}>
+            <p>{leadCopy.eyebrow}</p>
+            <h1 data-stage-focus tabIndex={-1}>
+              {leadCopy.headline}
+            </h1>
+          </div>
+        )}
 
         <OracleMachine
           phase={phase}
-          specimen={specimen}
           trialIdentity={trialIdentity}
-          analysis={state.analysis}
+          viewModel={viewModel}
           record={pendingRecord}
-          recommendation={recommendation}
           evidenceDispensed={state.oracleEvidenceDispensed}
           collectionStarted={state.oracleCollectionStarted}
           onReveal={reveal}
@@ -719,8 +841,8 @@ export function OracleRevealScene({ haptics = browserHaptics }: { haptics?: Hapt
         />
 
         {phase === 'verdict_revealed' && (
-          <section className={styles.verdictActions} aria-label="Oracle recommendation">
-            <p>{state.analysis.nonFinding}</p>
+          <section className={styles.verdictActions} aria-label="Result recommendation">
+            <p>{viewModel.explanation}</p>
             <button
               type="button"
               className={styles.keepAction}
@@ -798,8 +920,8 @@ export function OracleRevealScene({ haptics = browserHaptics }: { haptics?: Hapt
 
         {phase === 'committing' && (
           <section className={styles.operationStatus} role="status">
-            <p>ANSWER ACCEPTED</p>
-            <strong>Preparing one evidence record.</strong>
+            <p>RESULT ACCEPTED</p>
+            <strong>Preparing your evidence record.</strong>
           </section>
         )}
 
@@ -810,51 +932,59 @@ export function OracleRevealScene({ haptics = browserHaptics }: { haptics?: Hapt
             data-collection-started={state.oracleCollectionStarted}
             role="status"
           >
-            <p>{state.oracleEvidenceDispensed ? 'EVIDENCE PRODUCED' : 'PRODUCING EVIDENCE'}</p>
+            <p>{state.oracleEvidenceDispensed ? 'EVIDENCE READY' : 'RECORDING EVIDENCE'}</p>
             <strong>
               {state.oracleEvidenceDispensed
-                ? 'Take your record.'
-                : 'The rollers are feeding the record.'}
+                ? 'Take your evidence record.'
+                : 'Preparing your evidence record.'}
             </strong>
           </section>
         )}
 
         {phase === 'collected' && collectedRecord && (
-          <section className={styles.completion}>
-            <p>EVIDENCE RECORDED</p>
-            <small className={styles.completionIdentity} data-oracle-trial-identity>
-              {trialIdentity.folio}
-            </small>
-            <h2>{recordProduct(collectedRecord)}</h2>
-            <strong>{collectedRecord.finding}</strong>
-            <span>{recommendation}</span>
-            <button
-              ref={doneRef}
-              type="button"
-              className={styles.doneAction}
-              onClick={() => dispatch({ type: 'ORACLE_DONE' })}
-            >
-              <span>DONE</span>
-              <span aria-hidden="true">→</span>
-            </button>
-            <button
-              ref={detailRef}
-              type="button"
-              className={styles.viewAction}
-              aria-expanded={detailOpen}
-              aria-controls="oracle-evidence-detail"
-              onClick={() => setDetailOpen((open) => !open)}
-            >
-              VIEW EVIDENCE
-            </button>
-            <div id="oracle-evidence-detail" hidden={!detailOpen}>
-              {detailOpen && (
-                <EvidenceDetail
-                  record={collectedRecord}
-                  trialIdentity={trialIdentity}
-                  recommendation={recommendation}
-                />
-              )}
+          <section className={styles.completion} aria-labelledby="evidence-recorded-heading">
+            <div className={styles.completionResult} data-result-summary>
+              <p>EVIDENCE RECORDED</p>
+              <h1 id="evidence-recorded-heading" data-stage-focus tabIndex={-1}>
+                Evidence recorded.
+              </h1>
+              <small className={styles.savedSupport}>Your result is saved.</small>
+              <small className={styles.completionIdentity} data-oracle-trial-identity>
+                {viewModel.trialId}
+              </small>
+              <h2>{verdictProduct(viewModel)}</h2>
+              <strong>{viewModel.headline}</strong>
+              <span>{viewModel.nextStepLabel}</span>
+            </div>
+            <div className={styles.completionActions} data-result-actions>
+              <button
+                ref={doneRef}
+                type="button"
+                className={styles.doneAction}
+                onClick={() => dispatch({ type: 'ORACLE_DONE' })}
+              >
+                <span>DONE</span>
+                <span aria-hidden="true">→</span>
+              </button>
+              <button
+                ref={detailRef}
+                type="button"
+                className={styles.viewAction}
+                aria-expanded={detailOpen}
+                aria-controls="oracle-evidence-detail"
+                onClick={() => setDetailOpen((open) => !open)}
+              >
+                VIEW EVIDENCE
+              </button>
+              <div id="oracle-evidence-detail" hidden={!detailOpen}>
+                {detailOpen && (
+                  <EvidenceDetail
+                    record={collectedRecord}
+                    trialIdentity={trialIdentity}
+                    recommendation={recommendation}
+                  />
+                )}
+              </div>
             </div>
           </section>
         )}

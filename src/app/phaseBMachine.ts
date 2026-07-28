@@ -464,7 +464,7 @@ export function faceValueReducer(
         ...next,
         placement: defaultPlacementForResult(state.analysis),
         placementSealed: false,
-        announcement: 'Reveal started. The oracle latch is releasing.',
+        announcement: 'Reveal started. Preparing the result.',
       };
     }
 
@@ -473,7 +473,7 @@ export function faceValueReducer(
       if (next === state) return state;
       return {
         ...next,
-        announcement: 'The oracle display is transmitting the result.',
+        announcement: 'Revealing result. Preparing your evidence record.',
       };
     }
 
@@ -519,7 +519,7 @@ export function faceValueReducer(
         ...next,
         placement: event.placement,
         oracleCommittedAt: event.now,
-        announcement: 'Result kept. The evidence dispenser is engaging.',
+        announcement: 'Result kept. Preparing your evidence record.',
       };
     }
 
@@ -528,7 +528,7 @@ export function faceValueReducer(
       if (next === state) return state;
       return {
         ...next,
-        announcement: 'The evidence record is dispensing.',
+        announcement: 'Your evidence record is being prepared.',
       };
     }
 

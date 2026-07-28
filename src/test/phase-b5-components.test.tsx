@@ -10,7 +10,7 @@ import { saveStructuredDemoData } from '../adapters/persistence/localObservation
 import { FaceValueProvider } from '../app/FaceValueProvider';
 import { StageFocusManager } from '../app/StageFocusManager';
 import { initialState, type PhaseBFaceValueState } from '../app/phaseBMachine';
-import type { CaptureMetadata, DurableSkinSignal } from '../domain/model';
+import type { CaptureMetadata, DurableSkinSignal, EvidenceRecordData } from '../domain/model';
 import { createRegisteredProduct } from '../domain/phaseB5';
 import { analysisResultFromComparison, compareRednessSignals } from '../domain/youcamEvidence';
 import { FaceValueApplication } from '../features/FaceValueApplication';
@@ -97,6 +97,44 @@ const sealedState = (): PhaseBFaceValueState => {
   };
 };
 
+const savedRecord = (overrides: Partial<EvidenceRecordData> = {}): EvidenceRecordData => ({
+  id: 'ER-202607151230',
+  specimenId: 'registered-product-20260701120000000',
+  accession: 'FV–014',
+  product: 'Azelaic Topical Acid',
+  productBrand: 'Naturium',
+  productStrength: '10%',
+  productVolume: '30 ml',
+  job: 'Reduce visible redness',
+  observationWindow: `${BASELINE_AT} to ${FOLLOW_UP_AT}`,
+  comparison: 'comparable',
+  finding: 'A small favorable shift showed up.',
+  nonFinding: 'Visible redness moved in the intended direction.',
+  confidence: 'possible',
+  disturbance: 'none',
+  finalPlacement: 'paused',
+  recommendedAction: 'wait',
+  claimBoundary:
+    'Possible directional evidence only. This does not establish product efficacy or clinical significance.',
+  createdAt: '2026-07-15T12:30:00.000Z',
+  includesFaceImage: false,
+  ...overrides,
+});
+
+const homeState = (
+  records: EvidenceRecordData[],
+  overrides: Partial<PhaseBFaceValueState> = {},
+): PhaseBFaceValueState => ({
+  ...initialState,
+  stage: 'cabinet',
+  cabinet: 'open',
+  observation: 'none',
+  oracleRevealState: 'done',
+  record: records[0] ?? null,
+  archive: records,
+  ...overrides,
+});
+
 beforeEach(() => {
   Object.defineProperty(window, 'matchMedia', {
     configurable: true,
@@ -112,6 +150,79 @@ beforeEach(() => {
       dispatchEvent: vi.fn(),
     })),
   });
+});
+
+it('renders the no-history home with direct trial and previous-trials navigation', async () => {
+  const user = userEvent.setup();
+  saveStructuredDemoData(homeState([]));
+  render(
+    <FaceValueProvider>
+      <StageFocusManager />
+      <FaceValueApplication />
+    </FaceValueProvider>,
+  );
+
+  expect(screen.getByRole('heading', { name: 'Your trials' })).toBeVisible();
+  expect(screen.getByText('NO TRIAL IN PROGRESS')).toBeVisible();
+  expect(document.querySelector('[data-latest-verdict-cassette]')).toBeNull();
+  expect(screen.getByRole('button', { name: 'Previous trials, 0 saved results' })).toBeVisible();
+
+  await user.click(screen.getByRole('button', { name: 'START A NEW TRIAL' }));
+  expect(screen.getByRole('heading', { name: 'What are you putting on trial?' })).toBeVisible();
+});
+
+it('keeps active-trial status calm while exposing the latest verdict and real history count', async () => {
+  const user = userEvent.setup();
+  const latest = savedRecord();
+  const older = savedRecord({
+    id: 'ER-202606291230',
+    product: 'Barrier Support Serum With A Deliberately Long Product Name',
+    productBrand: 'Example Laboratory',
+    observationWindow: '2026-06-15T12:00:00.000Z to 2026-06-29T12:00:00.000Z',
+    createdAt: '2026-06-29T12:30:00.000Z',
+  });
+  const active = sealedState();
+  saveStructuredDemoData(
+    homeState([latest, older], {
+      ...active,
+      stage: 'waiting_for_followup',
+      observation: 'waiting',
+      analysis: null,
+      processing: 'idle',
+      followupCapture: null,
+      longitudinalEvidence: {
+        ...active.longitudinalEvidence,
+        followUp: null,
+        comparison: null,
+      },
+      record: latest,
+      archive: [latest, older],
+    }),
+  );
+  render(
+    <FaceValueProvider>
+      <StageFocusManager />
+      <FaceValueApplication />
+    </FaceValueProvider>,
+  );
+
+  expect(document.querySelector('[data-home-state="active"] > p')).toHaveTextContent(
+    'FOLLOW-UP READY',
+  );
+  expect(screen.getByLabelText('Active trial for Naturium Azelaic Topical Acid')).toBeVisible();
+  expect(document.querySelector('[data-cassette-variant="latest-verdict"]')).toHaveAttribute(
+    'data-cassette-state',
+    'partially-revealed',
+  );
+  expect(screen.queryByRole('button', { name: 'START A NEW TRIAL' })).not.toBeInTheDocument();
+
+  const previousTrials = screen.getByRole('button', {
+    name: 'Previous trials, 2 saved results',
+  });
+  expect(previousTrials).toBeVisible();
+  await user.click(previousTrials);
+  expect(screen.getByRole('heading', { name: 'Previous trials' })).toBeVisible();
+  expect(screen.getAllByRole('button', { name: /Open saved result/ })).toHaveLength(2);
 });
 
 it('starts with real registration and ends session one at Baseline locked', async () => {
@@ -335,7 +446,8 @@ it('keeps one canonical machine through reveal, dispense, collection, and Done',
     </FaceValueProvider>,
   );
 
-  expect(screen.getByRole('heading', { name: 'Your result is ready.' })).toBeVisible();
+  expect(screen.getByText('VERDICT READY')).toBeVisible();
+  expect(screen.getByRole('heading', { name: 'The result is in.' })).toBeVisible();
   const preRevealTree = document.body.textContent ?? '';
   expect(preRevealTree).not.toContain('A small favorable shift showed up.');
   expect(preRevealTree).not.toContain(
@@ -356,6 +468,8 @@ it('keeps one canonical machine through reveal, dispense, collection, and Done',
     }),
   );
   expect(machine).toHaveAttribute('data-oracle-state', 'opening');
+  expect(screen.getByText('REVEALING RESULT')).toBeVisible();
+  expect(screen.getByRole('heading', { name: 'Preparing your evidence record.' })).toBeVisible();
   expect(machineControl).toHaveAttribute('data-oracle-control-label', 'REVEAL');
   expect(machineControl).toHaveAttribute('data-oracle-control-busy', 'true');
   fireEvent.animationEnd(document.querySelector('[data-oracle-motion="opening"]')!);
@@ -364,8 +478,9 @@ it('keeps one canonical machine through reveal, dispense, collection, and Done',
   expect(screen.queryByText('TEST LONGER')).not.toBeInTheDocument();
   fireEvent.animationEnd(document.querySelector('[data-oracle-motion="transmission"]')!);
   expect(machine).toHaveAttribute('data-oracle-state', 'verdict_revealed');
+  expect(screen.getByRole('heading', { name: 'The result is in.' })).toBeVisible();
   expect(screen.getByText('A small favorable shift showed up.')).toBeVisible();
-  const recommendationRegion = screen.getByLabelText('Oracle recommendation');
+  const recommendationRegion = screen.getByLabelText('Result recommendation');
   expect(recommendationRegion.querySelector('p')).toHaveTextContent(
     'Visible redness moved in the intended direction.',
   );
@@ -412,8 +527,12 @@ it('keeps one canonical machine through reveal, dispense, collection, and Done',
   expect(document.querySelector('[data-oracle-paper]')).toBeNull();
   await waitFor(() => expect(screen.getByRole('button', { name: 'DONE' })).toHaveFocus());
   expect(screen.getByRole('button', { name: 'VIEW EVIDENCE' })).toBeVisible();
-  expect(screen.getAllByText('EVIDENCE RECORDED').length).toBeGreaterThan(0);
+  expect(screen.getByText('EVIDENCE RECORDED')).toBeVisible();
+  expect(screen.getByRole('heading', { name: 'Evidence recorded.' })).toBeVisible();
+  expect(screen.getByText('Your result is saved.')).toBeVisible();
   expect(screen.getAllByText('FV–014').length).toBeGreaterThan(0);
+  expect(document.querySelector('[data-result-summary]')).toBeVisible();
+  expect(document.querySelector('[data-result-actions]')).toBeVisible();
 
   await user.click(screen.getByRole('button', { name: 'VIEW EVIDENCE' }));
   const detail = screen.getByRole('heading', {
@@ -435,12 +554,30 @@ it('keeps one canonical machine through reveal, dispense, collection, and Done',
 
   await user.click(screen.getByRole('button', { name: 'DONE' }));
   expect(screen.getByRole('heading', { name: 'Your trials' })).toBeVisible();
-  expect(screen.getByText('LATEST EVIDENCE')).toBeVisible();
-  const latestEvidence = screen.getByText('LATEST EVIDENCE').closest('article')!;
-  expect(within(latestEvidence).getByText('FV–014')).toBeVisible();
-  expect(screen.getByRole('button', { name: 'START ANOTHER TRIAL' })).toBeVisible();
+  expect(screen.getByText('NO TRIAL IN PROGRESS')).toBeVisible();
+  expect(document.querySelector('[data-latest-verdict-cassette]')).toBeVisible();
+  expect(document.querySelector('[data-cassette-variant="latest-verdict"]')).toHaveAttribute(
+    'data-cassette-state',
+    'partially-revealed',
+  );
+  expect(screen.getAllByText('LATEST VERDICT').length).toBeGreaterThan(0);
+  expect(screen.getByRole('button', { name: 'START A NEW TRIAL' })).toBeVisible();
 
-  await user.click(screen.getByRole('button', { name: 'Past results' }));
+  await user.click(
+    screen.getByRole('button', {
+      name: 'View trial FV–014 for Naturium · Azelaic Topical Acid',
+    }),
+  );
+  expect(screen.getByRole('heading', { name: 'SAVED RESULT' })).toBeVisible();
+  expect(screen.getAllByText('TEST LONGER').length).toBeGreaterThan(0);
+  await user.click(screen.getByRole('button', { name: 'Your trials' }));
+
+  await user.click(
+    screen.getByRole('button', {
+      name: 'Previous trials, 1 saved result',
+    }),
+  );
+  expect(screen.getByRole('heading', { name: 'Previous trials' })).toBeVisible();
   const archived = screen.getByRole('button', {
     name: /Open saved result FV–014 for Azelaic Topical Acid/i,
   });

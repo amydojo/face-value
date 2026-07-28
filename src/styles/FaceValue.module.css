@@ -202,6 +202,115 @@ p {
   padding-top: 20px;
 }
 
+.homeScreen {
+  min-width: 0;
+  gap: 14px;
+  padding-top: 16px;
+  color: var(--fv-text-on-dark);
+}
+
+.homeStatus {
+  margin: 0;
+  color: #aaa49a;
+  font: 650 9px/1.3 var(--fv-font-mono);
+  letter-spacing: 0.075em;
+}
+
+.homeScreen .trialCard {
+  border-color: #3b3833;
+  border-left-color: #bd711f;
+  color: var(--fv-text-on-dark);
+  background: #0c0c0b;
+}
+
+.homeScreen .trialCard dl > div {
+  border-color: #34312d;
+}
+
+.homeScreen .trialCard dd {
+  color: #d38a38;
+}
+
+.homeScreen .demoMarker {
+  border-color: #45413a;
+  color: #a39d92;
+}
+
+.latestVerdict {
+  min-width: 0;
+  margin-top: 2px;
+}
+
+.homePrimaryAction,
+.previousTrialsRow {
+  width: 100%;
+  min-height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 0 2px;
+  border: 0;
+  border-top: 1px solid #45413a;
+  border-bottom: 1px solid #45413a;
+  color: #eee9df;
+  background: transparent;
+  font: 650 10px/1.3 var(--fv-font-mono);
+  letter-spacing: 0.025em;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    color 120ms linear,
+    background-color 120ms linear,
+    transform 120ms var(--fv-ease-damped);
+}
+
+.homePrimaryAction:hover,
+.previousTrialsRow:hover {
+  color: #fffaf0;
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.homePrimaryAction:active,
+.previousTrialsRow:active {
+  background: rgba(255, 255, 255, 0.055);
+  transform: translate3d(0, 1px, 0);
+}
+
+.homePrimaryAction:focus-visible,
+.previousTrialsRow:focus-visible {
+  outline-color: #f0ece4;
+}
+
+.homePrimaryAction > span:last-child {
+  font: 400 20px/1 var(--fv-font-sans);
+}
+
+.previousTrialsRow {
+  min-height: 48px;
+  border-top-color: #36332e;
+  border-bottom-color: transparent;
+  color: #c3bdb2;
+}
+
+.previousTrialsRow > span:last-child {
+  display: inline-flex;
+  align-items: center;
+  gap: 18px;
+}
+
+.previousTrialsRow b {
+  min-width: 2ch;
+  color: #9d978d;
+  font-weight: 650;
+  text-align: right;
+}
+
+.previousTrialsRow i {
+  color: #eee9df;
+  font: normal 18px/1 var(--fv-font-sans);
+}
+
 .registrationScreen,
 .registeredScreen,
 .contextScreen,
@@ -394,44 +503,6 @@ p {
   border: 1px dashed var(--fv-rule-default);
   color: var(--fv-text-muted);
   font-size: 8px !important;
-}
-
-.emptyTrials {
-  display: grid;
-  gap: 14px;
-  padding: 20px 0;
-}
-
-.emptyTrials > p {
-  margin: 0;
-  color: var(--fv-text-muted);
-}
-
-.latestEvidence {
-  display: grid;
-  gap: 7px;
-  padding: 18px;
-  border: 1px solid var(--fv-rule-default);
-  border-radius: 10px;
-  background: var(--fv-surface-paper);
-}
-
-.latestEvidence p,
-.latestEvidence span {
-  margin: 0;
-  color: var(--fv-text-muted);
-  font: 650 9px var(--fv-font-mono);
-  letter-spacing: 0.045em;
-}
-
-.latestEvidence h2 {
-  font-size: 20px;
-}
-
-.latestEvidence strong {
-  font-size: 13px;
-  font-weight: 520;
-  line-height: 1.4;
 }
 
 .contextDefault,
@@ -702,7 +773,12 @@ p {
 }
 
 .traceDisturbed .traceLine {
-  background: linear-gradient(90deg, var(--fv-signal-active) 58%, transparent 58% 72%, rgba(255, 110, 20, 0.4) 72%);
+  background: linear-gradient(
+    90deg,
+    var(--fv-signal-active) 58%,
+    transparent 58% 72%,
+    rgba(255, 110, 20, 0.4) 72%
+  );
 }
 
 .traceForm {
@@ -833,7 +909,9 @@ p {
   border: 1px solid rgba(255, 255, 255, 0.09);
   border-radius: 18px;
   background: linear-gradient(145deg, #292824, #151513 72%);
-  box-shadow: 0 18px 34px rgba(0, 0, 0, 0.32), inset 0 1px rgba(255, 255, 255, 0.07);
+  box-shadow:
+    0 18px 34px rgba(0, 0, 0, 0.32),
+    inset 0 1px rgba(255, 255, 255, 0.07);
 }
 
 .guidedCaptureFrame {
@@ -843,9 +921,7 @@ p {
   overflow: hidden;
   border: 1px solid #403d38;
   border-radius: 18px;
-  background:
-    radial-gradient(ellipse at center, #282824 0 40%, #11110f 72%),
-    #0d0d0c;
+  background: radial-gradient(ellipse at center, #282824 0 40%, #11110f 72%), #0d0d0c;
 }
 
 .cameraKitMount {
@@ -977,11 +1053,7 @@ p {
   grid-row: 1;
   height: 1px;
   content: '';
-  background: linear-gradient(
-    90deg,
-    var(--fv-signal-active),
-    rgba(199, 104, 54, 0.2)
-  );
+  background: linear-gradient(90deg, var(--fv-signal-active), rgba(199, 104, 54, 0.2));
 }
 
 .sealedResult {
@@ -1116,7 +1188,9 @@ p {
   background: #171614;
   font: 600 8px var(--fv-font-mono);
   text-transform: uppercase;
-  transition: opacity 180ms ease, transform 180ms ease;
+  transition:
+    opacity 180ms ease,
+    transform 180ms ease;
 }
 
 .dispositionCommit[data-phase='committing'] {
@@ -1379,5 +1453,10 @@ p {
 @media (prefers-reduced-motion: reduce) {
   .dispositionCommit {
     transition-duration: 80ms;
+  }
+
+  .homePrimaryAction,
+  .previousTrialsRow {
+    transition: none;
   }
 }

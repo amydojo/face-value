@@ -19,14 +19,14 @@ export function Archive({
   return (
     <section
       className={styles.archive}
-      aria-labelledby="past-results-heading"
-      data-fv-screen="past-results"
+      aria-labelledby="previous-trials-heading"
+      data-fv-screen="previous-trials"
     >
       <button type="button" className={styles.textButton} onClick={onBack}>
         ← Back
       </button>
-      <p className={styles.eyebrow}>PAST RESULTS</p>
-      <h1 id="past-results-heading">Past results</h1>
+      <p className={styles.eyebrow}>PREVIOUS TRIALS</p>
+      <h1 id="previous-trials-heading">Previous trials</h1>
       <p>
         Each saved result keeps the product, job, scans, note, trial conditions, confidence, and
         next step together.
@@ -34,7 +34,7 @@ export function Archive({
       {records.length === 0 ? (
         <p>No saved results yet.</p>
       ) : (
-        <div className={styles.archiveIndex} aria-label="Past results">
+        <div className={styles.archiveIndex} aria-label="Previous trials">
           {records.map((record) => {
             const identity = oracleTrialIdentityForRecord(record);
             return (

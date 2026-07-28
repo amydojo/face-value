@@ -10,11 +10,7 @@ import type {
   TraceEntry,
 } from '../domain/model';
 import { specimenFromRegisteredProduct } from '../adapters/product/specimenFromRegisteredProduct';
-import {
-  LEGACY_DEFAULT_SPECIMEN,
-  PRODUCTS,
-  legacySpecimenFor,
-} from '../fixtures/products';
+import { LEGACY_DEFAULT_SPECIMEN, PRODUCTS, legacySpecimenFor } from '../fixtures/products';
 
 /*
  * Original MVP event keys and several evidence-domain fields remain internal for
@@ -35,7 +31,10 @@ export type FaceValueEvent =
   | { type: 'CAMERA_REQUESTED' }
   | { type: 'CAMERA_READY' }
   | { type: 'CAMERA_CAPTURING' }
-  | { type: 'CAMERA_FAILED'; reason: 'unsupported' | 'denied' | 'no_camera' | 'overconstrained' | 'unknown' }
+  | {
+      type: 'CAMERA_FAILED';
+      reason: 'unsupported' | 'denied' | 'no_camera' | 'overconstrained' | 'unknown';
+    }
   | { type: 'CAPTURE_ACCEPTED'; metadata: CaptureMetadata }
   | { type: 'DELETE_CURRENT_CAPTURE' }
   | { type: 'ADD_TRACE'; trace: TraceEntry }
@@ -97,10 +96,12 @@ const cameraStateForReason = (reason: string): FaceValueState['camera'] => {
 
 const isFollowupCaptureAllowed = (state: FaceValueState): boolean =>
   ['observation', 'analysis_failure', 'comparison_refused'].includes(state.stage) ||
-  (state.stage === 'cabinet' && ['active_stable', 'active_disturbed', 'waiting', 'review_due'].includes(state.observation));
+  (state.stage === 'cabinet' &&
+    ['active_stable', 'active_disturbed', 'waiting', 'review_due'].includes(state.observation));
 
 const enforceOverlapBoundary = (state: FaceValueState, result: AnalysisResult): AnalysisResult => {
-  if (state.disturbance !== 'overlap_retained' || result.comparison === 'not_comparable') return result;
+  if (state.disturbance !== 'overlap_retained' || result.comparison === 'not_comparable')
+    return result;
   return {
     ...result,
     comparison: 'partially_comparable',
@@ -113,14 +114,12 @@ const enforceOverlapBoundary = (state: FaceValueState, result: AnalysisResult): 
 };
 
 export function createEvidenceRecord(state: FaceValueState, now: string): EvidenceRecordData {
-  if (!state.analysis || !state.assignedJob) throw new Error('Saved result requires analysis and job');
+  if (!state.analysis || !state.assignedJob)
+    throw new Error('Saved result requires analysis and job');
   const registeredProduct = state.registeredProduct ?? null;
   const specimen = registeredProduct
     ? specimenFromRegisteredProduct(registeredProduct)
-    : legacySpecimenFor(
-        state.selectedSpecimenId,
-        state.selectedDrawerIndex,
-      );
+    : legacySpecimenFor(state.selectedSpecimenId, state.selectedDrawerIndex);
   return {
     id: `ER-${now.replace(/\D/g, '').slice(0, 12)}`,
     specimenId: specimen.id,
@@ -152,7 +151,11 @@ export function createEvidenceRecord(state: FaceValueState, now: string): Eviden
   };
 }
 
-function returnToStage(state: FaceValueState, stage: AppStage, announcement: string): FaceValueState {
+function returnToStage(
+  state: FaceValueState,
+  stage: AppStage,
+  announcement: string,
+): FaceValueState {
   return { ...state, stage, returnStage: null, camera: 'idle', announcement };
 }
 
@@ -228,7 +231,8 @@ export function faceValueReducer(state: FaceValueState, event: FaceValueEvent): 
     }
 
     case 'NEXT_DRAWER': {
-      if (state.stage !== 'browse' || state.selectedDrawerIndex >= PRODUCTS.length - 1) return state;
+      if (state.stage !== 'browse' || state.selectedDrawerIndex >= PRODUCTS.length - 1)
+        return state;
       const index = state.selectedDrawerIndex + 1;
       return {
         ...state,
@@ -240,7 +244,11 @@ export function faceValueReducer(state: FaceValueState, event: FaceValueEvent): 
     }
 
     case 'OPEN_DRAWER':
-      if (state.stage === 'cabinet' && state.assignedJob && ['active_stable', 'active_disturbed', 'waiting'].includes(state.observation)) {
+      if (
+        state.stage === 'cabinet' &&
+        state.assignedJob &&
+        ['active_stable', 'active_disturbed', 'waiting'].includes(state.observation)
+      ) {
         return {
           ...state,
           stage: 'observation',
@@ -293,7 +301,8 @@ export function faceValueReducer(state: FaceValueState, event: FaceValueEvent): 
         contractOutcome: event.outcome,
         stage: 'camera',
         camera: 'idle',
-        comparison: event.outcome === 'partially_comparable' ? 'partially_comparable' : state.comparison,
+        comparison:
+          event.outcome === 'partially_comparable' ? 'partially_comparable' : state.comparison,
         announcement: 'Scan ready. Request camera access or choose a file.',
       };
 
@@ -348,11 +357,25 @@ export function faceValueReducer(state: FaceValueState, event: FaceValueEvent): 
     case 'DELETE_CURRENT_CAPTURE':
       if (state.stage !== 'camera') return state;
       return state.captureKind === 'baseline'
-        ? { ...state, baselineCapture: null, camera: 'idle', announcement: 'Current baseline scan deleted.' }
-        : { ...state, followupCapture: null, camera: 'idle', announcement: 'Current follow-up scan deleted.' };
+        ? {
+            ...state,
+            baselineCapture: null,
+            camera: 'idle',
+            announcement: 'Current baseline scan deleted.',
+          }
+        : {
+            ...state,
+            followupCapture: null,
+            camera: 'idle',
+            announcement: 'Current follow-up scan deleted.',
+          };
 
     case 'ADD_TRACE':
-      if (state.stage !== 'observation' || !['active_stable', 'active_disturbed'].includes(state.observation)) return state;
+      if (
+        state.stage !== 'observation' ||
+        !['active_stable', 'active_disturbed'].includes(state.observation)
+      )
+        return state;
       return { ...state, trace: event.trace, announcement: 'Note saved.' };
 
     case 'INTRODUCE_SECOND_PRODUCT':
@@ -396,7 +419,8 @@ export function faceValueReducer(state: FaceValueState, event: FaceValueEvent): 
       return { ...state, analysisScenario: event.scenario };
 
     case 'ANALYSIS_STARTED':
-      if (state.stage !== 'analysis' || state.analysis || state.processing === 'running') return state;
+      if (state.stage !== 'analysis' || state.analysis || state.processing === 'running')
+        return state;
       return { ...state, processing: 'running', announcement: 'Comparing your scans.' };
 
     case 'ANALYSIS_SUCCEEDED': {
@@ -420,9 +444,10 @@ export function faceValueReducer(state: FaceValueState, event: FaceValueEvent): 
         confidence: result.confidence,
         observation: 'review_due',
         processing: 'succeeded',
-        announcement: state.disturbance === 'overlap_retained'
-          ? 'Result ready. The result will be less certain because two products shared the trial.'
-          : 'Result ready. Pull the handle to reveal it.',
+        announcement:
+          state.disturbance === 'overlap_retained'
+            ? 'Result ready. The result will be less certain because two products shared the trial.'
+            : 'Result ready. Pull the handle to reveal it.',
       };
     }
 
@@ -435,7 +460,8 @@ export function faceValueReducer(state: FaceValueState, event: FaceValueEvent): 
         observation: 'waiting',
         confidence: state.disturbance === 'overlap_retained' ? 'possible' : 'insufficient',
         processing: 'failed',
-        announcement: 'Comparison unavailable. The trial is still saved and nothing was fabricated.',
+        announcement:
+          'Comparison unavailable. The trial is still saved and nothing was fabricated.',
       };
 
     case 'RETAKE_FOLLOWUP':
@@ -447,7 +473,8 @@ export function faceValueReducer(state: FaceValueState, event: FaceValueEvent): 
         followupCapture: null,
         analysis: null,
         processing: 'idle',
-        comparison: state.disturbance === 'overlap_retained' ? 'partially_comparable' : 'not_available',
+        comparison:
+          state.disturbance === 'overlap_retained' ? 'partially_comparable' : 'not_available',
         confidence: state.disturbance === 'overlap_retained' ? 'possible' : 'insufficient',
         returnStage: 'observation',
         announcement: 'Follow-up scan retake opened.',
@@ -463,7 +490,12 @@ export function faceValueReducer(state: FaceValueState, event: FaceValueEvent): 
       };
 
     case 'ENTER_PROGRESS':
-      if (state.stage !== 'analysis' || !state.analysis || state.analysis.comparison === 'not_comparable') return state;
+      if (
+        state.stage !== 'analysis' ||
+        !state.analysis ||
+        state.analysis.comparison === 'not_comparable'
+      )
+        return state;
       return {
         ...state,
         stage: 'progress',
@@ -494,7 +526,8 @@ export function faceValueReducer(state: FaceValueState, event: FaceValueEvent): 
         record,
         archive,
         returnStage: 'cabinet',
-        announcement: 'Saved to your evidence. Trial conditions, scans, note, confidence, and next step were preserved.',
+        announcement:
+          'Saved to your evidence. Trial conditions, scans, note, confidence, and next step were preserved.',
       };
     }
 
@@ -543,14 +576,19 @@ export function faceValueReducer(state: FaceValueState, event: FaceValueEvent): 
         ...state,
         returnStage: state.stage,
         stage: 'archive',
-        announcement: `${state.archive.length} past result${state.archive.length === 1 ? '' : 's'}.`,
+        announcement: `${state.archive.length} previous trial${state.archive.length === 1 ? '' : 's'}.`,
       };
 
     case 'VIEW_RECORD':
-      if (state.stage !== 'archive') return state;
+      if (
+        !['archive', 'cabinet', 'waiting_for_followup', 'followup_ready'].includes(state.stage) ||
+        !state.archive.some((record) => record.id === event.record.id)
+      ) {
+        return state;
+      }
       return {
         ...state,
-        returnStage: 'archive',
+        returnStage: state.stage === 'archive' ? 'archive' : 'cabinet',
         stage: 'record',
         record: event.record,
         announcement: `Saved result ${event.record.id} opened.`,
@@ -578,13 +616,20 @@ export function faceValueReducer(state: FaceValueState, event: FaceValueEvent): 
       return { ...initialState, stage: 'welcome', announcement: 'Demo data cleared.' };
 
     case 'BACK':
-      if (state.stage === 'browse') return returnToStage(state, 'cabinet', 'Returned to Your trials.');
-      if (state.stage === 'specimen' || state.stage === 'job') return returnToStage(state, 'browse', 'Returned to trial selection.');
-      if (state.stage === 'progress') return returnToStage(state, 'analysis', 'Returned to result-ready view.');
-      if (state.stage === 'analysis') return returnToStage(state, 'observation', 'Returned to trial in progress.');
-      if (state.stage === 'placement' && !state.placementSealed) return returnToStage(state, 'progress', 'Returned to result.');
-      if (state.stage === 'archive') return returnToStage(state, state.returnStage ?? 'cabinet', 'Returned to previous view.');
-      if (state.stage === 'record') return returnToStage(state, state.returnStage ?? 'cabinet', 'Saved result closed.');
+      if (state.stage === 'browse')
+        return returnToStage(state, 'cabinet', 'Returned to Your trials.');
+      if (state.stage === 'specimen' || state.stage === 'job')
+        return returnToStage(state, 'browse', 'Returned to trial selection.');
+      if (state.stage === 'progress')
+        return returnToStage(state, 'analysis', 'Returned to result-ready view.');
+      if (state.stage === 'analysis')
+        return returnToStage(state, 'observation', 'Returned to trial in progress.');
+      if (state.stage === 'placement' && !state.placementSealed)
+        return returnToStage(state, 'progress', 'Returned to result.');
+      if (state.stage === 'archive')
+        return returnToStage(state, state.returnStage ?? 'cabinet', 'Returned to previous view.');
+      if (state.stage === 'record')
+        return returnToStage(state, state.returnStage ?? 'cabinet', 'Saved result closed.');
       if (state.stage === 'camera' || state.stage === 'capture_contract') {
         return returnToStage(
           state,

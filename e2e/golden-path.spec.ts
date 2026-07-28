@@ -1,9 +1,4 @@
-import {
-  expect,
-  test,
-  type Page,
-  type TestInfo,
-} from '@playwright/test';
+import { expect, test, type Page, type TestInfo } from '@playwright/test';
 import { STORAGE_KEY } from './phase-b5-fixtures';
 
 type GoldenPathCase = {
@@ -53,9 +48,7 @@ function collectRuntimeErrors(page: Page): string[] {
 
 async function assertNoHorizontalOverflow(page: Page): Promise<void> {
   const overflow = await page.evaluate(
-    () =>
-      document.documentElement.scrollWidth -
-      document.documentElement.clientWidth,
+    () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
   );
   expect(overflow).toBeLessThanOrEqual(1);
 }
@@ -79,35 +72,20 @@ async function expectGuidedQualityReady(page: Page): Promise<void> {
   await expect(quality.locator('[data-accepted="true"]')).toHaveCount(3, {
     timeout: 800,
   });
-  await expect(
-    page.locator('p[aria-hidden="true"]', { hasText: 'Hold still…' }),
-  ).toBeVisible();
+  await expect(page.locator('p[aria-hidden="true"]', { hasText: 'Hold still…' })).toBeVisible();
 }
 
-async function takeGuidedCapture(
-  page: Page,
-  kind: 'baseline' | 'followup',
-): Promise<void> {
-  await expect(
-    page.getByRole('heading', { name: 'Center your face' }),
-  ).toBeVisible();
+async function takeGuidedCapture(page: Page, kind: 'baseline' | 'followup'): Promise<void> {
+  await expect(page.getByRole('heading', { name: 'Center your face' })).toBeVisible();
   await expect(page.getByRole('checkbox')).toHaveCount(0);
   await expect(
     page.getByRole('button', { name: /shutter|take photo|use this capture/i }),
   ).toHaveCount(0);
   await expect(page.getByLabel('Choose a face photo')).toBeAttached();
-  await expect(
-    page.locator('[data-camera-kit-fixture="active"]'),
-  ).toHaveCount(0);
-  await page
-    .getByRole('button', { name: 'START GUIDED CAPTURE' })
-    .click();
-  await expect(
-    page.locator('[data-camera-kit-fixture="active"]'),
-  ).toBeVisible();
-  await expect(
-    page.locator('[data-preview-state="preview-live"]'),
-  ).toBeVisible();
+  await expect(page.locator('[data-camera-kit-fixture="active"]')).toHaveCount(0);
+  await page.getByRole('button', { name: 'START GUIDED CAPTURE' }).click();
+  await expect(page.locator('[data-camera-kit-fixture="active"]')).toBeVisible();
+  await expect(page.locator('[data-preview-state="preview-live"]')).toBeVisible();
   await expectGuidedQualityReady(page);
   await expect(
     page.getByRole('heading', {
@@ -132,9 +110,7 @@ async function saveScreenshot(
 }
 
 for (const scenario of cases) {
-  test(`complete Phase B.5 golden path — ${scenario.name}`, async ({
-    page,
-  }, testInfo) => {
+  test(`complete Phase B.5 golden path — ${scenario.name}`, async ({ page }, testInfo) => {
     const runtimeErrors = collectRuntimeErrors(page);
     await page.setViewportSize(scenario.viewport);
     await page.emulateMedia({
@@ -148,15 +124,11 @@ for (const scenario of cases) {
         name: 'Is your skincare actually doing anything?',
       }),
     ).toBeVisible();
-    await expect(
-      page.getByRole('button', { name: 'START A PRODUCT TRIAL' }),
-    ).toBeVisible();
+    await expect(page.getByRole('button', { name: 'START A PRODUCT TRIAL' })).toBeVisible();
     await assertNoHorizontalOverflow(page);
     await assertNoInternalJourneyJargon(page);
 
-    await page
-      .getByRole('button', { name: 'START A PRODUCT TRIAL' })
-      .click();
+    await page.getByRole('button', { name: 'START A PRODUCT TRIAL' }).click();
     await page.getByLabel('Brand').fill('Naturium');
     await page.getByLabel('Product name').fill('Azelaic Topical Acid');
     await page.getByLabel('Strength or concentration').fill('10%');
@@ -165,33 +137,20 @@ for (const scenario of cases) {
     await expect(page.getByRole('radio')).toBeChecked();
     await page.getByRole('button', { name: 'REGISTER PRODUCT' }).click();
 
-    await expect(
-      page.getByRole('heading', { name: 'Your product is ready.' }),
-    ).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Your product is ready.' })).toBeVisible();
     await expect(page.getByText('Naturium', { exact: true })).toBeVisible();
-    await expect(
-      page.getByText('Azelaic Topical Acid', { exact: true }),
-    ).toBeVisible();
+    await expect(page.getByText('Azelaic Topical Acid', { exact: true })).toBeVisible();
     await expect(page.getByText('SPECIMEN 01')).toBeVisible();
     await assertNoHorizontalOverflow(page);
 
-    await page
-      .getByRole('button', { name: 'TAKE GUIDED BASELINE' })
-      .click();
+    await page.getByRole('button', { name: 'TAKE GUIDED BASELINE' }).click();
     await takeGuidedCapture(page, 'baseline');
-    await expect(
-      page.getByRole('heading', { name: 'Baseline locked.' }),
-    ).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Baseline locked.' })).toBeVisible();
     await expect(
       page.getByRole('button', { name: /take follow-up|continue|compare/i }),
     ).toHaveCount(0);
     await assertNoHorizontalOverflow(page);
-    await saveScreenshot(
-      page,
-      testInfo,
-      scenario.captureEvidence,
-      'phase-b5-baseline-locked',
-    );
+    await saveScreenshot(page, testInfo, scenario.captureEvidence, 'phase-b5-baseline-locked');
 
     const baselineStorage = await page.evaluate((key) => {
       return localStorage.getItem(key);
@@ -199,56 +158,33 @@ for (const scenario of cases) {
     expect(baselineStorage).toContain('Naturium');
     expect(baselineStorage).toContain('93.3356');
     expect(baselineStorage).toContain('youcam-redness-v1');
-    expect(baselineStorage).toContain(
-      '"cameraProfileId":"youcam-camera-kit-hd-1080p"',
-    );
+    expect(baselineStorage).toContain('"cameraProfileId":"youcam-camera-kit-hd-1080p"');
     assertFaceFreeStorage(baselineStorage);
 
     await page.getByRole('button', { name: 'DONE' }).click();
-    await expect(
-      page.getByRole('heading', { name: 'Your trials' }),
-    ).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Your trials' })).toBeVisible();
     await expect(page.getByText(/DAY 1 OF 14/)).toBeVisible();
     await expect(page.getByText(/FOLLOW-UP IN 14 DAYS/)).toBeVisible();
-    await expect(
-      page.getByRole('button', { name: 'TAKE FOLLOW-UP' }),
-    ).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'TAKE FOLLOW-UP' })).toHaveCount(0);
     await assertNoHorizontalOverflow(page);
 
     await page.reload();
-    await expect(
-      page.getByRole('heading', { name: 'Your trials' }),
-    ).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Your trials' })).toBeVisible();
     await expect(page.getByText('Naturium', { exact: true })).toBeVisible();
-    await expect(
-      page.getByText('Azelaic Topical Acid', { exact: true }),
-    ).toBeVisible();
-    await expect(
-      page.getByRole('button', { name: 'TAKE FOLLOW-UP' }),
-    ).toHaveCount(0);
+    await expect(page.getByText('Azelaic Topical Acid', { exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'TAKE FOLLOW-UP' })).toHaveCount(0);
 
-    await expect(
-      page.getByRole('button', { name: 'ADVANCE DEMO TIMELINE' }),
-    ).toBeVisible();
-    await page
-      .getByRole('button', { name: 'ADVANCE DEMO TIMELINE' })
-      .click();
-    await expect(
-      page.getByRole('heading', { name: 'Let’s see what changed.' }),
-    ).toBeVisible();
-    await expect(
-      page.getByText(
-        'DEMO TIMELINE ADVANCED · BASELINE DATE UNCHANGED',
-      ),
-    ).toBeVisible();
+    await expect(page.getByRole('button', { name: 'ADVANCE DEMO TIMELINE' })).toBeVisible();
+    await page.getByRole('button', { name: 'ADVANCE DEMO TIMELINE' }).click();
+    await expect(page.getByText('FOLLOW-UP READY').first()).toBeVisible();
+    await expect(page.getByRole('button', { name: 'TAKE FOLLOW-UP' })).toBeVisible();
+    await expect(page.getByText('DEMO TIMELINE ADVANCED · BASELINE DATE UNCHANGED')).toBeVisible();
 
     const advancedStorage = await page.evaluate((key) => {
       return localStorage.getItem(key);
     }, STORAGE_KEY);
     expect(advancedStorage).toContain('"demoTimelineAdvanced":true');
-    expect(advancedStorage).toContain(
-      JSON.parse(baselineStorage!).baselineLockedAt,
-    );
+    expect(advancedStorage).toContain(JSON.parse(baselineStorage!).baselineLockedAt);
     assertFaceFreeStorage(advancedStorage);
 
     await page.getByRole('button', { name: 'TAKE FOLLOW-UP' }).click();
@@ -258,9 +194,9 @@ for (const scenario of cases) {
         name: 'Comparing against your baseline…',
       }),
     ).toBeVisible();
-    await expect(
-      page.getByRole('heading', { name: 'Your result is ready.' }),
-    ).toBeVisible({ timeout: 1_500 });
+    await expect(page.getByRole('heading', { name: 'The result is in.' })).toBeVisible({
+      timeout: 1_500,
+    });
     const comparedStorage = await page.evaluate((key) => {
       return localStorage.getItem(key);
     }, STORAGE_KEY);
@@ -289,12 +225,7 @@ for (const scenario of cases) {
       expect(sealedHtml).not.toContain(forbidden);
       expect(sealedAria).not.toContain(forbidden);
     }
-    await saveScreenshot(
-      page,
-      testInfo,
-      scenario.captureEvidence,
-      'phase-b5-result-sealed',
-    );
+    await saveScreenshot(page, testInfo, scenario.captureEvidence, 'phase-b5-result-sealed');
 
     const reveal = page.getByRole('button', {
       name: /Reveal sealed result for Azelaic Topical Acid/i,
@@ -310,22 +241,15 @@ for (const scenario of cases) {
     );
     expect(
       await machineNode?.evaluate(
-        (original) =>
-          original === document.querySelector('[data-oracle-machine]'),
+        (original) => original === document.querySelector('[data-oracle-machine]'),
       ),
     ).toBe(true);
-    await expect(
-      page.locator('[data-firmware-state="resolved"]'),
-    ).toContainText('A small favorable shift showed up.');
-    await expect(
-      page.getByLabel('Oracle recommendation').locator(':scope > p'),
-    ).toBeVisible();
     await expect(page.locator('[data-firmware-state="resolved"]')).toContainText(
-      'TEST LONGER',
+      'A small favorable shift showed up.',
     );
-    await expect(
-      page.locator('[data-oracle-keep-action="text"]'),
-    ).toBeVisible();
+    await expect(page.getByLabel('Result recommendation').locator(':scope > p')).toBeVisible();
+    await expect(page.locator('[data-firmware-state="resolved"]')).toContainText('TEST LONGER');
+    await expect(page.locator('[data-oracle-keep-action="text"]')).toBeVisible();
     await expect(
       page.getByRole('button', {
         name: 'Keep this result',
@@ -334,12 +258,7 @@ for (const scenario of cases) {
     ).toBeVisible();
     await expect(page.getByText(/P1 · Test longer/i)).toBeHidden();
     await assertNoHorizontalOverflow(page);
-    await saveScreenshot(
-      page,
-      testInfo,
-      scenario.captureEvidence,
-      'phase-b5-one-reveal',
-    );
+    await saveScreenshot(page, testInfo, scenario.captureEvidence, 'phase-b5-one-reveal');
 
     await page.getByRole('button', { name: 'SEE WHY' }).click();
     await expect(
@@ -356,11 +275,9 @@ for (const scenario of cases) {
       (element as HTMLButtonElement).click();
       (element as HTMLButtonElement).click();
     });
-    await expect(machine).toHaveAttribute(
-      'data-oracle-state',
-      'dispensing',
-      { timeout: scenario.reducedMotion ? 1_000 : 2_000 },
-    );
+    await expect(machine).toHaveAttribute('data-oracle-state', 'dispensing', {
+      timeout: scenario.reducedMotion ? 1_000 : 2_000,
+    });
     await expect(
       page.getByRole('button', {
         name: 'Keep this result',
@@ -368,15 +285,10 @@ for (const scenario of cases) {
       }),
     ).toHaveCount(0);
     const paper = page.locator('[data-oracle-paper]');
-    await expect(
-      paper,
-    ).toHaveAttribute('data-paper-position', 'final', {
+    await expect(paper).toHaveAttribute('data-paper-position', 'final', {
       timeout: scenario.reducedMotion ? 1_000 : 2_000,
     });
-    await expect(paper).toHaveAttribute(
-      'data-paper-coordinate-system',
-      'oracle-machine',
-    );
+    await expect(paper).toHaveAttribute('data-paper-coordinate-system', 'oracle-machine');
     await expect(paper).toHaveAttribute('data-paper-rotation', '0');
     const recordId = await paper.getAttribute('data-record-id');
     expect(recordId).toBeTruthy();
@@ -391,18 +303,10 @@ for (const scenario of cases) {
     expect(uncollectedData.archive).toHaveLength(0);
     expect(uncollectedData.record).toBeNull();
     assertFaceFreeStorage(uncollectedStorage);
-    await saveScreenshot(
-      page,
-      testInfo,
-      scenario.captureEvidence,
-      'phase-b5-evidence-dispensed',
-    );
+    await saveScreenshot(page, testInfo, scenario.captureEvidence, 'phase-b5-evidence-dispensed');
 
     await page.reload();
-    await expect(machine).toHaveAttribute(
-      'data-oracle-state',
-      'dispensing',
-    );
+    await expect(machine).toHaveAttribute('data-oracle-state', 'dispensing');
     await expect(paper).toHaveAttribute('data-record-id', recordId!);
 
     await page
@@ -415,21 +319,15 @@ for (const scenario of cases) {
     });
     await expect(page.locator('[data-oracle-paper]')).toHaveCount(0);
     await expect(page.getByRole('button', { name: 'DONE' })).toBeFocused();
-    await expect(
-      page.getByRole('button', { name: 'DONE' }),
-    ).toHaveCount(1);
+    await expect(page.getByRole('button', { name: 'DONE' })).toHaveCount(1);
     await page.getByRole('button', { name: 'VIEW EVIDENCE' }).click();
-    await expect(
-      page.getByRole('heading', { name: 'EVIDENCE DETAIL' }),
-    ).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'EVIDENCE DETAIL' })).toBeVisible();
     await expect(
       page.getByText(
         /Demo timeline was advanced explicitly; the original baseline timestamp was not changed/i,
       ),
     ).toBeVisible();
-    await expect(
-      page.getByText(/YouCam Skin Analysis v2.1/i),
-    ).toBeVisible();
+    await expect(page.getByText(/YouCam Skin Analysis v2.1/i)).toBeVisible();
 
     const savedStorage = await page.evaluate((key) => {
       return localStorage.getItem(key);
@@ -445,20 +343,17 @@ for (const scenario of cases) {
     assertFaceFreeStorage(savedStorage);
 
     await page.getByRole('button', { name: 'VIEW EVIDENCE' }).click();
-    await expect(
-      page.getByRole('heading', { name: 'EVIDENCE DETAIL' }),
-    ).toHaveCount(0);
+    await expect(page.getByRole('heading', { name: 'EVIDENCE DETAIL' })).toHaveCount(0);
     await page.getByRole('button', { name: 'DONE' }).click();
-    await expect(
-      page.getByRole('heading', { name: 'Your trials' }),
-    ).toBeVisible();
-    await expect(page.getByText('LATEST EVIDENCE')).toBeVisible();
-    await expect(
-      page.getByRole('button', { name: 'START ANOTHER TRIAL' }),
-    ).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Your trials' })).toBeVisible();
+    await expect(page.locator('[data-cassette-variant="latest-verdict"]')).toHaveAttribute(
+      'data-cassette-state',
+      'partially-revealed',
+    );
+    await expect(page.getByRole('button', { name: 'START A NEW TRIAL' })).toBeVisible();
 
-    await page.getByRole('button', { name: 'Past results' }).click();
-    const archive = page.getByLabel('Past results');
+    await page.getByRole('button', { name: /Previous trials, 1 saved result/i }).click();
+    const archive = page.getByLabel('Previous trials');
     const savedRecord = archive.getByRole('button', {
       name: /Open saved result/i,
     });
@@ -467,17 +362,11 @@ for (const scenario of cases) {
     expect(savedRecordText).toMatch(
       /[A-Z][a-z]{2} \d{1,2}, 2026 · \d{1,2}:\d{2} [AP]M–\d{1,2}:\d{2} [AP]M/,
     );
-    expect(savedRecordText).not.toMatch(
-      /\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/,
-    );
+    expect(savedRecordText).not.toMatch(/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/);
     await page.reload();
+    await expect(page.getByRole('heading', { name: 'Previous trials' })).toBeVisible();
     await expect(
-      page.getByRole('heading', { name: 'Past results' }),
-    ).toBeVisible();
-    await expect(
-      page
-        .getByLabel('Past results')
-        .getByRole('button', { name: /Open saved result/i }),
+      page.getByLabel('Previous trials').getByRole('button', { name: /Open saved result/i }),
     ).toHaveCount(1);
     const restoredArchive = await page.evaluate((key) => {
       return localStorage.getItem(key);
@@ -487,11 +376,7 @@ for (const scenario of cases) {
 
     await expect(page).toHaveURL(/\/$/);
     await assertNoHorizontalOverflow(page);
-    expect(
-      await page.evaluate(
-        () => getComputedStyle(document.body).touchAction,
-      ),
-    ).not.toBe('none');
+    expect(await page.evaluate(() => getComputedStyle(document.body).touchAction)).not.toBe('none');
     expect(runtimeErrors).toEqual([]);
   });
 }
