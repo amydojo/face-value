@@ -96,9 +96,6 @@ describe('EvidenceCassette', () => {
   beforeEach(() => {
     vi.useFakeTimers();
     installMotionPreference(false);
-    Object.defineProperty(HTMLElement.prototype, 'setPointerCapture', { configurable: true, value: vi.fn() });
-    Object.defineProperty(HTMLElement.prototype, 'releasePointerCapture', { configurable: true, value: vi.fn() });
-    Object.defineProperty(HTMLElement.prototype, 'hasPointerCapture', { configurable: true, value: vi.fn(() => true) });
   });
 
   it('starts sealed with a semantic result handle and no premature saved output', () => {

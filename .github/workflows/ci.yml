@@ -13,29 +13,19 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 22.18.0
       - name: Cache npm downloads
         uses: actions/cache@v4
         with:
           path: ~/.npm
-          key: ${{ runner.os }}-npm-${{ hashFiles('package.json') }}
+          key: ${{ runner.os }}-npm-${{ hashFiles('package-lock.json') }}
           restore-keys: |
             ${{ runner.os }}-npm-
-      - run: npm install --no-audit --no-fund
+      - run: npm ci --no-audit --no-fund
       - run: npm run lint
       - run: npm run typecheck
       - name: Unit and component tests
-        run: |
-          npm run test -- --reporter=json --outputFile=vitest-results.json || true
-          node --input-type=module <<'NODE'
-          import fs from 'node:fs';
-          const report = JSON.parse(fs.readFileSync('vitest-results.json', 'utf8'));
-          if (!report.success || report.numFailedTests !== 0 || report.numFailedTestSuites !== 0) {
-            console.error(`Vitest failed: ${report.numFailedTests} test(s), ${report.numFailedTestSuites} suite(s).`);
-            process.exit(1);
-          }
-          console.log(`Vitest passed: ${report.numPassedTests}/${report.numTotalTests} tests.`);
-          NODE
+        run: npm run test -- --reporter=default --reporter=json --outputFile=vitest-results.json
       - name: Upload Vitest report
         if: always()
         uses: actions/upload-artifact@v4
