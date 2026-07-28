@@ -192,7 +192,6 @@ p {
 .disturbanceScreen,
 .analysisScreen,
 .placementScreen,
-.recordScreen,
 .archive,
 .contract,
 .cameraScreen,
@@ -1267,115 +1266,6 @@ p {
   letter-spacing: 0.06em;
 }
 
-.recordHeading {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding-bottom: 14px;
-  border-bottom: 1px solid var(--fv-rule-default);
-}
-
-.recordHeading h1 {
-  font: 500 12px var(--fv-font-mono);
-}
-
-.recordHeading span {
-  font: 500 9px var(--fv-font-mono);
-}
-
-.recordOutputAssembly {
-  position: relative;
-  padding-top: 9px;
-}
-
-.recordOutputAssembly > div:first-child {
-  position: absolute;
-  top: 0;
-  left: 4%;
-  right: 4%;
-  height: 9px;
-  border-radius: 4px;
-  background: #12110f;
-  box-shadow: inset 0 2px 3px rgba(0, 0, 0, 0.66);
-  z-index: 2;
-}
-
-.recordFolio {
-  position: relative;
-  min-height: 144px;
-  display: grid;
-  align-content: center;
-  gap: 8px;
-  padding: 20px;
-  border: 1px solid var(--fv-rule-default);
-  color: var(--fv-text-on-light);
-  background: #ede9e0;
-  box-shadow: 0 12px 24px -20px rgba(0, 0, 0, 0.45);
-}
-
-.recordFolio::before {
-  position: absolute;
-  top: 18px;
-  bottom: 18px;
-  left: 0;
-  width: 3px;
-  content: '';
-  background: var(--fv-signal-active);
-}
-
-.recordFolio span,
-.recordFolio small {
-  color: var(--fv-text-muted);
-  font: 500 9px var(--fv-font-mono);
-}
-
-.recordFolio > strong {
-  position: absolute;
-  top: 20px;
-  right: 20px;
-  font: 500 10px var(--fv-font-mono);
-}
-
-.recordFolio p {
-  margin: 0;
-  font-size: 18px;
-}
-
-.recordFolio em,
-.recordFolio b {
-  font: 600 8px var(--fv-font-mono);
-  font-style: normal;
-}
-
-.recordRows {
-  margin: 0;
-}
-
-.recordRows div {
-  display: grid;
-  grid-template-columns: 126px minmax(0, 1fr);
-  gap: 12px;
-  padding: 14px 8px;
-  border-bottom: 1px solid var(--fv-rule-default);
-}
-
-.recordRows dt {
-  color: var(--fv-text-muted);
-  font: 500 8px var(--fv-font-mono);
-}
-
-.recordRows dd {
-  min-width: 0;
-  margin: 0;
-  font-size: 11px;
-  overflow-wrap: anywhere;
-}
-
-.claimBoundary {
-  color: var(--fv-text-muted);
-  font-size: 11px;
-}
-
 .archiveIndex {
   display: grid;
   gap: 10px;
@@ -1612,10 +1502,6 @@ p {
 
   .privacyLine {
     display: none;
-  }
-
-  .recordRows div {
-    grid-template-columns: 108px minmax(0, 1fr);
   }
 
   .captureIdentity small {
