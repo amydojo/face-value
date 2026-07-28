@@ -202,7 +202,7 @@ describe('Phase B deterministic comparison', () => {
     [
       93.3356,
       93.3356,
-      'No directional shift showed up yet.',
+      'No favorable shift showed up yet.',
       'The follow-up remained close to the baseline.',
     ],
   ] as const)('uses honest non-favorable copy for %s to %s', (baseline, followUp, finding, support) => {

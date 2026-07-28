@@ -501,11 +501,23 @@ it('keeps one canonical machine through reveal, dispense, collection, and Done',
   expect(machine).toHaveAttribute('data-oracle-state', 'committing');
   expect(machineControl).toHaveAttribute('data-oracle-control-label', 'none');
   expect(screen.queryByText('EVIDENCE RECORDED')).not.toBeInTheDocument();
+  expect(screen.getByText('SAVING RESULT')).toBeVisible();
+  expect(screen.getByRole('heading', { name: 'Saving your result.' })).toBeVisible();
+  const savingFirmware = document.querySelector<HTMLElement>('[data-firmware-state="resolved"]')!;
+  expect(savingFirmware).toHaveTextContent('RECORD STATUS');
+  expect(savingFirmware).toHaveTextContent('SAVING');
+  expect(savingFirmware).not.toHaveTextContent('EVIDENCE RECORD');
+  expect(savingFirmware).not.toHaveTextContent('IN PROGRESS');
+  expect(within(savingFirmware).queryByText('STATUS', { exact: true })).not.toBeInTheDocument();
+  expect(within(savingFirmware).queryByText('RECORDING', { exact: true })).not.toBeInTheDocument();
   const paperDuringCommit = document.querySelector<HTMLButtonElement>('[data-oracle-paper]')!;
   expect(paperDuringCommit).toHaveTextContent('FV–014');
   fireEvent.animationEnd(document.querySelector('[data-oracle-motion="commit"]')!);
   expect(machine).toHaveAttribute('data-oracle-state', 'dispensing');
   expect(machineControl).toHaveAttribute('data-oracle-control-label', 'none');
+  expect(screen.getByText('SAVING RESULT')).toBeVisible();
+  expect(savingFirmware).toHaveTextContent('RECORD STATUS');
+  expect(savingFirmware).toHaveTextContent('SAVING');
   expect(screen.queryByRole('button', { name: /Evidence record for/ })).not.toBeInTheDocument();
   const paper = document.querySelector<HTMLButtonElement>('[data-oracle-paper]')!;
   expect(paper).toBe(paperDuringCommit);
@@ -514,6 +526,9 @@ it('keeps one canonical machine through reveal, dispense, collection, and Done',
   expect(paper).toHaveAttribute('data-paper-scale', '1');
   expect(paper).toHaveAttribute('data-paper-horizontal-offset', '0');
   fireEvent.animationEnd(paper);
+  expect(screen.getByText('RESULT READY')).toBeVisible();
+  expect(screen.getByText('Take your evidence record.')).toBeVisible();
+  expect(screen.queryByText('EVIDENCE READY')).not.toBeInTheDocument();
   const collectible = screen.getByRole('button', {
     name: /Evidence record for Naturium · Azelaic Topical Acid/i,
   });
@@ -527,10 +542,13 @@ it('keeps one canonical machine through reveal, dispense, collection, and Done',
   expect(document.querySelector('[data-oracle-paper]')).toBeNull();
   await waitFor(() => expect(screen.getByRole('button', { name: 'DONE' })).toHaveFocus());
   expect(screen.getByRole('button', { name: 'VIEW EVIDENCE' })).toBeVisible();
-  expect(screen.getByText('EVIDENCE RECORDED')).toBeVisible();
-  expect(screen.getByRole('heading', { name: 'Evidence recorded.' })).toBeVisible();
+  expect(screen.getAllByRole('heading', { name: 'EVIDENCE RECORDED' })).toHaveLength(1);
+  expect(screen.queryByText('Evidence recorded.', { exact: true })).not.toBeInTheDocument();
   expect(screen.getByText('Your result is saved.')).toBeVisible();
   expect(screen.getAllByText('FV–014').length).toBeGreaterThan(0);
+  expect(screen.getByText('Naturium · Azelaic Topical Acid')).toBeVisible();
+  expect(screen.getByText('A small favorable shift showed up.')).toBeVisible();
+  expect(screen.getByText('TEST LONGER')).toBeVisible();
   expect(document.querySelector('[data-result-summary]')).toBeVisible();
   expect(document.querySelector('[data-result-actions]')).toBeVisible();
 
@@ -560,6 +578,9 @@ it('keeps one canonical machine through reveal, dispense, collection, and Done',
     'data-cassette-state',
     'partially-revealed',
   );
+  const latestPaper = document.querySelector('[data-latest-verdict-record]')!;
+  expect(latestPaper).toHaveTextContent('RESULT');
+  expect(latestPaper).not.toHaveTextContent('COMPARABLE');
   expect(screen.getAllByText('LATEST VERDICT').length).toBeGreaterThan(0);
   expect(screen.getByRole('button', { name: 'START A NEW TRIAL' })).toBeVisible();
 

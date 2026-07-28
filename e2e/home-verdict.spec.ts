@@ -45,6 +45,14 @@ const olderEvidenceRecord = {
   createdAt: '2026-06-30T12:00:00.000Z',
 };
 
+const neutralEvidenceRecord = {
+  ...evidenceRecord,
+  finding: 'No favorable shift showed up yet.',
+  nonFinding: 'The follow-up remained close to the baseline.',
+  comparisonDirection: 'unchanged',
+  followUpRawScore: 93.3356,
+};
+
 function completedState(records = [evidenceRecord]) {
   return {
     ...persistedSealedTrial,
@@ -62,7 +70,11 @@ function completedState(records = [evidenceRecord]) {
   };
 }
 
-function revealState(phase: 'sealed' | 'transmitting' | 'collected') {
+function revealState(
+  phase: 'sealed' | 'transmitting' | 'committing' | 'dispensing' | 'collected',
+  overrides: Record<string, unknown> = {},
+) {
+  const committed = ['committing', 'dispensing', 'collected'].includes(phase);
   const collected = phase === 'collected';
   return {
     ...persistedSealedTrial,
@@ -73,9 +85,10 @@ function revealState(phase: 'sealed' | 'transmitting' | 'collected') {
     oracleRevealState: phase,
     oracleEvidenceDispensed: collected,
     oracleCollectionStarted: collected,
-    oracleCommittedAt: collected ? committedAt : null,
+    oracleCommittedAt: committed ? committedAt : null,
     record: collected ? evidenceRecord : null,
     archive: collected ? [evidenceRecord] : [],
+    ...overrides,
   };
 }
 
@@ -97,6 +110,14 @@ async function noHorizontalOverflow(page: Page) {
       () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
     ),
   ).toBeLessThanOrEqual(1);
+}
+
+async function installPausedAnimations(page: Page) {
+  await page.addInitScript(() => {
+    const style = document.createElement('style');
+    style.textContent = '*,*::before,*::after{animation-play-state:paused!important}';
+    document.documentElement.append(style);
+  });
 }
 
 async function captureEvidence(page: Page, name: string) {
@@ -125,6 +146,9 @@ test('home keeps one hierarchy and the exact verdict across home, detail, and hi
   await expect(cassette).toContainText('POSSIBLE');
   await expect(cassette).toContainText('TEST LONGER');
   await expect(cassette.getByText(/VIEW TRIAL/)).toBeVisible();
+  const latestPaper = cassette.locator('[data-latest-verdict-record]');
+  await expect(latestPaper).toContainText('RESULT');
+  await expect(latestPaper).not.toContainText('COMPARABLE');
 
   const viewTrial = page.getByRole('button', {
     name: 'View trial FV–014 for Naturium · Azelaic Topical Acid',
@@ -169,6 +193,21 @@ test('home keeps one hierarchy and the exact verdict across home, detail, and hi
   await savedRecords.first().click();
   await expect(savedResult).toContainText('FV–014');
   await expect(savedResult).toContainText('Naturium · Azelaic Topical Acid');
+  await noHorizontalOverflow(page);
+});
+
+test('home paper leads with RESULT and preserves neutral unchanged-comparison copy', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await loadState(page, completedState([neutralEvidenceRecord]));
+
+  const cassette = page.locator('[data-cassette-variant="latest-verdict"]');
+  const latestPaper = cassette.locator('[data-latest-verdict-record]');
+  await expect(latestPaper).toContainText('RESULT');
+  await expect(latestPaper).not.toContainText('COMPARABLE');
+  await expect(cassette).toContainText('No favorable shift showed up yet.');
+  await expect(cassette).not.toContainText('No directional shift showed up yet.');
   await noHorizontalOverflow(page);
 });
 
@@ -237,13 +276,68 @@ test('mobile widths, long verdict content, focus, and reduced motion remain stab
   });
 });
 
-test('recorded result preserves the approved action spacing and factual copy', async ({ page }) => {
-  await page.setViewportSize({ width: 430, height: 932 });
-  await loadState(page, revealState('collected'));
+test('saving and collectible states use one concise status at mobile widths', async ({ page }) => {
+  await installPausedAnimations(page);
 
-  await expect(page.getByText('EVIDENCE RECORDED', { exact: true })).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Evidence recorded.' })).toBeVisible();
-  await expect(page.getByText('Your result is saved.')).toBeVisible();
+  for (const viewport of [
+    { width: 320, height: 700 },
+    { width: 390, height: 844 },
+    { width: 430, height: 932 },
+  ]) {
+    await page.setViewportSize(viewport);
+    await loadState(page, revealState('committing'));
+
+    await expect(page.getByText('SAVING RESULT')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Saving your result.' })).toBeVisible();
+    const savingFirmware = page.locator('[data-firmware-state="resolved"]');
+    await expect(savingFirmware).toContainText('RECORD STATUS');
+    await expect(savingFirmware).toContainText('SAVING');
+    await expect(savingFirmware).not.toContainText('EVIDENCE RECORD');
+    await expect(savingFirmware).not.toContainText('IN PROGRESS');
+    await expect(savingFirmware.getByText('STATUS', { exact: true })).toHaveCount(0);
+    await expect(savingFirmware.getByText('RECORDING', { exact: true })).toHaveCount(0);
+    await expect(page.getByText('RESULT READY')).toHaveCount(0);
+    await noHorizontalOverflow(page);
+
+    await loadState(page, revealState('dispensing'));
+    await expect(page.getByText('RESULT READY')).toHaveCount(0);
+    await expect(page.getByText('EVIDENCE READY')).toHaveCount(0);
+    await noHorizontalOverflow(page);
+
+    await loadState(
+      page,
+      revealState('dispensing', {
+        oracleEvidenceDispensed: true,
+      }),
+    );
+    await expect(page.getByText('RESULT READY')).toBeVisible();
+    await expect(page.getByText('Take your evidence record.')).toBeVisible();
+    await expect(page.getByText('EVIDENCE READY')).toHaveCount(0);
+    const paper = page.getByRole('button', {
+      name: /Evidence record for Naturium · Azelaic Topical Acid/i,
+    });
+    await expect(paper).toBeEnabled();
+    await expect(paper).toHaveAttribute('data-paper-position', 'final');
+    await noHorizontalOverflow(page);
+  }
+});
+
+test('recorded result preserves the approved action spacing and factual copy', async ({ page }) => {
+  for (const viewport of [
+    { width: 320, height: 700 },
+    { width: 390, height: 844 },
+    { width: 430, height: 932 },
+  ]) {
+    await page.setViewportSize(viewport);
+    await loadState(page, revealState('collected'));
+    await expect(page.getByRole('heading', { name: 'EVIDENCE RECORDED' })).toBeVisible();
+    await expect(page.getByText('Evidence recorded.', { exact: true })).toHaveCount(0);
+    await expect(page.getByText('Your result is saved.')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'DONE' })).toBeFocused();
+    await page.getByRole('button', { name: 'VIEW EVIDENCE' }).scrollIntoViewIfNeeded();
+    await noHorizontalOverflow(page);
+  }
+
   const summary = page.locator('[data-result-summary]');
   await expect(summary).toContainText('FV–014');
   await expect(summary).toContainText('Naturium · Azelaic Topical Acid');
@@ -301,25 +395,26 @@ test('captures final mobile verification evidence', async ({ page }) => {
   await loadState(page, completedState([evidenceRecord, olderEvidenceRecord]));
   await captureEvidence(page, '02-home-narrow-320');
 
-  await page.setViewportSize({ width: 390, height: 844 });
-  await loadState(page, revealState('sealed'));
-  await captureEvidence(page, '03-verdict-ready');
-
-  await page.addStyleTag({
-    content: '*,*::before,*::after{animation-play-state:paused!important}',
-  });
-  await loadState(page, revealState('transmitting'));
-  await captureEvidence(page, '04-revealing-result');
-
   await page.setViewportSize({ width: 430, height: 932 });
   await loadState(page, revealState('collected'));
   await captureEvidence(page, '05-evidence-recorded-done-spacing');
 
-  await loadState(page, completedState([evidenceRecord, olderEvidenceRecord]));
-  await page.getByRole('button', { name: 'Previous trials, 2 saved results' }).click();
-  await captureEvidence(page, '06-previous-trials');
-
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await loadState(page, completedState([evidenceRecord, olderEvidenceRecord]));
   await captureEvidence(page, '07-home-reduced-motion');
+
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
+  await installPausedAnimations(page);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await loadState(page, revealState('committing'));
+  await captureEvidence(page, '08-saving-result-390');
+
+  await page.setViewportSize({ width: 430, height: 932 });
+  await loadState(
+    page,
+    revealState('dispensing', {
+      oracleEvidenceDispensed: true,
+    }),
+  );
+  await captureEvidence(page, '09-result-ready-430');
 });

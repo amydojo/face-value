@@ -403,13 +403,17 @@ describe('Phase B.5 sealed result and atomic release', () => {
     expect(committed.placementSealed).toBe(false);
     expect(committed.archive).toHaveLength(0);
     expect(committed.record).toBeNull();
+    expect(committed.announcement).toBe('Saving your result.');
     expect(duplicateCommit).toEqual(committed);
     expect(invalidCollection).toEqual(committed);
     expect(dispensing.oracleRevealState).toBe('dispensing');
     expect(presented.oracleEvidenceDispensed).toBe(true);
+    expect(presented.announcement).toBe('Result ready. Take your evidence record.');
     expect(collected.oracleRevealState).toBe('collected');
     expect(collected.placementSealed).toBe(true);
     expect(collected.archive).toHaveLength(1);
+    expect(collected.announcement).toContain('Your result is saved.');
+    expect(collected.announcement).not.toContain('Evidence recorded.');
     expect(collected.record).toMatchObject({
       id: 'ER-202607151230',
       specimenId: collected.registeredProduct?.id,
@@ -434,6 +438,7 @@ describe('Phase B.5 sealed result and atomic release', () => {
     expect(done.observation).toBe('none');
     expect(done.registeredProduct).toBeNull();
     expect(done.archive).toHaveLength(1);
+    expect(done.announcement).toBe('Result saved. Returned to Your trials.');
   });
 
   it('preserves accepted baseline through failure, cancel, retry, and back', () => {

@@ -214,7 +214,7 @@ function FirmwareDisplay({
   onTransmissionComplete: () => void;
 }) {
   const resolved = ['verdict_revealed', 'committing', 'dispensing', 'collected'].includes(phase);
-  const recording = ['committing', 'dispensing'].includes(phase);
+  const saving = ['committing', 'dispensing'].includes(phase);
   const recorded = phase === 'collected';
 
   return (
@@ -235,21 +235,15 @@ function FirmwareDisplay({
         <span data-oracle-trial-identity>{trialIdentity.firmware}</span>
       </header>
       <div className={styles.firmwareFinding}>
-        <span>{recorded ? 'RECORD STATUS' : recording ? 'EVIDENCE RECORD' : 'OBSERVED'}</span>
-        <strong data-oracle-finding={!recording && !recorded ? true : undefined}>
-          {recorded ? 'SAVED' : recording ? 'IN PROGRESS' : viewModel.headline}
+        <span>{recorded || saving ? 'RECORD STATUS' : 'OBSERVED'}</span>
+        <strong data-oracle-finding={!saving && !recorded ? true : undefined}>
+          {recorded ? 'SAVED' : saving ? 'SAVING' : viewModel.headline}
         </strong>
       </div>
-      {resolved && !recording && !recorded && (
+      {resolved && !saving && !recorded && (
         <div className={styles.firmwareNext}>
           <span>NEXT</span>
           <strong>{viewModel.nextStepLabel}</strong>
-        </div>
-      )}
-      {recording && (
-        <div className={styles.firmwareNext}>
-          <span>STATUS</span>
-          <strong>RECORDING</strong>
         </div>
       )}
       <i className={styles.syncLine} aria-hidden="true" />
@@ -294,7 +288,7 @@ function EvidencePaperContent({
         <span data-oracle-trial-identity>{viewModel.trialId}</span>
       </header>
       <section>
-        <small>{latest ? viewModel.verdictCode : verdictProduct(viewModel)}</small>
+        <small>{verdictProduct(viewModel)}</small>
         <span>{latest ? 'RESULT' : 'OBSERVED'}</span>
         <strong data-evidence-finding>{viewModel.headline}</strong>
       </section>
@@ -801,7 +795,7 @@ export function OracleRevealScene({ haptics = browserHaptics }: { haptics?: Hapt
         : phase === 'verdict_revealed'
           ? { eyebrow: 'VERDICT READY', headline: 'The result is in.' }
           : phase === 'committing' || phase === 'dispensing'
-            ? { eyebrow: 'RECORDING EVIDENCE', headline: 'Saving your result.' }
+            ? { eyebrow: 'SAVING RESULT', headline: 'Saving your result.' }
             : null;
 
   if (!state.analysis || !specimen || !viewModel) return null;
@@ -932,7 +926,7 @@ export function OracleRevealScene({ haptics = browserHaptics }: { haptics?: Hapt
             data-collection-started={state.oracleCollectionStarted}
             role="status"
           >
-            <p>{state.oracleEvidenceDispensed ? 'EVIDENCE READY' : 'RECORDING EVIDENCE'}</p>
+            <p>{state.oracleEvidenceDispensed ? 'RESULT READY' : 'RESULT ACCEPTED'}</p>
             <strong>
               {state.oracleEvidenceDispensed
                 ? 'Take your evidence record.'
@@ -944,9 +938,8 @@ export function OracleRevealScene({ haptics = browserHaptics }: { haptics?: Hapt
         {phase === 'collected' && collectedRecord && (
           <section className={styles.completion} aria-labelledby="evidence-recorded-heading">
             <div className={styles.completionResult} data-result-summary>
-              <p>EVIDENCE RECORDED</p>
               <h1 id="evidence-recorded-heading" data-stage-focus tabIndex={-1}>
-                Evidence recorded.
+                EVIDENCE RECORDED
               </h1>
               <small className={styles.savedSupport}>Your result is saved.</small>
               <small className={styles.completionIdentity} data-oracle-trial-identity>

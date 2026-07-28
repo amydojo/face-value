@@ -519,7 +519,7 @@ export function faceValueReducer(
         ...next,
         placement: event.placement,
         oracleCommittedAt: event.now,
-        announcement: 'Result kept. Preparing your evidence record.',
+        announcement: 'Saving your result.',
       };
     }
 
@@ -537,7 +537,7 @@ export function faceValueReducer(
       if (next === state) return state;
       return {
         ...next,
-        announcement: 'Evidence produced. Take your record.',
+        announcement: 'Result ready. Take your evidence record.',
       };
     }
 
@@ -564,7 +564,7 @@ export function faceValueReducer(
         placementSealed: true,
         record,
         archive,
-        announcement: `Evidence recorded. ${record.finding} Next: ${record.finalPlacement.replaceAll('_', ' ')}.`,
+        announcement: `Your result is saved. ${record.finding} Next: ${record.finalPlacement.replaceAll('_', ' ')}.`,
       };
     }
 
@@ -601,7 +601,7 @@ export function faceValueReducer(
         followUpContext: null,
         demoTimelineAdvanced: false,
         returnStage: null,
-        announcement: 'Evidence recorded. Returned to Your trials.',
+        announcement: 'Result saved. Returned to Your trials.',
       };
     }
 
