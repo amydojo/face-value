@@ -76,10 +76,35 @@ const formatScore = (value: number): string =>
 const trialContext = (record: EvidenceRecordData): string => {
   const context: string[] = [];
   if (record.note) context.push(`Note: ${record.note}`);
+  const describedCaptureContext = (
+    label: string,
+    value: EvidenceRecordData['baselineContext'],
+  ) => {
+    if (!value) return;
+    const details = [
+      value.makeup ? 'makeup' : null,
+      value.recentHeatOrExercise ? 'recent heat or exercise' : null,
+      value.recentCleansingOrSkincare
+        ? 'recent cleansing or skincare'
+        : null,
+      value.routineOrTreatmentChange
+        ? 'routine or treatment change'
+        : null,
+      value.note ? `note: ${value.note}` : null,
+    ].filter(Boolean);
+    if (details.length) context.push(`${label}: ${details.join(', ')}.`);
+  };
+  describedCaptureContext('Baseline context', record.baselineContext);
+  describedCaptureContext('Follow-up context', record.followUpContext);
   if (record.disturbance === 'overlap_retained') {
     context.push('A second active product overlapped the trial window, so attribution is less certain.');
   } else if (record.disturbance === 'returned_to_cooling') {
     context.push('The second product was removed before the final comparison.');
+  }
+  if (record.demoOriginated) {
+    context.push(
+      'Demo timeline was advanced explicitly; the original baseline timestamp was not changed.',
+    );
   }
   if (record.limitations?.length) context.push(...record.limitations);
   if (context.length === 0) context.push('No additional trial context changed the result boundary.');
@@ -107,7 +132,9 @@ export function evidenceRecordFromHumanButter(record: EvidenceRecordData): Evide
     id: record.id,
     trialId: `trial-${record.specimenId}`,
     specimenCode: record.accession,
-    productName: record.product,
+    productName: record.productBrand
+      ? `${record.productBrand} · ${record.product}`
+      : record.product,
     trialWindow: {
       startedAt: record.baselineCapture?.createdAt ?? record.observationWindow,
       endedAt: record.followupCapture?.createdAt ?? record.createdAt,

@@ -1,106 +1,325 @@
 import { expect, test, type Page } from '@playwright/test';
+import {
+  persistedSealedTrial,
+  STORAGE_KEY,
+} from './phase-b5-fixtures';
 
-async function chooseCapture(page: Page, name: string) {
-  await page.getByLabel('Choose a face photo').setInputFiles({
-    name,
-    mimeType: 'image/jpeg',
-    buffer: Buffer.from('fixture'),
-  });
-  await page.getByRole('button', { name: /USE THIS CAPTURE/i }).click();
-}
-
-async function openTrialSelection(page: Page) {
+async function openPersistedSealedResult(page: Page): Promise<void> {
   await page.goto('/');
-  await page.getByRole('button', { name: 'VIEW YOUR TRIALS' }).click();
-  await page.getByRole('button', { name: /Choose a trial starting with 02 \/ ONE THING/i }).click();
-  await expect(page.getByRole('button', { name: /View trial for 02 \/ ONE THING/i })).toBeVisible();
+  await page.evaluate(
+    ({ key, state }) => {
+      localStorage.setItem(key, JSON.stringify(state));
+    },
+    { key: STORAGE_KEY, state: persistedSealedTrial },
+  );
+  await page.reload();
+  await expect(
+    page.getByRole('heading', { name: 'Your result is ready.' }),
+  ).toBeVisible();
 }
 
-async function createObservation(page: Page) {
-  await openTrialSelection(page);
-  await page.getByRole('button', { name: /View trial for 02 \/ ONE THING/i }).click();
-  await page.getByRole('radio', { name: 'Reduce visible redness', exact: true }).click();
-  await page.getByRole('button', { name: 'Take baseline scan' }).click();
-  for (const checkbox of await page.getByRole('checkbox').all()) await checkbox.check();
-  await page.getByRole('button', { name: 'Ready to capture' }).click();
-  await chooseCapture(page, 'baseline.jpg');
-  await expect(page.getByRole('heading', { name: 'Still observing.' })).toBeVisible();
-}
-
-async function reachResult(page: Page) {
-  await createObservation(page);
-  await page.getByRole('button', { name: 'TAKE FOLLOW UP SCAN' }).click();
-  for (const checkbox of await page.getByRole('checkbox').all()) await checkbox.check();
-  await page.getByRole('radio', { name: 'comparable', exact: true }).check();
-  await page.getByRole('button', { name: 'Continue to follow-up' }).click();
-  await chooseCapture(page, 'followup.jpg');
-  await expect(page.getByRole('heading', { name: 'Your result is ready.' })).toBeVisible();
-  await page.getByRole('button', { name: /Reveal result for 02 \/ ONE THING/i }).click();
-  await expect(page.locator('[data-fv-screen="result"]')).toBeVisible();
-}
-
-test('every visible trial handle supports tap, keyboard, cancellation, and scoped drag ownership', async ({ page }) => {
-  await page.setViewportSize({ width: 402, height: 874 });
-  await openTrialSelection(page);
-
-  const handle = page.getByRole('button', { name: /View trial for 02 \/ ONE THING/i });
+test('result handle owns pointer drag without taking page scroll ownership', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await openPersistedSealedResult(page);
+  const handle = page.getByRole('button', {
+    name: /Reveal result for Azelaic Topical Acid/i,
+  });
   await expect(handle).toHaveCSS('touch-action', 'none');
-  await expect(page.locator('[data-fv-screen="trial-selection"]')).not.toHaveCSS('touch-action', 'none');
+  expect(
+    await page.evaluate(
+      () => getComputedStyle(document.documentElement).touchAction,
+    ),
+  ).not.toBe('none');
 
-  await handle.dispatchEvent('pointerdown', { pointerId: 7, button: 0, clientX: 10, clientY: 10 });
-  await handle.dispatchEvent('pointercancel', { pointerId: 7, button: 0, clientX: 10, clientY: 10 });
-  await expect(handle).toBeVisible();
-  await handle.click();
-  await expect(page.getByRole('heading', { name: 'What should this product change?' })).toBeVisible();
-
-  await page.keyboard.press('Escape');
-  const keyboardHandle = page.getByRole('button', { name: /View trial for 02 \/ ONE THING/i });
-  await keyboardHandle.focus();
-  await page.keyboard.press('Enter');
-  await expect(page.getByRole('heading', { name: 'What should this product change?' })).toBeVisible();
-
-  await page.keyboard.press('Escape');
-  await page.getByRole('button', { name: /View trial for 02 \/ ONE THING/i }).press('Space');
-  await expect(page.getByRole('heading', { name: 'What should this product change?' })).toBeVisible();
+  const box = await handle.boundingBox();
+  if (!box) throw new Error('Reveal handle has no layout box.');
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(
+    box.x + box.width / 2 + 38,
+    box.y + box.height / 2 + 1,
+    { steps: 3 },
+  );
+  await page.mouse.up();
+  await expect(
+    page.getByRole('heading', {
+      name: 'A small favorable shift showed up.',
+    }),
+  ).toBeVisible({ timeout: 2_000 });
+  await expect(page).toHaveURL(/\/$/);
 });
 
-test('lost pointer capture recovers and the next deliberate activation still works', async ({ page }) => {
-  await openTrialSelection(page);
-  const handle = page.getByRole('button', { name: /View trial for 02 \/ ONE THING/i });
-  await handle.dispatchEvent('pointerdown', { pointerId: 9, button: 0, clientX: 10, clientY: 10 });
-  await handle.dispatchEvent('lostpointercapture', { pointerId: 9 });
+test('pointer cancellation and lost capture leave the next activation usable', async ({
+  page,
+}) => {
+  await openPersistedSealedResult(page);
+  const handle = page.getByRole('button', {
+    name: /Reveal result for Azelaic Topical Acid/i,
+  });
+  await handle.dispatchEvent('pointerdown', {
+    pointerId: 7,
+    button: 0,
+    clientX: 10,
+    clientY: 10,
+  });
+  await handle.dispatchEvent('pointercancel', {
+    pointerId: 7,
+    button: 0,
+    clientX: 10,
+    clientY: 10,
+  });
   await expect(handle).toBeVisible();
-  await handle.click();
-  await expect(page.getByRole('heading', { name: 'What should this product change?' })).toBeVisible();
+  await handle.dispatchEvent('pointerdown', {
+    pointerId: 8,
+    button: 0,
+    clientX: 10,
+    clientY: 10,
+  });
+  await handle.dispatchEvent('lostpointercapture', { pointerId: 8 });
+  await handle.press('Enter');
+  await expect(
+    page.getByRole('heading', {
+      name: 'A small favorable shift showed up.',
+    }),
+  ).toBeVisible({ timeout: 2_000 });
 });
 
-test('reduced motion preserves result, record production, collection, and archive', async ({ page }) => {
+test('Escape is deterministic and cannot bypass the sealed or revealed state', async ({
+  page,
+}) => {
+  await openPersistedSealedResult(page);
+  await page.keyboard.press('Escape');
+  await expect(
+    page.getByRole('heading', { name: 'Your result is ready.' }),
+  ).toBeVisible();
+  await page
+    .getByRole('button', {
+      name: /Reveal result for Azelaic Topical Acid/i,
+    })
+    .press('Space');
+  await expect(
+    page.getByRole('heading', {
+      name: 'A small favorable shift showed up.',
+    }),
+  ).toBeVisible({ timeout: 2_000 });
+  await page.keyboard.press('Escape');
+  await expect(
+    page.getByRole('heading', {
+      name: 'A small favorable shift showed up.',
+    }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole('button', {
+      name: 'Press amber to keep this evidence',
+    }),
+  ).toBeVisible();
+});
+
+test('reduced motion preserves reveal, atomic release, presentation, and collection', async ({
+  page,
+}) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
-  await reachResult(page);
+  await openPersistedSealedResult(page);
+  await page
+    .getByRole('button', {
+      name: /Reveal result for Azelaic Topical Acid/i,
+    })
+    .press('Enter');
+  await expect(
+    page.getByRole('heading', {
+      name: 'A small favorable shift showed up.',
+    }),
+  ).toBeVisible({ timeout: 1_000 });
 
-  const instrument = page.getByLabel('Product trial result');
-  await page.getByRole('button', { name: /Reveal result for 02 \/ ONE THING/i }).press('Enter');
-  await expect(instrument).toHaveAttribute('data-cassette-state', 'presented');
-  await expect(instrument.locator('[data-fv-part="specimen-identity"]').first()).toHaveCSS('filter', 'none');
-
-  await page.getByRole('button', { name: /Accept recommended next step — TEST LONGER/i }).click();
-  await expect(page.locator('[data-fv-part="next-step"]')).toHaveAttribute('data-fv-selected-placement', 'paused');
-  await page.getByRole('button', { name: 'Save result and release Evidence Record' }).click();
-  await expect(page.locator('[data-evidence-machine]')).toHaveAttribute('data-release-state', 'record-presented', { timeout: 1500 });
-  await page.getByRole('button', { name: /Collect Evidence Record/i }).press('Enter');
-  await expect(page.getByRole('heading', { name: 'Your evidence.' })).toBeVisible();
-  await page.getByRole('button', { name: 'Past results' }).click();
-  await expect(page.getByLabel('Past results').getByRole('button', { name: /Open saved result/i })).toHaveCount(1);
+  const amber = page.getByRole('button', {
+    name: 'Press amber to keep this evidence',
+  });
+  await amber.evaluate((element) => {
+    (element as HTMLButtonElement).click();
+    (element as HTMLButtonElement).click();
+  });
+  const machine = page.locator('[data-evidence-machine]');
+  await expect(machine).toHaveAttribute(
+    'data-release-state',
+    'record-presented',
+    { timeout: 1_000 },
+  );
+  await expect(page.locator('[data-evidence-record-artifact]')).toHaveCount(
+    1,
+  );
+  await page
+    .getByRole('button', {
+      name: /Collect Evidence Record for .*Azelaic Topical Acid/i,
+    })
+    .press('Enter');
+  await expect(
+    page.getByRole('heading', { name: 'Your evidence.' }),
+  ).toBeVisible();
 });
 
-test('Phase B maps directly to paused while the full taxonomy stays hidden', async ({ page }) => {
-  await reachResult(page);
-  await page.getByRole('button', { name: /Reveal result for 02 \/ ONE THING/i }).press('Enter');
-  await page.getByRole('button', { name: /Accept recommended next step — TEST LONGER/i }).click();
-  const nextStep = page.locator('[data-fv-part="next-step"]');
-  await expect(nextStep).toHaveAttribute('data-fv-selected-placement', 'paused');
-  await expect(page.getByRole('heading', { name: 'P1 · Paused' })).toBeVisible();
-  await expect(page.getByRole('group', { name: 'Choose a different next step' })).toBeHidden();
-  await page.getByRole('button', { name: 'Choose a different next step' }).click();
-  await expect(page.getByRole('group', { name: 'Choose a different next step' })).toBeVisible();
+test('canceling guided capture releases the fixture and ignores stale completion', async ({
+  page,
+}) => {
+  const runtimeErrors: string[] = [];
+  page.on('pageerror', (error) => runtimeErrors.push(error.message));
+  await page.goto('/');
+  await page
+    .getByRole('button', { name: 'START A PRODUCT TRIAL' })
+    .click();
+  await page.getByLabel('Brand').fill('Experiment');
+  await page.getByLabel('Product name').fill('Quiet Serum');
+  await page.getByRole('button', { name: 'REGISTER PRODUCT' }).click();
+  await page
+    .getByRole('button', { name: 'TAKE GUIDED BASELINE' })
+    .click();
+  await expect(
+    page.locator('[data-camera-kit-fixture="active"]'),
+  ).toHaveCount(0);
+  await page
+    .getByRole('button', { name: 'START GUIDED CAPTURE' })
+    .click();
+  await expect(
+    page.locator('[data-camera-kit-fixture="active"]'),
+  ).toBeVisible();
+  await page.getByRole('button', { name: '← Back' }).click();
+  await expect(
+    page.getByRole('heading', { name: 'Your product is ready.' }),
+  ).toBeVisible();
+  await expect(
+    page.locator('[data-camera-kit-fixture="active"]'),
+  ).toHaveCount(0);
+  await page.waitForTimeout(1_100);
+  await expect(
+    page.getByRole('heading', { name: 'Your product is ready.' }),
+  ).toBeVisible();
+  expect(runtimeErrors).toEqual([]);
+});
+
+test('a stalled preview restarts from a fresh tap and Back releases it', async ({
+  page,
+}) => {
+  const runtimeErrors: string[] = [];
+  page.on('pageerror', (error) =>
+    runtimeErrors.push(`page: ${error.message}`),
+  );
+  page.on('console', (message) => {
+    if (message.type() === 'error') {
+      runtimeErrors.push(`console: ${message.text()}`);
+    }
+  });
+  await page.goto('/?camera-stall=1');
+  await page
+    .getByRole('button', { name: 'START A PRODUCT TRIAL' })
+    .click();
+  await page.getByLabel('Brand').fill('Experiment');
+  await page.getByLabel('Product name').fill('Quiet Serum');
+  await page.getByRole('button', { name: 'REGISTER PRODUCT' }).click();
+  await page
+    .getByRole('button', { name: 'TAKE GUIDED BASELINE' })
+    .click();
+  await page
+    .getByRole('button', { name: 'START GUIDED CAPTURE' })
+    .click();
+
+  const restart = page.getByRole('button', { name: 'RESTART CAMERA' });
+  await expect(restart).toBeFocused();
+  await expect(
+    page.getByText('The camera preview did not start.'),
+  ).toBeVisible();
+  await expect(
+    page.locator('[data-camera-kit-fixture="active"]'),
+  ).toHaveCount(0);
+
+  await restart.click();
+  await expect(
+    page.locator('[data-preview-state="preview-live"]'),
+  ).toBeVisible();
+  await expect(
+    page.locator('[data-camera-kit-fixture="active"]'),
+  ).toBeVisible();
+  await page.getByRole('button', { name: '← Back' }).click();
+  await expect(
+    page.getByRole('heading', { name: 'Your product is ready.' }),
+  ).toBeVisible();
+  await expect(
+    page.locator('[data-camera-kit-fixture="active"]'),
+  ).toHaveCount(0);
+  await page.waitForTimeout(1_100);
+  await expect(
+    page.getByRole('heading', { name: 'Your product is ready.' }),
+  ).toBeVisible();
+  expect(runtimeErrors).toEqual([]);
+});
+
+test('preview-live gates visible Face, Position, and Light progression', async ({
+  page,
+}) => {
+  const runtimeErrors: string[] = [];
+  page.on('pageerror', (error) =>
+    runtimeErrors.push(`page: ${error.message}`),
+  );
+  page.on('console', (message) => {
+    if (message.type() === 'error') {
+      runtimeErrors.push(`console: ${message.text()}`);
+    }
+  });
+  await page.goto('/?camera-quality-proof=1');
+  await page
+    .getByRole('button', { name: 'START A PRODUCT TRIAL' })
+    .click();
+  await page.getByLabel('Brand').fill('Experiment');
+  await page.getByLabel('Product name').fill('Quiet Serum');
+  await page.getByRole('button', { name: 'REGISTER PRODUCT' }).click();
+  await page
+    .getByRole('button', { name: 'TAKE GUIDED BASELINE' })
+    .click();
+  await page
+    .getByRole('button', { name: 'START GUIDED CAPTURE' })
+    .click();
+
+  await expect(
+    page.locator('[data-preview-state="preview-live"]'),
+  ).toBeVisible();
+  const indicators = page
+    .getByLabel('Capture quality')
+    .locator(':scope > div');
+  await expect(indicators.nth(0)).toHaveAttribute(
+    'data-accepted',
+    'true',
+  );
+  await expect(indicators.nth(1)).toHaveAttribute(
+    'data-accepted',
+    'false',
+  );
+  await expect(indicators.nth(2)).toHaveAttribute(
+    'data-accepted',
+    'false',
+  );
+  await expect(indicators.nth(1)).toHaveAttribute(
+    'data-accepted',
+    'true',
+  );
+  await expect(indicators.nth(2)).toHaveAttribute(
+    'data-accepted',
+    'false',
+  );
+  await expect(indicators.nth(2)).toHaveAttribute(
+    'data-accepted',
+    'true',
+  );
+  await expect(
+    page.locator('p[aria-hidden="true"]', { hasText: 'Hold still…' }),
+  ).toBeVisible();
+
+  await page.getByRole('button', { name: '← Back' }).click();
+  await expect(
+    page.locator('[data-camera-kit-fixture="active"]'),
+  ).toHaveCount(0);
+  await page.waitForTimeout(900);
+  await expect(
+    page.getByRole('heading', { name: 'Your product is ready.' }),
+  ).toBeVisible();
+  expect(runtimeErrors).toEqual([]);
 });

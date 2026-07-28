@@ -1,5 +1,12 @@
 # YouCam Longitudinal Evidence Engine Contract
 
+> Phase B.5 extension: the provider and evidence laws in this contract remain
+> frozen. The canonical product identity is now a reducer-owned
+> `RegisteredProduct` using protocol `youcam-redness-v1`; `02 / ONE THING`
+> remains legacy/test compatibility only. The current experience, capture,
+> timing, seal, and release contract is recorded in
+> `docs/youcam-phase-b5-implementation.md`.
+
 **Status:** Frozen implementation authority
 
 **Version:** 1.2

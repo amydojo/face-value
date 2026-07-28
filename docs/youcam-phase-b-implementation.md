@@ -1,5 +1,10 @@
 # YouCam Phase B implementation record
 
+> Historical Phase B engine record. Phase B.5 supersedes the fixture-owned
+> product identity and consumer journey described here while preserving the
+> provider, normalization, comparison, confidence, privacy, and persistence
+> laws. See `docs/youcam-phase-b5-implementation.md`.
+
 Status: Complete. Fixture-backed automation and one genuine matched live-provider pair have both passed the full Face Value evidence journey.
 
 Related work: #40, #43, PR #44.

@@ -72,7 +72,9 @@ it('arms SAVE RESULT from the existing Human Butter decision without creating pa
   expect(machineState.disposition).toBe('retry_alone');
   expect(config.primaryActionOwner).toBe('machine');
   expect(config.actuator.actionId).toBe('save-result');
-  expect(config.actuator.accessibleLabel).toBe('Save result and release Evidence Record');
+  expect(config.actuator.accessibleLabel).toBe(
+    'Press amber to keep this evidence',
+  );
 });
 
 it('maps the durable saved result into the same collectible artifact identity', () => {

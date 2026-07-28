@@ -50,7 +50,10 @@ export function CassetteHandle({
   };
 
   const releaseCapture = (event: ReactPointerEvent<HTMLButtonElement>) => {
-    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+    if (
+      typeof event.currentTarget.hasPointerCapture === 'function' &&
+      event.currentTarget.hasPointerCapture(event.pointerId)
+    ) {
       event.currentTarget.releasePointerCapture(event.pointerId);
     }
   };
@@ -67,7 +70,7 @@ export function CassetteHandle({
       activated: false,
       moved: false,
     };
-    event.currentTarget.setPointerCapture(event.pointerId);
+    event.currentTarget.setPointerCapture?.(event.pointerId);
   };
 
   const handlePointerMove = (event: ReactPointerEvent<HTMLButtonElement>) => {

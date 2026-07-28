@@ -142,7 +142,7 @@ it('keeps file fallback available when camera is denied', () => {
   expect(screen.getByText(/Choose a photo instead/i)).toBeInTheDocument();
 });
 
-it('allows a pending private capture to be deleted before acceptance', async () => {
+it('hands the file fallback off immediately without preview approval', async () => {
   const user = userEvent.setup();
   const onAccepted = vi.fn();
   const onDelete = vi.fn();
@@ -164,10 +164,14 @@ it('allows a pending private capture to be deleted before acceptance', async () 
     screen.getByLabelText('Choose a face photo'),
     new File(['fixture'], 'capture.jpg', { type: 'image/jpeg' }),
   );
-  expect(screen.getByRole('button', { name: 'USE THIS CAPTURE' })).toBeInTheDocument();
-  await user.click(screen.getByRole('button', { name: 'Delete current capture' }));
-  expect(onDelete).toHaveBeenCalledOnce();
-  expect(onAccepted).not.toHaveBeenCalled();
+  await waitFor(() => expect(onAccepted).toHaveBeenCalledOnce());
+  expect(
+    screen.queryByRole('button', { name: /use this capture/i }),
+  ).not.toBeInTheDocument();
+  expect(
+    screen.queryByRole('button', { name: /delete current capture/i }),
+  ).not.toBeInTheDocument();
+  expect(onDelete).not.toHaveBeenCalled();
 });
 
 it('moves focus to Your trials and removes duplicate action jargon', async () => {
@@ -178,7 +182,7 @@ it('moves focus to Your trials and removes duplicate action jargon', async () =>
       <FaceValueApplication />
     </FaceValueProvider>,
   );
-  await user.click(screen.getByRole('button', { name: 'VIEW YOUR TRIALS' }));
+  await user.click(screen.getByRole('button', { name: 'Your trials' }));
   await waitFor(() => {
     expect(screen.getByRole('heading', { name: 'Your trials' })).toHaveFocus();
   });

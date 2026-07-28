@@ -1,247 +1,471 @@
-import { expect, test, type Locator, type Page, type TestInfo } from '@playwright/test';
+import {
+  expect,
+  test,
+  type Page,
+  type TestInfo,
+} from '@playwright/test';
+import { STORAGE_KEY } from './phase-b5-fixtures';
 
-function collectRuntimeErrors(page: Page) {
+type GoldenPathCase = {
+  name: string;
+  viewport: { width: number; height: number };
+  reducedMotion: boolean;
+  captureEvidence: boolean;
+};
+
+const cases: GoldenPathCase[] = [
+  {
+    name: '390 × 844',
+    viewport: { width: 390, height: 844 },
+    reducedMotion: false,
+    captureEvidence: true,
+  },
+  {
+    name: '430 × 932',
+    viewport: { width: 430, height: 932 },
+    reducedMotion: false,
+    captureEvidence: false,
+  },
+  {
+    name: 'reduced browser height',
+    viewport: { width: 390, height: 650 },
+    reducedMotion: false,
+    captureEvidence: false,
+  },
+  {
+    name: 'prefers-reduced-motion',
+    viewport: { width: 390, height: 844 },
+    reducedMotion: true,
+    captureEvidence: false,
+  },
+];
+
+function collectRuntimeErrors(page: Page): string[] {
   const errors: string[] = [];
-  page.on('pageerror', (error) => errors.push(error.message));
+  page.on('pageerror', (error) => errors.push(`page: ${error.message}`));
   page.on('console', (message) => {
-    if (message.type() === 'error') errors.push(message.text());
+    if (message.type() === 'error') {
+      errors.push(`console: ${message.text()}`);
+    }
   });
   return errors;
 }
 
-async function chooseCapture(page: Page, name: string) {
-  await page.getByLabel('Choose a face photo').setInputFiles({
-    name,
-    mimeType: 'image/jpeg',
-    buffer: Buffer.from('fixture'),
-  });
-  await page.getByRole('button', { name: /USE THIS CAPTURE/i }).click();
+async function assertNoHorizontalOverflow(page: Page): Promise<void> {
+  const overflow = await page.evaluate(
+    () =>
+      document.documentElement.scrollWidth -
+      document.documentElement.clientWidth,
+  );
+  expect(overflow).toBeLessThanOrEqual(1);
 }
 
-async function completeCaptureContract(page: Page, followup = false) {
-  for (const checkbox of await page.getByRole('checkbox').all()) await checkbox.check();
-  if (followup) {
-    await page.getByRole('radio', { name: 'comparable', exact: true }).check();
-    await page.getByRole('button', { name: 'Continue to follow-up' }).click();
-  } else {
-    await page.getByRole('button', { name: 'Ready to capture' }).click();
-  }
-}
-
-async function dragHandle(page: Page, handle: Locator) {
-  const box = await handle.boundingBox();
-  if (!box) throw new Error('Trial handle has no layout box.');
-  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
-  await page.mouse.down();
-  await page.mouse.move(box.x + box.width / 2 + 38, box.y + box.height / 2 + 1, { steps: 3 });
-  await page.mouse.up();
-}
-
-async function assertNoInternalJourneyJargon(page: Page) {
+async function assertNoInternalJourneyJargon(page: Page): Promise<void> {
   const visibleText = await page.locator('body').innerText();
-  expect(visibleText).not.toMatch(/NEXT VALID ACTION|INSPECT CASSETTE|LIGHTWEIGHT TRACE|EVIDENCE DISPOSITION|COMMIT DISPOSITION|GENERATE EVIDENCE RECORD|hd_redness|raw_score|task_id|polling/i);
+  expect(visibleText).not.toMatch(
+    /upload slot|provider task|signed URL|normalization|reducer|hd_redness|raw_score|polling|YouCam/i,
+  );
 }
 
-function assertFaceFreeStorage(serialized: string | null) {
-  expect(serialized).not.toMatch(/providerTaskId|ephemeralTaskReference|data:image|blob:|YOUCAM_API_KEY|YOUCAM_SPIKE_TOKEN|Authorization: Bearer|https:\/\/[^"\\]*(?:signed|upload)/i);
+function assertFaceFreeStorage(serialized: string | null): void {
+  expect(serialized).toBeTruthy();
+  expect(serialized).not.toMatch(
+    /providerTaskId|ephemeralTaskReference|data:image|blob:|YOUCAM_API_KEY|YOUCAM_SPIKE_TOKEN|Authorization: Bearer|MediaStream|CameraKit instance|signed provider|temporary mask/i,
+  );
 }
 
-const persistedSaveReadyTrial = {
-  selectedDrawerIndex: 0,
-  selectedSpecimenId: 'one-thing',
-  assignedJob: 'Reduce visible redness',
-  observation: 'review_due',
-  placement: 'paused',
-  placementSealed: false,
-  comparison: 'comparable',
-  confidence: 'possible',
-  disturbance: 'none',
-  baselineCapture: {
-    id: 'baseline-reduced-motion',
-    kind: 'baseline',
-    source: 'file',
-    mimeType: 'image/jpeg',
-    createdAt: '2026-07-15T19:00:00.000Z',
-    orientationRule: 'analysis-unmirrored',
-  },
-  followupCapture: {
-    id: 'followup-reduced-motion',
-    kind: 'followup',
-    source: 'file',
-    mimeType: 'image/jpeg',
-    createdAt: '2026-07-27T19:00:00.000Z',
-    orientationRule: 'analysis-unmirrored',
-  },
-  trace: null,
-  analysis: {
-    captureQuality: 'accepted',
-    comparison: 'comparable',
-    visibleSignal: 'visible redness',
-    confidence: 'possible',
-    finding: 'Favorable direction detected',
-    nonFinding: 'The redness condition score increased from 93.34 to 100.00. Higher scores indicate a more favorable skin condition.',
-    relevantContext: 'This comparison may reflect normal scan variation. Prototype noise boundary has not been calibrated.',
-    recommendedAction: 'wait',
-    claimBoundary: 'Possible directional evidence only. This does not establish product efficacy or clinical significance.',
-    simulated: false,
-    provider: 'youcam',
-    baselineRawScore: 93.3356,
-    followUpRawScore: 100,
-    delta: 6.6644,
-    direction: 'favorable',
-    limitations: ['Prototype noise boundary has not been calibrated.'],
-  },
-  record: null,
-  archive: [],
-  longitudinalEvidence: {
-    protocol: {
-      provider: 'youcam',
-      apiVersion: '2.1',
-      mode: 'hd',
-      concern: 'hd_redness',
-      region: null,
-      scoreType: 'raw_score',
-      captureProtocolVersion: 'face-value-youcam-1',
-    },
-    baseline: {
-      provider: 'youcam',
-      apiVersion: '2.1',
-      mode: 'hd',
-      concern: 'hd_redness',
-      region: null,
-      scoreType: 'raw_score',
-      captureProtocolVersion: 'face-value-youcam-1',
-      rawScore: 93.3356,
-      capturedAt: '2026-07-15T19:00:00.000Z',
-      captureQuality: 'accepted',
-    },
-    followUp: {
-      provider: 'youcam',
-      apiVersion: '2.1',
-      mode: 'hd',
-      concern: 'hd_redness',
-      region: null,
-      scoreType: 'raw_score',
-      captureProtocolVersion: 'face-value-youcam-1',
-      rawScore: 100,
-      capturedAt: '2026-07-27T19:00:00.000Z',
-      captureQuality: 'accepted',
-    },
-    comparison: {
-      baselineRawScore: 93.3356,
-      followUpRawScore: 100,
-      delta: 6.6644,
-      direction: 'favorable',
-      calibration: 'pending',
-      confidence: 'possible',
-      limitations: ['Prototype noise boundary has not been calibrated.'],
-    },
-  },
-};
-
-test('complete mobile ONE THING journey releases one face-free matched YouCam result', async ({ page }, testInfo: TestInfo) => {
-  const errors = collectRuntimeErrors(page);
-  await page.setViewportSize({ width: 402, height: 874 });
-  await page.goto('/');
-
-  await page.getByRole('button', { name: 'VIEW YOUR TRIALS' }).click();
-  await expect(page.getByRole('heading', { name: 'Your trials' })).toBeVisible();
-  await assertNoInternalJourneyJargon(page);
-
-  await page.getByRole('button', { name: /Choose a trial starting with 02 \/ ONE THING/i }).click();
-  await expect(page.getByRole('button', { name: /View trial for 02 \/ ONE THING/i })).toBeVisible();
-  await page.getByRole('button', { name: /View trial for 02 \/ ONE THING/i }).click();
-  await expect(page.getByRole('heading', { name: 'What should this product change?' })).toBeVisible();
-  await page.getByRole('radio', { name: 'Reduce visible redness', exact: true }).click();
-  await page.getByRole('button', { name: 'Take baseline scan' }).click();
-  await completeCaptureContract(page);
-  await chooseCapture(page, 'baseline.jpg');
-
-  await expect(page.getByRole('heading', { name: 'Still observing.' })).toBeVisible();
-  const baselineStorage = await page.evaluate(() => localStorage.getItem('face-value:structured-demo:v1'));
-  expect(baselineStorage).toContain('93.3356');
-  assertFaceFreeStorage(baselineStorage);
-  await page.screenshot({ path: testInfo.outputPath('phase-b-baseline-accepted.png'), fullPage: true });
-
-  await page.getByRole('button', { name: 'TAKE FOLLOW UP SCAN' }).click();
-  await completeCaptureContract(page, true);
-  await chooseCapture(page, 'followup.jpg');
-
-  await expect(page.getByRole('heading', { name: 'Your result is ready.' })).toBeVisible();
-  const matchedStorage = await page.evaluate(() => localStorage.getItem('face-value:structured-demo:v1'));
-  expect(matchedStorage).toContain('100');
-  expect(matchedStorage).toContain('favorable');
-  assertFaceFreeStorage(matchedStorage);
-  await page.screenshot({ path: testInfo.outputPath('phase-b-followup-accepted.png'), fullPage: true });
-
-  await page.getByRole('button', { name: /Reveal result for 02 \/ ONE THING/i }).click();
-  const resultInstrument = page.getByLabel('Product trial result');
-  await expect(resultInstrument).toHaveAttribute('data-cassette-state', 'sealed');
-  const resultHandle = page.getByRole('button', { name: /Reveal result for 02 \/ ONE THING/i });
-  await dragHandle(page, resultHandle);
-  await expect(resultInstrument).toHaveAttribute('data-cassette-state', 'presented');
-  await expect(page.getByRole('heading', { name: 'Favorable direction detected' })).toBeVisible();
-  await expect(page.getByText(/redness condition score increased from 93.34 to 100.00/i)).toBeVisible();
-  await expect(page.getByText(/Higher scores indicate a more favorable skin condition/i)).toBeVisible();
-  await page.getByRole('button', { name: 'SEE WHY' }).click();
-  await expect(page.getByText(/normal scan variation/i)).toBeVisible();
-  await expect(page.getByText(/Prototype noise boundary has not been calibrated/i)).toBeVisible();
-  await page.getByRole('button', { name: /Accept recommended next step — TEST LONGER/i }).click();
-  await page.screenshot({ path: testInfo.outputPath('phase-b-result-reveal.png'), fullPage: true });
-
-  await expect(page.getByRole('heading', { name: 'P1 · Paused' })).toBeVisible();
-  const saveResult = page.getByRole('button', { name: 'Save result and release Evidence Record' });
-  await saveResult.evaluate((button) => {
-    (button as HTMLButtonElement).click();
-    (button as HTMLButtonElement).click();
+async function expectGuidedQualityReady(page: Page): Promise<void> {
+  const quality = page.getByLabel('Capture quality');
+  await expect(quality.locator('[data-accepted="true"]')).toHaveCount(3, {
+    timeout: 800,
   });
-  const machine = page.locator('[data-evidence-machine]');
-  await expect(machine).toHaveAttribute('data-release-state', 'record-presented', { timeout: 3000 });
-  await expect(page.locator('[data-evidence-record-artifact]')).toHaveCount(1);
-  const recordId = await page.locator('[data-evidence-record-artifact]').getAttribute('data-record-id');
-  expect(recordId).toBeTruthy();
-  await page.screenshot({ path: testInfo.outputPath('phase-b-record-release.png'), fullPage: true });
+  await expect(
+    page.locator('p[aria-hidden="true"]', { hasText: 'Hold still…' }),
+  ).toBeVisible();
+}
 
-  await page.reload();
-  await expect(page.locator('[data-evidence-machine]')).toHaveAttribute('data-release-state', 'record-presented');
-  await expect(page.locator('[data-evidence-record-artifact]')).toHaveAttribute('data-record-id', recordId!);
-  await page.getByRole('button', { name: /Collect Evidence Record for 02 \/ ONE THING/i }).click();
-  await expect(page.getByRole('heading', { name: 'Your evidence.' })).toBeVisible();
-  await page.getByRole('button', { name: 'VIEW EVIDENCE DETAIL' }).click();
-  await expect(page.getByRole('heading', { name: 'EVIDENCE DETAIL' })).toBeVisible();
-  await expect(page.getByText(/YouCam Skin Analysis v2.1/)).toBeVisible();
-  await expect(page.getByText(/Prototype noise boundary has not been calibrated/)).toBeVisible();
+async function takeGuidedCapture(
+  page: Page,
+  kind: 'baseline' | 'followup',
+): Promise<void> {
+  await expect(
+    page.getByRole('heading', { name: 'Center your face' }),
+  ).toBeVisible();
+  await expect(page.getByRole('checkbox')).toHaveCount(0);
+  await expect(
+    page.getByRole('button', { name: /shutter|take photo|use this capture/i }),
+  ).toHaveCount(0);
+  await expect(page.getByLabel('Choose a face photo')).toBeAttached();
+  await expect(
+    page.locator('[data-camera-kit-fixture="active"]'),
+  ).toHaveCount(0);
+  await page
+    .getByRole('button', { name: 'START GUIDED CAPTURE' })
+    .click();
+  await expect(
+    page.locator('[data-camera-kit-fixture="active"]'),
+  ).toBeVisible();
+  await expect(
+    page.locator('[data-preview-state="preview-live"]'),
+  ).toBeVisible();
+  await expectGuidedQualityReady(page);
+  await expect(
+    page.getByRole('heading', {
+      name: 'Anything meaningfully different today?',
+    }),
+  ).toBeVisible({ timeout: 2_000 });
+  await expect(page.locator(`[data-fv-screen="${kind}-context"]`)).toBeVisible();
+  await page.getByRole('button', { name: 'NOTHING DIFFERENT' }).click();
+}
 
-  await page.getByRole('button', { name: 'Past results' }).click();
-  const pastResults = page.getByLabel('Past results');
-  const savedRecord = pastResults.getByRole('button', { name: /Open saved result/i });
-  await expect(savedRecord).toHaveCount(1);
-  const savedRecordText = await savedRecord.innerText();
-  expect(savedRecordText).toMatch(/[A-Z][a-z]{2} \d{1,2}, 2026 · \d{1,2}:\d{2} [AP]M–\d{1,2}:\d{2} [AP]M/);
-  expect(savedRecordText).not.toMatch(/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/);
-  await expect(page.getByText('Demo controls')).toHaveCount(0);
-  await page.screenshot({ path: testInfo.outputPath('phase-b-past-results.png'), fullPage: true });
-  await page.reload();
-  await expect(page.getByRole('heading', { name: 'Your trials' })).toBeVisible();
-  await page.getByRole('button', { name: 'Past results' }).click();
-  await expect(page.getByLabel('Past results').getByRole('button', { name: /Open saved result/i })).toHaveCount(1);
-  await expect(page.getByText('Demo controls')).toHaveCount(0);
+async function saveScreenshot(
+  page: Page,
+  testInfo: TestInfo,
+  enabled: boolean,
+  name: string,
+): Promise<void> {
+  if (!enabled) return;
+  await page.screenshot({
+    path: testInfo.outputPath(`${name}.png`),
+    fullPage: true,
+  });
+}
 
-  expect(errors).toEqual([]);
-});
+for (const scenario of cases) {
+  test(`complete Phase B.5 golden path — ${scenario.name}`, async ({
+    page,
+  }, testInfo) => {
+    const runtimeErrors = collectRuntimeErrors(page);
+    await page.setViewportSize(scenario.viewport);
+    await page.emulateMedia({
+      reducedMotion: scenario.reducedMotion ? 'reduce' : 'no-preference',
+    });
+    await page.goto('/');
 
-test('reduced motion preserves Phase B save, release, presentation, and collection', async ({ page }) => {
-  await page.emulateMedia({ reducedMotion: 'reduce' });
-  await page.goto('/');
-  await page.evaluate((persisted) => {
-    localStorage.setItem('face-value:structured-demo:v1', JSON.stringify(persisted));
-  }, persistedSaveReadyTrial);
-  await page.reload();
+    await expect(page).toHaveURL(/\/$/);
+    await expect(
+      page.getByRole('heading', {
+        name: 'Is your skincare actually doing anything?',
+      }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole('button', { name: 'START A PRODUCT TRIAL' }),
+    ).toBeVisible();
+    await assertNoHorizontalOverflow(page);
+    await assertNoInternalJourneyJargon(page);
 
-  await expect(page.getByRole('heading', { name: 'One clear next step.' })).toBeVisible();
-  await page.getByRole('button', { name: 'Save result and release Evidence Record' }).click();
-  await expect(page.locator('[data-evidence-machine]')).toHaveAttribute('data-release-state', 'record-presented', { timeout: 1500 });
-  await page.getByRole('button', { name: /Collect Evidence Record/i }).press('Enter');
-  await expect(page.getByRole('heading', { name: 'Your evidence.' })).toBeVisible();
-  await expect(page.locator('[data-artifact-mode="collected"]')).toBeVisible();
-});
+    await page
+      .getByRole('button', { name: 'START A PRODUCT TRIAL' })
+      .click();
+    await page.getByLabel('Brand').fill('Naturium');
+    await page.getByLabel('Product name').fill('Azelaic Topical Acid');
+    await page.getByLabel('Strength or concentration').fill('10%');
+    await page.getByLabel('Volume').fill('30 ml');
+    await expect(page.getByRole('radio')).toHaveCount(1);
+    await expect(page.getByRole('radio')).toBeChecked();
+    await page.getByRole('button', { name: 'REGISTER PRODUCT' }).click();
+
+    await expect(
+      page.getByRole('heading', { name: 'Your product is ready.' }),
+    ).toBeVisible();
+    await expect(page.getByText('Naturium', { exact: true })).toBeVisible();
+    await expect(
+      page.getByText('Azelaic Topical Acid', { exact: true }),
+    ).toBeVisible();
+    await expect(page.getByText('SPECIMEN 01')).toBeVisible();
+    await assertNoHorizontalOverflow(page);
+
+    await page
+      .getByRole('button', { name: 'TAKE GUIDED BASELINE' })
+      .click();
+    await takeGuidedCapture(page, 'baseline');
+    await expect(
+      page.getByRole('heading', { name: 'Baseline locked.' }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole('button', { name: /take follow-up|continue|compare/i }),
+    ).toHaveCount(0);
+    await assertNoHorizontalOverflow(page);
+    await saveScreenshot(
+      page,
+      testInfo,
+      scenario.captureEvidence,
+      'phase-b5-baseline-locked',
+    );
+
+    const baselineStorage = await page.evaluate((key) => {
+      return localStorage.getItem(key);
+    }, STORAGE_KEY);
+    expect(baselineStorage).toContain('Naturium');
+    expect(baselineStorage).toContain('93.3356');
+    expect(baselineStorage).toContain('youcam-redness-v1');
+    expect(baselineStorage).toContain(
+      '"cameraProfileId":"youcam-camera-kit-hd-1080p"',
+    );
+    assertFaceFreeStorage(baselineStorage);
+
+    await page.getByRole('button', { name: 'DONE' }).click();
+    await expect(
+      page.getByRole('heading', { name: 'Your trials' }),
+    ).toBeVisible();
+    await expect(page.getByText(/DAY 1 OF 14/)).toBeVisible();
+    await expect(page.getByText(/FOLLOW-UP IN 14 DAYS/)).toBeVisible();
+    await expect(
+      page.getByRole('button', { name: 'TAKE FOLLOW-UP' }),
+    ).toHaveCount(0);
+    await assertNoHorizontalOverflow(page);
+
+    await page.reload();
+    await expect(
+      page.getByRole('heading', { name: 'Your trials' }),
+    ).toBeVisible();
+    await expect(page.getByText('Naturium', { exact: true })).toBeVisible();
+    await expect(
+      page.getByText('Azelaic Topical Acid', { exact: true }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole('button', { name: 'TAKE FOLLOW-UP' }),
+    ).toHaveCount(0);
+
+    await expect(
+      page.getByRole('button', { name: 'ADVANCE DEMO TIMELINE' }),
+    ).toBeVisible();
+    await page
+      .getByRole('button', { name: 'ADVANCE DEMO TIMELINE' })
+      .click();
+    await expect(
+      page.getByRole('heading', { name: 'Let’s see what changed.' }),
+    ).toBeVisible();
+    await expect(
+      page.getByText(
+        'DEMO TIMELINE ADVANCED · BASELINE DATE UNCHANGED',
+      ),
+    ).toBeVisible();
+
+    const advancedStorage = await page.evaluate((key) => {
+      return localStorage.getItem(key);
+    }, STORAGE_KEY);
+    expect(advancedStorage).toContain('"demoTimelineAdvanced":true');
+    expect(advancedStorage).toContain(
+      JSON.parse(baselineStorage!).baselineLockedAt,
+    );
+    assertFaceFreeStorage(advancedStorage);
+
+    await page.getByRole('button', { name: 'TAKE FOLLOW-UP' }).click();
+    await takeGuidedCapture(page, 'followup');
+    await expect(
+      page.getByRole('heading', {
+        name: 'Comparing against your baseline…',
+      }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole('heading', { name: 'Your result is ready.' }),
+    ).toBeVisible({ timeout: 1_500 });
+    const comparedStorage = await page.evaluate((key) => {
+      return localStorage.getItem(key);
+    }, STORAGE_KEY);
+    const comparedData = JSON.parse(comparedStorage!) as {
+      baselineCapture: { cameraProfileId?: string };
+      followupCapture: { cameraProfileId?: string };
+    };
+    expect(comparedData.followupCapture.cameraProfileId).toBe(
+      comparedData.baselineCapture.cameraProfileId,
+    );
+
+    const forbiddenResultText = [
+      'A small favorable shift showed up.',
+      'Visible redness moved in the intended direction.',
+      'normal scan variation',
+      'TEST LONGER',
+      '93.34',
+      '100.00',
+    ];
+    const sealedHtml = await page
+      .locator('[data-fv-screen="result-sealed"]')
+      .innerHTML();
+    const sealedAria = await page
+      .locator('[data-fv-screen="result-sealed"]')
+      .ariaSnapshot();
+    for (const forbidden of forbiddenResultText) {
+      expect(sealedHtml).not.toContain(forbidden);
+      expect(sealedAria).not.toContain(forbidden);
+    }
+    await saveScreenshot(
+      page,
+      testInfo,
+      scenario.captureEvidence,
+      'phase-b5-result-sealed',
+    );
+
+    const reveal = page.getByRole('button', {
+      name: /Reveal result for Azelaic Topical Acid/i,
+    });
+    await reveal.press('Enter');
+    await expect(
+      page.getByRole('heading', {
+        name: 'A small favorable shift showed up.',
+      }),
+    ).toBeVisible({ timeout: 2_000 });
+    await expect(
+      page.getByText(
+        'Visible redness moved in the intended direction.',
+      ),
+    ).toBeVisible();
+    await expect(
+      page.getByText(
+        'This prototype cannot yet tell whether the shift is larger than normal scan variation.',
+      ),
+    ).toBeVisible();
+    await expect(
+      page.getByRole('heading', { name: 'TEST LONGER' }),
+    ).toBeVisible();
+    await expect(
+      page.locator('[data-fv-screen="result-revealed"]'),
+    ).toHaveAttribute('data-fv-selected-placement', 'paused');
+    await expect(
+      page.getByRole('button', {
+        name: /accept recommended next step/i,
+      }),
+    ).toHaveCount(0);
+    await expect(page.getByText(/P1 · Paused/i)).toBeHidden();
+    await assertNoHorizontalOverflow(page);
+    await saveScreenshot(
+      page,
+      testInfo,
+      scenario.captureEvidence,
+      'phase-b5-one-reveal',
+    );
+
+    await page.getByRole('button', { name: 'SEE WHY' }).click();
+    await expect(page.getByText('93.34')).toBeVisible();
+    await expect(page.getByText('100.00')).toBeVisible();
+    await expect(
+      page.getByText(/YouCam Skin Analysis v2.1 · calibration pending/i),
+    ).toBeVisible();
+
+    const machine = page.locator('[data-evidence-machine]');
+    await expect(machine).toHaveAttribute(
+      'data-primary-action-owner',
+      'machine',
+    );
+    const amber = page.getByRole('button', {
+      name: 'Press amber to keep this evidence',
+    });
+    await amber.evaluate((element) => {
+      (element as HTMLButtonElement).click();
+      (element as HTMLButtonElement).click();
+    });
+    await expect(machine).toHaveAttribute(
+      'data-release-state',
+      'record-presented',
+      { timeout: scenario.reducedMotion ? 1_000 : 2_000 },
+    );
+    await expect(machine).toHaveAttribute(
+      'data-primary-action-owner',
+      'artifact',
+    );
+    await expect(
+      page.getByRole('button', {
+        name: 'Press amber to keep this evidence',
+      }),
+    ).toHaveCount(0);
+    await expect(
+      page.locator('[data-evidence-record-artifact]'),
+    ).toHaveCount(1);
+    const recordId = await page
+      .locator('[data-evidence-record-artifact]')
+      .getAttribute('data-record-id');
+    expect(recordId).toBeTruthy();
+
+    const savedStorage = await page.evaluate((key) => {
+      return localStorage.getItem(key);
+    }, STORAGE_KEY);
+    const savedData = JSON.parse(savedStorage!) as {
+      archive: Array<{ id: string; demoOriginated?: boolean }>;
+      record: { id: string; demoOriginated?: boolean };
+    };
+    expect(savedData.archive).toHaveLength(1);
+    expect(savedData.archive[0].id).toBe(recordId);
+    expect(savedData.record.id).toBe(recordId);
+    expect(savedData.record.demoOriginated).toBe(true);
+    assertFaceFreeStorage(savedStorage);
+    await saveScreenshot(
+      page,
+      testInfo,
+      scenario.captureEvidence,
+      'phase-b5-record-presented',
+    );
+
+    await page.reload();
+    await expect(machine).toHaveAttribute(
+      'data-release-state',
+      'record-presented',
+    );
+    await expect(
+      page.locator('[data-evidence-record-artifact]'),
+    ).toHaveAttribute('data-record-id', recordId!);
+
+    await page
+      .getByRole('button', {
+        name: /Collect Evidence Record for .*Azelaic Topical Acid/i,
+      })
+      .press('Enter');
+    await expect(
+      page.getByRole('heading', { name: 'Your evidence.' }),
+    ).toBeVisible();
+    await expect(
+      page.locator('[data-artifact-mode="collected"]'),
+    ).toHaveAttribute('data-record-id', recordId!);
+    await page
+      .getByRole('button', { name: 'VIEW EVIDENCE DETAIL' })
+      .click();
+    await expect(
+      page.getByRole('heading', { name: 'EVIDENCE DETAIL' }),
+    ).toBeVisible();
+    await expect(
+      page.getByText(
+        /Demo timeline was advanced explicitly; the original baseline timestamp was not changed/i,
+      ),
+    ).toBeVisible();
+    await expect(
+      page.getByText(/YouCam Skin Analysis v2.1/i),
+    ).toBeVisible();
+
+    await page.getByRole('button', { name: 'Past results' }).click();
+    const archive = page.getByLabel('Past results');
+    const savedRecord = archive.getByRole('button', {
+      name: /Open saved result/i,
+    });
+    await expect(savedRecord).toHaveCount(1);
+    const savedRecordText = await savedRecord.innerText();
+    expect(savedRecordText).toMatch(
+      /[A-Z][a-z]{2} \d{1,2}, 2026 · \d{1,2}:\d{2} [AP]M–\d{1,2}:\d{2} [AP]M/,
+    );
+    expect(savedRecordText).not.toMatch(
+      /\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/,
+    );
+    await page.reload();
+    await expect(
+      page.getByRole('heading', { name: 'Past results' }),
+    ).toBeVisible();
+    await expect(
+      page
+        .getByLabel('Past results')
+        .getByRole('button', { name: /Open saved result/i }),
+    ).toHaveCount(1);
+    const restoredArchive = await page.evaluate((key) => {
+      return localStorage.getItem(key);
+    }, STORAGE_KEY);
+    expect(restoredArchive).toContain(recordId);
+    assertFaceFreeStorage(restoredArchive);
+
+    await expect(page).toHaveURL(/\/$/);
+    await assertNoHorizontalOverflow(page);
+    expect(
+      await page.evaluate(
+        () => getComputedStyle(document.body).touchAction,
+      ),
+    ).not.toBe('none');
+    expect(runtimeErrors).toEqual([]);
+  });
+}

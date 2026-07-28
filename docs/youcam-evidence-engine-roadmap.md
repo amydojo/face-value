@@ -47,19 +47,44 @@ One genuine matched baseline and follow-up pair must run against the exact-head 
 
 **Status:** implemented in draft PR #44. Fixture-backed automation and deployment verification are required before review. The genuine matched live-provider pair remains a manual acceptance gate and must not be substituted with the unrelated Phase A images.
 
-## Phase C: effortless capture and hardening
+## Phase B.5: show the car
 
+- replace fixture-first onboarding with reducer-owned product registration
+- select YouCam eligibility from the registered protocol, not a fixture ID
 - integrate Camera Kit `hdskincare` with moderate quality validation
-- translate camera quality state into Face Value instructions
-- evaluate unsupported-HD handling without changing protocol after baseline
-- map additional provider quality failures into one clear recovery action
-- verify completed-task resource deletion from the current official OpenAPI description
-- add optional mask-based Evidence Aperture behind `See why`
-- complete a physical iPhone baseline and follow-up smoke test
+- auto-capture one accepted Blob after a stable quality interval
+- retain file selection as the single recoverable capture fallback
+- replace the ten-item contract with lightweight optional context
+- end session one at `Baseline locked`
+- enforce the 14-day return rule in reducer transitions
+- provide explicit environment-gated demo advancement without rewriting time
+- keep verdict, limitation, recommendation, and scores out of the rendered and
+  accessible tree until reveal
+- show verdict, limitation, and `TEST LONGER` in one revealed scene
+- commit placement and reuse `SAVE_RESULT` through one atomic amber event
+- preserve one record ID through release, collection, detail, archive, and
+  restoration
+- verify the complete story in mobile WebKit and reduced motion
 
 ### Exit gate
 
-A person completes the real trial without understanding YouCam mechanics or doing manual skincare homework.
+A person can complete the Face Value trial without understanding provider
+mechanics or doing manual capture homework. The record remains face-free and
+the result remains honest.
+
+**Status:** implemented on `feat/phase-b5-show-the-car`. Exact-head deployment
+and physical iPhone evidence remain release gates.
+
+## Phase C: provider hardening
+
+- evaluate unsupported-HD handling without changing protocol after baseline
+- verify completed-task resource deletion from the current official OpenAPI
+  description
+- consider optional mask-based Evidence Aperture only in a separately reviewed
+  phase
+- complete ongoing physical-device regression coverage
+
+Phase C must not reopen Phase B.5 product scope.
 
 ## Final release gate
 

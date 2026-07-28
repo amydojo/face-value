@@ -1,4 +1,4 @@
-import { useEffect, useReducer, useState } from 'react';
+import { useEffect, useReducer, useRef, useState } from 'react';
 import {
   evidenceCassetteReducer,
   isCassetteBusy,
@@ -39,6 +39,7 @@ export interface EvidenceCassetteProps {
   verdict?: string;
   initialState?: EvidenceCassetteState;
   onEdit?: () => void;
+  onReveal?: () => void;
 }
 
 export function EvidenceCassette({
@@ -49,10 +50,12 @@ export function EvidenceCassette({
   verdict = 'EARNING ITS PLACE',
   initialState = 'sealed',
   onEdit,
+  onReveal,
 }: EvidenceCassetteProps) {
   const [state, dispatch] = useReducer(evidenceCassetteReducer, initialState);
   const [announcement, setAnnouncement] = useState('Result sealed');
   const reducedMotion = usePrefersReducedMotion();
+  const revealNotified = useRef(false);
 
   useEffect(() => {
     const step = nextCassetteStep(state, reducedMotion);
@@ -74,9 +77,13 @@ export function EvidenceCassette({
     if (state !== 'presented') return;
 
     setAnnouncement('Result revealed');
+    if (!revealNotified.current) {
+      revealNotified.current = true;
+      onReveal?.();
+    }
     const timer = window.setTimeout(() => setAnnouncement('Product identity and result ready'), 120);
     return () => window.clearTimeout(timer);
-  }, [state]);
+  }, [onReveal, state]);
 
   const activate = () => dispatch({ type: 'ACTIVATE' });
   const presented = state === 'presented';

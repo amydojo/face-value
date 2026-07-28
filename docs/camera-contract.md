@@ -15,3 +15,22 @@ This adapter preserves the portable behavior of the Chaos Vault camera artifact 
 11. Keep `<input accept="image/*" capture="user">` usable as the fallback.
 
 The adapter and automated tests do not constitute physical-device verification. Device claims must be added only after real browser and hardware testing.
+
+## Phase B.5 Camera Kit extension
+
+The production Camera Kit path opens only from `START GUIDED CAPTURE`; mounting
+the capture screen performs cleanup registration but never starts a camera
+session. `cameraOpened` is not readiness. Readiness requires the documented
+`YMK.isLoaded()` canvas state and, when an SDK video exists, current frame data
+with non-zero dimensions.
+
+Before the SDK opens, Face Value observes `#YMK-module` and hardens descendant
+videos with muted autoplay and both standard and WebKit inline-playback
+attributes. A 3-second black-preview watchdog completely tears down the
+session and offers `RESTART CAMERA`, which requires another user tap.
+
+iPhone Safari uses the frozen HD 1080p, Blob, moderate-quality profile with an
+800 ms stable interval, hidden flip control, and the documented resolution
+check enabled. The same accepted guided-capture profile is reused at follow-up.
+Only the profile identifier enters durable metadata; images and camera
+resources remain memory-only.

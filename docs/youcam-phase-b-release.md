@@ -1,5 +1,8 @@
 # YouCam Phase B release evidence
 
+> Historical Phase B release record. Phase B.5 replaces the fixture-first
+> consumer flow and result copy. See `docs/youcam-phase-b5-release.md`.
+
 Phase B is ready to ship after the exact-head automated and deployment gates pass.
 
 ## Product truth

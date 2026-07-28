@@ -51,6 +51,8 @@ export type DisturbanceState =
   | 'returned_to_cooling'
   | 'overlap_retained';
 export type CaptureKind = 'baseline' | 'followup';
+export type SupportedAssignedJob = 'Reduce visible redness';
+export type RegisteredProductProtocolId = 'youcam-redness-v1';
 export type CaptureContractOutcome =
   | 'ready'
   | 'comparable'
@@ -59,12 +61,18 @@ export type CaptureContractOutcome =
   | 'context_only';
 export type AppStage =
   | 'welcome'
+  | 'product_registration'
   | 'cabinet'
   | 'browse'
   | 'specimen'
   | 'job'
   | 'capture_contract'
   | 'camera'
+  | 'baseline_context'
+  | 'baseline_locked'
+  | 'waiting_for_followup'
+  | 'followup_ready'
+  | 'followup_context'
   | 'observation'
   | 'disturbance'
   | 'analysis'
@@ -85,6 +93,30 @@ export interface Specimen {
   jobOptions: string[];
 }
 
+export interface RegisteredProduct {
+  id: string;
+  accession: string;
+  brand: string;
+  productName: string;
+  strength: string | null;
+  volume: string | null;
+  assignedJob: SupportedAssignedJob;
+  protocolId: RegisteredProductProtocolId;
+  createdAt: string;
+}
+
+export interface CaptureContext {
+  makeup: boolean;
+  recentHeatOrExercise: boolean;
+  recentCleansingOrSkincare: boolean;
+  routineOrTreatmentChange: boolean;
+  note: string | null;
+}
+
+export type CameraCaptureProfileId =
+  | 'youcam-camera-kit-hd-1080p'
+  | 'youcam-camera-kit-hd-1920p';
+
 export interface TraceEntry {
   id: string;
   label: string;
@@ -99,6 +131,7 @@ export interface CaptureMetadata {
   mimeType: 'image/jpeg' | 'image/png' | 'image/webp' | 'image/heic' | 'image/unknown';
   createdAt: string;
   orientationRule: 'analysis-unmirrored';
+  cameraProfileId?: CameraCaptureProfileId | null;
 }
 
 export interface DurableSkinSignal {
@@ -182,6 +215,12 @@ export interface EvidenceRecordData {
   limitations?: string[];
   baselineRawScore?: number;
   followUpRawScore?: number;
+  productBrand?: string;
+  productStrength?: string | null;
+  productVolume?: string | null;
+  baselineContext?: CaptureContext | null;
+  followUpContext?: CaptureContext | null;
+  demoOriginated?: boolean;
 }
 
 export interface FaceValueState {
@@ -214,6 +253,13 @@ export interface FaceValueState {
   activeAnalysisRequestId?: string | null;
   pendingAnalysisCapture?: CaptureMetadata | null;
   analysisError?: AnalysisErrorState | null;
+  registeredProduct?: RegisteredProduct | null;
+  baselineLockedAt?: string | null;
+  followUpEligibleAt?: string | null;
+  baselineContext?: CaptureContext | null;
+  followUpContext?: CaptureContext | null;
+  demoTimelineAdvanced?: boolean;
+  resultRevealed?: boolean;
 }
 
 export type AnalysisScenario =

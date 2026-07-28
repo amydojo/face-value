@@ -119,6 +119,48 @@ describe('Phase B provider boundary', () => {
     })).rejects.toBeInstanceOf(LocalProtocolMismatchError);
     expect(provider.analyzeCapture).not.toHaveBeenCalled();
   });
+
+  it('marks accepted guided-camera blobs for the existing YouCam handoff', async () => {
+    const analyzeCapture = vi.fn(async () => ({
+      provider: 'youcam' as const,
+      apiVersion: '2.1' as const,
+      mode: 'hd' as const,
+      concern: 'hd_redness' as const,
+      region: null,
+      rawScore: 93.3356,
+      capturedAt: metadata('baseline').createdAt,
+      captureQuality: 'accepted' as const,
+      ephemeralTaskReference: 'ephemeral-task',
+    }));
+    const guidedMetadata = {
+      ...metadata('baseline'),
+      source: 'camera' as const,
+    };
+
+    await analyzeLongitudinalCapture({
+      provider: { analyzeCapture },
+      role: 'baseline',
+      image: new Blob(['face'], { type: 'image/jpeg' }),
+      metadata: guidedMetadata,
+      frozenProtocol: null,
+    });
+
+    expect(analyzeCapture).toHaveBeenCalledWith(
+      expect.objectContaining({
+        protocol: HD_REDNESS_PROTOCOL,
+        fromCameraKit: true,
+      }),
+    );
+  });
+
+  it('translates a connection interruption without provider jargon', () => {
+    expect(
+      translateProviderError('network_interrupted', 'followup'),
+    ).toMatchObject({
+      message: 'Connection interrupted. This scan was not added.',
+      retryable: true,
+    });
+  });
 });
 
 describe('Phase B deterministic comparison', () => {
@@ -139,26 +181,36 @@ describe('Phase B deterministic comparison', () => {
     const result = analysisResultFromComparison(
       compareRednessSignals(signal(94.96), signal(95.69, 'followup')),
     );
-    expect(result.finding).toBe('Favorable direction detected');
-    expect(result.nonFinding).toContain('redness condition score increased from 94.96 to 95.69');
-    expect(result.nonFinding).toContain('Higher scores indicate a more favorable skin condition');
-    expect(result.nonFinding).not.toContain('redness signal moved');
+    expect(result.finding).toBe('A small favorable shift showed up.');
+    expect(result.nonFinding).toBe(
+      'Visible redness moved in the intended direction.',
+    );
     expect(result.relevantContext).toContain('normal scan variation');
-    expect(result.relevantContext).toContain(PROTOTYPE_CALIBRATION_LIMITATION);
+    expect(result.limitations).toContain(PROTOTYPE_CALIBRATION_LIMITATION);
     expect(result.confidence).toBe('possible');
     expect(result.recommendedAction).toBe('wait');
     expect(result.claimBoundary).not.toMatch(/proved|clinically significant|effective|cured|treated|guaranteed/i);
   });
 
   it.each([
-    [100, 93.3356, 'decreased from 100.00 to 93.34'],
-    [93.3356, 93.3356, 'remained at 93.34'],
-  ] as const)('uses explicit non-favorable score polarity for %s to %s', (baseline, followUp, copy) => {
+    [
+      100,
+      93.3356,
+      'No favorable shift showed up yet.',
+      'Visible redness did not move in the intended direction.',
+    ],
+    [
+      93.3356,
+      93.3356,
+      'No directional shift showed up yet.',
+      'The follow-up remained close to the baseline.',
+    ],
+  ] as const)('uses honest non-favorable copy for %s to %s', (baseline, followUp, finding, support) => {
     const result = analysisResultFromComparison(
       compareRednessSignals(signal(baseline), signal(followUp, 'followup')),
     );
-    expect(result.finding).toBe('No favorable direction yet');
-    expect(result.nonFinding).toContain(copy);
+    expect(result.finding).toBe(finding);
+    expect(result.nonFinding).toBe(support);
   });
 });
 
@@ -208,7 +260,9 @@ describe('Phase B reducer legality and idempotency', () => {
       type: 'FOLLOWUP_ANALYSIS_ACCEPTED', requestId: 'followup', signal: signal(100, 'followup'),
     });
     const compared = faceValueReducer(accepted, { type: 'COMPARISON_CREATED' });
-    expect(compared.analysis?.finding).toBe('Favorable direction detected');
+    expect(compared.analysis?.finding).toBe(
+      'A small favorable shift showed up.',
+    );
     expect(compared.longitudinalEvidence.comparison?.delta).toBeCloseTo(6.6644);
   });
 });
