@@ -9,8 +9,8 @@ import {
   errorResponse,
   jsonResponse,
   readJsonRequest,
-  requireSpikeAccess,
 } from '../_youcam.js';
+import { requireYouCamAccess } from '../_youcam_session.js';
 
 export default {
   async fetch(request: Request): Promise<Response> {
@@ -27,7 +27,7 @@ export default {
       );
     }
 
-    const accessFailure = requireSpikeAccess(request);
+    const accessFailure = requireYouCamAccess(request);
     if (accessFailure) return accessFailure;
 
     try {

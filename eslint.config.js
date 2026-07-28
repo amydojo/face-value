@@ -15,7 +15,10 @@ export default tseslint.config(
     },
     plugins: { 'react-hooks': reactHooks, 'react-refresh': reactRefresh },
     rules: {
-      ...reactHooks.configs.recommended.rules,
+      // Preserve the established hooks contract. The v7 plugin's broader
+      // compiler-migration rules require a dedicated codebase-wide rollout.
+      'react-hooks/rules-of-hooks': 'error',
+      'react-hooks/exhaustive-deps': 'warn',
       'react-refresh/only-export-components': ['warn', { allowConstantExport: true }],
       '@typescript-eslint/no-explicit-any': 'off'
     },

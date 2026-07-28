@@ -1,6 +1,5 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, expect, it, vi } from 'vitest';
 import { FaceValueProvider } from '../app/FaceValueProvider';
 import { StageFocusManager } from '../app/StageFocusManager';
@@ -60,7 +59,7 @@ it('reserves activation for the explicit trial handle', async () => {
     />,
   );
 
-  const handle = screen.getByRole('button', { name: 'View trial for FERMENTED BRIGHTENING ESSENCE' });
+  const handle = screen.getByRole('button', { name: 'View trial for 02 / ONE THING' });
   expect(handle).toHaveAttribute('data-cassette-handle');
   expect(container.querySelectorAll('[data-cassette-handle]')).toHaveLength(1);
   await user.click(handle);
@@ -71,37 +70,37 @@ it('connects an active handle to one focused summary without repeating the note'
   render(
     <EvidenceInstrument
       specimen={PRODUCTS[0]}
-      job="Post-acne pigmentation"
+      job="Reduce visible redness"
       mode="active"
       expanded
       onActivate={vi.fn()}
       summary={(
         <div>
-          <strong>Post-acne pigmentation</strong>
+          <strong>Reduce visible redness</strong>
           <p>Less tight after cleansing</p>
         </div>
       )}
     />,
   );
-  const handle = screen.getByRole('button', { name: /Close trial summary for Fermented Brightening Essence/i });
-  const summary = document.getElementById('trial-summary-fermented-essence');
-  expect(handle).toHaveAttribute('aria-controls', 'trial-summary-fermented-essence');
+  const handle = screen.getByRole('button', { name: /Close trial summary for 02 \/ ONE THING/i });
+  const summary = document.getElementById('trial-summary-one-thing');
+  expect(handle).toHaveAttribute('aria-controls', 'trial-summary-one-thing');
   expect(handle).toHaveAttribute('aria-expanded', 'true');
   expect(summary).toBeVisible();
-  expect(summary).toHaveTextContent('Post-acne pigmentation');
+  expect(summary).toHaveTextContent('Reduce visible redness');
   expect(summary).not.toHaveTextContent('Less tight after cleansing');
 });
 
 it('exposes trial, ready, and saved-result states without relying on color', () => {
   const action = vi.fn();
   const { rerender } = render(<EvidenceInstrument specimen={PRODUCTS[0]} mode="index" onActivate={action} />);
-  expect(screen.getByLabelText(/Product trial A1–03.*TRIAL SELECTED/i)).toBeVisible();
+  expect(screen.getByLabelText(/Product trial 02.*TRIAL SELECTED/i)).toBeVisible();
   rerender(<EvidenceInstrument specimen={PRODUCTS[0]} mode="active" onActivate={action} />);
-  expect(screen.getByLabelText(/Product trial A1–03.*TRIAL IN PROGRESS/i)).toBeVisible();
+  expect(screen.getByLabelText(/Product trial 02.*TRIAL IN PROGRESS/i)).toBeVisible();
   rerender(<EvidenceInstrument specimen={PRODUCTS[0]} mode="review-due" onActivate={action} />);
-  expect(screen.getByLabelText(/Product trial A1–03.*READY TO COMPARE/i)).toBeVisible();
+  expect(screen.getByLabelText(/Product trial 02.*READY TO COMPARE/i)).toBeVisible();
   rerender(<EvidenceInstrument specimen={PRODUCTS[0]} mode="classified" outputReady onActivate={action} />);
-  expect(screen.getByLabelText(/Product trial A1–03.*SAVED RESULT/i)).toBeVisible();
+  expect(screen.getByLabelText(/Product trial 02.*SAVED RESULT/i)).toBeVisible();
   expect(screen.getByText('SAVED RESULT READY')).toBeInTheDocument();
 });
 
@@ -120,7 +119,7 @@ it('explains two active products once in human language', () => {
       onActivate={vi.fn()}
     />,
   );
-  expect(screen.getByLabelText(/Product trial A1–03.*TWO PRODUCTS ACTIVE/i)).toBeVisible();
+  expect(screen.getByLabelText(/Product trial 02.*TWO PRODUCTS ACTIVE/i)).toBeVisible();
   expect(screen.getAllByText('TWO PRODUCTS ACTIVE')).toHaveLength(2);
   expect(screen.queryByText(/INTERFERENCE REGISTERED/i)).not.toBeInTheDocument();
 });
@@ -139,7 +138,7 @@ it('keeps file fallback available when camera is denied', () => {
       onBack={vi.fn()}
     />,
   );
-  expect(screen.getByLabelText('Choose a face photo')).toHaveAttribute('accept', 'image/*');
+  expect(screen.getByLabelText('Choose a face photo')).toHaveAttribute('accept', 'image/jpeg,image/png,.jpg,.jpeg,.png');
   expect(screen.getByText(/Choose a photo instead/i)).toBeInTheDocument();
 });
 
@@ -165,7 +164,7 @@ it('allows a pending private capture to be deleted before acceptance', async () 
     screen.getByLabelText('Choose a face photo'),
     new File(['fixture'], 'capture.jpg', { type: 'image/jpeg' }),
   );
-  expect(screen.getByRole('button', { name: 'Use this capture' })).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'USE THIS CAPTURE' })).toBeInTheDocument();
   await user.click(screen.getByRole('button', { name: 'Delete current capture' }));
   expect(onDelete).toHaveBeenCalledOnce();
   expect(onAccepted).not.toHaveBeenCalled();
@@ -174,12 +173,10 @@ it('allows a pending private capture to be deleted before acceptance', async () 
 it('moves focus to Your trials and removes duplicate action jargon', async () => {
   const user = userEvent.setup();
   render(
-    <MemoryRouter>
-      <FaceValueProvider>
-        <StageFocusManager />
-        <FaceValueApplication />
-      </FaceValueProvider>
-    </MemoryRouter>,
+    <FaceValueProvider>
+      <StageFocusManager />
+      <FaceValueApplication />
+    </FaceValueProvider>,
   );
   await user.click(screen.getByRole('button', { name: 'VIEW YOUR TRIALS' }));
   await waitFor(() => {

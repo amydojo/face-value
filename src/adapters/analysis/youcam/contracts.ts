@@ -23,6 +23,7 @@ export interface AnalyzeCaptureInput {
   fileName?: string;
   protocol: AnalysisProtocol;
   capturedAt: string;
+  role?: 'baseline' | 'followup';
   signal?: AbortSignal;
 }
 
@@ -35,7 +36,7 @@ export interface SkinAnalysisSignal {
   rawScore: number;
   capturedAt: string;
   captureQuality: 'accepted';
-  providerTaskId: string;
+  ephemeralTaskReference: string;
 }
 
 export interface SkinAnalysisProvider {

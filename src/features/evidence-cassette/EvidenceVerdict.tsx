@@ -17,7 +17,15 @@ export interface EvidenceVerdictProps {
   onBack: () => void;
 }
 
-function getResultCopy(placement: VerdictPlacement) {
+function getResultCopy(result: AnalysisResult, placement: VerdictPlacement) {
+  if (result.provider === 'youcam') {
+    return {
+      title: result.finding,
+      support: result.nonFinding,
+      action: 'TEST LONGER',
+    };
+  }
+
   if (placement === 'retry_alone') {
     return {
       title: 'Test it alone.',
@@ -52,7 +60,7 @@ export function EvidenceVerdict({
   onBack,
 }: EvidenceVerdictProps) {
   const [whyOpen, setWhyOpen] = useState(false);
-  const copy = getResultCopy(recommendedPlacement);
+  const copy = getResultCopy(result, recommendedPlacement);
   const resolvedJob = job ?? 'TRIAL IN PROGRESS';
 
   return (

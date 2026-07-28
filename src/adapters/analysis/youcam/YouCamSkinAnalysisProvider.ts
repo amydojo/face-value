@@ -24,7 +24,7 @@ const FORBIDDEN_BROWSER_UPLOAD_HEADERS = new Set([
 ]);
 
 interface ProviderOptions {
-  accessToken: string;
+  accessToken?: string;
   fetcher?: typeof fetch;
   maxPollAttempts?: number;
   fromCameraKit?: boolean;
@@ -62,6 +62,11 @@ export class YouCamProviderError extends Error {
   }
 }
 
+function embeddedProviderCode(message: string | undefined): string | null {
+  const normalized = message?.trim() ?? '';
+  return /^error_[a-z0-9_]+$/i.test(normalized) ? normalized : null;
+}
+
 async function readJson<T>(response: Response): Promise<T> {
   let payload: unknown;
   try {
@@ -77,9 +82,14 @@ async function readJson<T>(response: Response): Promise<T> {
 
   if (!response.ok) {
     const body = payload as ApiErrorBody;
+    const message = body.error?.message ?? 'The skin analysis request failed.';
+    const reportedCode = body.error?.code ?? 'analysis_request_failed';
+    const recoveredCode = embeddedProviderCode(message);
     throw new YouCamProviderError({
-      message: body.error?.message ?? 'The skin analysis request failed.',
-      code: body.error?.code ?? 'analysis_request_failed',
+      message,
+      code: reportedCode === 'youcam_request_failed' && recoveredCode
+        ? recoveredCode
+        : reportedCode,
       retryable: body.error?.retryable ?? response.status >= 500,
       status: response.status,
     });
@@ -117,7 +127,7 @@ function delay(milliseconds: number, signal?: AbortSignal): Promise<void> {
 }
 
 export class YouCamSkinAnalysisProvider implements SkinAnalysisProvider {
-  private readonly accessToken: string;
+  private readonly accessToken: string | null;
   private readonly fetcher: typeof fetch;
   private readonly maxPollAttempts: number;
   private readonly fromCameraKit: boolean;
@@ -127,18 +137,19 @@ export class YouCamSkinAnalysisProvider implements SkinAnalysisProvider {
     fetcher,
     maxPollAttempts = DEFAULT_MAX_POLL_ATTEMPTS,
     fromCameraKit = false,
-  }: ProviderOptions) {
-    if (!accessToken.trim()) throw new Error('A YouCam spike access token is required');
-    this.accessToken = accessToken;
+  }: ProviderOptions = {}) {
+    this.accessToken = accessToken?.trim() || null;
     this.fetcher = fetcher ?? ((input, init) => globalThis.fetch(input, init));
     this.maxPollAttempts = Math.max(1, Math.floor(maxPollAttempts));
     this.fromCameraKit = fromCameraKit;
   }
 
-  private apiHeaders(): HeadersInit {
+  private apiHeaders(includeContentType = true): HeadersInit {
     return {
-      'Content-Type': 'application/json',
-      'x-face-value-spike-token': this.accessToken,
+      ...(includeContentType ? { 'Content-Type': 'application/json' } : {}),
+      ...(this.accessToken
+        ? { 'x-face-value-spike-token': this.accessToken }
+        : {}),
     };
   }
 
@@ -147,6 +158,7 @@ export class YouCamSkinAnalysisProvider implements SkinAnalysisProvider {
     const response = await this.fetcher('/api/youcam/upload-slot', {
       method: 'POST',
       headers: this.apiHeaders(),
+      credentials: 'include',
       body: JSON.stringify({
         contentType,
         fileName: sanitizeImageFileName(input.fileName, contentType),
@@ -187,6 +199,7 @@ export class YouCamSkinAnalysisProvider implements SkinAnalysisProvider {
     const response = await this.fetcher('/api/youcam/task', {
       method: 'POST',
       headers: this.apiHeaders(),
+      credentials: 'include',
       body: JSON.stringify({
         fileId,
         protocol: input.protocol,
@@ -208,9 +221,8 @@ export class YouCamSkinAnalysisProvider implements SkinAnalysisProvider {
     });
     const response = await this.fetcher(`/api/youcam/task?${params.toString()}`, {
       method: 'GET',
-      headers: {
-        'x-face-value-spike-token': this.accessToken,
-      },
+      headers: this.apiHeaders(false),
+      credentials: 'include',
       signal: input.signal,
     });
 
@@ -255,7 +267,7 @@ export class YouCamSkinAnalysisProvider implements SkinAnalysisProvider {
           rawScore: checked.rawScore,
           capturedAt: input.capturedAt,
           captureQuality: 'accepted',
-          providerTaskId: checked.taskId,
+          ephemeralTaskReference: checked.taskId,
         };
       }
 

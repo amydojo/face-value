@@ -12,8 +12,10 @@ import styles from '../../styles/FaceValue.module.css';
 export function YouCamSpike() {
   const [file, setFile] = useState<File | null>(null);
   const [accessToken, setAccessToken] = useState('');
+  const [sessionOpen, setSessionOpen] = useState(false);
+  const [sessionExpiry, setSessionExpiry] = useState<string | null>(null);
   const [signal, setSignal] = useState<SkinAnalysisSignal | null>(null);
-  const [status, setStatus] = useState<'idle' | 'running' | 'success' | 'error'>('idle');
+  const [status, setStatus] = useState<'idle' | 'unlocking' | 'running' | 'success' | 'error'>('idle');
   const [error, setError] = useState<string | null>(null);
   const abortController = useRef<AbortController | null>(null);
   const runInFlight = useRef(false);
@@ -25,8 +27,40 @@ export function YouCamSpike() {
     [],
   );
 
+  const unlock = async () => {
+    if (!accessToken.trim() || status === 'unlocking') return;
+    const token = accessToken.trim();
+    setAccessToken('');
+    setError(null);
+    setStatus('unlocking');
+
+    try {
+      const response = await fetch('/api/youcam/session', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token }),
+      });
+      const body = await response.json() as {
+        authenticated?: boolean;
+        expiresAt?: string;
+        error?: { code?: string; message?: string };
+      };
+      if (!response.ok || body.authenticated !== true) {
+        throw new Error(body.error?.message ?? 'The protected demo session could not be opened.');
+      }
+      setSessionOpen(true);
+      setSessionExpiry(body.expiresAt ?? null);
+      setStatus('idle');
+    } catch (caught) {
+      setSessionOpen(false);
+      setStatus('error');
+      setError(caught instanceof Error ? caught.message : 'The protected demo session could not be opened.');
+    }
+  };
+
   const run = async () => {
-    if (!file || !accessToken.trim() || runInFlight.current) return;
+    if (!file || !sessionOpen || runInFlight.current) return;
 
     runInFlight.current = true;
     abortController.current?.abort();
@@ -37,14 +71,13 @@ export function YouCamSpike() {
     setStatus('running');
 
     try {
-      const provider = new YouCamSkinAnalysisProvider({
-        accessToken: accessToken.trim(),
-      });
+      const provider = new YouCamSkinAnalysisProvider();
       const result = await provider.analyzeCapture({
         image: file,
         fileName: file.name,
         protocol: HD_REDNESS_PROTOCOL,
         capturedAt: new Date().toISOString(),
+        role: 'baseline',
         signal: controller.signal,
       });
       setSignal(result);
@@ -55,6 +88,7 @@ export function YouCamSpike() {
         return;
       }
       if (caught instanceof YouCamProviderError) {
+        if (caught.status === 401) setSessionOpen(false);
         setError(`${caught.message} (${caught.code})`);
       } else if (caught instanceof Error) {
         setError(`${caught.message} (${caught.name})`);
@@ -75,15 +109,42 @@ export function YouCamSpike() {
 
   return (
     <main>
-      <section className={styles.welcome} data-fv-screen="youcam-phase-a">
+      <section className={styles.welcome} data-fv-screen="youcam-engineering-gate">
         <div>
-          <p className={styles.eyebrow}>PHASE A · LIVE SCORE SPIKE</p>
-          <h1>Secure one real redness signal.</h1>
+          <p className={styles.eyebrow}>PROTECTED ENGINEERING GATE</p>
+          <h1>Open the live analysis session.</h1>
           <p>
-            This protected engineering route uploads one selected image directly to YouCam,
-            requests only <code>hd_redness</code>, and returns the underlying <code>raw_score</code>.
+            The raw demo token is exchanged once for a short-lived signed session cookie.
+            The Face Value product flow never reads or stores that token.
           </p>
         </div>
+
+        <label className={styles.traceForm}>
+          Protected demo token
+          <input
+            type="password"
+            autoComplete="off"
+            disabled={status === 'unlocking' || status === 'running'}
+            value={accessToken}
+            onChange={(event) => setAccessToken(event.target.value)}
+          />
+        </label>
+        <button
+          type="button"
+          className={styles.primaryAction}
+          disabled={!accessToken.trim() || status === 'unlocking' || status === 'running'}
+          onClick={() => void unlock()}
+        >
+          {status === 'unlocking' ? 'OPENING SESSION' : 'OPEN PROTECTED SESSION'}
+        </button>
+
+        {sessionOpen && (
+          <div className={styles.analysisSummary} role="status">
+            <strong>SESSION OPEN</strong>
+            <p>Secure · HttpOnly · SameSite · short lived</p>
+            {sessionExpiry && <p>Expires {new Date(sessionExpiry).toLocaleTimeString()}</p>}
+          </div>
+        )}
 
         <div className={styles.analysisSummary}>
           <strong>Frozen protocol</strong>
@@ -96,7 +157,7 @@ export function YouCamSpike() {
             aria-label="Choose a face image for the YouCam spike"
             type="file"
             accept="image/jpeg,image/png,.jpg,.jpeg,.png"
-            disabled={status === 'running'}
+            disabled={!sessionOpen || status === 'running'}
             onChange={(event) => {
               setFile(event.target.files?.[0] ?? null);
               setSignal(null);
@@ -107,29 +168,18 @@ export function YouCamSpike() {
         </label>
         {file && <p>{file.name} · {Math.ceil(file.size / 1024).toLocaleString()} KB</p>}
 
-        <label className={styles.traceForm}>
-          Spike access token
-          <input
-            type="password"
-            autoComplete="off"
-            disabled={status === 'running'}
-            value={accessToken}
-            onChange={(event) => setAccessToken(event.target.value)}
-          />
-        </label>
-
         <div className={styles.notice}>
           <strong>PROCESSING DISCLOSURE</strong>
           <p>
             The selected image is sent to Perfect Corp for analysis. Face Value does not place
-            the image, signed upload URL, or API credentials in browser storage.
+            the image, signed upload URL, API credentials, or provider payload in browser storage.
           </p>
         </div>
 
         <button
           type="button"
           className={styles.primaryAction}
-          disabled={!file || !accessToken.trim() || status === 'running'}
+          disabled={!file || !sessionOpen || status === 'running'}
           onClick={() => void run()}
         >
           {status === 'running' ? 'ANALYZING REDNESS' : 'RUN LIVE HD REDNESS'}
@@ -154,12 +204,12 @@ export function YouCamSpike() {
             <p>Concern: {signal.concern}</p>
             <p>Raw score: {signal.rawScore.toFixed(4)}</p>
             <p>Mode: {signal.mode.toUpperCase()} · Provider: YouCam v{signal.apiVersion}</p>
-            <p>Task: {signal.providerTaskId}</p>
+            <p>Task reference: {signal.ephemeralTaskReference}</p>
           </div>
         )}
 
         <p className={styles.privacyLine}>
-          Development evidence only · no verdict is generated in Phase A
+          Protected development evidence only · no provider verdict is generated here
         </p>
       </section>
     </main>

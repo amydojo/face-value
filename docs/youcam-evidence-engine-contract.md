@@ -2,9 +2,9 @@
 
 **Status:** Frozen implementation authority
 
-**Version:** 1.0
+**Version:** 1.2
 
-**Effective date:** July 26, 2026
+**Effective date:** July 27, 2026
 
 **Repository:** `amydojo/face-value`
 
@@ -12,108 +12,103 @@
 
 Replace Face Value's fixture-backed optical comparison with one secure, testable, longitudinal YouCam integration without creating a second source of trial truth.
 
-The production slice is deliberately narrow:
+The Phase B production slice is deliberately narrow:
 
 ```text
 02 / ONE THING
 → assigned job: reduce visible redness
-→ valid baseline capture
-→ YouCam HD redness analysis
+→ accepted baseline capture
+→ YouCam HD redness raw score
+→ frozen evidence protocol
 → trial in progress
 → matched follow-up capture
 → identical YouCam analysis protocol
-→ Face Value comparison and confidence
+→ deterministic Face Value comparison
 → existing result reveal
-→ existing Evidence Record release
+→ existing next-step choice
+→ existing Evidence Machine release
+→ existing Evidence Record
+→ detail
+→ Past Results
+→ refresh restoration
 ```
 
-This contract governs implementation, tests, demo behavior, privacy, and change control for the YouCam integration.
+This contract governs implementation, tests, demo behavior, privacy, security, and change control for Phase B.
 
 ## 2. Product boundary
 
 > YouCam measures the skin. Face Value judges the trial.
 
-YouCam is the optical evidence provider. It may return scores, masks, task state, and provider errors.
+The provider may:
 
-Face Value remains the authority for:
+- securely analyze an in-memory capture
+- return a normalized optical signal
+- report provider task state
+- return provider errors
+- expose temporary protected engineering diagnostics
 
-- selected product
-- assigned job
-- baseline and follow-up identity
-- trial timing
-- notes and adherence context
-- overlapping-product context
-- capture comparability
-- score comparison
-- confidence
-- result language
-- next-step recommendation
-- Evidence Record creation
+The provider may not:
 
-A provider response must never directly become a user-facing verdict.
+- generate a Face Value verdict
+- choose the next step
+- control cassette or Evidence Machine state
+- create an Evidence Record
+- write localStorage or sessionStorage
+- create a second production state store
+- decide whether the product worked
+- promote score movement to clinical evidence
 
-## 3. Frozen launch protocol
+The Human Butter reducer remains the single durable authority for product, assigned job, trial stage, baseline, follow-up, protocol, comparison, confidence, limitations, result, next step, Evidence Record, restoration, and Past Results.
 
-The first real production protocol is:
+## 3. Frozen Phase B protocol
 
 | Field | Frozen value |
 | --- | --- |
 | Product | `02 / ONE THING` |
 | Assigned job | Reduce visible redness |
-| Provider | YouCam API |
-| API version | `v2.1` |
-| Preferred mode | `hd` |
-| Preferred concern | `hd_redness` |
-| Pre-baseline fallback | `sd` / `redness` only when HD capture is unsupported |
-| Score used for evidence | `raw_score` |
-| Response format | `json` |
-| Capture mode | Camera Kit `hdskincare` for HD, `skincare` for SD |
-| Capture quality | `moderate` initially |
-| Completion mechanism | polling |
+| Provider | YouCam Skin Analysis |
+| API version | `2.1` |
+| Mode | `hd` |
+| Concern | `hd_redness` |
+| Region | `null` |
+| Score type | `raw_score` |
+| Capture protocol | `face-value-youcam-1` |
+| Calibration | `pending` |
 | Result owner | Face Value reducer |
 
-Once the baseline is accepted, these fields are immutable for the life of the trial:
+Phase B does not use SD fallback. Unsupported-HD evaluation belongs to a later reviewed phase and may not alter an accepted baseline protocol.
+
+Once a baseline is accepted, these fields are immutable for the life of the trial:
 
 ```text
 provider
 API version
-analysis mode
+mode
 concern
 region
 score type
 capture protocol version
 ```
 
-A follow-up that does not match the frozen baseline protocol is not comparable and must not produce a result.
+A follow-up mismatch must be rejected locally before any upload slot or provider task is created.
 
-## 4. Official API workflow
+## 4. Official provider workflow
 
-The integration uses the YouCam Skin Analysis v2.1 workflow:
+The server integration uses YouCam Skin Analysis v2.1:
 
 ```text
 POST /s2s/v2.1/file/skin-analysis
-→ upload image bytes to returned signed URL
+→ browser uploads image bytes to returned signed URL
 → POST /s2s/v2.1/task/skin-analysis
 → GET /s2s/v2.1/task/skin-analysis/{task_id}
-→ normalize success or map error
+→ validate and normalize success or translate failure
 ```
 
-Authentication uses a server-only bearer token:
-
-```http
-Authorization: Bearer <YOUCAM_API_KEY>
-```
-
-Official references:
-
-- https://docs.perfectcorp.com/reference/ai_skin_analysis/v2.1
-- https://docs.perfectcorp.com/reference/ai_skin_analysis/section/overview/file-specs-and-errors
-- https://docs.perfectcorp.com/develop/quick_start_guide
-- https://docs.perfectcorp.com/release/changelog
+YouCam authentication uses the server-only environment variable `YOUCAM_API_KEY`. It must never use a client-exposed prefix such as `VITE_` and must never enter browser code, storage, logs, or responses.
 
 The application must not depend on undocumented endpoint names or inferred response fields.
 
-## 5. Provider architecture
+## 5. Typed provider boundary
 
 The browser and reducer must not consume raw YouCam JSON directly.
 
@@ -126,385 +121,247 @@ export interface AnalyzeCaptureInput {
   image: Blob;
   protocol: AnalysisProtocol;
   capturedAt: string;
+  role: "baseline" | "followup";
+  signal?: AbortSignal;
 }
 
 export interface AnalysisProtocol {
   provider: "youcam";
   apiVersion: "2.1";
-  mode: "hd" | "sd";
-  concern: "hd_redness" | "redness";
+  mode: "hd";
+  concern: "hd_redness";
   region: null;
   scoreType: "raw_score";
-  captureProtocolVersion: string;
+  captureProtocolVersion: "face-value-youcam-1";
 }
 
 export interface SkinAnalysisSignal {
   provider: "youcam";
   apiVersion: "2.1";
-  mode: "hd" | "sd";
-  concern: "hd_redness" | "redness";
+  mode: "hd";
+  concern: "hd_redness";
   region: null;
   rawScore: number;
   capturedAt: string;
   captureQuality: "accepted";
-  providerTaskId?: string;
+  ephemeralTaskReference: string;
 }
 ```
 
 Required implementations:
 
-- `YouCamSkinAnalysisProvider` for production
-- `FixtureSkinAnalysisProvider` for deterministic unit, component, and end-to-end tests
+- `YouCamSkinAnalysisProvider` for deployed provider work
+- `FixtureSkinAnalysisProvider` for deterministic unit, integration, and mobile WebKit tests
 
-The Human Butter reducer remains the single durable application authority. Provider adapters may not create a parallel trial store, result store, navigation model, or Evidence Record.
+The ephemeral task reference exists only inside the provider boundary and protected diagnostics. It must not enter durable normalization.
 
-## 6. Server boundary
+## 6. Durable normalization contract
 
-The YouCam API key must exist only in a server environment variable:
+One explicit function reconstructs the allowed durable signal by value:
 
-```text
-YOUCAM_API_KEY
+```ts
+type DurableSkinSignal = {
+  provider: "youcam";
+  apiVersion: "2.1";
+  mode: "hd";
+  concern: "hd_redness";
+  region: null;
+  scoreType: "raw_score";
+  captureProtocolVersion: "face-value-youcam-1";
+  rawScore: number;
+  capturedAt: string;
+  captureQuality: "accepted";
+};
 ```
 
-It must never use a client-exposed prefix such as `VITE_`.
+Normalization must reject non-finite scores and any signal that does not match the frozen contract.
 
-The preferred upload flow is:
+Durable state must never contain:
 
-1. the browser requests an authenticated upload slot from a Face Value server endpoint
-2. the server calls the YouCam File API
-3. the browser uploads the image directly to the returned signed URL
-4. the server creates and polls the analysis task using the returned file identifier
-5. the server returns a validated, minimal provider result
+- provider task identity
+- image bytes
+- `File` or `Blob` values
+- base64 or `data:image` values
+- blob URLs
+- signed upload URLs
+- temporary mask URLs
+- API credentials
+- authorization headers
+- raw provider payloads
 
-Suggested server routes:
+This exclusion must be achieved by construction rather than manual deletion.
+
+## 7. Demo authorization boundary
+
+The temporary hackathon demo uses a protected engineering gate, not a consumer account system.
+
+1. `/youcam-spike` accepts `YOUCAM_SPIKE_TOKEN` only long enough to exchange it.
+2. `POST /api/youcam/session` validates the token using timing-safe comparison.
+3. The server issues a 30-minute signed cookie scoped to `/api/youcam`.
+4. The cookie is `Secure`, `HttpOnly`, and `SameSite=Strict`.
+5. Canonical product analysis uses the cookie and never reads the raw token.
+6. No token enters localStorage or sessionStorage.
+7. Unauthorized analysis requests fail closed with `401`.
+8. Provider API responses use `Cache-Control: no-store`.
+
+The Phase A header remains temporarily accepted only for protected engineering compatibility. The canonical Phase B product path does not send it.
+
+## 8. Baseline and follow-up state law
+
+Required reducer semantics include:
 
 ```text
-POST /api/youcam/upload-slot
-POST /api/youcam/tasks
-GET  /api/youcam/tasks/:taskId
+baseline analysis started
+baseline analysis accepted
+baseline analysis failed
+baseline retry requested
+follow-up analysis started
+follow-up analysis accepted
+follow-up analysis failed
+comparison created
+comparison rejected
+analysis cancelled
 ```
 
-Names may change to match repository conventions. Security and ownership may not.
+Legal-transition rules:
 
-## 7. Score semantics
+- trial progression waits for accepted baseline analysis
+- an accepted baseline cannot be silently overwritten
+- follow-up acceptance requires an accepted baseline and frozen protocol
+- a provider failure cannot erase accepted evidence
+- duplicate activation creates one logical attempt
+- stale completion cannot overwrite a newer retry or cancellation
+- navigation and unmount cancel provider polling
+- restoration cannot manufacture a result from incomplete evidence
+- complete restored signals resume comparison through the reducer
+- an accepted result cannot revert to processing after refresh
 
-Face Value uses `raw_score` only.
+## 9. Score and comparison semantics
 
-The official YouCam documentation describes `raw_score` as the underlying model score and `ui_score` as a consumer-facing score adjusted toward more favorable presentation. Therefore:
+Face Value uses `raw_score` only. `ui_score`, skin age, and provider-wide beauty scores must not drive evidence or appear in the Evidence Record.
 
-- `ui_score` must not be persisted as evidence
-- `ui_score` must not drive comparison
-- `ui_score` must not appear in the Evidence Record
-- `skin_age` must not be requested or displayed
-- the provider-wide `all` score must not be used
-
-For supported score-based concerns, higher `raw_score` represents a healthier or more favorable condition.
+For YouCam `hd_redness`, a higher `raw_score` represents a more favorable redness-related skin condition. It is not an amount of redness. Consumer wording must make this polarity explicit whenever scores are displayed.
 
 ```ts
 const delta = followUp.rawScore - baseline.rawScore;
 ```
 
-A positive redness delta is a favorable direction. It is not a percentage improvement, efficacy percentage, clinical outcome, or medical conclusion.
+Before calibration:
 
-## 8. Comparison contract
+- positive delta means `favorable`
+- negative delta means `unfavorable`
+- zero delta means `unchanged`
+- calibration remains `pending`
+- confidence never exceeds `possible`
+- limitations always include `Prototype noise boundary has not been calibrated.`
+- no point threshold may be invented
+- delta is a numeric difference, never a percentage
+- direction is not efficacy, clinical significance, treatment, cure, proof, or guarantee
 
-YouCam supplies measurements. Face Value combines four evidence layers:
+The Phase A values `93.3356` and `100.0000` may be used only as synthetic deterministic test values. They came from unrelated images and are not a valid longitudinal trial.
 
-```text
-raw-score change
-+ capture comparability
-+ trial behavior
-+ confounding-product context
-= result and confidence
-```
+## 10. Existing result mapping
 
-The comparison engine initially returns one of:
+Phase B uses the existing Face Value result reveal and Evidence Machine. It does not add a YouCam-specific verdict screen.
 
-```ts
-type OpticalChange =
-  | "favorable_direction_detected"
-  | "no_clear_change"
-  | "unreliable_comparison";
-```
+Favorable direction:
 
-The user-facing result remains governed by the Face Value product contract:
+- title: `Favorable direction detected`
+- support: `The redness condition score increased from {baseline} to {followUp}. Higher scores indicate a more favorable skin condition.`
+- confidence: `Possible`
+- context: `This comparison may reflect normal scan variation. The prototype noise boundary has not been calibrated.`
+- default next step: `Test longer`
 
-- Earning its place
-- Too early to tell
-- Test it alone
-- Not proving its job
+Unfavorable direction:
 
-No fixed point threshold may be presented as clinically validated.
+- title: `No favorable direction yet`
+- support: `The redness condition score decreased from {baseline} to {followUp}. Higher scores indicate a more favorable skin condition.`
+- confidence: `Possible`
+- default next step: `Test longer`
 
-Before a numeric change threshold is used in production, the team must run repeated same-session captures under unchanged conditions and estimate concern-specific measurement variation. Any initial threshold must be documented as a prototype calibration heuristic.
+Unchanged direction:
 
-A valid prototype approach is:
+- title: `No favorable direction yet`
+- support: `The redness condition score remained at {baseline}. No directional movement was detected.`
+- confidence: `Possible`
+- default next step: `Test longer`
 
-```text
-noise floor = typical same-session absolute raw-score variation
-clear change = absolute longitudinal delta exceeds the documented noise boundary
-```
+Protocol incompatibility:
 
-The exact formula remains blocked until calibration evidence exists.
+- title: `Comparison unavailable`
+- support: `These scans could not be compared under the same conditions.`
+- default next step: `Retry under matched conditions`
 
-## 9. Confidence contract
+Primary product UI must not expose provider field names, task IDs, polling language, API version strings, raw payloads, or provider error codes. Technical provenance belongs in existing detail surfaces.
 
-### Likely
+## 11. Evidence Record contract
 
-Use only when:
+The existing Evidence Record model may preserve:
 
-- baseline and follow-up use the identical frozen protocol
-- both captures pass quality validation
-- the comparison exceeds the documented prototype noise boundary
-- no meaningful overlapping product remains
-- the trial interval is sufficient for the assigned job
+- product
+- assigned job
+- trial dates
+- comparison direction
+- confidence
+- limitations
+- selected next step
+- `YouCam Skin Analysis v2.1` provenance
+- formatted baseline and follow-up raw scores in evidence detail
 
-### Possible
+It must remain face-free and survive result, next-step selection, cassette release, collection, detail, Past Results, and browser refresh. Saved trial windows must use human-readable local dates and times in consumer archive surfaces. Production archives must not expose demo-clearing controls. No parallel record type is permitted.
 
-Use when a direction appears but one material limitation remains, such as:
+## 12. Provider error translation
 
-- retained product overlap
-- weaker capture comparability
-- incomplete adherence context
-- a result near the noise boundary
+Consumer copy must be deterministic and must not expose provider codes.
 
-### Insufficient
-
-Use when:
-
-- provider mode, concern, region, or score type differs
-- a capture fails quality requirements
-- the provider does not return the required concern
-- the task fails or expires
-- the delta remains inside expected measurement variation
-- required trial context is missing
-
-No API confidence value may silently upgrade Face Value confidence.
-
-## 10. Capture contract
-
-Preferred capture uses JavaScript Camera Kit:
-
-- `hdskincare` for HD trials
-- `skincare` for SD trials
-- blob output
-- moderate quality preset initially
-- front-facing, neutral expression
-- even lighting
-- face centered and large enough
-
-The UI translates provider quality state into Face Value language:
-
-| Provider condition | Face Value instruction |
+| Provider condition | Consumer guidance |
 | --- | --- |
-| no face or out of bounds | Center your face |
-| face too small | Move closer |
-| pose invalid | Face the camera |
-| lighting too dark or uneven | Find more even light |
-| unsupported HD resolution before baseline | Use standard scan mode |
-| all conditions accepted | Hold still |
+| face too small | Move closer so your face fills more of the frame. |
+| lighting rejection | Find more even light and try again. |
+| face outside bounds | Center your full face inside the guide. |
+| invalid image | Choose a clear front-facing JPEG or PNG. |
+| timeout | Analysis took too long. Retry without losing this trial. |
+| unauthorized session | Analysis access expired. Reopen the protected demo session. |
+| unknown failure | This scan could not be analyzed. Your existing trial is safe. |
 
-The system may fall back from HD to SD only before baseline acceptance. It may never downgrade a follow-up independently.
+Provider codes may appear only in protected development diagnostics and safe logs.
 
-## 11. Image requirements and validation
+## 13. Calibration utility
 
-Before upload, validate:
+The protected development calibration utility:
 
-- JPEG or PNG
-- less than 10 MB
-- SD short side at least 480 px
-- HD short side at least 1080 px
-- portrait orientation preferred
-- face unobstructed and in focus
+- accepts repeated same-session matched scans
+- uses the frozen HD redness protocol
+- keeps scores in component memory only
+- reports scores, consecutive deltas, absolute consecutive deltas, median absolute delta, maximum absolute delta, minimum, and maximum
+- is labeled `Prototype engineering calibration, not clinical validation.`
+- writes no images or scores to production trial state
+- commits no threshold
+- does not influence Phase B comparison logic
 
-The official service requires a front-facing image and reports that the face should occupy approximately 60–80% of image width, with face width greater than 60%.
+## 14. Observability and privacy verification
 
-Known provider errors must map to recoverable actions, including:
+Safe diagnostics may record stage, baseline or follow-up role, request outcome, terminal state, normalized success, provider error code, local protocol rejection, cancellation, and stale response rejection.
 
-| Provider error | Recovery |
-| --- | --- |
-| `error_below_min_image_size` | Capture again in higher quality |
-| `error_src_face_too_small` | Move closer and retake |
-| `error_src_face_out_of_bound` | Center your face and retake |
-| `error_lighting_dark` | Find more even light and retake |
-| invalid mixed HD and SD actions | Treat as implementation defect; do not retry automatically |
-| unknown concern | Treat as implementation defect; do not retry automatically |
-| task timeout or expired task | Retry analysis without losing the trial capture when allowed |
+Logs must not contain images, signed URLs, access tokens, authorization headers, full provider payloads, or identifying image metadata.
 
-Provider errors must never produce fabricated evidence.
+CI must verify both durable serialization and compiled client assets. The compiled client scan fails on credentials, bearer strings, provider task IDs, image data URLs, blob URLs, signed provider URL markers, temporary mask URL markers, and raw provider payload markers.
 
-## 12. Polling and task lifecycle
+## 15. Acceptance gates
 
-Task creation is asynchronous. The application must:
+Automated Phase B proof requires:
 
-1. persist enough transient request state to avoid duplicate task creation during one active attempt
-2. poll until `success`, `error`, or a documented client timeout
-3. respect any provider-recommended polling interval returned by the API
-4. stop polling on unmount, cancellation, navigation, or terminal state
-5. prevent duplicate units from rapid repeated activation
-6. preserve the trial when analysis fails
-7. offer one clear retry path
-
-Polling must not be implemented as an unbounded interval.
-
-The June 29, 2026 provider release notes announce deletion of a completed task and associated resources. The exact current operation must be verified from the official OpenAPI description before implementation. Do not invent a deletion endpoint.
-
-## 13. Privacy and persistence
-
-Persist only what the product needs:
-
-- frozen protocol
-- normalized baseline signal
-- normalized follow-up signal
-- capture metadata
-- comparison outcome
-- confidence and limitations
-- result and next step
-
-Do not persist:
-
-- face image bytes
-- base64 images
-- Blob URLs
-- signed upload URLs
-- bearer credentials
-- temporary mask URLs
-
-The Evidence Record remains face-free by default.
-
-Tests must assert that structured browser storage contains none of:
-
-```text
-blob:
-data:image
-Authorization: Bearer
-signed upload URLs
-raw image bytes
-```
-
-The capture screen must disclose that an image is sent to Perfect Corp for analysis before upload. Provider cleanup behavior must be documented accurately; no unsupported retention promise may appear in product copy.
-
-## 14. Mask boundary
-
-Concern masks are optional explanatory media, not evidence themselves.
-
-For the first real integration:
-
-- request JSON results
-- keep mask display behind `See why`
-- do not persist temporary mask URLs
-- do not block the result when a mask is unavailable
-- never display unrelated concerns
-
-The mask-based Evidence Aperture is a Phase C enhancement after the live longitudinal score path passes.
-
-## 15. Required tests
-
-### Provider contract
-
-Replay official-shaped success and error fixtures and prove normalization.
-
-### Protocol immutability
-
-Reject any follow-up whose provider, version, mode, concern, region, score type, or capture protocol differs from baseline.
-
-### Score semantics
-
-Prove that only `raw_score` enters comparison and persistence.
-
-### Failure recovery
-
-Prove that provider failure preserves the trial and exposes one retry path without fabricating a result.
-
-### Duplicate protection
-
-Prove that rapid activation creates at most one upload slot and one active analysis task.
-
-### Privacy
-
-Prove that no face bytes, base64, Blob URL, signed URL, or API key enters durable browser storage or Evidence Records.
-
-### Production journey
-
-Prove that real normalized provider values enter the existing reducer and flow through result, next step, record release, collection, detail, and Past Results.
-
-### Physical-device smoke test
-
-Complete one real baseline and follow-up on an iPhone through the production deployment.
-
-## 16. Delivery slices
-
-### Phase A: live-score spike
-
-- secure server key
-- upload-slot endpoint
-- binary upload
-- task creation
-- bounded polling
-- response validation
-- one real `hd_redness` raw score
-- protected debug evidence only
-
-**Exit condition:** one production image returns one normalized real score without exposing credentials or persisting the image.
-
-### Phase B: longitudinal integration
-
-- freeze protocol at baseline
-- store normalized baseline signal
-- repeat identical follow-up protocol
-- compare raw scores
-- introduce calibrated prototype noise boundary
-- dispatch the existing analysis success or failure events
-- preserve one durable result through the existing Evidence Machine
-
-**Exit condition:** changing normalized YouCam values changes the real Face Value result without parallel state.
-
-### Phase C: effortless capture and hardening
-
-- Camera Kit quality guidance
-- HD capability detection and pre-baseline fallback
-- provider error translation
-- task cancellation and timeout recovery
-- verified resource cleanup
-- mask-based Evidence Aperture
-- physical iPhone proof
-
-**Exit condition:** a person can complete the real trial without understanding API mechanics or performing skincare homework.
-
-## 17. Explicit non-goals
-
-This epic does not include:
-
-- multi-product brand dashboards
-- cross-user aggregation
-- verification badges
-- official packaging partnerships
-- authentication or cloud accounts
-- every YouCam skin concern
-- a universal skin score
-- `skin_age`
-- medical diagnosis
-- AI-generated verdicts from an LLM
-- skin simulation presented as evidence
-- a redesigned reducer or second production store
-
-## 18. Definition of done
-
-The YouCam evidence engine is complete when:
-
-> A real baseline and follow-up image use the same frozen YouCam protocol, the normalized raw scores materially affect the Face Value comparison, and the resulting confidence and limitations survive through the existing cassette, Evidence Record, and Past Results without persisting a face image or exposing the API key.
-
-The first implementation must also pass:
-
-- lint
-- strict TypeScript
-- unit and component tests
+- typed contract tests
+- protocol preflight tests
+- deterministic comparison tests
+- reducer legality and idempotency tests
+- durable serialization privacy tests
+- signed-cookie security tests
+- fixture-backed integration through the real reducer
+- mobile WebKit proof through baseline, follow-up, result, next step, Evidence Machine release, collection, detail, Past Results, and refresh
 - production build
-- mobile WebKit end-to-end tests
-- exact-head preview deployment
-- physical iPhone smoke test
-- zero unhandled runtime errors in the canonical journey
+- compiled-client privacy scan
+- exact-head Vercel preview in `READY`
+- no unhandled runtime errors
 
-## 19. Change control
-
-Changes to the launch product, assigned job, YouCam concern, score semantics, protocol immutability, privacy boundary, confidence rules, or reducer ownership require an explicit amendment to this document in the same pull request as the implementation change.
+Final live completion additionally requires one genuine matched baseline and follow-up pair against the exact-head preview under the identical frozen protocol. The PR remains draft until that evidence exists. Unrelated images, fixture values, or fabricated screenshots cannot satisfy this gate.

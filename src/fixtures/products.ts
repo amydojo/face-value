@@ -2,13 +2,13 @@ import type { Specimen } from '../domain/model';
 
 export const PRODUCTS: Specimen[] = [
   {
-    id: 'fermented-essence',
-    accession: 'A1–03',
+    id: 'one-thing',
+    accession: '02',
     brand: 'FACE VALUE',
-    product: 'FERMENTED BRIGHTENING ESSENCE',
+    product: '02 / ONE THING',
     volume: '30 ML',
     shelf: 'observation',
-    jobOptions: ['Post-acne pigmentation', 'Visible tone consistency', 'Surface calm'],
+    jobOptions: ['Reduce visible redness'],
   },
   {
     id: 'hydrating-drops',

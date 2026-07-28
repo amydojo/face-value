@@ -72,7 +72,7 @@ describe('YouCamSkinAnalysisProvider', () => {
       rawScore: 72.011962890625,
       capturedAt: '2026-07-27T00:00:00.000Z',
       captureQuality: 'accepted',
-      providerTaskId: 'task-id-12345678',
+      ephemeralTaskReference: 'task-id-12345678',
     });
 
     const taskRequest = calls.find(
@@ -134,6 +134,56 @@ describe('YouCamSkinAnalysisProvider', () => {
       }),
     ).rejects.toMatchObject({
       code: 'analysis_timeout',
+      retryable: true,
+    });
+  });
+
+  it('recovers an official provider rejection code embedded in a generic task error', async () => {
+    const fetcher = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url === '/api/youcam/upload-slot') {
+        return Response.json({
+          fileId: 'file-id-12345678',
+          upload: {
+            method: 'PUT',
+            url: 'https://uploads.example.test/signed',
+            headers: { 'Content-Type': 'image/jpeg' },
+          },
+        });
+      }
+      if (url.includes('uploads.example.test')) return new Response(null, { status: 200 });
+      if (url === '/api/youcam/task' && init?.method === 'POST') {
+        return Response.json(
+          { taskId: 'task-id-12345678', pollingIntervalMs: 1_500 },
+          { status: 202 },
+        );
+      }
+      return Response.json(
+        {
+          error: {
+            code: 'youcam_request_failed',
+            message: 'error_src_face_too_small',
+            retryable: true,
+          },
+        },
+        { status: 422 },
+      );
+    }) as unknown as typeof fetch;
+
+    const provider = new YouCamSkinAnalysisProvider({
+      fetcher,
+      maxPollAttempts: 1,
+    });
+
+    await expect(
+      provider.analyzeCapture({
+        image: new Blob(['face'], { type: 'image/jpeg' }),
+        protocol: HD_REDNESS_PROTOCOL,
+        capturedAt: '2026-07-27T00:00:00.000Z',
+      }),
+    ).rejects.toMatchObject({
+      code: 'error_src_face_too_small',
+      status: 422,
       retryable: true,
     });
   });

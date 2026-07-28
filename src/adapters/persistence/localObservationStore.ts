@@ -3,11 +3,14 @@ import type {
   CaptureMetadata,
   ComparisonState,
   DisturbanceState,
+  DurableSkinSignal,
   EvidenceConfidence,
   EvidenceRecordData,
   FaceValueState,
+  LongitudinalSkinEvidence,
   ObservationState,
   ProductPlacement,
+  RednessComparison,
   TraceEntry,
 } from '../../domain/model';
 
@@ -29,7 +32,15 @@ export interface PersistedDemoData {
   analysis: AnalysisResult | null;
   record: EvidenceRecordData | null;
   archive: EvidenceRecordData[];
+  longitudinalEvidence: LongitudinalSkinEvidence;
 }
+
+const emptyLongitudinalEvidence = (): LongitudinalSkinEvidence => ({
+  protocol: null,
+  baseline: null,
+  followUp: null,
+  comparison: null,
+});
 
 const placements = new Set<ProductPlacement>([
   'established',
@@ -80,7 +91,7 @@ const captureMimeTypes = new Set<CaptureMetadata['mimeType']>([
 ]);
 
 const isObject = (value: unknown): value is Record<string, unknown> =>
-  typeof value === 'object' && value !== null;
+  typeof value === 'object' && value !== null && !Array.isArray(value);
 
 const isTrace = (value: unknown): value is TraceEntry =>
   isObject(value) &&
@@ -106,14 +117,69 @@ const isEvidenceRecord = (value: unknown): value is EvidenceRecordData =>
   typeof value.product === 'string' &&
   typeof value.job === 'string' &&
   typeof value.finding === 'string' &&
-  value.includesFaceImage === false;
+  value.includesFaceImage === false &&
+  (value.baselineRawScore === undefined ||
+    (typeof value.baselineRawScore === 'number' && Number.isFinite(value.baselineRawScore))) &&
+  (value.followUpRawScore === undefined ||
+    (typeof value.followUpRawScore === 'number' && Number.isFinite(value.followUpRawScore)));
 
 const isAnalysisResult = (value: unknown): value is AnalysisResult =>
   isObject(value) &&
   typeof value.finding === 'string' &&
   typeof value.nonFinding === 'string' &&
   typeof value.claimBoundary === 'string' &&
-  value.simulated === true;
+  typeof value.simulated === 'boolean' &&
+  (value.baselineRawScore === undefined ||
+    (typeof value.baselineRawScore === 'number' && Number.isFinite(value.baselineRawScore))) &&
+  (value.followUpRawScore === undefined ||
+    (typeof value.followUpRawScore === 'number' && Number.isFinite(value.followUpRawScore))) &&
+  (value.delta === undefined ||
+    (typeof value.delta === 'number' && Number.isFinite(value.delta)));
+
+const isProtocol = (value: unknown): value is NonNullable<LongitudinalSkinEvidence['protocol']> =>
+  isObject(value) &&
+  value.provider === 'youcam' &&
+  value.apiVersion === '2.1' &&
+  value.mode === 'hd' &&
+  value.concern === 'hd_redness' &&
+  value.region === null &&
+  value.scoreType === 'raw_score' &&
+  value.captureProtocolVersion === 'face-value-youcam-1';
+
+const isDurableSignal = (value: unknown): value is DurableSkinSignal =>
+  isObject(value) &&
+  value.provider === 'youcam' &&
+  value.apiVersion === '2.1' &&
+  value.mode === 'hd' &&
+  value.concern === 'hd_redness' &&
+  value.region === null &&
+  value.scoreType === 'raw_score' &&
+  value.captureProtocolVersion === 'face-value-youcam-1' &&
+  typeof value.rawScore === 'number' &&
+  Number.isFinite(value.rawScore) &&
+  typeof value.capturedAt === 'string' &&
+  value.captureQuality === 'accepted';
+
+const isRednessComparison = (value: unknown): value is RednessComparison =>
+  isObject(value) &&
+  typeof value.baselineRawScore === 'number' &&
+  Number.isFinite(value.baselineRawScore) &&
+  typeof value.followUpRawScore === 'number' &&
+  Number.isFinite(value.followUpRawScore) &&
+  typeof value.delta === 'number' &&
+  Number.isFinite(value.delta) &&
+  ['favorable', 'unfavorable', 'unchanged'].includes(String(value.direction)) &&
+  ['pending', 'prototype_calibrated'].includes(String(value.calibration)) &&
+  ['possible', 'likely', 'insufficient'].includes(String(value.confidence)) &&
+  Array.isArray(value.limitations) &&
+  value.limitations.every((item) => typeof item === 'string');
+
+const isLongitudinalEvidence = (value: unknown): value is LongitudinalSkinEvidence =>
+  isObject(value) &&
+  (value.protocol === null || isProtocol(value.protocol)) &&
+  (value.baseline === null || isDurableSignal(value.baseline)) &&
+  (value.followUp === null || isDurableSignal(value.followUp)) &&
+  (value.comparison === null || isRednessComparison(value.comparison));
 
 export function toPersistedDemoData(state: FaceValueState): PersistedDemoData {
   return {
@@ -132,6 +198,8 @@ export function toPersistedDemoData(state: FaceValueState): PersistedDemoData {
     analysis: state.analysis,
     record: state.record,
     archive: state.archive,
+    longitudinalEvidence:
+      state.longitudinalEvidence ?? emptyLongitudinalEvidence(),
   };
 }
 
@@ -159,6 +227,8 @@ export function loadStructuredDemoData(
     const trace = value.trace;
     const analysis = value.analysis;
     const record = value.record;
+    const longitudinalEvidence =
+      value.longitudinalEvidence ?? emptyLongitudinalEvidence();
 
     if (
       typeof value.selectedDrawerIndex !== 'number' ||
@@ -178,15 +248,20 @@ export function loadStructuredDemoData(
       !(analysis === null || isAnalysisResult(analysis)) ||
       !(record === null || isEvidenceRecord(record)) ||
       !Array.isArray(archive) ||
-      !archive.every(isEvidenceRecord)
+      !archive.every(isEvidenceRecord) ||
+      !isLongitudinalEvidence(longitudinalEvidence)
     ) {
       throw new Error('Invalid persisted data');
     }
 
     return {
-      ...(value as unknown as Omit<PersistedDemoData, 'baselineCapture' | 'followupCapture'>),
+      ...(value as unknown as Omit<
+        PersistedDemoData,
+        'baselineCapture' | 'followupCapture' | 'longitudinalEvidence'
+      >),
       baselineCapture,
       followupCapture,
+      longitudinalEvidence,
     };
   } catch {
     storage.removeItem(STORAGE_KEY);

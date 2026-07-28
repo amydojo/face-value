@@ -8,7 +8,10 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock('../adapters/analysis/youcam/YouCamSkinAnalysisProvider', () => ({
-  YouCamProviderError: class YouCamProviderError extends Error {},
+  YouCamProviderError: class YouCamProviderError extends Error {
+    status = 500;
+    code = 'fixture_error';
+  },
   YouCamSkinAnalysisProvider: class YouCamSkinAnalysisProvider {
     analyzeCapture = mocks.analyzeCapture;
   },
@@ -27,18 +30,32 @@ describe('YouCamSpike', () => {
           );
         }),
     );
+    vi.stubGlobal('fetch', vi.fn(async () => Response.json({
+      authenticated: true,
+      expiresAt: '2026-07-27T21:00:00.000Z',
+    })));
   });
 
-  it('creates only one analysis attempt under rapid repeated activation', async () => {
+  it('exchanges the token once and creates only one analysis attempt under rapid activation', async () => {
     const user = userEvent.setup();
     render(<YouCamSpike />);
+
+    await user.type(
+      screen.getByLabelText('Protected demo token'),
+      'phase-b-access',
+    );
+    await user.click(screen.getByRole('button', { name: 'OPEN PROTECTED SESSION' }));
+    await screen.findByText('SESSION OPEN');
+    expect(screen.getByLabelText('Protected demo token')).toHaveValue('');
+    expect(fetch).toHaveBeenCalledWith('/api/youcam/session', expect.objectContaining({
+      credentials: 'include',
+    }));
 
     const file = new File(['face'], 'baseline.jpg', { type: 'image/jpeg' });
     await user.upload(
       screen.getByLabelText('Choose a face image for the YouCam spike'),
       file,
     );
-    await user.type(screen.getByLabelText('Spike access token'), 'phase-a-access');
 
     const runButton = screen.getByRole('button', { name: 'RUN LIVE HD REDNESS' });
     await user.dblClick(runButton);
