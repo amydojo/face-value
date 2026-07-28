@@ -22,3 +22,6 @@ CAPTURE_EVIDENCE_RECORD=true npx playwright test e2e/evidence-record.spec.ts
 The test also verifies the complete Previous Trials → saved result → disclosure → back → reopen
 journey, exact snapshot stability across reload, mobile overflow, keyboard operation, accessible
 names, and the absence of runtime, console, and 5xx errors.
+
+The paired macOS and Linux WebKit regression baselines were generated natively on each operating
+system. Linux images came from GitHub Actions run 274 rather than copied macOS pixels.
