@@ -1,25 +1,25 @@
 # Redness Calibration Engineering Plan
 
 **Status:** Planning and architecture only  
-**Protocol version:** `redness-calibration-v1`  
+**Protocol version:** `redness-calibration-v1.1`  
 **Repository baseline:** `amydojo/face-value` at `7d80f0bdb64b508b40b604c4001617917354ac5e`  
 **Prepared:** July 28, 2026  
-**Scope:** YouCam Skin Analysis v2.1 `hd_redness.raw_score` only
+**Scope:** Perfect Corp YouCam Skin Analysis v2.1 `hd_redness.raw_score` only
 
-> This plan defines an engineering protocol for repeatability, session stability, capture-condition sensitivity, and comparison with the current provisional Face Value operating boundaries. It is not clinical validation, does not estimate treatment efficacy, and does not authorize any threshold or verdict change.
+> This plan defines a preliminary engineering characterization of repeatability, workflow sensitivity, and no-treatment longitudinal variability. It is not clinical validation, does not estimate product efficacy, and does not authorize any threshold, confidence, verdict, reducer, persistence, or production-behavior change.
 
 ## 1. Repository findings
 
-### 1.1 Current signal path
+### 1.1 Verified production signal path
 
-The verified production path is:
+The verified production path remains:
 
 ```text
 camera or selected image Blob
-→ YouCam upload-slot API
+→ Face Value upload-slot API
 → direct browser PUT to provider-signed URL
-→ YouCam Skin Analysis v2.1 task
-→ poll task status
+→ Perfect Corp YouCam Skin Analysis v2.1 task
+→ bounded task polling
 → select output where type === "hd_redness"
 → read finite raw_score
 → SkinAnalysisSignal.rawScore
@@ -28,73 +28,100 @@ camera or selected image Blob
 → buildMvpRednessEvaluation
 → evaluateRedness
 → immutable RednessEvaluationSnapshot
-→ compatibility adapters
+→ compatibility and presentation adapters
 → reducer-owned result and saved Evidence Record
 ```
 
-The raw provider response is not passed into the reducer or UI. `readRawScore` selects `record.raw_score`, requires a finite JavaScript `number`, and returns it without normalization, rescaling, clipping, rounding, or percentage conversion. Display formatting rounds to two decimal places only at presentation time.
+The raw provider response is not passed into the reducer or React. `api/_youcam.ts` selects `record.raw_score`, requires a finite JavaScript `number`, and returns it without normalization, rescaling, clipping, rounding, or percentage conversion. Durable normalization reconstructs a narrow object by value. Display formatting rounds only at the presentation boundary.
 
-### 1.2 Verified score contract
+### 1.2 Repository score contract versus provider contract
 
-| Property | Verified value |
-| --- | --- |
-| Provider | `youcam` |
-| API version | `2.1` |
-| Mode | `hd` |
-| Concern | `hd_redness` |
-| Region | `null` |
-| Score type | `raw_score` |
-| Capture protocol | `face-value-youcam-1` |
-| Type | finite TypeScript and JavaScript `number` |
-| Polarity | higher is a more favorable redness-related skin condition |
-| Comparison | endpoint minus baseline, in raw-score points |
-| Enforced range | none in the repository |
-| Meaningful zero | not established in the repository |
-| Percentage interpretation | forbidden |
+The application and provider contracts must be distinguished.
 
-The repository does not establish a bounded 0 to 100 measurement scale, even though deterministic fixtures include `93.3356` and `100`. Those fixture values must not be used to infer the provider scale.
+| Property | Repository-enforced contract | External provider contract |
+| --- | --- | --- |
+| Provider | `youcam` | Perfect Corp YouCam Skin Analysis |
+| API version | `2.1` | v2.1 |
+| Mode | `hd` | HD skin analysis |
+| Concern | `hd_redness` | redness severity concern |
+| Region | `null` | whole provider concern output |
+| Score type | `raw_score` | raw model analysis score |
+| Runtime type | finite JavaScript `number` | floating-point value |
+| Range | no range check in the repository | documented as `1` through `100` |
+| Polarity | higher is more favorable | higher indicates a healthier or more favorable skin condition |
+| Consumer-adjusted score | forbidden for evidence | `ui_score`, an adjusted integer score |
+| Comparison unit | raw-score points | raw-score points, not percentage change |
+
+The repository fact remains authoritative for current behavior: Face Value accepts any finite `rawScore` and does not enforce the documented provider range.
+
+The provider documentation adds a separate contract expectation:
+
+1. `raw_score` is documented as a floating-point value from `1` to `100`;
+2. higher values are more favorable;
+3. `ui_score` is adjusted to be more favorable for consumer presentation;
+4. Face Value must continue to forbid `ui_score` from evidence, calibration, threshold comparison, and exports.
+
+A live finite score outside `1` through `100` must never be clamped, rounded into range, or silently discarded. It must:
+
+1. remain unchanged in the raw face-free export;
+2. be flagged as `providerContractAnomaly: true`;
+3. retain the safe provider and protocol provenance;
+4. be excluded from primary statistical analysis only under this predeclared provider-contract anomaly rule;
+5. remain visible in anomaly counts and a sensitivity appendix;
+6. never be excluded because it is statistically unusual, far from a median, or inconvenient for a result.
+
+Fixture values such as `93.3356` and `100` do not prove the provider scale. The range statement comes from external provider documentation, not from fixture inference.
 
 ### 1.3 Current provisional operating boundaries
 
-The active configuration is `redness-provisional-v1`, source `provisional_fixture`, with:
+The active repository configuration remains read-only:
 
 | Boundary | Raw-score points | Current classification behavior |
 | --- | ---: | --- |
 | Worsening boundary | `-5` | `delta <= -5` |
-| No detectable change band | between `-5` and `+5` | `-5 < delta < +5` |
+| No-detectable-change band | between `-5` and `+5` | `-5 < delta < +5` |
 | Detectable improvement boundary | `+5` | `+5 <= delta < +10` |
 | Strong improvement boundary | `+10` | `delta >= +10` |
 
-The configuration is explicitly provisional and carries the limitation: `Production thresholds require repeat-scan calibration.` This plan compares measured noise with these values. It does not replace them.
+Configuration provenance:
+
+```text
+version = redness-provisional-v1
+source = provisional_fixture
+provisional = true
+config hash = sha256:66571af3c662f4da1de469d763b884ad46eb37ee77df0aa060e4b2db280feed5
+```
+
+The plan characterizes false-change behavior around the fixed 5-point and 10-point boundaries. It does not validate, approve, calibrate, replace, or activate either boundary.
 
 ### 1.4 Verdict, confidence, and action authority
 
-Scientific decisions are made under `src/domain/evidence/redness`, not in React.
+Scientific and product decisions remain under `src/domain/evidence/redness` and `src/app/phaseBMachine.ts`, not calibration code or React.
 
-1. `buildMvpRednessEvaluation` constructs the current evidence input.
-2. `evaluateRedness` separately determines effect classification, measurement quality, attribution quality, evidence quality, safety status, direction agreement, and recommended action.
-3. `phaseBMachine.ts` invokes that evaluation only after matched durable baseline and follow-up signals exist.
-4. The reducer persists the resulting immutable snapshot and derives the existing result surfaces from it.
-5. `verify-redness-architecture.mjs` prevents scientific decision identifiers from moving into React and prevents retired verdict paths from returning.
+1. `buildMvpRednessEvaluation` constructs the production evidence input.
+2. `evaluateRedness` separately determines effect, measurement quality, attribution, evidence quality, safety, direction agreement, and action.
+3. `phaseBMachine.ts` invokes the production evaluation after matched durable baseline and follow-up signals exist.
+4. The reducer persists the immutable snapshot.
+5. architecture verification prevents scientific decision identifiers from moving into React and prevents retired verdict paths from returning.
 
-Calibration output must therefore remain an engineering report. It must not call the production evaluator, write a `RednessEvaluationSnapshot`, dispatch a verdict event, or alter reducer state.
+The future harness must remain a sibling engineering system. It must not call the production evaluator, create a `RednessEvaluationSnapshot`, dispatch production reducer events, create an Evidence Record, or write calibration output into production trial state.
 
 ### 1.5 Existing failure and cancellation states
 
-The current provider and camera layers already distinguish or expose enough information to map:
+The current provider and camera layers expose enough information to map:
 
 | Existing source | Examples |
 | --- | --- |
 | Browser or Camera Kit | SDK unavailable, unsupported browser, permission denied, camera unavailable, preview stalled, unsupported resolution, invalid capture |
 | Upload | invalid type, invalid size, invalid upload slot, signed upload failure |
 | Provider task | provider rejection, missing raw score, unknown task status, invalid task response, timeout |
-| Session access | unconfigured or unauthorized protected demo session |
+| Session access | unconfigured or unauthorized protected session |
 | Local protocol | protocol mismatch before provider invocation |
-| Cancellation | `AbortError`, navigation, unmount, or explicit leave |
+| Cancellation | `AbortError`, navigation, unmount, explicit leave |
 
-The production reducer preserves previously accepted evidence on provider failure and cancellation. Calibration must preserve every failed attempt as a record rather than collapsing failures into a generic missing row.
+Every calibration attempt, including every failed, cancelled, anomalous, and replaced attempt, must remain represented in the in-memory dataset and export.
 
-### 1.6 Existing development gates
+### 1.6 Existing development and route risks
 
 The Demo Lab is gated by both:
 
@@ -103,108 +130,98 @@ import.meta.env.DEV
 VITE_SHOW_DEMO_CONTROLS === "true"
 ```
 
-Its route, copy, and isolated storage are expected to be absent from ordinary production bundles.
+Its route and markers are expected to be absent from ordinary production bundles.
 
-The existing `/youcam-calibration` route does not use that gate. It is directly routed. In development and test mode, `createSkinAnalysisProvider()` returns a singleton fixture provider. Because the current calibration screen submits every capture with role `followup`, development runs receive the fixed fixture value `100` rather than live measurements. In production mode, the route constructs the live provider and relies on the protected YouCam session API.
+The current `/youcam-calibration` route does not use that gate. It is directly routed. In development and test mode, `createSkinAnalysisProvider()` silently returns a singleton fixture provider. The current calibration screen submits every capture with role `followup`, so a development run receives the fixed fixture value `100` instead of live provider measurements.
 
-This is a material architecture risk for a future harness. A live calibration session must never silently run against fixtures, and a consumer deployment must never expose the calibration workflow by default.
+These are critical hardening requirements for any future harness:
+
+1. human collection must require explicit `live` provider mode;
+2. provider mode must be visible in the screen, report, and export;
+3. fixtures must be restricted to automated tests;
+4. the calibration route must be absent from ordinary consumer builds;
+5. live collection must use a dedicated protected deployment or equivalent protected engineering environment.
 
 ### 1.7 Current calibration utility
 
-The current utility:
+The current utility is a small same-session score collector. It:
 
-1. accepts one selected JPEG or PNG at a time;
+1. accepts a selected JPEG or PNG;
 2. uses the frozen HD redness protocol;
-3. holds the selected file and scores in React memory;
-4. reports scores, consecutive deltas, absolute consecutive deltas, median absolute consecutive delta, maximum absolute consecutive delta, minimum, and maximum;
+3. holds the file and scores in React memory;
+4. reports consecutive deltas, absolute consecutive deltas, median absolute delta, maximum absolute delta, minimum, and maximum;
 5. writes no calibration data into production trial state.
 
-It does not yet model sessions, condition blocks, paired perturbations, replacement attempts, reason codes, exports, pooled statistics, recommendation rules, or the protocol in this document.
+It does not model participants, days, formal sessions, independent reacquisition, variability layers, provider-contract anomalies, participant-level summaries, no-treatment differences, nested inference, completeness states, face-free exports, or the protocol in this document.
 
 ### 1.8 Privacy and persistence boundaries
 
-The application currently satisfies the requested application-side persistence boundary:
+The current application already satisfies the requested application-side image boundary:
 
-1. image bytes remain in component and provider-call memory;
-2. signed upload URLs, file IDs, task IDs, and raw provider payloads are not normalized into durable state;
-3. the reducer receives capture metadata and normalized score data, not image Blobs;
-4. durable trial storage contains finite scores, protocol metadata, capture metadata, evaluation snapshots, and face-free records;
-5. saved evidence explicitly declares `includesFaceImage: false`;
-6. compiled-client privacy checks scan for secrets, image data URLs, blob URL APIs, provider task markers, signed URL markers, and raw payload markers;
-7. safe diagnostics record stage, role, outcome, and provider code only.
+1. image bytes remain transient in the capture and provider-call lifecycle;
+2. signed upload URLs, upload URLs, file IDs, task IDs, and raw provider payloads are not normalized into durable state;
+3. the reducer receives metadata and normalized scores, not image Blobs;
+4. saved evidence declares `includesFaceImage: false`;
+5. client privacy checks scan for secrets, image data URLs, blob APIs, provider task markers, signed URL markers, and raw payload markers;
+6. safe diagnostics record stage, role, outcome, and safe code only.
 
-The repository does not establish the provider's server-side image retention or deletion policy. That vendor boundary must be verified separately before any claim that uploaded images are deleted by YouCam.
+The repository cannot establish Perfect Corp's server-side retention or deletion behavior. Application storage claims and provider-processing claims must remain separate.
 
 ### 1.9 Reusable infrastructure
 
-A future harness may reuse lower-level infrastructure without entering the production trial state machine:
+A future harness may reuse lower-level infrastructure without entering the production state machine:
 
-1. `YouCamSkinAnalysisProvider` and the frozen protocol contract;
-2. the Camera Kit adapter, quality normalization, capture profiles, and teardown behavior;
-3. `AbortController` cancellation;
-4. safe provider error translation and diagnostic patterns;
-5. pure TypeScript statistics and schema validation;
-6. Demo Lab style build-time exclusion and isolated storage patterns.
+1. `YouCamSkinAnalysisProvider`;
+2. the frozen `HD_REDNESS_PROTOCOL`;
+3. Camera Kit adapter, quality normalization, capture profiles, and teardown;
+4. `AbortController` cancellation;
+5. safe provider-error and diagnostics patterns;
+6. pure TypeScript statistics and runtime validation;
+7. Demo Lab-style build-time exclusion;
+8. isolated, allowlisted face-free export patterns.
 
-The future harness must not reuse `CameraViewport` as-is because that component dispatches production trial events. It should reuse the lower-level camera and provider adapters through a calibration-specific orchestrator.
+`CameraViewport` must not be reused as-is because it dispatches production trial events. A calibration-specific orchestrator may depend on lower-level camera and provider adapters only.
 
-## 2. Verified current architecture
+## 2. Research sources and provenance
 
-### 2.1 Authority map
+This plan uses repository facts for current application behavior and external sources only for measurement-study design and the provider's published score contract.
 
-| Concern | Current authority |
-| --- | --- |
-| Provider request and polling | `src/adapters/analysis/youcam/YouCamSkinAnalysisProvider.ts` |
-| Provider response parsing | `api/_youcam.ts` |
-| Frozen protocol | `src/adapters/analysis/youcam/contracts.ts` |
-| Durable normalization | `src/domain/youcamEvidence.ts` |
-| Capture and provider orchestration | `src/features/capture-contract/CameraViewport.tsx` |
-| Camera Kit quality and profile | `src/adapters/camera/youcam-camera-kit/` |
-| Evidence construction | `src/adapters/analysis/youcam/rednessEvidenceAdapter.ts` |
-| Deterministic evaluation | `src/domain/evidence/redness/evaluateRedness.ts` |
-| Provisional boundaries | `src/domain/evidence/redness/thresholds.ts` |
-| Durable state transitions | `src/app/phaseBMachine.ts` |
-| Trial persistence | `src/adapters/persistence/localObservationStore.ts` |
-| Demo fixture isolation | `src/adapters/persistence/demoJourneyStore.ts` |
-| Architecture enforcement | `scripts/verify-redness-architecture.mjs` |
-| Client privacy enforcement | `scripts/verify-client-privacy.mjs` |
+| Source | Role in this plan | Authority and limitation |
+| --- | --- | --- |
+| Face Value repository at the baseline SHA above | current code path, type enforcement, thresholds, evaluator ownership, route behavior, privacy boundary | authoritative for repository behavior only |
+| [Perfect Corp, AI Skin Analysis v2.1 documentation](https://docs.perfectcorp.com/reference/ai_skin_analysis/v2.1) | `raw_score` and `ui_score` definitions, documented `1` to `100` range, favorable polarity, image-quality requirements | authoritative provider contract; does not prove Face Value currently range-checks |
+| [NIST/SEMATECH Engineering Statistics Handbook, Chapter 2](https://www.nist.gov/publications/nistsematech-engineering-statistics-handbook-chapter-2-measurement-process) | separation of repeatability, stability, and time-related variability; nested measurement-process framing | general measurement-process guidance, not a Face Value validation standard |
+| [CLSI EP05 Plus, Evaluation of Precision of Quantitative Measurement Procedures](https://clsi.org/shop/standards/ep05-plus/) | repeated days, runs or sessions, replicates, and nested precision-study structure | clinical laboratory precision guidance used as design inspiration; this pilot is not an EP05-conformant medical-device study |
+| [Bland and Altman, 1986, Statistical methods for assessing agreement between two methods of clinical measurement](https://pubmed.ncbi.nlm.nih.gov/2868172/) | repeatability and agreement framing; relation of within-subject SD to repeatability limits | foundational agreement source; the present pilot has a smaller nested sample and must label estimates exploratory |
 
-### 2.2 Architectural constraints for calibration
+Interpretation rules:
 
-The calibration implementation must be a sibling engineering system, not a new production evidence engine.
-
-```text
-live calibration capture
-→ existing lower-level camera adapter
-→ existing live YouCam provider
-→ calibration-specific normalized capture record
-→ pure redness calibration statistics
-→ calibration report
-→ optional explicit face-free JSON export
-```
-
-It must not flow into:
-
-```text
-FaceValueState
-LongitudinalSkinEvidence
-RednessEvaluationInput
-RednessEvaluationSnapshot
-VerdictViewModel
-EvidenceRecordData
-production localStorage
-```
+1. NIST and CLSI support separating short-term repeatability from day-to-day or longer-term variability rather than treating every image as an independent observation.
+2. CLSI's formal designs are substantially larger than this submission pilot. Referencing CLSI does not make the pilot a formal precision validation.
+3. Bland–Altman repeatability concepts support reporting a repeatability coefficient, but the small sample, nested dependence, and possible non-normality require raw and robust summaries beside the coefficient.
+4. Provider documentation defines the expected score contract. It does not authorize clinical claims or threshold promotion.
 
 ## 3. Research question
 
-For one person using one device and one front camera under a frozen `hd_redness.raw_score` protocol:
+For Perfect Corp YouCam v2.1 `hd_redness.raw_score`, under Face Value's guided capture workflow:
 
-1. How variable are repeated usable measurements within one controlled capture session?
-2. How much do controlled session means drift across three separate sessions?
-3. How strongly does changing one capture condition at a time shift the score or increase capture failure?
-4. How large are the current provisional 5-point and 10-point operating boundaries relative to the observed controlled repeatability coefficient and between-session drift?
+1. What is the immediate fixed technical instability when device, participant position, and lighting are held as still as practical?
+2. What is the production-workflow repeatability when the participant independently moves away and reacquires the guided pose?
+3. How much do session operational scores vary across predeclared sessions and days when no treatment intervention is expected to produce change?
+4. How often do predeclared no-treatment session-median differences cross the current provisional `±5` and `±10` operating boundaries?
+5. Which named capture-condition perturbations shift scores or increase failure rates?
+6. Is the collected characterization operationally complete enough to justify a later independent threshold study?
 
-The output is an engineering estimate for this pilot setup. It is not a population estimate and cannot establish performance across people, skin tones, devices, environments, or time.
+The study unit is nested:
+
+```text
+participant
+→ day
+→ session
+→ independent recapture
+```
+
+Individual images are not independent population observations.
 
 ## 4. Claims and non-claims
 
@@ -212,73 +229,278 @@ The output is an engineering estimate for this pilot setup. It is not a populati
 
 The report may state:
 
-1. the observed distribution of finite `hd_redness.raw_score` measurements;
-2. estimated same-session repeatability for the tested setup;
-3. observed drift across the three tested controlled sessions;
-4. observed score shifts and failure rates under named capture perturbations;
-5. the ratio between estimated noise and the current provisional operating boundaries;
-6. whether the tested setup meets the deterministic engineering rules in Section 12.
+1. observed raw-score distributions;
+2. immediate fixed technical instability in the tested setup;
+3. production-workflow within-session repeatability;
+4. participant-specific and aggregate no-treatment longitudinal variability;
+5. predeclared false-change rates at `±5` and `±10`;
+6. named perturbation shifts and failure rates;
+7. completeness and protocol deviations;
+8. whether the tested workflow is operationally ready for a separate independent threshold study.
+
+A favorable threshold-comparison statement is limited to:
+
+> In the tested sample, observed variability was separated from the current provisional operating boundaries. The boundaries remain provisional and require independent evaluation.
 
 ### 4.2 Prohibited claims
 
 The report must not state or imply:
 
-1. clinical validity, diagnostic validity, or clinical significance;
-2. treatment efficacy or product effectiveness;
-3. a minimum clinically important difference;
-4. generalizability to other people, devices, cameras, skin tones, or environments;
-5. provider model accuracy;
-6. that a 5-point or 10-point movement is biologically meaningful;
-7. that an unusual score is an error merely because it is unusual;
-8. that provider-side image deletion or retention has been verified from this repository;
-9. that calibration results automatically authorize a threshold, confidence, verdict, or copy change.
+1. clinical validity, diagnostic validity, clinical significance, or efficacy;
+2. a minimum clinically important difference;
+3. population-level performance from the one-participant dry run;
+4. formal validation from three to five participants;
+5. independence of individual images;
+6. that no-treatment longitudinal variability is pure measurement error;
+7. generalization to untested people, skin tones, devices, cameras, browsers, environments, or times;
+8. that `5` or `10` points is validated, approved, scientifically established, or safe to promote;
+9. that a score is invalid merely because it is statistically unusual;
+10. that provider-side image deletion has been verified;
+11. that the harness may alter thresholds or verdict behavior.
 
-## 5. Controlled repeatability protocol
+## 5. Nested study structure and protocol tiers
 
-### 5.1 Required setup
+### 5.1 Common hierarchy
 
-Each controlled session uses:
+Every formal observation belongs to exactly one:
 
-1. one person;
-2. one physical device;
-3. the same front camera and frozen Camera Kit profile;
-4. the same application build, provider API version, concern, mode, region, score type, and capture protocol;
-5. one fixed environment and lighting setup;
-6. a fixed approximate camera-to-face distance, marked physically and held within plus or minus 5 cm;
-7. a neutral expression with relaxed mouth, eyes open, and face directed forward;
-8. no camera beauty filter, operating-system portrait effect, or post-capture enhancement;
-9. no change to makeup, skincare, room lighting, device placement, or camera settings during the session.
+```text
+participantId
+dayOrdinal
+sessionOrdinalWithinDay
+recaptureOrdinalWithinSession
+```
 
-A session begins with a fresh camera start and ends with full camera teardown. The environment setup and device setup receive non-identifying local IDs so all three sessions can be checked for consistency.
+Each participant follows the same schedule:
 
-### 5.2 Session procedure
+```text
+3 days
+× 2 predeclared sessions per day
+× 3 independent accepted recaptures per session
+= 18 controlled captures per participant
+```
 
-1. Record the protocol version, app build, camera profile, coarse platform and browser family, controlled setup IDs, approximate distance, light setup label, and structured capture-context fields.
-2. Start the camera through an explicit user gesture.
-3. Wait until the existing face, position, frontal, lighting, and resolution gates report ready.
-4. Capture one image.
-5. Submit the image through the live `YouCamSkinAnalysisProvider`.
-6. Record the attempt before determining whether it is usable.
-7. Return to the marked neutral pose.
-8. Repeat until ten usable captures are recorded or the attempt cap is reached.
-9. Close the camera and finalize the session. No score may be edited or removed after session finalization.
+The two daily sessions use predeclared time-window labels such as `window_a` and `window_b`. Exact clock times are recorded only to the precision approved in the privacy plan. The same window definitions should be used across days for that participant.
 
-The target is exactly ten usable captures per controlled session. Additional successful captures are not added after the target is reached because optional extra captures create researcher discretion.
+### 5.2 Tier A: engineering dry run
 
-### 5.3 Attempt cap
+Required design:
 
-A controlled session may use at most 20 total attempts to obtain ten usable captures.
+```text
+1 participant
+× 3 days
+× 2 sessions per day
+× 3 independent recaptures per session
+= 18 controlled captures
+```
 
-If ten usable captures are not obtained within 20 attempts:
+Purpose:
 
-1. retain all attempts;
-2. mark the session `incomplete`;
-3. do not compute a final recommendation;
-4. permit a new session only as a new session ID, never as an overwrite.
+1. prove the protected live-provider workflow;
+2. discover capture, session, export, and protocol problems;
+3. verify that independent reacquisition is operationally possible;
+4. exercise failure, replacement, anomaly, and privacy paths;
+5. generate participant-specific engineering descriptors.
 
-### 5.4 Failure and replacement law
+This tier is explicitly incapable of supporting participant-level generalization. Its primary recommendation state is `engineering_dry_run_only` unless the data are incomplete or a technical concern state has precedence.
 
-A failed attempt may be replaced only when its outcome code is one of:
+### 5.3 Tier B: preliminary submission characterization
+
+Minimum:
+
+```text
+3 participants
+× 3 days
+× 2 sessions per day
+× 3 independent recaptures per session
+= 54 controlled captures
+```
+
+Preferred:
+
+```text
+5 participants
+× 3 days
+× 2 sessions per day
+× 3 independent recaptures per session
+= 90 controlled captures
+```
+
+Purpose:
+
+1. obtain participant-level summaries;
+2. characterize variability across a small tested sample;
+3. estimate exploratory aggregate technical and longitudinal noise descriptors;
+4. measure no-treatment false-change behavior at the fixed provisional boundaries;
+5. decide whether a larger independent threshold study is justified.
+
+This tier remains preliminary. It is not a formal precision, validation, clinical, or population study.
+
+### 5.4 Independence law
+
+Raw images and recaptures are nested, not independent.
+
+The report must not:
+
+1. describe 54 or 90 images as 54 or 90 independent participants;
+2. calculate population confidence intervals by treating images as independent;
+3. generate every possible pair of sessions and treat those pairs as independent;
+4. pool participants without preserving participant IDs and participant-level summaries;
+5. let one participant's repeated captures masquerade as broader population evidence.
+
+## 6. Three variability layers
+
+### 6.1 Layer 1: fixed technical floor
+
+Purpose: estimate immediate camera and provider instability under the most fixed practical setup.
+
+Conditions:
+
+1. fixed device and front camera;
+2. fixed camera profile;
+3. fixed participant position and device mount;
+4. fixed lighting;
+5. neutral expression;
+6. minimal repositioning;
+7. same live provider and protocol;
+8. short collection interval.
+
+This layer is diagnostic only. It is not the primary Face Value workflow estimate because real users must independently reacquire the guided pose.
+
+The fixed-floor block is separate from the 18, 54, and 90 formal controlled-capture totals. Before collection, the implementation must predeclare its capture count. Six accepted captures are the recommended engineering default because they provide more than one immediate difference while keeping the block short. This count is an engineering operating choice, not a scientific validity threshold.
+
+### 6.2 Layer 2: production-workflow repeatability
+
+Purpose: estimate the repeatability of the workflow Face Value actually asks a user to perform.
+
+For every formal recapture:
+
+1. complete the prior capture and provider result;
+2. perform full camera reset where practical;
+3. move out of the prior pose;
+4. independently return to the marked approximate position;
+5. reacquire the guided face, pose, lighting, and resolution gates;
+6. capture only after the existing readiness gate accepts the pose;
+7. repeat until three accepted independent recaptures form the session.
+
+This is the primary technical estimate for Face Value.
+
+### 6.3 Layer 3: no-treatment longitudinal variability
+
+Purpose: characterize how session operational scores vary across separate sessions and days when no product intervention is expected to create a change.
+
+Conditions:
+
+1. three days per participant;
+2. two predeclared time windows per day;
+3. fixed device and environment where practical;
+4. the same guided capture and independent-recapture workflow;
+5. no product intervention introduced for the purpose of producing a redness change;
+6. structured context and protocol deviations recorded;
+7. session operational score derived before longitudinal comparisons.
+
+This layer includes:
+
+1. camera and provider instability;
+2. workflow reacquisition variability;
+3. session setup variability;
+4. short-term biological variability;
+5. day-to-day biological variability;
+6. unmeasured context that remains after standardization.
+
+It must never be described as pure measurement error.
+
+### 6.4 Layer separation
+
+The report must present all layers separately.
+
+```text
+fixed technical floor
+≠ production-workflow repeatability
+≠ no-treatment longitudinal variability
+≠ named perturbation sensitivity
+```
+
+No perturbation capture may enter controlled repeatability or longitudinal estimates.
+
+## 7. Formal controlled and longitudinal protocol
+
+### 7.1 Participant setup
+
+For each participant, assign:
+
+1. a random pseudonymous local `participantId`;
+2. a participant ordinal;
+3. one device setup ID;
+4. one environment setup ID;
+5. one frozen camera profile;
+6. one frozen provider protocol;
+7. two predeclared daily time-window labels;
+8. a study tier.
+
+Do not collect names, emails, account IDs, precise location, or free-form personal history.
+
+### 7.2 Day and session schedule
+
+Each participant completes:
+
+| Day | Session | Time-window label | Accepted recaptures |
+| ---: | ---: | --- | ---: |
+| 1 | 1 | `window_a` | 3 |
+| 1 | 2 | `window_b` | 3 |
+| 2 | 1 | `window_a` | 3 |
+| 2 | 2 | `window_b` | 3 |
+| 3 | 1 | `window_a` | 3 |
+| 3 | 2 | `window_b` | 3 |
+
+Time-window definitions are fixed before the participant's first formal capture. If a session occurs outside its window, retain the session and mark a protocol deviation. Do not silently relabel the window after collection.
+
+### 7.3 Independent recapture procedure
+
+For each of the three formal recaptures:
+
+1. start from no active accepted image;
+2. initiate the camera through an explicit user action;
+3. acquire the production guided pose;
+4. capture one image;
+5. submit through explicit live provider mode;
+6. record the attempt before classifying the outcome;
+7. finish or tear down the capture flow;
+8. move out of position;
+9. independently reacquire the pose for the next recapture.
+
+A burst of multiple frames from one uninterrupted held pose does not satisfy independent recapture.
+
+### 7.4 Primary session unit
+
+The operational score for a complete formal session is:
+
+```text
+sessionOperationalScore =
+median of the 3 accepted independent raw_score recaptures
+```
+
+With exactly three accepted values, the median is the middle ordered value.
+
+The raw recaptures remain primary inputs for within-session technical statistics and remain preserved in export. The session median is not a replacement for raw evidence.
+
+### 7.5 Attempt and replacement policy
+
+Each formal session targets exactly three accepted independent recaptures.
+
+Each intended recapture slot may have at most three recorded attempts. Therefore, a formal session has an engineering cap of nine total attempts.
+
+This cap is an operational workflow policy:
+
+```text
+EWP-ATTEMPT-01
+maximum 3 attempts per intended recapture slot
+maximum 9 attempts per 3-recapture session
+```
+
+Rationale: bound participant burden and prevent unlimited discretionary retries. It is not a scientific validity threshold.
+
+A failed attempt may be replaced only when its canonical outcome is:
 
 ```text
 provider_failure
@@ -287,415 +509,821 @@ upload_failure
 cancelled_capture
 face_detection_failure
 protocol_deviation
+provider_contract_anomaly
 ```
 
 Replacement rules:
 
-1. the failed record remains in the dataset;
-2. the replacement receives a new capture ID and attempt index;
-3. the replacement links to the failed attempt through `replacesCaptureId`;
-4. the replacement occupies the same intended sequence slot;
-5. only a usable replacement counts toward the ten-capture target;
-6. a finite score from a protocol-conforming capture is usable even when it appears extreme;
-7. an unusual finite score may not be replaced, hidden, winsorized, trimmed, or relabeled as failure based on its value.
+1. retain the original attempt;
+2. assign a new capture ID and attempt ordinal;
+3. link the replacement through `replacesCaptureId`;
+4. preserve the intended recapture slot;
+5. count only an accepted, protocol-conforming, in-contract score toward the three-recapture target;
+6. never replace an accepted score because of its numerical value;
+7. never trim, winsorize, clamp, or remove an accepted score based on z score, IQR, MAD, distance from median, or threshold relation.
 
-## 6. Session replication and perturbation protocol
+If a slot remains unresolved after three attempts, the session is incomplete.
 
-### 6.1 Three controlled sessions
+### 7.6 No-treatment context
 
-Collect three separate controlled sessions.
-
-Preferred schedule:
-
-1. one session per day on three different days;
-2. same device, camera profile, room, device mount, approximate distance, and light setup;
-3. same application build and protocol version.
-
-Minimum acceptable separation when different days are impractical:
-
-1. at least 30 minutes between sessions;
-2. full camera teardown and restart;
-3. fresh repositioning at the marked setup;
-4. the schedule limitation recorded in structured metadata.
-
-Session metadata must include:
+Before the first participant is enrolled, define the structured context fields needed to interpret deviations without collecting identity. At minimum:
 
 ```text
-session ordinal
-session start and completion time
-completion status
-protocol and export schema versions
-application build version
-provider API version
-capture protocol version
-camera profile ID
-coarse platform and browser family
-device setup ID
-environment setup ID
-light setup label
-approximate distance in centimeters
-structured capture-context fields
-attempt count
-usable count
-failure count by reason code
+makeup_present
+recent_heat_or_exercise
+recent_cleansing_or_skincare
+routine_or_treatment_change
+acute_visible_irritation_reported
+time_window_missed
+device_or_environment_changed
 ```
 
-Do not store a person name, email, account ID, device serial number, IP address, precise location, full user agent, or free-form note that could contain an identifier.
+These fields describe protocol context. They do not diagnose a condition and do not authorize score exclusion unless the predeclared protocol says the capture is a protocol deviation.
 
-### 6.2 Capture-condition sensitivity design
+## 8. Perturbation protocol
 
-Vary one condition at a time. Every perturbation block uses matched pairs:
+### 8.1 Separation from controlled characterization
+
+Perturbations are exploratory sensitivity blocks. They must not enter:
+
+1. fixed technical floor estimates;
+2. production-workflow pooled SD;
+3. RC95;
+4. formal session medians;
+5. no-treatment longitudinal differences;
+6. false-change rates at `±5` or `±10`;
+7. empirical technical or longitudinal N95.
+
+### 8.2 Required named conditions
+
+Use six named perturbations:
 
 ```text
-control capture
-perturbed capture
+brighter_lighting
+dimmer_lighting
+closer_distance
+farther_distance
+frozen_yaw_side
+expression_change
 ```
 
-The order is counterbalanced across five pairs:
+The yaw side, left or right, is selected before collection and remains fixed for the pilot.
+
+Only one condition changes in a perturbation block.
+
+### 8.3 Submission-pilot sample
+
+Run perturbations on one designated participant.
+
+Minimum exploratory block:
+
+```text
+3 matched pairs per condition
+× 2 captures per pair
+× 6 conditions
+= 36 perturbation captures
+```
+
+Preferred exploratory block:
+
+```text
+5 matched pairs per condition
+× 2 captures per pair
+× 6 conditions
+= 60 perturbation captures
+```
+
+These totals exclude failed and replacement attempts.
+
+### 8.4 Pairing and order
+
+Each matched pair contains:
+
+```text
+one controlled capture
+one perturbed capture
+```
+
+Pair order is counterbalanced before collection:
 
 ```text
 pair 1: control → perturbation
 pair 2: perturbation → control
 pair 3: control → perturbation
+```
+
+For five pairs:
+
+```text
 pair 4: perturbation → control
 pair 5: control → perturbation
 ```
 
-Minimum per required perturbation:
+The order schedule is frozen before scores are visible. A failed side of a pair may be replaced under the same retention rules, but a pair is complete only when both sides are accepted.
 
-1. five usable perturbed captures;
-2. five usable adjacent control captures;
-3. five usable paired differences;
-4. at most 20 total attempts per block to complete the ten usable captures.
+### 8.5 Perturbation completeness
 
-A perturbation block that cannot produce five usable pairs within 20 attempts is incomplete. Its failures remain evidence of capture sensitivity, but the overall recommendation becomes `insufficient_data` until the required block is completed.
+Perturbation completion is reported separately and never blocks the controlled report:
 
-### 6.3 Required perturbations
+```text
+controlledCharacterization:
+  complete | incomplete
 
-| Condition label | Controlled definition |
-| --- | --- |
-| `brighter_lighting` | increase only the light level by one documented setup step |
-| `dimmer_lighting` | decrease only the light level by one documented setup step |
-| `closer_distance` | reduce camera-to-face distance by 20 percent from control |
-| `farther_distance` | increase camera-to-face distance by 20 percent from control |
-| `left_angle` or `right_angle` | choose one side before collection and rotate head approximately 15 degrees; do not pool left and right |
-| `expression_change` | use one standardized closed-mouth smile while holding pose, distance, and lighting constant |
+longitudinalCharacterization:
+  complete | incomplete
 
-The selected angle side is frozen for the required block. The opposite side may be collected as an optional separate block with its own condition label. It must never be merged into the required block.
+perturbationCharacterization:
+  complete | partial | not_run
+```
 
-If the existing guided-capture gate refuses an intended perturbation, do not weaken the production gate. Record `face_detection_failure` or `protocol_deviation`, as appropriate. Failure frequency is part of the sensitivity result.
+Definitions:
 
-### 6.4 Speed versus evidentiary value
+1. `complete`: every required named condition has at least three complete matched pairs;
+2. `partial`: at least one condition has a complete pair, but the minimum block is not complete for every condition;
+3. `not_run`: no complete perturbation pair exists.
 
-Three captures per perturbation are fast but too vulnerable to one unusual observation and provide weak estimates of spread. Five paired captures are the minimum because they:
+## 9. Inclusion, exclusion, anomaly, and reason codes
 
-1. preserve a direct adjacent control for each perturbation;
-2. permit a median paired shift that is not determined by one value;
-3. expose repeated provider or face-detection failures;
-4. keep the pilot feasible at 60 usable captures across six required blocks.
+### 9.1 Canonical capture outcomes
 
-Ten paired captures per perturbation are recommended before making any separate threshold-governance decision. They improve variance estimation and reduce sensitivity to block order, but double the capture burden to 120 usable captures. The first implementation must support both a required minimum of five pairs and an optional ten-pair extended mode.
-
-## 7. Inclusion and exclusion rules
-
-### 7.1 Exact outcome codes
+Every attempt receives exactly one canonical outcome:
 
 ```ts
-type RednessCalibrationCaptureOutcomeCode =
+type RednessCalibrationCaptureOutcome =
   | 'usable_capture'
   | 'provider_failure'
   | 'invalid_or_missing_score'
   | 'upload_failure'
   | 'cancelled_capture'
   | 'face_detection_failure'
-  | 'protocol_deviation';
+  | 'protocol_deviation'
+  | 'provider_contract_anomaly';
 ```
 
-### 7.2 Usable capture
+### 9.2 Outcome definitions
 
-A capture is `usable_capture` only when all of the following are true:
+| Outcome | Exact rule | Primary analysis |
+| --- | --- | --- |
+| `usable_capture` | live provider returns a finite score within the documented provider range and all protocol requirements pass | included |
+| `provider_failure` | provider or protected API returns a terminal failure other than a missing score or upload failure | excluded, retained |
+| `invalid_or_missing_score` | no finite `raw_score` is returned | excluded, retained |
+| `upload_failure` | upload slot or image transfer fails | excluded, retained |
+| `cancelled_capture` | user, navigation, unmount, or abort cancels the attempt | excluded, retained |
+| `face_detection_failure` | camera or provider face-quality requirement prevents a valid capture | excluded, retained |
+| `protocol_deviation` | a predeclared controlled condition, time window, device, environment, pose, or protocol requirement is not met | excluded from the affected primary layer, retained |
+| `provider_contract_anomaly` | provider returns a finite live `raw_score` outside documented `1` to `100` | excluded from primary analysis by predeclared contract rule, retained unchanged |
 
-1. the intended protocol and condition were followed;
-2. the capture completed;
-3. the live provider returned the frozen `hd_redness` concern;
-4. `raw_score` is a finite number;
-5. the provider, API version, mode, concern, region, score type, and capture protocol match the session;
-6. the capture belongs to the intended session and sequence slot;
-7. required Camera Kit quality gates passed for a controlled capture;
-8. no disallowed image enhancement or protocol deviation was recorded.
+### 9.3 Value-based exclusion prohibition
 
-A score is not excluded because it is far from the mean, median, neighboring score, current threshold, or expected visual appearance.
+A finite, in-contract, protocol-conforming score remains included even when it:
 
-### 7.3 Failure codes
+1. is the minimum or maximum;
+2. creates a large SD or MAD;
+3. crosses `±5` or `±10`;
+4. appears inconsistent with neighboring scores;
+5. looks implausible to a reviewer;
+6. changes the recommendation state.
 
-| Outcome code | Exact use |
-| --- | --- |
-| `provider_failure` | task creation, task polling, provider rejection, timeout, unknown status, or unreadable provider response not better represented below |
-| `invalid_or_missing_score` | provider success payload lacks a finite `raw_score`, returns the wrong concern, or normalization rejects the score contract |
-| `upload_failure` | upload-slot failure, invalid slot, signed PUT failure, or transfer interruption before task creation |
-| `cancelled_capture` | user cancellation, navigation, unmount, superseded attempt, or `AbortError` before a usable result |
-| `face_detection_failure` | no face, face outside bounds, face too small or large, nonfrontal pose, lighting gate failure, unsupported resolution, invalid capture, or stalled capture session |
-| `protocol_deviation` | the capture completed under a condition that differs from its planned block, including wrong device, profile, distance, light setup, angle, expression, enhancement state, or protocol version |
+No statistical outlier rule is permitted in the primary analysis.
 
-Provider-specific error codes may be retained in a safe optional field for engineering diagnosis. They do not replace the canonical outcome code and must not include payloads, URLs, tokens, or identifiers.
+### 9.4 Sensitivity appendix
 
-### 7.4 Primary analysis inclusion
+The report must include a secondary, clearly labeled sensitivity appendix that shows:
 
-1. Controlled repeatability statistics include every `usable_capture` in a complete controlled session.
-2. Perturbation statistics include every complete control and perturbation pair in its intended block.
-3. Failed and cancelled attempts are excluded from score calculations because no valid score exists, but remain in failure-rate calculations.
-4. Protocol deviations are excluded from the intended block's primary score calculation and remain in the export.
-5. Optional exploratory summaries may show deviating captures in a separate section, never silently mixed with the primary estimate.
-6. No value-based outlier exclusion is permitted.
+1. provider-contract anomaly values unchanged;
+2. primary results excluding contract anomalies;
+3. descriptive results including finite contract anomalies;
+4. the number and provenance of anomalies.
 
-## 8. Statistical plan
+This is not permission to treat anomalies as valid provider output. It preserves auditability.
 
-All score calculations use raw-score points. Calculations must be implemented as pure functions and verified against fixed reference fixtures.
+## 10. Statistical plan
 
-### 8.1 Per-session summary
+### 10.1 Analysis hierarchy
 
-For usable scores \(x_1, \ldots, x_n\), report:
+Analysis follows the study hierarchy.
 
-1. **Minimum**
+```text
+raw recapture
+→ formal session summary
+→ predeclared session-median difference
+→ participant-level summary
+→ exploratory aggregate summary
+```
 
-   \[
-   \min(x)
-   \]
+Do not flatten the hierarchy into one independent image table.
 
-2. **Maximum**
+### 10.2 Raw recapture statistics
 
-   \[
-   \max(x)
-   \]
+For each complete formal session, report from the three accepted raw recaptures:
 
-3. **Mean**
+1. minimum;
+2. maximum;
+3. mean;
+4. median;
+5. sample standard deviation using denominator `n - 1`;
+6. unscaled median absolute deviation;
+7. range;
+8. largest absolute residual from the session median;
+9. recapture-order values;
+10. capture and failure counts.
 
-   \[
-   \bar{x} = \frac{1}{n}\sum_{i=1}^{n}x_i
-   \]
-
-4. **Median**
-
-   The middle ordered value, or the mean of the two middle values for even \(n\).
-
-5. **Sample standard deviation**
-
-   \[
-   s = \sqrt{\frac{\sum_{i=1}^{n}(x_i-\bar{x})^2}{n-1}}
-   \]
-
-   Use the sample denominator \(n-1\), not the population denominator \(n\).
-
-6. **Median absolute deviation**
-
-   \[
-   MAD = \operatorname{median}(|x_i-\operatorname{median}(x)|)
-   \]
-
-   Report the unscaled MAD. Do not silently multiply by `1.4826`.
-
-7. **Range**
-
-   \[
-   \max(x)-\min(x)
-   \]
-
-8. **Largest change from session median**
-
-   \[
-   \max_i |x_i-\operatorname{median}(x)|
-   \]
-
-9. Counts for usable, failed, cancelled, replaced, and protocol-deviation attempts.
-
-### 8.2 Pooled within-session standard deviation
-
-For three complete sessions \(j=1,\ldots,k\), with usable count \(n_j\) and sample standard deviation \(s_j\):
+Definitions for accepted raw scores \(x_1, x_2, x_3\):
 
 \[
-s_{pooled} =
+\bar{x} = \frac{1}{3}\sum_{i=1}^{3}x_i
+\]
+
+\[
+s = \sqrt{\frac{\sum_{i=1}^{3}(x_i-\bar{x})^2}{2}}
+\]
+
+\[
+MAD = \operatorname{median}(|x_i-\operatorname{median}(x)|)
+\]
+
+\[
+range = \max(x)-\min(x)
+\]
+
+\[
+largestResidual = \max_i |x_i-\operatorname{median}(x)|
+\]
+
+MAD remains unscaled. If a normal-consistency-scaled MAD is ever added, it must be a separately named field.
+
+### 10.3 Pooled within-session SD
+
+For all complete production-workflow sessions in the selected analysis scope:
+
+\[
+s_{pooled}
+=
 \sqrt{
-\frac{\sum_{j=1}^{k}(n_j-1)s_j^2}
-{\sum_{j=1}^{k}(n_j-1)}
+\frac{
+\sum_{j=1}^{m}(n_j-1)s_j^2
+}{
+\sum_{j=1}^{m}(n_j-1)
+}
 }
 \]
 
-This weights each session by its degrees of freedom. With the required design, \(k=3\) and \(n_j=10\).
+For formal sessions, \(n_j = 3\).
 
-### 8.3 Between-session mean drift
+Scopes reported separately:
 
-Let \(\bar{x}_j\) be each controlled session mean.
+1. each participant;
+2. all preliminary-characterization participants, with participant clustering retained;
+3. fixed technical floor, when run;
+4. production-workflow sessions.
 
-Primary drift:
+Do not pool perturbation sessions into this estimate.
 
-\[
-drift_{between} = \max_j(\bar{x}_j)-\min_j(\bar{x}_j)
-\]
+### 10.4 Repeatability coefficient
 
-This is the maximum absolute pairwise difference among session means and cannot cancel positive and negative drift.
-
-Also report signed drift from session 1:
-
-\[
-drift_j = \bar{x}_j-\bar{x}_1
-\]
-
-The signed values provide direction. The primary recommendation uses the unsigned maximum pairwise drift.
-
-### 8.4 Repeatability coefficient
-
-Use the required formula:
+Report:
 
 \[
-RC = 1.96 \times \sqrt{2} \times s_{pooled}
+RC95
+=
+1.96 \times \sqrt{2} \times s_{pooled}
 \]
 
-Interpretation: under the assumptions below, approximately 95 percent of absolute differences between two independent measurements collected under the same controlled conditions are expected to be less than or equal to the repeatability coefficient.
+Label:
+
+```text
+Exploratory RC95 under a normal-error approximation
+```
 
 Assumptions:
 
-1. within-session errors are approximately independent;
-2. within-session variance is reasonably similar across sessions;
-3. the error distribution is approximately symmetric and normal enough for the `1.96` multiplier;
-4. the tested person, device, camera, protocol, and environment remain fixed;
-5. no material time trend occurs within a session.
+1. within-session errors are approximately independent after independent reacquisition;
+2. variance is sufficiently stable across the analyzed sessions;
+3. the distribution is not severely skewed or heavy-tailed;
+4. the participant and protocol remain stable inside each formal session.
 
 Limitations:
 
-1. three sessions of ten captures provide an engineering estimate, not a validated population limit;
-2. serial camera or provider behavior may violate independence;
-3. skew or heavy tails can make the normal-based coefficient optimistic;
-4. pooled variance can hide one unusually unstable session;
-5. the coefficient does not measure biological change, efficacy, or clinical importance.
+1. three recaptures per session yield imprecise session SDs;
+2. repeated sessions and participants are nested;
+3. serial provider behavior may violate independence;
+4. pooled SD may hide heterogeneity;
+5. RC95 is not biological significance, efficacy, or threshold validation.
 
-The report must therefore show standard deviation and RC beside median, MAD, range, and largest change from median. Classical and robust summaries must be visible together. No finite score is removed to make them agree.
+RC95 must be shown beside raw SD, MAD, range, residual, and order-drift summaries.
 
-### 8.5 Perturbation summary
+### 10.5 Session operational scores
 
-For each matched pair \(i\):
+For every complete formal session:
+
+```text
+sessionOperationalScore = median(rawRecaptureScores)
+```
+
+Use session operational scores for:
+
+1. within-day session comparison;
+2. day-to-day comparison;
+3. no-treatment false-change testing;
+4. participant longitudinal summaries;
+5. threshold behavior at `±5` and `±10`.
+
+### 10.6 Predeclared no-treatment differences
+
+Do not create all possible session pairs.
+
+For each participant, compute exactly seven signed session-median differences.
+
+Within-day window difference:
+
+```text
+day1: window_b − window_a
+day2: window_b − window_a
+day3: window_b − window_a
+```
+
+Adjacent-day same-window difference:
+
+```text
+window_a: day2 − day1
+window_a: day3 − day2
+window_b: day2 − day1
+window_b: day3 − day2
+```
+
+These differences are still correlated within participant and day. They are not independent population observations.
+
+At three participants:
+
+```text
+7 predeclared differences per participant
+= 21 longitudinal differences
+```
+
+At five participants:
+
+```text
+7 predeclared differences per participant
+= 35 longitudinal differences
+```
+
+The report must preserve participant and difference-type labels.
+
+For each participant and for the exploratory aggregate, summarize the predeclared differences with:
+
+1. mean signed difference;
+2. median signed difference;
+3. mean absolute difference;
+4. median absolute difference;
+5. maximum absolute difference;
+6. counts by difference type, day, and time-window label.
+
+These are descriptive between-session and day-to-day drift summaries. They do not create additional pairs.
+
+### 10.7 Empirical technical N95
+
+Define the exploratory empirical technical noise boundary from predeclared adjacent recapture differences inside complete formal sessions:
+
+```text
+recapture 2 − recapture 1
+recapture 3 − recapture 2
+```
+
+Let \(a_k\) be the absolute value of each predeclared adjacent difference.
 
 \[
-d_i = score_{perturbed,i}-score_{control,i}
+technicalN95_{empirical}
+=
+Q_{0.95}(a_k)
+\]
+
+Use one predeclared quantile algorithm, recorded in the report and tests. Type 7 quantiles are the implementation default.
+
+Label:
+
+```text
+Exploratory empirical technical N95
+```
+
+Caution: adjacent differences share recaptures and are not independent. This metric is descriptive and must be shown with its raw distribution and participant-level values.
+
+### 10.8 Empirical longitudinal N95
+
+Let \(d_k\) be the seven predeclared no-treatment session-median differences per participant.
+
+\[
+longitudinalN95_{empirical}
+=
+Q_{0.95}(|d_k|)
 \]
 
 Report:
 
-1. number of complete pairs;
-2. mean paired shift;
-3. median paired shift;
-4. sample standard deviation of paired shifts;
-5. MAD of paired shifts;
-6. minimum and maximum paired shift;
-7. range of paired shifts;
-8. largest absolute paired shift;
-9. attempt failure rate;
-10. count by outcome code.
+1. each participant's empirical longitudinal N95;
+2. the pooled exploratory value;
+3. the number of contributing participants and differences;
+4. the raw absolute-difference distribution;
+5. a small-sample warning.
 
-The primary condition effect used by recommendation rules is the absolute median paired shift:
-
-\[
-P_c = |\operatorname{median}(d_i)|
-\]
-
-The use of paired shifts reduces, but does not eliminate, short-term drift and order effects.
-
-### 8.6 Why coefficient of variation is not primary
-
-Coefficient of variation requires a meaningful ratio scale and a meaningful nonzero reference level. The repository confirms only a finite numeric score, favorable polarity, and point-difference semantics. It does not confirm a meaningful zero or a stable bounded scale. Coefficient of variation must therefore not be a primary metric. It may be added only after provider documentation establishes that interpretation and a separate review approves it.
-
-## 9. Threshold comparison method
-
-### 9.1 Read-only boundary snapshot
-
-The report records, but never mutates:
+Label:
 
 ```text
-detectable boundary D = 5 raw-score points
-strong boundary S = 10 raw-score points
-threshold version = redness-provisional-v1
-threshold source = provisional_fixture
-threshold provisional = true
-threshold configuration hash = sha256:66571af3c662f4da1de469d763b884ad46eb37ee77df0aa060e4b2db280feed5
+Exploratory empirical longitudinal N95
 ```
 
-The report must fail closed if these values cannot be read or do not match the expected frozen snapshot. A changed repository configuration requires a new calibration protocol version and review. The harness may not “follow” a changed threshold silently.
+It includes real short-term biological variability and must not be called pure measurement noise.
 
-### 9.2 Boundary-to-noise ratios
+### 10.9 False-change rates at the provisional boundaries
 
-For each boundary \(B\) in `{5, 10}`:
-
-\[
-boundaryNoiseRatio_B = \frac{B}{RC}
-\]
-
-Also report:
+Using only the predeclared no-treatment session-median differences:
 
 \[
-driftRatio_B = \frac{drift_{between}}{B}
+falseChangeRate_{5}
+=
+\frac{\#(|d_k| \ge 5)}{\#(valid\ d_k)}
 \]
 
-Do not calculate a ratio when RC or the boundary is zero or nonfinite.
+\[
+falseChangeRate_{10}
+=
+\frac{\#(|d_k| \ge 10)}{\#(valid\ d_k)}
+\]
 
-### 9.3 Engineering comparison labels
+Report for each boundary:
 
-For a boundary or future observed absolute delta \(A\), compare it with RC:
+1. numerator and denominator;
+2. overall absolute crossing rate;
+3. favorable-direction crossings;
+4. unfavorable-direction crossings;
+5. participant-level rates;
+6. aggregate exploratory rate;
+7. confidence interval method and warning.
 
-| Label | Deterministic rule |
+A boundary crossing under no treatment is an observed false-change event for this characterization. It is not proof that the boundary is invalid.
+
+### 10.10 Participant-level summaries
+
+For each participant, report:
+
+1. six session medians;
+2. all 18 raw controlled scores;
+3. pooled within-session SD;
+4. RC95;
+5. technical N95;
+6. seven predeclared longitudinal differences;
+7. longitudinal N95;
+8. false-change counts at `±5` and `±10`;
+9. failure and rejection rates;
+10. provider-contract anomaly count;
+11. day and time-window labels;
+12. capture-order summaries;
+13. protocol deviations;
+14. completeness.
+
+Aggregate reports must not replace participant-level tables.
+
+### 10.11 Confidence intervals
+
+Confidence intervals are exploratory and must carry:
+
+```text
+Small-sample warning:
+Only 3 to 5 participants are planned. Interval estimates may be unstable,
+asymmetric, and highly sensitive to a single participant or day.
+```
+
+Preferred approach for the preliminary tier:
+
+1. resample participants as the top-level cluster;
+2. retain each selected participant's days, sessions, and recaptures together;
+3. recompute aggregate RC95, N95 values, and false-change rates;
+4. report percentile bootstrap intervals and the number of successful resamples;
+5. do not produce a reassuring interval when too few distinct resamples exist.
+
+For the one-participant dry run:
+
+1. do not report a participant-generalizable confidence interval;
+2. optional day-block bootstrap intervals may be shown as workflow diagnostics only;
+3. label them as unstable and non-generalizable.
+
+No interval may be calculated by treating images or all session pairs as independent.
+
+### 10.12 Absolute residual versus session median
+
+For every accepted raw recapture, compute:
+
+\[
+absoluteResidual_{ij}
+=
+|x_{ij}-sessionMedian_j|
+\]
+
+Report a descriptive scatter or table of absolute residual versus session median, separated by participant. This checks whether variability appears to change across the observed score level.
+
+Any correlation or trend line is descriptive only. With the planned sample, it must not be used to fit a universal variance model.
+
+### 10.13 Capture-order drift
+
+Within every complete formal session, retain recapture order `1`, `2`, and `3`.
+
+Report:
+
+1. `recapture3 - recapture1`;
+2. ordinary least-squares slope of score on order for that session;
+3. participant median slope;
+4. count of positive, negative, and zero slopes;
+5. raw order plots or tables.
+
+With only three points per session, order drift is a diagnostic for warming, settling, fatigue, or serial provider behavior. It is not a validated time trend.
+
+### 10.14 Rejection and failure rates
+
+Report by participant, day, session, layer, and condition:
+
+```text
+attemptFailureRate =
+non-usable attempts / all recorded attempts
+```
+
+Also report counts for every canonical outcome. Do not combine provider-contract anomalies with ordinary provider failures.
+
+### 10.15 Coefficient of variation and ICC
+
+Coefficient of variation is not a primary metric because the repository does not establish a meaningful ratio-scale zero for Face Value interpretation.
+
+ICC is not part of this pilot's primary or required analysis. The nested participant sample is too small for ICC to carry the meaning reviewers may assign to it, and the protocol already specifies direct variance, repeatability, N95, and false-change summaries.
+
+## 11. Threshold comparison method
+
+### 11.1 Frozen read-only snapshot
+
+The report reads and records, but never mutates:
+
+```text
+detectable boundary = 5
+strong boundary = 10
+version = redness-provisional-v1
+source = provisional_fixture
+provisional = true
+config hash = sha256:66571af3c662f4da1de469d763b884ad46eb37ee77df0aa060e4b2db280feed5
+```
+
+If this snapshot changes, the harness must fail closed for the current protocol version and require plan review. It must not silently follow changed thresholds.
+
+### 11.2 Primary comparison unit
+
+Primary threshold behavior uses:
+
+```text
+predeclared no-treatment differences
+between formal session medians
+```
+
+It does not use individual raw images as independent threshold trials.
+
+RC95 may be displayed beside the boundaries as a technical descriptor, but the primary false-change comparison at `5` and `10` uses session medians.
+
+### 11.3 Required threshold table
+
+| Boundary | Predeclared differences crossing | Denominator | False-change rate | Participant range | Exploratory CI |
+| --- | ---: | ---: | ---: | ---: | --- |
+| `±5` | observed | valid predeclared differences | observed | observed | small-sample |
+| `±10` | observed | valid predeclared differences | observed | observed | small-sample |
+
+Also display:
+
+1. exploratory technical N95;
+2. exploratory longitudinal N95;
+3. participant-specific longitudinal N95;
+4. signed crossing direction;
+5. completeness and anomaly counts.
+
+### 11.4 Interpretation
+
+Allowed interpretations:
+
+```text
+separation_observed_in_tested_sample
+overlap_observed_in_tested_sample
+inconclusive_due_to_sample_or_completeness
+```
+
+These are descriptive report findings, not recommendation states and not threshold approval.
+
+A separation finding may use only:
+
+> In the tested sample, observed variability was separated from the current provisional operating boundaries. The boundaries remain provisional and require independent evaluation.
+
+The report must not infer that a provisional boundary is scientifically established because the same boundary was used to judge separation.
+
+## 12. Deterministic recommendation model
+
+### 12.1 Recommendation states
+
+```ts
+type RednessCalibrationRecommendationState =
+  | 'engineering_dry_run_only'
+  | 'preliminary_characterization_complete'
+  | 'controlled_repeatability_concern'
+  | 'high_workflow_sensitivity'
+  | 'high_longitudinal_variability'
+  | 'ready_for_independent_threshold_study'
+  | 'insufficient_data';
+```
+
+One primary state is selected. All other triggered concern rules remain in `secondaryFindings`.
+
+### 12.2 Inputs
+
+```text
+studyTier
+participantCount
+controlledCharacterization completeness
+longitudinalCharacterization completeness
+perturbationCharacterization completeness
+RC95 for production workflow
+fixed-floor RC95, if run
+empirical technical N95
+empirical longitudinal N95
+false-change counts at ±5 and ±10
+attempt failure rates
+provider-contract anomaly counts
+protocol deviations
+report and interval completeness
+```
+
+### 12.3 Rule precedence
+
+Rules run in the exact order below. The first matching state is primary.
+
+#### RCR01: `insufficient_data`
+
+Select when any condition is true:
+
+1. required participant count for the declared tier is not met;
+2. any required participant lacks three days;
+3. any required day lacks two formal sessions;
+4. any formal session lacks exactly three accepted independent recaptures;
+5. controlled characterization is incomplete;
+6. longitudinal characterization is incomplete;
+7. a provider, protocol, app build, camera profile, device setup, or environment mismatch makes the planned comparison invalid;
+8. session medians or required predeclared differences cannot be computed;
+9. the threshold snapshot does not match the frozen configuration;
+10. live-versus-fixture provenance is missing;
+11. the dataset was collected in fixture mode.
+
+Perturbation characterization does not trigger `insufficient_data` for the controlled report.
+
+#### RCR02: `engineering_dry_run_only`
+
+Select when:
+
+1. the declared tier is `engineering_dry_run`;
+2. one participant completed the required 18 controlled captures;
+3. controlled and longitudinal characterization are complete;
+4. RCR01 did not match.
+
+Concern rules still appear as secondary findings. The dry run cannot produce `preliminary_characterization_complete` or `ready_for_independent_threshold_study`.
+
+#### RCR03: `controlled_repeatability_concern`
+
+For the preliminary tier, select when any condition is true:
+
+```text
+productionWorkflowRC95 >= 5
+empiricalTechnicalN95 >= 5
+```
+
+This rule uses the existing 5-point boundary as a concern screen. It does not validate or invalidate the boundary.
+
+Also trigger a secondary finding when either descriptor reaches `10`.
+
+#### RCR04: `high_workflow_sensitivity`
+
+Select when RCR01 through RCR03 did not match and at least one predeclared engineering review policy is met.
+
+```text
+EWP-WORKFLOW-01:
+productionWorkflowRC95 >= 2 × fixedFloorRC95
+AND absolute difference >= 1 raw-score point
+
+EWP-WORKFLOW-02:
+usable-capture failure rate in formal workflow > 0.20
+```
+
+Rationale:
+
+1. the ratio policy identifies a workflow estimate substantially larger than the fixed setup;
+2. the one-point absolute guard avoids a large ratio caused by a near-zero denominator;
+3. the 20 percent failure policy identifies operational burden likely to distort real use.
+
+These are engineering review policies, not scientific validity criteria. If the fixed technical floor was not run, EWP-WORKFLOW-01 is unavailable, not false.
+
+Named perturbation results may appear as secondary workflow-sensitivity findings but do not determine this primary state and do not block controlled-report computation.
+
+#### RCR05: `high_longitudinal_variability`
+
+Select when RCR01 through RCR04 did not match and any condition is true:
+
+```text
+empiricalLongitudinalN95 >= 5
+at least one participant has a predeclared no-treatment difference with |difference| >= 5
+```
+
+This state means no-treatment session-median variability overlapped the current detectable operating boundary in the tested sample. It does not prove that the boundary is invalid.
+
+Crossings at `10` add a secondary high-severity finding.
+
+#### RCR06: `ready_for_independent_threshold_study`
+
+Select when all conditions are true:
+
+1. the declared tier is preliminary submission characterization;
+2. five participants completed the full 90 controlled captures;
+3. controlled and longitudinal characterization are complete;
+4. live provenance, anomaly reporting, participant summaries, aggregate summaries, and small-sample intervals are complete;
+5. no earlier concern rule matched;
+6. the protected workflow completed without unresolved architecture or privacy failures;
+7. the report was generated from the frozen plan and statistical implementation;
+8. a reviewer can reproduce every summary from the face-free export.
+
+This state means only that the engineering characterization is operationally mature enough to design a separate independent threshold study. It does not approve `5` or `10`.
+
+#### RCR07: `preliminary_characterization_complete`
+
+Select when:
+
+1. at least three participants completed the full minimum 54 controlled captures;
+2. controlled and longitudinal characterization are complete;
+3. no earlier concern rule matched;
+4. the preferred five-participant readiness conditions are not all met.
+
+This state means the preliminary characterization is complete, not validated.
+
+### 12.4 Required recommendation copy
+
+| State | Required statement |
 | --- | --- |
-| `insufficient_evidence` | required controlled data are incomplete or RC is unavailable |
-| `below_estimated_measurement_noise` | \(A < RC\) |
-| `borderline_relative_to_noise` | \(RC \le A < 1.5 \times RC\) |
-| `clearly_above_controlled_noise` | \(A \ge 1.5 \times RC\) |
+| `insufficient_data` | `The required controlled or longitudinal dataset is incomplete or incompatible. No characterization recommendation is available.` |
+| `engineering_dry_run_only` | `The one-participant engineering dry run is complete. It may reveal workflow problems but cannot support participant-level generalization.` |
+| `controlled_repeatability_concern` | `Controlled production-workflow repeatability overlapped the current provisional detectable boundary in the tested sample. The boundary remains provisional.` |
+| `high_workflow_sensitivity` | `The reacquisition workflow introduced materially more instability or operational failure than the fixed technical setup under a predeclared engineering review policy.` |
+| `high_longitudinal_variability` | `No-treatment session-median variability overlapped the current provisional detectable boundary in the tested sample. This includes biological and workflow variability.` |
+| `preliminary_characterization_complete` | `The minimum preliminary characterization is complete. Results remain preliminary and do not validate the current operating boundaries.` |
+| `ready_for_independent_threshold_study` | `The preferred preliminary characterization is operationally complete and reproducible enough to justify designing a separate independent threshold study.` |
 
-The `1.5 × RC` margin is an explicit engineering review band, not a confidence interval and not a clinical threshold. The report must show the raw values and ratio so reviewers can challenge the policy without rerunning data collection.
+Every recommendation includes:
 
-For signed trial deltas, classification uses the absolute magnitude for noise comparison and reports the sign separately. This calibration report must not call the production effect classifier or alter current effect labels.
+```text
+Prototype engineering characterization, not clinical validation.
+No threshold or verdict behavior was changed.
+```
 
-### 9.4 Required report table
+No state may use `validated`, `approved`, `scientifically established`, `safe to promote`, or equivalent wording for the 5-point or 10-point boundaries.
 
-| Quantity | Points | Relative to RC | Engineering label |
-| --- | ---: | ---: | --- |
-| Detectable boundary | `5` | `5 / RC` | derived by rule above |
-| Strong boundary | `10` | `10 / RC` | derived by rule above |
-| Between-session drift | observed | `drift / RC` | descriptive |
-| Largest condition median shift | observed | `shift / RC` | descriptive |
+## 13. Privacy and export model
 
-No row may use “clinically meaningful,” “effective,” “validated,” or “accurate.”
+### 13.1 Transient in-memory data
 
-## 10. Privacy model
+During one active attempt, memory may contain:
 
-### 10.1 Data that may exist in memory
-
-During an active capture attempt, memory may contain:
-
-1. one image `Blob`;
+1. one image Blob;
 2. sanitized file name and content type;
 3. upload slot response;
 4. signed upload URL and headers;
 5. provider file ID and task ID;
-6. normalized provider result;
-7. current calibration capture record.
+6. normalized result;
+7. current capture record.
 
-These values must be released when the attempt completes, fails, is cancelled, or the page unmounts. A capture record must be constructed by allowlist, not by spreading a provider response.
+Release transient values after success, failure, cancellation, route leave, or unmount. Construct export records by allowlist, never by spreading provider responses.
 
-### 10.2 Data that may be persisted or exported
+### 13.2 Allowed persistence and export
 
-The first implementation should default to memory-only collection. An explicit user action may export:
+The first implementation remains memory-only until explicit export.
+
+A face-free export may include:
 
 1. protocol and schema versions;
-2. random non-identifying local session and capture IDs;
-3. session ordinal and rounded timestamps;
-4. coarse platform and browser family;
-5. app build, provider API, capture protocol, and camera profile versions;
-6. structured setup and condition labels;
-7. attempt sequence, replacement linkage, status, and canonical outcome code;
-8. finite `rawScore` for usable captures;
-9. safe provider error code where present;
-10. statistical summaries;
-11. read-only provisional boundary snapshot;
-12. deterministic recommendation and triggered rule IDs.
+2. random pseudonymous local participant IDs;
+3. participant, day, session, recapture, and attempt ordinals;
+4. study tier and variability layer;
+5. predeclared time-window labels;
+6. coarse platform and browser family;
+7. app build, provider API, capture protocol, and camera profile versions;
+8. non-identifying device and environment setup IDs;
+9. structured condition labels;
+10. capture outcome and replacement linkage;
+11. finite raw scores, including flagged provider-contract anomalies;
+12. session medians;
+13. statistical summaries;
+14. completeness states;
+15. read-only threshold snapshot;
+16. recommendation and triggered rules;
+17. privacy assertions.
 
-### 10.3 Data that must never be persisted or exported
+### 13.3 Forbidden data
+
+Never persist or export:
 
 ```text
 face images
@@ -707,23 +1335,25 @@ upload URLs
 provider file IDs
 provider task IDs
 authorization headers
-API or demo-session credentials
+API or protected-session credentials
 cookies
 raw provider payloads
 mask images or mask URLs
-full user agents
-IP addresses
-precise location
-person names
+names
 email addresses
 account IDs
+phone numbers
+precise location
+IP addresses
+full user agents
 device serial numbers
+advertising identifiers
 free-form personal notes
 ```
 
-### 10.4 Storage isolation
+### 13.4 Storage isolation
 
-If resume support is later approved, it must use a calibration-specific versioned storage namespace and validator. It must not use:
+Any later resume support requires a separately reviewed calibration namespace and validator. It must not use:
 
 ```text
 face-value:structured-demo:v1
@@ -733,27 +1363,65 @@ EvidenceRecordData
 LongitudinalSkinEvidence
 ```
 
-Ordinary production builds must contain neither the calibration storage key nor calibration controls.
+Ordinary consumer builds must contain no calibration route, storage key, collection controls, fixture provenance, or report code.
 
-### 10.5 Current lifecycle verification
+## 14. Proposed TypeScript data model
 
-The current application lifecycle already prevents application persistence and export of face images, image Blobs, signed URLs, upload URLs, provider task IDs, and raw provider payloads. The selected image and signed-upload data are transient. Durable normalization reconstructs a narrow object by value.
-
-Open privacy question: provider-side storage and deletion are not verifiable from this repository. Any future pilot consent or privacy statement must distinguish application storage from provider processing.
-
-## 11. Proposed TypeScript data model
-
-The first implementation is explicitly redness-specific. It may leave extension points through versioning, but it must not introduce a generic `SkinSignalCalibration<T>` abstraction or assume that acne, texture, moisture, masks, or future signals share the same polarity, scale, failure modes, or statistics.
+The model is explicitly redness-specific. Do not introduce a universal `SkinSignalCalibration<T>` abstraction.
 
 ```ts
 export const REDNESS_CALIBRATION_PROTOCOL_VERSION =
-  'redness-calibration-v1' as const;
+  'redness-calibration-v1.1' as const;
 
 export const REDNESS_CALIBRATION_EXPORT_SCHEMA =
-  'redness-calibration-export-v1' as const;
+  'redness-calibration-export-v1.1' as const;
 
-export type RednessCalibrationProtocolVersion =
-  typeof REDNESS_CALIBRATION_PROTOCOL_VERSION;
+export type RednessCalibrationStudyTier =
+  | 'engineering_dry_run'
+  | 'preliminary_submission_characterization';
+
+export type RednessCalibrationVariabilityLayer =
+  | 'fixed_technical_floor'
+  | 'production_workflow_repeatability'
+  | 'no_treatment_longitudinal'
+  | 'capture_condition_perturbation';
+
+export type RednessCalibrationTimeWindow =
+  | 'window_a'
+  | 'window_b';
+
+export type RednessCalibrationConditionLabel =
+  | 'controlled'
+  | 'brighter_lighting'
+  | 'dimmer_lighting'
+  | 'closer_distance'
+  | 'farther_distance'
+  | 'left_yaw'
+  | 'right_yaw'
+  | 'expression_change';
+
+export type RednessCalibrationCaptureOutcome =
+  | 'usable_capture'
+  | 'provider_failure'
+  | 'invalid_or_missing_score'
+  | 'upload_failure'
+  | 'cancelled_capture'
+  | 'face_detection_failure'
+  | 'protocol_deviation'
+  | 'provider_contract_anomaly';
+
+export type ControlledCharacterizationCompleteness =
+  | 'complete'
+  | 'incomplete';
+
+export type LongitudinalCharacterizationCompleteness =
+  | 'complete'
+  | 'incomplete';
+
+export type PerturbationCharacterizationCompleteness =
+  | 'complete'
+  | 'partial'
+  | 'not_run';
 
 export interface RednessCalibrationSignalProtocol {
   provider: 'youcam';
@@ -765,177 +1433,187 @@ export interface RednessCalibrationSignalProtocol {
   captureProtocolVersion: 'face-value-youcam-1';
 }
 
-export type RednessCalibrationConditionLabel =
-  | 'controlled'
-  | 'brighter_lighting'
-  | 'dimmer_lighting'
-  | 'closer_distance'
-  | 'farther_distance'
-  | 'left_angle'
-  | 'right_angle'
-  | 'expression_change';
-
-export type RednessCalibrationCaptureStatus =
-  | 'usable'
-  | 'failed'
-  | 'cancelled'
-  | 'excluded_protocol_deviation';
-
-export type RednessCalibrationFailureReason =
-  | 'provider_failure'
-  | 'invalid_or_missing_score'
-  | 'upload_failure'
-  | 'cancelled_capture'
-  | 'face_detection_failure'
-  | 'protocol_deviation';
-
-export interface RednessCalibrationDeviceSetup {
+export interface RednessCalibrationParticipant {
+  participantId: string;
+  participantOrdinal: number;
+  studyTier: RednessCalibrationStudyTier;
   deviceSetupId: string;
-  platformFamily: 'ios' | 'android' | 'desktop' | 'unknown';
-  browserFamily: 'safari' | 'chrome' | 'firefox' | 'edge' | 'unknown';
-  cameraFacing: 'front';
-  cameraProfileId:
-    | 'youcam-camera-kit-hd-1080p'
-    | 'youcam-camera-kit-hd-1920p';
-}
-
-export interface RednessCalibrationEnvironmentSetup {
   environmentSetupId: string;
-  lightSetupLabel: 'controlled_reference';
-  approximateDistanceCm: number;
-  makeupPresent: boolean;
-  recentHeatOrExercise: boolean;
-  recentCleansingOrSkincare: boolean;
-  routineOrTreatmentChange: boolean;
+  plannedDayCount: 3;
+  plannedSessionsPerDay: 2;
+  plannedRecapturesPerSession: 3;
 }
 
 export interface RednessCalibrationCaptureRecord {
   captureId: string;
-  sessionId: string;
-  sessionOrdinal: 1 | 2 | 3 | 'sensitivity';
-  intendedSequenceIndex: number;
-  attemptIndex: number;
-  pairIndex: number | null;
-  pairRole: 'control' | 'perturbation' | null;
-  intendedCondition: RednessCalibrationConditionLabel;
-  observedCondition: RednessCalibrationConditionLabel;
-  capturedAt: string;
-  status: RednessCalibrationCaptureStatus;
-  outcomeCode:
-    | 'usable_capture'
-    | RednessCalibrationFailureReason;
+  participantId: string;
+  participantOrdinal: number;
+  dayOrdinal: 1 | 2 | 3;
+  sessionOrdinalWithinDay: 1 | 2;
+  recaptureOrdinalWithinSession: 1 | 2 | 3;
+  attemptOrdinalForRecapture: 1 | 2 | 3;
+  studyTier: RednessCalibrationStudyTier;
+  variabilityLayer: RednessCalibrationVariabilityLayer;
+  timeWindow: RednessCalibrationTimeWindow;
+  condition: RednessCalibrationConditionLabel;
+  pairId: string | null;
+  pairOrder: 'control_first' | 'perturbation_first' | null;
+  outcome: RednessCalibrationCaptureOutcome;
   rawScore: number | null;
-  safeProviderErrorCode: string | null;
+  providerContractAnomaly: boolean;
+  providerCode: string | null;
+  protocolDeviationCodes: string[];
   replacesCaptureId: string | null;
-  protocol: RednessCalibrationSignalProtocol;
+  capturedAtRounded: string;
+  providerMode: 'live' | 'fixture_for_automated_test';
   appBuildVersion: string;
-  deviceSetupId: string;
-  environmentSetupId: string;
+  cameraProfileId: string;
+  signalProtocol: RednessCalibrationSignalProtocol;
 }
 
-export interface RednessCalibrationSession {
-  sessionId: string;
-  protocolVersion: RednessCalibrationProtocolVersion;
-  sessionOrdinal: 1 | 2 | 3 | 'sensitivity';
-  sessionKind: 'controlled_repeatability' | 'condition_sensitivity';
-  startedAt: string;
-  completedAt: string | null;
-  completionStatus: 'in_progress' | 'complete' | 'incomplete';
-  targetUsableCaptures: number;
-  maximumAttempts: number;
-  device: RednessCalibrationDeviceSetup;
-  environment: RednessCalibrationEnvironmentSetup;
-  captures: RednessCalibrationCaptureRecord[];
+export interface RednessCalibrationSessionSummary {
+  participantId: string;
+  dayOrdinal: 1 | 2 | 3;
+  sessionOrdinalWithinDay: 1 | 2;
+  timeWindow: RednessCalibrationTimeWindow;
+  targetAcceptedRecaptures: 3;
+  acceptedCaptureIds: [string, string, string] | null;
+  rawScores: [number, number, number] | null;
+  sessionMedian: number | null;
+  mean: number | null;
+  sampleStandardDeviation: number | null;
+  medianAbsoluteDeviation: number | null;
+  minimum: number | null;
+  maximum: number | null;
+  range: number | null;
+  largestAbsoluteResidualFromMedian: number | null;
+  recaptureThreeMinusOne: number | null;
+  orderSlope: number | null;
+  attemptCount: number;
+  outcomeCounts: Record<RednessCalibrationCaptureOutcome, number>;
+  complete: boolean;
+}
+
+export type RednessCalibrationLongitudinalDifferenceType =
+  | 'within_day_window_b_minus_a'
+  | 'adjacent_day_window_a'
+  | 'adjacent_day_window_b';
+
+export interface RednessCalibrationLongitudinalDifference {
+  differenceId: string;
+  participantId: string;
+  differenceType: RednessCalibrationLongitudinalDifferenceType;
+  fromDayOrdinal: 1 | 2 | 3;
+  toDayOrdinal: 1 | 2 | 3;
+  fromSessionMedian: number;
+  toSessionMedian: number;
+  signedDifference: number;
+  absoluteDifference: number;
+  crossesFivePointBoundary: boolean;
+  crossesTenPointBoundary: boolean;
 }
 
 export interface RednessCalibrationDistributionSummary {
-  usableCount: number;
-  failedCount: number;
-  cancelledCount: number;
-  protocolDeviationCount: number;
+  count: number;
   minimum: number;
   maximum: number;
   mean: number;
   median: number;
-  sampleStandardDeviation: number;
+  sampleStandardDeviation: number | null;
   medianAbsoluteDeviation: number;
   range: number;
-  largestAbsoluteChangeFromMedian: number;
 }
 
-export interface RednessCalibrationConditionSummary {
-  condition: Exclude<RednessCalibrationConditionLabel, 'controlled'>;
-  completePairCount: number;
-  attemptedCaptureCount: number;
-  failedAttemptCount: number;
+export interface RednessCalibrationParticipantReport {
+  participantId: string;
+  participantOrdinal: number;
+  studyTier: RednessCalibrationStudyTier;
+  sessions: RednessCalibrationSessionSummary[];
+  longitudinalDifferences: RednessCalibrationLongitudinalDifference[];
+  pooledWithinSessionStandardDeviation: number | null;
+  repeatabilityCoefficient95: number | null;
+  empiricalTechnicalN95: number | null;
+  empiricalLongitudinalN95: number | null;
+  falseChangeRateAtFive: number | null;
+  falseChangeRateAtTen: number | null;
   failureRate: number;
-  meanPairedShift: number;
-  medianPairedShift: number;
-  sampleStandardDeviationOfPairedShifts: number;
-  medianAbsoluteDeviationOfPairedShifts: number;
-  minimumPairedShift: number;
-  maximumPairedShift: number;
-  rangeOfPairedShifts: number;
-  largestAbsolutePairedShift: number;
+  providerContractAnomalyCount: number;
+  controlledCompleteness: ControlledCharacterizationCompleteness;
+  longitudinalCompleteness: LongitudinalCharacterizationCompleteness;
+  perturbationCompleteness: PerturbationCharacterizationCompleteness;
 }
 
-export interface RednessCalibrationStatisticalSummary {
-  controlledSessions: RednessCalibrationDistributionSummary[];
-  pooledWithinSessionStandardDeviation: number;
-  betweenSessionMeanDrift: number;
-  signedSessionMeanDriftFromSessionOne: [0, number, number];
-  repeatabilityCoefficient: number;
-  conditionSummaries: RednessCalibrationConditionSummary[];
-  largestAbsoluteConditionMedianShift: number;
+export interface RednessCalibrationAggregateReport {
+  participantCount: number;
+  controlledCaptureTarget: 18 | 54 | 90;
+  participantReports: RednessCalibrationParticipantReport[];
+  pooledWithinSessionStandardDeviation: number | null;
+  repeatabilityCoefficient95: number | null;
+  empiricalTechnicalN95: number | null;
+  empiricalLongitudinalN95: number | null;
+  falseChangeRateAtFive: number | null;
+  falseChangeRateAtTen: number | null;
+  confidenceIntervals: {
+    method: 'participant_cluster_percentile_bootstrap' | 'not_available';
+    successfulResamples: number;
+    smallSampleWarning: true;
+    rc95: readonly [number, number] | null;
+    technicalN95: readonly [number, number] | null;
+    longitudinalN95: readonly [number, number] | null;
+    falseChangeRateAtFive: readonly [number, number] | null;
+    falseChangeRateAtTen: readonly [number, number] | null;
+  };
+  controlledCompleteness: ControlledCharacterizationCompleteness;
+  longitudinalCompleteness: LongitudinalCharacterizationCompleteness;
+  perturbationCompleteness: PerturbationCharacterizationCompleteness;
 }
 
 export interface RednessCalibrationBoundarySnapshot {
+  detectablePoints: 5;
+  strongPoints: 10;
   version: 'redness-provisional-v1';
   source: 'provisional_fixture';
-  provisionalDetectablePoints: 5;
-  provisionalStrongPoints: 10;
+  provisional: true;
   configHash:
     'sha256:66571af3c662f4da1de469d763b884ad46eb37ee77df0aa060e4b2db280feed5';
-  provisional: true;
 }
 
 export type RednessCalibrationRecommendationState =
-  | 'insufficient_data'
-  | 'stable_enough_for_provisional_use'
-  | 'borderline'
-  | 'high_capture_sensitivity'
-  | 'unstable_pilot';
+  | 'engineering_dry_run_only'
+  | 'preliminary_characterization_complete'
+  | 'controlled_repeatability_concern'
+  | 'high_workflow_sensitivity'
+  | 'high_longitudinal_variability'
+  | 'ready_for_independent_threshold_study'
+  | 'insufficient_data';
 
 export interface RednessCalibrationRecommendation {
-  ruleVersion: 'redness-calibration-recommendation-v1';
   state: RednessCalibrationRecommendationState;
-  triggeredRuleIds: string[];
-  inputs: {
-    repeatabilityCoefficient: number | null;
-    betweenSessionMeanDrift: number | null;
-    largestAbsoluteConditionMedianShift: number | null;
-    maximumConditionFailureRate: number | null;
-    detectableBoundaryPoints: 5;
-    strongBoundaryPoints: 10;
-  };
   statement: string;
-  nonClaims: string[];
+  triggeredRuleIds: string[];
+  secondaryFindings: string[];
+  thresholdApproval: false;
+  verdictBehaviorChanged: false;
 }
 
-export interface RednessCalibrationExportV1 {
+export interface RednessCalibrationExport {
   schemaVersion: typeof REDNESS_CALIBRATION_EXPORT_SCHEMA;
-  protocolVersion: RednessCalibrationProtocolVersion;
-  generatedAt: string;
+  protocolVersion: typeof REDNESS_CALIBRATION_PROTOCOL_VERSION;
+  generatedAtRounded: string;
+  studyTier: RednessCalibrationStudyTier;
+  providerMode: 'live' | 'fixture_for_automated_test';
   signalProtocol: RednessCalibrationSignalProtocol;
   boundarySnapshot: RednessCalibrationBoundarySnapshot;
-  sessions: RednessCalibrationSession[];
-  summary: RednessCalibrationStatisticalSummary | null;
+  participants: RednessCalibrationParticipant[];
+  captures: RednessCalibrationCaptureRecord[];
+  aggregateReport: RednessCalibrationAggregateReport | null;
   recommendation: RednessCalibrationRecommendation;
   privacy: {
     includesFaceImage: false;
     includesImageBlob: false;
     includesSignedOrUploadUrl: false;
-    includesProviderPayload: false;
+    includesProviderTaskId: false;
+    includesRawProviderPayload: false;
     includesPersonalIdentifier: false;
   };
 }
@@ -943,135 +1621,38 @@ export interface RednessCalibrationExportV1 {
 
 Runtime validation must reject:
 
-1. a nonfinite score;
-2. a usable record with `rawScore: null`;
-3. a failed record with a finite score unless the failure is a separately retained protocol deviation;
-4. protocol or version drift;
-5. duplicate IDs or sequence slots;
-6. broken replacement links;
-7. a completed session below its target;
-8. prohibited keys at any object depth.
+1. duplicate participant, capture, pair, or difference IDs;
+2. invalid nesting ordinals;
+3. a usable record without a finite in-range score;
+4. an anomaly record without a finite out-of-range score;
+5. a failed record that silently carries a primary score;
+6. broken or cyclic replacement links;
+7. a complete formal session without exactly three accepted recaptures;
+8. a session median not equal to the median of its preserved raw scores;
+9. missing live-versus-fixture provenance;
+10. protocol or threshold-snapshot drift;
+11. prohibited keys at any object depth.
 
-## 12. Deterministic recommendation rules
+## 15. Implementation boundaries and test strategy
 
-### 12.1 Inputs
+### 15.1 Allowed future implementation
 
-Let:
+A future harness PR may add:
 
-```text
-D = 5, current provisional detectable boundary
-S = 10, current provisional strong boundary
-RC = repeatability coefficient
-B = between-session mean drift
-P = largest absolute median paired shift across required perturbations
-F = maximum failed-attempt rate across required perturbation blocks
-```
+1. redness-specific types and validators;
+2. pure statistical functions;
+3. hand-calculated and independently verified fixtures;
+4. a calibration-specific live acquisition orchestrator;
+5. explicit live and automated-fixture provider modes;
+6. protected route and deployment gates;
+7. memory-only nested session state;
+8. explicit face-free JSON export;
+9. participant-level and aggregate report generation;
+10. unit, integration, E2E, privacy, architecture, and physical-device verification.
 
-All comparisons use raw-score points.
+### 15.2 Forbidden future implementation
 
-### 12.2 Rule precedence
-
-Rules run in this exact order. The first matching state wins.
-
-#### Rule RCR01: `insufficient_data`
-
-Select when any condition is true:
-
-1. fewer than three complete controlled sessions exist;
-2. any controlled session has fewer or more than ten usable captures;
-3. a controlled session exceeded 20 attempts before completion;
-4. any required perturbation has fewer than five complete usable pairs;
-5. any perturbation block exceeded 20 attempts before completion;
-6. protocol, app build, device setup, environment setup, or camera profile differs across controlled sessions;
-7. RC, B, P, or F cannot be computed as finite values;
-8. the boundary snapshot is missing or does not exactly match the frozen 5-point and 10-point configuration.
-
-#### Rule RCR02: `unstable_pilot`
-
-Select when data are sufficient and either:
-
-```text
-RC >= D
-B >= D
-```
-
-This means controlled repeatability or controlled between-session drift reaches or exceeds the current detectable operating boundary. If `RC >= S` or `B >= S`, include an additional triggered rule noting overlap with the strong boundary. The state remains `unstable_pilot`.
-
-#### Rule RCR03: `high_capture_sensitivity`
-
-Select when data are sufficient, `RC < D`, `B < D`, and either:
-
-```text
-P >= D
-F > 0.40
-```
-
-This separates a setup that is repeatable under control from one that shifts materially or fails often when one capture condition changes.
-
-#### Rule RCR04: `stable_enough_for_provisional_use`
-
-Select when all conditions are true:
-
-```text
-RC < 0.5 × D
-B < 0.5 × D
-P < D
-F <= 0.40
-```
-
-This label means only that the tested setup's controlled noise and drift are comfortably below the current detectable boundary and that no required perturbation's median shift reaches that boundary. It does not validate the boundary, promote confidence, or authorize a verdict change.
-
-#### Rule RCR05: `borderline`
-
-Select for every complete dataset not selected by RCR02, RCR03, or RCR04.
-
-Typical borderline inputs include:
-
-```text
-0.5 × D <= RC < D
-0.5 × D <= B < D
-P is elevated but remains below D
-F is elevated but remains at or below 0.40
-```
-
-### 12.3 Recommendation statements
-
-Each state uses deterministic restrained copy.
-
-| State | Required statement |
-| --- | --- |
-| `insufficient_data` | `The required controlled and sensitivity dataset is incomplete. No calibration recommendation is available.` |
-| `stable_enough_for_provisional_use` | `In this tested setup, controlled repeatability and session drift stayed comfortably below the current provisional detectable boundary. This supports continued provisional engineering use only.` |
-| `borderline` | `Observed noise or drift approaches the current provisional detectable boundary. More controlled data are required before relying on the boundary.` |
-| `high_capture_sensitivity` | `Controlled captures were more stable than one or more changed capture conditions. Capture standardization remains a material dependency.` |
-| `unstable_pilot` | `Controlled repeatability or session drift overlaps the current provisional detectable boundary. The pilot is not stable enough to support that boundary.` |
-
-Every recommendation includes:
-
-```text
-Prototype engineering calibration, not clinical validation.
-No threshold or verdict behavior was changed.
-```
-
-## 13. Implementation boundaries
-
-### 13.1 Allowed future changes
-
-A future implementation PR may add:
-
-1. redness-specific calibration types and runtime validators;
-2. pure statistics and recommendation functions;
-3. a calibration-specific acquisition orchestrator;
-4. a protected calibration route or dedicated protected preview deployment;
-5. explicit live-versus-fixture provenance;
-6. memory-only session state;
-7. explicit face-free JSON export;
-8. unit, integration, E2E, privacy, and architecture tests;
-9. calibration documentation and manual pilot evidence.
-
-### 13.2 Forbidden future changes in the harness PR
-
-The implementation PR must not change:
+The harness PR must not change:
 
 ```text
 src/domain/evidence/redness/thresholds.ts
@@ -1090,334 +1671,262 @@ production trial persistence
 
 It must not:
 
-1. implement a generic universal skin-signal calibration engine;
-2. collect or analyze another concern;
+1. create a universal skin-signal calibration abstraction;
+2. collect another concern;
 3. call `evaluateRedness`;
-4. write calibration output into `FaceValueState`;
-5. create an Evidence Record;
-6. silently use fixture values in a live session;
-7. weaken Camera Kit production quality gates;
-8. expose the route in ordinary consumer navigation;
-9. commit or activate a new threshold;
-10. make clinical claims.
+4. dispatch production result events;
+5. write into `FaceValueState`;
+6. create an Evidence Record;
+7. silently use fixtures for human collection;
+8. weaken production Camera Kit gates;
+9. expose calibration in consumer navigation;
+10. commit or activate a threshold;
+11. make a clinical claim.
 
-### 13.3 Live provider selection
+### 15.3 Provider provenance tests
 
-The future harness must not rely on the current `createSkinAnalysisProvider()` default because development mode selects fixtures. It must use explicit dependency injection with visible provenance:
+Prove:
 
-```ts
-type CalibrationProviderMode = 'live' | 'fixture_for_automated_test';
-```
+1. human sessions can start only in `live` mode;
+2. `live` mode cannot resolve to `FixtureSkinAnalysisProvider`;
+3. automated tests can inject fixture mode;
+4. fixture datasets cannot receive a human-pilot recommendation;
+5. provider mode appears in every capture, report, and export;
+6. ordinary builds expose no calibration route.
 
-Requirements:
+### 15.4 Statistical unit tests
 
-1. a human pilot session can start only in `live` mode;
-2. the report and export record provider mode;
-3. fixture mode is available only to automated tests;
-4. a fixture-mode dataset can never receive a non-test recommendation;
-5. the UI must display `LIVE YOUCAM MEASUREMENTS` or `FIXTURE TEST DATA`;
-6. ordinary production builds default to no calibration route.
+Use hand-calculated fixtures and an independent Python or R cross-check for:
 
-### 13.4 Route and deployment gate
+1. mean, median, minimum, maximum, range;
+2. sample SD;
+3. unscaled MAD;
+4. largest residual from session median;
+5. pooled within-session SD;
+6. RC95;
+7. session median;
+8. exactly seven predeclared longitudinal differences;
+9. technical N95 and longitudinal N95 quantiles;
+10. false-change rates at `±5` and `±10`;
+11. capture-order slope;
+12. provider-contract anomaly exclusion and sensitivity output;
+13. participant-level and aggregate summaries;
+14. clustered bootstrap resampling;
+15. recommendation precedence.
 
-Before adding collection features, the future PR must replace the current directly routed calibration screen with a stronger gate.
+### 15.5 Independence tests
 
-Minimum gate:
+Prove:
 
-1. explicit build-time `VITE_ENABLE_REDNESS_CALIBRATION=true`;
-2. calibration route absent when the flag is not true;
-3. protected server session required for every provider request;
-4. no consumer navigation link;
-5. a dedicated preview or engineering deployment, not the ordinary production deployment;
-6. privacy verification proving calibration markers and storage keys are absent from ordinary builds.
+1. all-pairs session generation is absent;
+2. only the seven predeclared differences per participant exist;
+3. participant IDs remain attached through aggregate analysis;
+4. bootstrap resamples participants as clusters;
+5. raw captures are never counted as participants;
+6. perturbations never enter controlled or longitudinal estimates.
 
-The Demo Lab `DEV + explicit flag` pattern is useful for exclusion, but live provider calibration needs a separately configured protected deployment because local development currently uses fixtures and may not provide the deployed API environment.
+### 15.6 Failure and replacement tests
 
-## 14. Test strategy
+Prove:
 
-### 14.1 Pure statistics tests
-
-Use fixed hand-calculated fixtures to verify:
-
-1. minimum and maximum;
-2. odd and even median;
-3. mean;
-4. sample standard deviation with `n-1`;
-5. unscaled MAD;
-6. range;
-7. largest absolute change from median;
-8. pooled within-session standard deviation;
-9. between-session mean drift;
-10. signed drift from session 1;
-11. `1.96 × sqrt(2) × pooled SD`;
-12. paired condition summaries;
-13. equality behavior at every recommendation boundary;
-14. rejection of empty, one-value, and nonfinite inputs where a statistic is undefined.
-
-Reference outputs should be cross-checked once against an independent implementation such as Python or R and then frozen as test fixtures.
-
-### 14.2 Inclusion and replacement tests
-
-Prove that:
-
-1. every exact outcome code maps from the intended failure family;
-2. failed attempts remain after replacement;
+1. every canonical outcome maps correctly;
+2. every failed attempt remains after replacement;
 3. replacement links are valid and acyclic;
-4. replacements reuse the intended sequence slot but receive new IDs;
-5. unusual finite scores remain included;
-6. no function removes a score based on z score, IQR, MAD, distance from median, or threshold relation;
-7. protocol deviations remain exported but are not mixed into primary controlled summaries;
-8. attempt caps produce incomplete sessions.
+4. a replacement receives a new ID;
+5. attempt caps are enforced;
+6. unusual in-range finite scores remain included;
+7. finite out-of-range scores become provider-contract anomalies;
+8. no z-score, IQR, MAD, or threshold-based outlier deletion exists;
+9. cancellation aborts provider work and releases image references;
+10. stale completion cannot mutate finalized attempts.
 
-### 14.3 Recommendation matrix tests
+### 15.7 Privacy tests
 
-Create fixtures for all five states and exact boundary equality:
+Prove:
 
-```text
-RC = 2.49, 2.50, 4.99, 5.00, 10.00
-B = 2.49, 2.50, 4.99, 5.00, 10.00
-P = 4.99, 5.00
-F = 0.40, greater than 0.40
-```
+1. exports use an allowlist serializer;
+2. recursive forbidden-key checks reject image, URL, task, file, token, cookie, authorization, payload, identity, and full-user-agent markers;
+3. all privacy assertions are false as specified;
+4. no calibration state enters production trial storage;
+5. no face image, upload URL, signed URL, task ID, or raw payload appears in logs;
+6. ordinary production bundles contain no calibration route, storage key, or fixture labels.
 
-Prove rule precedence:
+### 15.8 Physical-device verification
 
-```text
-insufficient_data
-→ unstable_pilot
-→ high_capture_sensitivity
-→ stable_enough_for_provisional_use
-→ borderline
-```
-
-### 14.4 Provider and acquisition tests
-
-1. live mode cannot resolve to `FixtureSkinAnalysisProvider`;
-2. automated tests can inject a fixture provider without network access;
-3. provider failure, invalid score, upload failure, cancellation, and face-detection failure create the correct records;
-4. cancellation aborts polling and releases the Blob reference;
-5. duplicate activation creates one attempt;
-6. stale completion cannot mutate a finalized or replaced attempt;
-7. camera teardown occurs after success, failure, cancellation, route leave, and unmount;
-8. condition pairing and counterbalanced order are deterministic.
-
-### 14.5 Privacy and export tests
-
-1. exports are created through an allowlist serializer;
-2. recursive forbidden-key checks reject image, blob, URL, task, file, token, cookie, authorization, payload, and identifier markers;
-3. exported `privacy` flags are all false as specified;
-4. no calibration state is written to production trial storage;
-5. ordinary production bundles contain no calibration route, controls, storage key, or fixture provenance;
-6. logs contain no score-linked identity, image metadata, URLs, task IDs, or payloads.
-
-### 14.6 Architecture tests
-
-Extend architecture verification to fail when:
-
-1. calibration imports the production evaluator;
-2. calibration dispatches production reducer events;
-3. production React imports calibration recommendation logic;
-4. calibration writes `FaceValueState`, `EvidenceRecordData`, or `LongitudinalSkinEvidence`;
-5. threshold constants are copied rather than read and snapshotted with version and hash;
-6. another skin concern enters the first implementation;
-7. live calibration uses the generic provider factory.
-
-### 14.7 Manual verification
-
-Automated fixtures cannot validate real provider repeatability. The future PR must include manual evidence for:
+The future preliminary-characterization PR must not claim provider repeatability from fixtures. Manual evidence must include:
 
 1. one exact-head protected deployment;
-2. physical device and front-camera profile;
-3. live provider provenance;
-4. all three controlled sessions;
-5. all six required perturbation blocks;
-6. cancellation and retry;
-7. JSON export inspection;
-8. browser storage inspection;
-9. no face image or URL in saved/exported data;
+2. physical-device and camera-profile provenance;
+3. live-provider provenance;
+4. completed one-participant dry run before preliminary collection;
+5. completed three-participant minimum or five-participant preferred characterization;
+6. separate perturbation completeness;
+7. cancellation, failure, replacement, and anomaly paths;
+8. face-free export inspection;
+9. browser storage inspection;
 10. no console or page errors.
 
-## 15. Open questions and risks
+## 16. Open questions, governance decisions, and risks
 
-### 15.1 Decisions required before implementation
+### 16.1 Decisions required before implementation
 
-1. **Live deployment location:** dedicated protected Vercel preview, separate engineering project, or another protected environment.
-2. **Provider retention:** YouCam image retention, deletion, and data-processing terms must be verified outside the repository.
-3. **Angle side:** freeze left or right for the required pilot before collection.
-4. **Lighting steps:** define reproducible brighter and dimmer setup instructions, preferably with a physical light preset or lux reading.
-5. **Device metadata:** decide the minimum coarse device information needed for reproducibility without creating a fingerprint.
-6. **Timestamp precision:** decide whether export timestamps should be rounded to the minute or stored as elapsed offsets.
-7. **Extended perturbation mode:** decide whether the first pilot stops at five pairs or collects the recommended ten pairs.
-8. **Pilot operator:** define who may access the protected harness and who reviews exports.
-9. **Provider model version:** the repository records that YouCam does not currently report it; a silent upstream model change could affect comparability.
-10. **Current route retirement:** decide whether the existing `/youcam-calibration` screen is removed or replaced when the real harness is built.
+1. **Protected deployment:** dedicated Vercel preview, separate engineering project, or equivalent protected environment.
+2. **Provider retention:** confirm Perfect Corp image retention, deletion, data-processing, and regional handling.
+3. **Participant governance:** define consent, access, withdrawal, and who may view face-free exports.
+4. **Time windows:** choose reproducible `window_a` and `window_b` definitions without exposing precise personal schedules.
+5. **No-treatment condition:** define prohibited product or routine changes during each participant's three-day collection.
+6. **Fixed technical-floor count:** approve the recommended six captures or another predeclared diagnostic count.
+7. **Yaw side:** freeze left or right before the designated participant's perturbation run.
+8. **Lighting steps:** define brighter and dimmer conditions with a repeatable physical preset or lux target.
+9. **Distance steps:** define closer and farther offsets with physical markers.
+10. **Expression:** define one reproducible expression change.
+11. **Device metadata:** choose the minimum coarse metadata needed for reproducibility without fingerprinting.
+12. **Timestamp precision:** rounded minute, coarse time window only, or elapsed offsets.
+13. **Bootstrap implementation:** approve resample count, random seed policy, and behavior when intervals are unstable.
+14. **Provider model version:** determine whether Perfect Corp can expose model-version provenance.
+15. **Current route retirement:** remove or replace the existing `/youcam-calibration` utility when the canonical harness is built.
+16. **Independent threshold-study governance:** define who approves a later study protocol and how it remains independent from the provisional 5-point and 10-point assumptions.
 
-### 15.2 Key risks
+### 16.2 Key risks
 
 | Risk | Consequence | Mitigation |
 | --- | --- | --- |
-| Development fixture silently mistaken for live data | invalid calibration | explicit provider mode, provenance, and live-only pilot gate |
-| Existing calibration route directly accessible | engineering tool exposed | build-time exclusion plus protected deployment |
-| Guided gate blocks intended perturbations | incomplete sensitivity data | treat failures as sensitivity evidence; never weaken production gate |
-| One person and one device | no generalizability | label pilot scope and require later multi-person/device study |
-| Provider model changes silently | session comparability loss | capture app/API/protocol versions and seek provider model metadata |
-| Session order or fatigue | time trend mistaken for drift | counterbalanced pairs, bounded blocks, session timestamps |
-| Unusual values tempt manual exclusion | biased noise estimate | no value-based exclusions; retain every finite conforming score |
-| Raw timestamps or metadata identify a person | privacy leakage | coarse structured metadata, no free text, allowlist export |
-| Vendor image retention unknown | overstated privacy claim | separate application storage claim from provider processing |
-| Calibration report influences verdict prematurely | scientific governance breach | separate implementation and threshold-governance PRs |
+| fixture data mistaken for live data | invalid characterization | explicit provider mode and live-only human gate |
+| directly exposed calibration route | engineering tool leaks into consumer deployment | build-time exclusion and dedicated protected deployment |
+| individual images treated as independent | falsely narrow uncertainty and overstated evidence | nested IDs, participant summaries, cluster resampling |
+| short three-recapture sessions | imprecise SD and RC95 | show raw distributions, MAD, N95, and small-sample warnings |
+| three to five participants | weak generalization | preliminary label and independent later study |
+| biological change during no-treatment period | longitudinal variance not pure measurement error | explicitly label mixed biological and workflow variability |
+| provider model changes silently | sessions become incomparable | version capture where possible and fail on known drift |
+| out-of-range finite score | silent contract violation | preserve, flag, exclude by predeclared anomaly rule, sensitivity appendix |
+| guided gate blocks perturbations | incomplete perturbation blocks | treat failure as sensitivity evidence; do not weaken gate |
+| arbitrary operational policies mistaken for science | false validity claims | label every policy with `EWP` ID, rationale, and non-scientific status |
+| threshold comparison becomes threshold approval | circular reasoning | descriptive false-change analysis only; separate independent study |
 
-## 16. Proposed build phases
+## 17. Future build sequence and acceptance criteria
 
-### Phase 0: Freeze the plan
+### 17.1 Required sequence
 
-1. merge this document;
-2. resolve the deployment, provider retention, lighting, angle, metadata, and pilot-access decisions;
-3. assign protocol and recommendation rule owners.
+1. merge the approved plan;
+2. build pure types, runtime validation, and independently checked statistical fixtures;
+3. implement protected live acquisition and visible provider provenance;
+4. run the one-participant engineering dry run;
+5. fix workflow, protocol, privacy, or export problems found in the dry run;
+6. run the three-participant minimum or five-participant preferred preliminary characterization;
+7. generate the face-free participant-level and aggregate report;
+8. review fixed 5-point and 10-point no-treatment false-change behavior;
+9. decide whether an independent threshold study is justified.
 
-### Phase 1: Pure redness calibration core
+Any threshold change remains a separate future proposal.
 
-1. add redness-specific types;
-2. add runtime validation;
-3. implement per-session, pooled, drift, RC, paired-shift, and threshold-comparison functions;
-4. implement deterministic recommendation rules;
-5. add reference fixture tests.
+### 17.2 Exact acceptance criteria for the future harness PR
 
-No camera, provider, route, UI, or storage work in this phase.
+#### Repository and scope
 
-### Phase 2: Protected acquisition boundary
+- [ ] The branch is based on then-current `origin/main`.
+- [ ] The PR states that this is preliminary engineering characterization, not clinical validation.
+- [ ] Only YouCam v2.1 `hd_redness.raw_score` is supported.
+- [ ] No universal skin-signal abstraction is introduced.
+- [ ] No threshold, evaluator, reducer, verdict, confidence, action, safety, attribution, persistence, copy, or Evidence Record behavior changes.
+- [ ] The 5-point and 10-point boundaries are read-only and snapshotted by version and hash.
 
-1. add explicit live and test provider injection;
-2. add calibration-specific camera orchestration;
-3. map failures to canonical outcome codes;
-4. implement cancellation, replacement linkage, sequence slots, and attempt caps;
-5. add route and deployment gating.
+#### Access and provenance
 
-No statistics presentation beyond test output is required to prove the acquisition boundary.
+- [ ] Ordinary production builds contain no calibration route or markers.
+- [ ] Human collection requires a protected deployment and explicit live mode.
+- [ ] Fixture mode is automated-test only.
+- [ ] Provider mode is present in every capture, report, and export.
+- [ ] The existing direct calibration route is removed, replaced, or properly gated.
 
-### Phase 3: Calibration workflow and report
+#### Nested protocol
 
-1. implement three controlled sessions;
-2. implement six paired perturbation blocks;
-3. show completion and protocol-deviation state;
-4. generate the face-free in-memory report;
-5. show raw inputs beside derived metrics and rule IDs.
+- [ ] The hierarchy is participant → day → session → independent recapture.
+- [ ] The engineering dry run supports exactly 1 participant, 3 days, 2 sessions per day, and 3 accepted recaptures per session.
+- [ ] The preliminary tier supports at least 3 and preferably 5 participants with the same nested schedule.
+- [ ] Controlled targets are exactly 18, 54, or 90 accepted captures.
+- [ ] Every formal session computes the median of exactly 3 accepted independent recaptures.
+- [ ] Full camera reset and independent pose reacquisition occur where practical.
+- [ ] Time-window labels are predeclared.
+- [ ] No-treatment context is structured and preserved.
+- [ ] Individual images are never treated as independent participant observations.
 
-### Phase 4: Export and privacy hardening
+#### Variability layers
 
-1. add explicit versioned JSON export;
-2. add allowlist serialization and forbidden-key scanning;
-3. prove no production storage writes;
-4. prove route and markers are absent from ordinary builds;
-5. document provider-processing limitations.
+- [ ] Fixed technical floor, production workflow, no-treatment longitudinal variability, and perturbations are separate.
+- [ ] No-treatment longitudinal variability is never labeled pure measurement error.
+- [ ] Perturbations never enter controlled or longitudinal estimates.
+- [ ] Perturbation completion does not block controlled report computation.
+- [ ] Completeness states are reported separately.
 
-### Phase 5: Exact-head pilot
+#### Perturbations
 
-1. deploy a protected immutable build;
-2. collect the full required dataset on one physical device;
-3. inspect the export independently;
-4. run the deterministic report;
-5. record protocol deviations and operational friction;
-6. do not change thresholds.
+- [ ] One designated participant runs the named perturbations.
+- [ ] Each condition supports 3 matched pairs minimum and 5 preferred.
+- [ ] Pair order is counterbalanced and frozen before scores are visible.
+- [ ] Minimum and preferred perturbation totals are 36 and 60 accepted captures.
+- [ ] Only one condition changes per block.
 
-### Phase 6: Review and decision
+#### Inclusion, replacement, and anomalies
 
-Review the report against the current 5-point and 10-point boundaries.
+- [ ] Every attempt receives one canonical outcome.
+- [ ] Every failed or replaced attempt remains preserved.
+- [ ] Replacement links and attempt caps are validated.
+- [ ] Unusual in-range finite scores are never excluded based on value.
+- [ ] Scores are never clamped.
+- [ ] Finite out-of-range live scores are flagged as provider-contract anomalies.
+- [ ] Contract anomalies remain in raw export and are excluded from primary analysis only by the predeclared anomaly rule.
+- [ ] A sensitivity appendix includes finite anomalies descriptively.
 
-Possible outcomes:
+#### Statistics
 
-1. collect more data;
-2. improve capture standardization;
-3. broaden to multiple devices or participants;
-4. retain current provisional behavior;
-5. open a separate threshold-governance proposal.
-
-Any threshold or verdict change requires a new issue and PR with explicit scientific, product, privacy, and migration review. It is not part of the calibration harness PR.
-
-## 17. Exact acceptance criteria for the future implementation PR
-
-The future implementation PR is acceptable only when every item below is true.
-
-### Repository and scope
-
-- [ ] The branch is based on the then-current `origin/main`.
-- [ ] The PR explicitly states that it is engineering calibration, not clinical validation.
-- [ ] The implementation supports only YouCam v2.1 `hd_redness.raw_score`.
-- [ ] No universal skin-signal calibration abstraction is introduced.
-- [ ] No production threshold, hash, effect classification, verdict, confidence, action, safety, attribution, copy, reducer, or saved-record behavior changes.
-- [ ] The existing 5-point and 10-point configuration is read and snapshotted by version and hash, never mutated.
-
-### Access and provider provenance
-
-- [ ] Ordinary production builds do not expose the calibration route, controls, storage key, or bundle markers.
-- [ ] Calibration requires an explicit build flag and protected server session.
-- [ ] Human pilot sessions can run only with explicit `live` provider mode.
-- [ ] Fixture mode is restricted to automated tests and cannot produce a pilot recommendation.
-- [ ] The report and export include visible provider-mode provenance.
-- [ ] The existing directly routed calibration utility is removed, replaced, or gated so there is one canonical calibration path.
-
-### Protocol execution
-
-- [ ] Three separate controlled sessions are supported.
-- [ ] Each controlled session requires exactly ten usable captures.
-- [ ] Each controlled session stops at 20 total attempts and becomes incomplete if the target is not reached.
-- [ ] The same device setup, environment setup, camera profile, app build, and frozen signal protocol are enforced across controlled sessions.
-- [ ] Brighter light, dimmer light, closer distance, farther distance, one frozen angle side, and expression change are implemented as separate one-condition perturbations.
-- [ ] Each required perturbation requires five usable matched pairs.
-- [ ] Pair order is counterbalanced as specified.
-- [ ] Each perturbation block stops at 20 total attempts and becomes incomplete if five pairs are not reached.
-- [ ] Production Camera Kit quality gates are not weakened.
-
-### Inclusion, failure, and replacement
-
-- [ ] All seven exact outcome codes are implemented.
-- [ ] Every attempt is retained.
-- [ ] Failed attempts may be replaced only under the documented rules.
-- [ ] Replacement records receive new IDs and valid `replacesCaptureId` links.
-- [ ] Unusual finite protocol-conforming scores are never excluded or replaced based on value.
-- [ ] Protocol deviations remain in the export and remain separate from primary summaries.
-- [ ] Provider-specific codes are safe optional metadata only.
-
-### Statistics and rules
-
-- [ ] Minimum, maximum, mean, median, sample standard deviation, unscaled MAD, range, and largest absolute change from session median are correct.
-- [ ] Pooled within-session standard deviation uses degrees-of-freedom weighting.
-- [ ] Between-session mean drift is the maximum pairwise session-mean difference.
-- [ ] Repeatability coefficient is exactly `1.96 × sqrt(2) × pooled within-session SD`.
-- [ ] Every perturbation reports paired mean, median, SD, MAD, min, max, range, largest absolute shift, and failure rate.
+- [ ] Raw sessions report mean, median, min, max, sample SD, unscaled MAD, range, largest residual, and order drift.
+- [ ] Pooled within-session SD is degrees-of-freedom weighted.
+- [ ] RC95 equals `1.96 × sqrt(2) × pooled within-session SD`.
+- [ ] Exactly seven predeclared no-treatment differences are generated per participant.
+- [ ] All-pairs session comparisons are absent.
+- [ ] Empirical technical and longitudinal N95 are labeled exploratory.
+- [ ] False-change rates at `±5` and `±10` use session medians.
+- [ ] Participant-level summaries remain visible beside aggregate summaries.
+- [ ] Confidence intervals use participant clustering and carry a small-sample warning.
+- [ ] Absolute residual versus session median and capture-order drift are reported descriptively.
+- [ ] ICC is absent from primary analysis.
 - [ ] Coefficient of variation is absent as a primary metric.
-- [ ] Boundary comparison labels use the exact rules in Section 9.
-- [ ] Recommendation states and precedence use the exact rules in Section 12.
-- [ ] Equality cases at 2.5, 5, 10, and 40 percent failure are covered by tests.
-- [ ] Reports show raw metrics, ratios, triggered rule IDs, assumptions, and limitations.
 
-### Privacy and persistence
+#### Recommendations
 
-- [ ] No face image, Blob, File, base64 data, object URL, signed URL, upload URL, provider file ID, provider task ID, credential, cookie, raw payload, personal identifier, or free-form personal note enters persistence or export.
-- [ ] Capture records are built by allowlist.
-- [ ] Export uses `redness-calibration-export-v1` and passes runtime validation.
-- [ ] The first implementation is memory-only unless a separately reviewed resume requirement is approved.
-- [ ] Any later storage is isolated from production trial and Demo Lab storage.
-- [ ] Existing production persistence remains byte-compatible.
-- [ ] The PR clearly states that provider-side retention is not proven by application code.
+- [ ] Only the seven approved recommendation states exist.
+- [ ] `stable_enough_for_provisional_use` is absent.
+- [ ] Rule precedence is deterministic and tested.
+- [ ] Engineering review policies are labeled `EWP` with rationale.
+- [ ] No recommendation validates or approves the 5-point or 10-point boundary.
+- [ ] The favorable separation sentence matches Section 4 exactly.
+- [ ] `ready_for_independent_threshold_study` means operational readiness only.
 
-### Verification
+#### Privacy
 
-- [ ] Unit tests cover every required statistic and invalid input.
-- [ ] Unit tests cover all recommendation states, exact boundaries, and precedence.
-- [ ] Integration tests cover every outcome code, cancellation, replacement, stale completion, duplicate activation, and attempt cap.
-- [ ] Architecture checks prevent imports into the production evaluator, reducer, evidence snapshot, verdict view model, and trial persistence.
-- [ ] Privacy checks recursively reject forbidden keys and scan ordinary production bundles.
-- [ ] Existing `npm run check` passes.
-- [ ] Existing E2E tests pass without updated verdict or threshold snapshots.
-- [ ] A protected exact-head deployment is recorded.
-- [ ] A physical-device live-provider pilot completes the three controlled sessions and six required perturbation blocks.
-- [ ] The exported JSON is manually inspected and attached as face-free verification evidence.
-- [ ] Browser storage and console output are inspected for forbidden data.
-- [ ] No threshold is committed or activated in the PR.
+- [ ] No names, emails, accounts, precise location, IP addresses, full user agents, serial numbers, images, image URLs, signed URLs, task IDs, credentials, cookies, masks, or raw provider payloads enter export or persistence.
+- [ ] Exports are allowlisted and runtime-validated.
+- [ ] First implementation is memory-only except explicit face-free export.
+- [ ] Production persistence remains byte-compatible.
+- [ ] Provider-side retention remains an explicit external governance question.
+
+#### Verification
+
+- [ ] Pure statistical fixtures are independently cross-checked.
+- [ ] Unit tests cover exact formulas, nesting, anomaly rules, false-change rates, completeness, and recommendation precedence.
+- [ ] Integration tests cover live provenance, all outcomes, cancellation, replacement, stale completion, and attempt caps.
+- [ ] Architecture checks block calibration imports into the production evaluator, reducer, verdict view model, and trial persistence.
+- [ ] Privacy checks recursively reject forbidden keys and scan ordinary bundles.
+- [ ] Existing repository checks and E2E tests pass without threshold or verdict snapshot changes.
+- [ ] The one-participant dry run is completed before preliminary collection.
+- [ ] The preliminary face-free report is generated from a protected exact-head deployment.
+- [ ] Browser storage and logs are manually inspected.
+- [ ] No threshold is committed or activated.
 
 ## Review conclusion
 
-The current repository has a sound narrow provider boundary, durable normalization, deterministic redness evaluator, architecture guards, and application-side face-image exclusion. It also has a small legacy calibration utility that is not sufficient for the requested protocol and has two critical hardening issues: direct route exposure and silent fixture-provider selection in development.
+The repository has a narrow live-provider boundary, durable raw-score normalization, deterministic redness evaluator, architecture guards, and strong application-side face-image exclusion. The existing calibration utility is insufficient and has two critical risks: direct route exposure and silent fixture selection in development.
 
-The recommended next move is to merge this plan only, resolve the open deployment and provider-retention decisions, then implement a pure redness-specific statistics core before touching camera workflow. The calibration harness and any later threshold-governance decision must remain separate changes.
+The corrected study design is nested and tiered. The primary operational unit is the median of three independent recaptures within a formal session. Raw recaptures estimate production-workflow repeatability; formal session medians estimate no-treatment longitudinal variability and fixed-boundary false-change behavior. Perturbations remain separate.
+
+The next move is to approve and merge this plan, build the pure statistical core, prove protected live provenance, run the one-participant dry run, repair the workflow, and only then collect the three-to-five-participant preliminary characterization. The harness PR must not change thresholds or verdict behavior. Any later threshold study or threshold proposal remains independent and separately governed.
