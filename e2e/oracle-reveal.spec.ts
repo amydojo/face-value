@@ -422,13 +422,21 @@ test('keeps the same paper node from commit through completed feed', async ({ pa
   ).toBe(true);
 });
 
-test('captures a clean reduced-motion feed midpoint', async ({ page }) => {
+test('captures a clean reduced-motion completed feed', async ({ page }) => {
   await installPausedAnimations(page);
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.setViewportSize({ width: 390, height: 844 });
-  await loadState(page, stateFor('dispensing'));
-  await pauseMachineAt(page, 0.55);
+  await loadState(
+    page,
+    stateFor('dispensing', {
+      oracleEvidenceDispensed: true,
+    }),
+  );
 
+  await expect(page.locator('[data-oracle-paper]')).toHaveAttribute(
+    'data-paper-position',
+    'final',
+  );
   await expect(page.locator('[data-oracle-paper]')).toHaveCSS('opacity', '1');
   await expect(page.locator('[data-oracle-evidence-path]')).toHaveCSS('overflow', 'hidden');
   const exposedContentIsPaper = await page.locator('[data-oracle-paper]').evaluate((element) => {
