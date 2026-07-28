@@ -251,8 +251,7 @@ test('keeps one opaque square paper in a clipped Safari-safe coordinate system',
   const layerModel = await page.locator('[data-oracle-paper]').evaluate((paper) => {
     const pathElement = paper.parentElement;
     const machine = paper.closest('[data-oracle-machine]');
-      const chassis =
-        machine?.querySelector('[data-oracle-chassis]') ?? null;
+    const chassis = machine?.querySelector('[data-oracle-chassis]') ?? null;
     const styleFields = (element: Element | null) => {
       if (!element) return null;
       const style = getComputedStyle(element);
@@ -484,14 +483,15 @@ test('collection leaves an empty slot, detail is escapable, and Done restores ho
 
   await page.getByRole('button', { name: 'DONE' }).click();
   await expect(page.getByRole('heading', { name: 'Your trials' })).toBeVisible();
-  await expect(page.getByText('LATEST EVIDENCE')).toBeVisible();
+  await expect(page.locator('[data-cassette-variant="latest-verdict"]')).toHaveAttribute(
+    'data-cassette-state',
+    'partially-revealed',
+  );
   await expect(
-    page
-      .locator('[aria-labelledby="latest-evidence-heading"]')
-      .locator('[data-oracle-trial-identity]'),
+    page.locator('[data-latest-verdict-record]').locator('[data-oracle-trial-identity]'),
   ).toHaveText('FV–014');
-  await expect(page.getByRole('button', { name: 'START ANOTHER TRIAL' })).toBeVisible();
-  await screenshotState(page, 'oracle-home-latest-evidence');
+  await expect(page.getByRole('button', { name: 'START A NEW TRIAL' })).toBeVisible();
+  await screenshotState(page, 'home-latest-verdict-partial');
   expect(runtimeErrors).toEqual([]);
 });
 
@@ -578,7 +578,10 @@ test('responsive and reduced-motion flows preserve order without overflow', asyn
     expect(persisted?.record?.accession).toBe('FV–014');
     await page.getByRole('button', { name: 'DONE' }).click();
     await expect(page.getByRole('heading', { name: 'Your trials' })).toBeVisible();
-    await expect(page.getByText('LATEST EVIDENCE')).toBeVisible();
+    await expect(page.locator('[data-cassette-variant="latest-verdict"]')).toHaveAttribute(
+      'data-cassette-state',
+      'partially-revealed',
+    );
     expect(
       await page.evaluate(
         () => document.documentElement.scrollWidth - document.documentElement.clientWidth,

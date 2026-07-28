@@ -202,6 +202,115 @@ p {
   padding-top: 20px;
 }
 
+.homeScreen {
+  min-width: 0;
+  gap: 14px;
+  padding-top: 16px;
+  color: var(--fv-text-on-dark);
+}
+
+.homeStatus {
+  margin: 0;
+  color: #aaa49a;
+  font: 650 9px/1.3 var(--fv-font-mono);
+  letter-spacing: 0.075em;
+}
+
+.homeScreen .trialCard {
+  border-color: #3b3833;
+  border-left-color: #bd711f;
+  color: var(--fv-text-on-dark);
+  background: #0c0c0b;
+}
+
+.homeScreen .trialCard dl > div {
+  border-color: #34312d;
+}
+
+.homeScreen .trialCard dd {
+  color: #d38a38;
+}
+
+.homeScreen .demoMarker {
+  border-color: #45413a;
+  color: #a39d92;
+}
+
+.latestVerdict {
+  min-width: 0;
+  margin-top: 2px;
+}
+
+.homePrimaryAction,
+.previousTrialsRow {
+  width: 100%;
+  min-height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 0 2px;
+  border: 0;
+  border-top: 1px solid #45413a;
+  border-bottom: 1px solid #45413a;
+  color: #eee9df;
+  background: transparent;
+  font: 650 10px/1.3 var(--fv-font-mono);
+  letter-spacing: 0.025em;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    color 120ms linear,
+    background-color 120ms linear,
+    transform 120ms var(--fv-ease-damped);
+}
+
+.homePrimaryAction:hover,
+.previousTrialsRow:hover {
+  color: #fffaf0;
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.homePrimaryAction:active,
+.previousTrialsRow:active {
+  background: rgba(255, 255, 255, 0.055);
+  transform: translate3d(0, 1px, 0);
+}
+
+.homePrimaryAction:focus-visible,
+.previousTrialsRow:focus-visible {
+  outline-color: #f0ece4;
+}
+
+.homePrimaryAction > span:last-child {
+  font: 400 20px/1 var(--fv-font-sans);
+}
+
+.previousTrialsRow {
+  min-height: 48px;
+  border-top-color: #36332e;
+  border-bottom-color: transparent;
+  color: #c3bdb2;
+}
+
+.previousTrialsRow > span:last-child {
+  display: inline-flex;
+  align-items: center;
+  gap: 18px;
+}
+
+.previousTrialsRow b {
+  min-width: 2ch;
+  color: #9d978d;
+  font-weight: 650;
+  text-align: right;
+}
+
+.previousTrialsRow i {
+  color: #eee9df;
+  font: normal 18px/1 var(--fv-font-sans);
+}
+
 .registrationScreen,
 .registeredScreen,
 .contextScreen,
@@ -394,44 +503,6 @@ p {
   border: 1px dashed var(--fv-rule-default);
   color: var(--fv-text-muted);
   font-size: 8px !important;
-}
-
-.emptyTrials {
-  display: grid;
-  gap: 14px;
-  padding: 20px 0;
-}
-
-.emptyTrials > p {
-  margin: 0;
-  color: var(--fv-text-muted);
-}
-
-.latestEvidence {
-  display: grid;
-  gap: 7px;
-  padding: 18px;
-  border: 1px solid var(--fv-rule-default);
-  border-radius: 10px;
-  background: var(--fv-surface-paper);
-}
-
-.latestEvidence p,
-.latestEvidence span {
-  margin: 0;
-  color: var(--fv-text-muted);
-  font: 650 9px var(--fv-font-mono);
-  letter-spacing: 0.045em;
-}
-
-.latestEvidence h2 {
-  font-size: 20px;
-}
-
-.latestEvidence strong {
-  font-size: 13px;
-  font-weight: 520;
-  line-height: 1.4;
 }
 
 .contextDefault,
@@ -702,7 +773,12 @@ p {
 }
 
 .traceDisturbed .traceLine {
-  background: linear-gradient(90deg, var(--fv-signal-active) 58%, transparent 58% 72%, rgba(255, 110, 20, 0.4) 72%);
+  background: linear-gradient(
+    90deg,
+    var(--fv-signal-active) 58%,
+    transparent 58% 72%,
+    rgba(255, 110, 20, 0.4) 72%
+  );
 }
 
 .traceForm {
@@ -833,7 +909,9 @@ p {
   border: 1px solid rgba(255, 255, 255, 0.09);
   border-radius: 18px;
   background: linear-gradient(145deg, #292824, #151513 72%);
-  box-shadow: 0 18px 34px rgba(0, 0, 0, 0.32), inset 0 1px rgba(255, 255, 255, 0.07);
+  box-shadow:
+    0 18px 34px rgba(0, 0, 0, 0.32),
+    inset 0 1px rgba(255, 255, 255, 0.07);
 }
 
 .guidedCaptureFrame {
@@ -843,9 +921,7 @@ p {
   overflow: hidden;
   border: 1px solid #403d38;
   border-radius: 18px;
-  background:
-    radial-gradient(ellipse at center, #282824 0 40%, #11110f 72%),
-    #0d0d0c;
+  background: radial-gradient(ellipse at center, #282824 0 40%, #11110f 72%), #0d0d0c;
 }
 
 .cameraKitMount {
@@ -977,11 +1053,7 @@ p {
   grid-row: 1;
   height: 1px;
   content: '';
-  background: linear-gradient(
-    90deg,
-    var(--fv-signal-active),
-    rgba(199, 104, 54, 0.2)
-  );
+  background: linear-gradient(90deg, var(--fv-signal-active), rgba(199, 104, 54, 0.2));
 }
 
 .sealedResult {
@@ -1116,7 +1188,9 @@ p {
   background: #171614;
   font: 600 8px var(--fv-font-mono);
   text-transform: uppercase;
-  transition: opacity 180ms ease, transform 180ms ease;
+  transition:
+    opacity 180ms ease,
+    transform 180ms ease;
 }
 
 .dispositionCommit[data-phase='committing'] {
@@ -1302,25 +1376,196 @@ p {
 
 .archiveIndex {
   display: grid;
-  gap: 12px;
+  gap: 10px;
+}
+
+.archive {
+  gap: 14px;
+  padding-bottom: var(--fv-safe-bottom);
+}
+
+.archive > .textButton {
+  width: fit-content;
+  color: #d8d2c8;
+  font-size: 14px;
+}
+
+.archiveHeading {
+  display: grid;
+  gap: 9px;
+  margin-bottom: 2px;
+}
+
+.archiveHeading h1 {
+  color: #f0ece4;
+  font-size: clamp(30px, 9vw, 36px);
+  line-height: 1;
+}
+
+.archiveSummary {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 3px 0 0;
+  padding-top: 11px;
+  border-top: 1px solid #3c3934;
+  color: #958f85;
+  font: 650 8px/1.3 var(--fv-font-mono);
+  letter-spacing: 0.065em;
+}
+
+.archiveEmpty {
+  margin: 8px 0 0;
+  padding: 18px 0;
+  border-top: 1px solid #3c3934;
+  border-bottom: 1px solid #3c3934;
+  color: #b9b3a8;
+  font-size: 13px;
 }
 
 .archiveRecord {
   position: relative;
   width: 100%;
-  padding: 0;
-  border: 0;
-  background: transparent;
+  min-height: 44px;
+  display: grid;
+  gap: 8px;
+  padding: 15px 16px 14px 19px;
+  overflow: hidden;
+  border: 1px solid #6b655c;
+  border-radius: 9px;
+  color: #1c1915;
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.32), transparent 38%),
+    #e8e0d3;
+  box-shadow:
+    0 12px 22px -19px rgba(0, 0, 0, 0.95),
+    inset 0 1px rgba(255, 255, 255, 0.48);
   text-align: left;
+  cursor: pointer;
+  transition:
+    transform 120ms var(--fv-ease-damped),
+    border-color 120ms linear,
+    background-color 120ms linear,
+    box-shadow 120ms linear;
+}
+
+.archiveRecord::before {
+  position: absolute;
+  top: 15px;
+  bottom: 15px;
+  left: 0;
+  width: 3px;
+  content: '';
+  border-radius: 0 2px 2px 0;
+  background: var(--fv-signal-active);
+}
+
+.archiveRecord:hover {
+  border-color: #938a7e;
+  background-color: #eee6d9;
+  box-shadow:
+    0 15px 26px -19px rgba(0, 0, 0, 0.98),
+    inset 0 1px rgba(255, 255, 255, 0.55);
+}
+
+.archiveRecord:active {
+  transform: translate3d(0, 1px, 0);
+  border-color: #756d62;
+  box-shadow:
+    0 8px 18px -17px rgba(0, 0, 0, 0.9),
+    inset 0 1px rgba(255, 255, 255, 0.42);
+}
+
+.archiveRecord:focus-visible {
+  outline-color: var(--fv-signal-active);
+  outline-offset: 3px;
+}
+
+.archiveRecordMeta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 7px;
+  border-bottom: 1px solid rgba(63, 57, 48, 0.25);
+  color: #615a51;
+  font: 650 8px/1.3 var(--fv-font-mono);
+  letter-spacing: 0.065em;
 }
 
 .archiveAccession {
-  position: absolute;
-  top: 10px;
-  left: 12px;
-  z-index: 2;
-  color: var(--fv-signal-active);
-  font: 600 7px var(--fv-font-mono);
+  color: #2b2722;
+}
+
+.archiveRecordMeta time {
+  color: #6f685e;
+  white-space: nowrap;
+}
+
+.archiveProduct,
+.archiveFinding,
+.archiveSupport {
+  overflow-wrap: anywhere;
+}
+
+.archiveProduct {
+  color: #181512;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+.archiveFinding {
+  color: #211d18;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.38;
+}
+
+.archiveSupport {
+  color: #625b52;
+  font-size: 11px;
+  line-height: 1.42;
+}
+
+.archiveRecordFooter {
+  min-height: 24px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto 20px;
+  align-items: end;
+  gap: 10px;
+  padding-top: 7px;
+  border-top: 1px solid rgba(63, 57, 48, 0.25);
+  font: 650 8px/1.2 var(--fv-font-mono);
+  letter-spacing: 0.055em;
+}
+
+.archiveRecordFooter b {
+  color: #2c2721;
+  overflow-wrap: anywhere;
+}
+
+.archiveRecordFooter span {
+  color: #6b6359;
+}
+
+.archiveRecordFooter i {
+  color: #1d1915;
+  font: normal 17px/1 var(--fv-font-sans);
+  text-align: right;
+}
+
+.archive > details {
+  margin-top: 4px;
+  color: #aaa399;
+  font-size: 12px;
+}
+
+.archive > details summary {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
 }
 
 .bottomNav {
@@ -1374,10 +1619,28 @@ p {
   .captureIdentity small {
     display: none;
   }
+
+  .archiveRecord {
+    padding-inline: 17px 13px;
+  }
+
+  .archiveRecordMeta {
+    gap: 8px;
+  }
+
+  .archiveRecordFooter {
+    gap: 7px;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .dispositionCommit {
     transition-duration: 80ms;
+  }
+
+  .homePrimaryAction,
+  .previousTrialsRow,
+  .archiveRecord {
+    transition: none;
   }
 }

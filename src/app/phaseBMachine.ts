@@ -464,7 +464,7 @@ export function faceValueReducer(
         ...next,
         placement: defaultPlacementForResult(state.analysis),
         placementSealed: false,
-        announcement: 'Reveal started. The oracle latch is releasing.',
+        announcement: 'Reveal started. Preparing the result.',
       };
     }
 
@@ -473,7 +473,7 @@ export function faceValueReducer(
       if (next === state) return state;
       return {
         ...next,
-        announcement: 'The oracle display is transmitting the result.',
+        announcement: 'Revealing result. Preparing your evidence record.',
       };
     }
 
@@ -519,7 +519,7 @@ export function faceValueReducer(
         ...next,
         placement: event.placement,
         oracleCommittedAt: event.now,
-        announcement: 'Result kept. The evidence dispenser is engaging.',
+        announcement: 'Saving your result.',
       };
     }
 
@@ -528,7 +528,7 @@ export function faceValueReducer(
       if (next === state) return state;
       return {
         ...next,
-        announcement: 'The evidence record is dispensing.',
+        announcement: 'Your evidence record is being prepared.',
       };
     }
 
@@ -537,7 +537,7 @@ export function faceValueReducer(
       if (next === state) return state;
       return {
         ...next,
-        announcement: 'Evidence produced. Take your record.',
+        announcement: 'Result ready. Take your evidence record.',
       };
     }
 
@@ -564,7 +564,7 @@ export function faceValueReducer(
         placementSealed: true,
         record,
         archive,
-        announcement: `Evidence recorded. ${record.finding} Next: ${record.finalPlacement.replaceAll('_', ' ')}.`,
+        announcement: `Your result is saved. ${record.finding} Next: ${record.finalPlacement.replaceAll('_', ' ')}.`,
       };
     }
 
@@ -601,7 +601,7 @@ export function faceValueReducer(
         followUpContext: null,
         demoTimelineAdvanced: false,
         returnStage: null,
-        announcement: 'Evidence recorded. Returned to Your trials.',
+        announcement: 'Result saved. Returned to Your trials.',
       };
     }
 
