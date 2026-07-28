@@ -3,9 +3,6 @@ import { oracleTrialIdentityForRecord } from '../../domain/oracleTrialIdentity';
 import { verdictProduct, verdictViewModelFromRecord } from '../verdict/verdictViewModel';
 import styles from '../../styles/FaceValue.module.css';
 
-const showDemoControls =
-  import.meta.env.DEV && import.meta.env.VITE_SHOW_DEMO_CONTROLS === 'true';
-
 const archiveDateFormatter = new Intl.DateTimeFormat('en-GB', {
   day: '2-digit',
   month: 'short',
@@ -23,12 +20,10 @@ export function Archive({
   records,
   onOpen,
   onBack,
-  onClear,
 }: {
   records: EvidenceRecordData[];
   onOpen: (record: EvidenceRecordData) => void;
   onBack: () => void;
-  onClear: () => void;
 }) {
   return (
     <section
@@ -84,14 +79,6 @@ export function Archive({
             );
           })}
         </div>
-      )}
-      {showDemoControls && (
-        <details>
-          <summary>Demo controls</summary>
-          <button type="button" className={styles.dangerAction} onClick={onClear}>
-            Clear demo data
-          </button>
-        </details>
       )}
     </section>
   );

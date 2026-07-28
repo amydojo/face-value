@@ -1,4 +1,5 @@
 import { createContext, useContext, type Dispatch } from 'react';
+import { ordinaryDemoRuntime, type DemoRuntime } from '../domain/demoLab';
 import {
   initialState,
   type FaceValueEvent,
@@ -8,11 +9,13 @@ import {
 export interface FaceValueContextValue {
   state: PhaseBFaceValueState;
   dispatch: Dispatch<FaceValueEvent>;
+  demoRuntime: DemoRuntime;
 }
 
 const isolatedFallback: FaceValueContextValue = {
   state: initialState,
   dispatch: () => undefined,
+  demoRuntime: ordinaryDemoRuntime,
 };
 
 export const FaceValueContext = createContext<FaceValueContextValue | null>(null);

@@ -19,6 +19,11 @@ const forbidden = [
   'VITE_SHOW_DEMO_CONTROLS',
   'Demo controls',
   'Clear demo data',
+  'CLEAR DEMO DATA',
+  'DEMO LAB',
+  'SYNTHETIC DEMO DATA',
+  'OPEN DEMO STATE',
+  'face-value:demo-lab',
 ];
 
 async function filesUnder(directory) {
@@ -26,7 +31,7 @@ async function filesUnder(directory) {
   const files = [];
   for (const entry of entries) {
     const path = join(directory, entry.name);
-    if (entry.isDirectory()) files.push(...await filesUnder(path));
+    if (entry.isDirectory()) files.push(...(await filesUnder(path)));
     else if (entry.isFile()) files.push(path);
   }
   return files;

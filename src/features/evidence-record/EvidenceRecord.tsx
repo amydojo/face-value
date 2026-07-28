@@ -6,9 +6,12 @@ import {
   type EvidenceRecordRow,
   type EvidenceRecordViewModel,
 } from './evidenceRecordViewModel';
+import {
+  collapsedEvidenceRecordDisclosureState,
+  type EvidenceRecordDisclosure,
+  type EvidenceRecordDisclosureState,
+} from './evidenceRecordDisclosure';
 import styles from './EvidenceRecord.module.css';
-
-type Disclosure = 'why' | 'full';
 
 function EvidenceRows({
   rows,
@@ -108,11 +111,11 @@ function DisclosureButton({
   expanded,
   onToggle,
 }: {
-  disclosure: Disclosure;
+  disclosure: EvidenceRecordDisclosure;
   title: string;
   summary: string;
   expanded: boolean;
-  onToggle: (disclosure: Disclosure) => void;
+  onToggle: (disclosure: EvidenceRecordDisclosure) => void;
 }) {
   const controlId = `${disclosure}-disclosure-control`;
   const panelId = `${disclosure}-disclosure-panel`;
@@ -164,7 +167,15 @@ function WhyPanel({ viewModel }: { viewModel: EvidenceRecordViewModel }) {
   );
 }
 
-function FullRecordPanel({ viewModel }: { viewModel: EvidenceRecordViewModel }) {
+function FullRecordPanel({
+  viewModel,
+  technicalMetadataOpen,
+  onTechnicalMetadataToggle,
+}: {
+  viewModel: EvidenceRecordViewModel;
+  technicalMetadataOpen: boolean;
+  onTechnicalMetadataToggle: (open: boolean) => void;
+}) {
   const full = viewModel.full;
   if (!full) return null;
   return (
@@ -191,7 +202,11 @@ function FullRecordPanel({ viewModel }: { viewModel: EvidenceRecordViewModel }) 
           )}
         </section>
       ))}
-      <details className={styles.technicalDisclosure}>
+      <details
+        className={styles.technicalDisclosure}
+        open={technicalMetadataOpen}
+        onToggle={(event) => onTechnicalMetadataToggle(event.currentTarget.open)}
+      >
         <summary>
           <span>
             <strong>Technical metadata</strong>
@@ -244,14 +259,22 @@ export function EvidenceRecord({
   record,
   onArchive,
   onBack,
+  initialDisclosureState = collapsedEvidenceRecordDisclosureState,
 }: {
   record: EvidenceRecordData;
   onArchive: () => void;
   onBack: () => void;
+  initialDisclosureState?: EvidenceRecordDisclosureState;
 }) {
-  const [openDisclosure, setOpenDisclosure] = useState<Disclosure | null>(null);
+  const [openDisclosure, setOpenDisclosure] = useState<EvidenceRecordDisclosure | null>(
+    initialDisclosureState.openDisclosure,
+  );
+  const [technicalMetadataOpen, setTechnicalMetadataOpen] = useState(
+    initialDisclosureState.openDisclosure === 'full' &&
+      initialDisclosureState.technicalMetadataOpen,
+  );
   const viewModel = evidenceRecordViewModelFromRecord(record);
-  const toggleDisclosure = (disclosure: Disclosure) => {
+  const toggleDisclosure = (disclosure: EvidenceRecordDisclosure) => {
     setOpenDisclosure((current) => (current === disclosure ? null : disclosure));
   };
 
@@ -324,7 +347,13 @@ export function EvidenceRecord({
               expanded={openDisclosure === 'full'}
               onToggle={toggleDisclosure}
             />
-            {openDisclosure === 'full' && <FullRecordPanel viewModel={viewModel} />}
+            {openDisclosure === 'full' && (
+              <FullRecordPanel
+                viewModel={viewModel}
+                technicalMetadataOpen={technicalMetadataOpen}
+                onTechnicalMetadataToggle={setTechnicalMetadataOpen}
+              />
+            )}
           </div>
         )}
 

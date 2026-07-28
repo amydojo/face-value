@@ -36,6 +36,8 @@ for (const file of sourceFiles) {
       'classifyEffect',
       'activeDetectableBoundary',
       'rawScoreDelta',
+      'evaluateRedness',
+      'canonicalRednessFixtures',
     ]) {
       if (source.includes(scientificIdentifier)) {
         violations.push(`${path} contains scientific decision identifier ${scientificIdentifier}`);
@@ -48,6 +50,84 @@ for (const file of sourceFiles) {
       violations.push(`${path} references retired verdict derivation ${retiredDerivation}`);
     }
   }
+}
+
+const demoLabComponent = await readFile(
+  new URL('../src/features/demo-lab/DemoLab.tsx', import.meta.url),
+  'utf8',
+);
+for (const forbiddenDemoDependency of [
+  'domain/evidence/redness',
+  'evaluateRedness',
+  'thresholds',
+  'EvidenceRecord',
+  'OracleRevealScene',
+  'LatestVerdictCassette',
+  'Archive',
+]) {
+  if (demoLabComponent.includes(forbiddenDemoDependency)) {
+    violations.push(
+      `DemoLab.tsx duplicates or directly derives a production screen through ${forbiddenDemoDependency}`,
+    );
+  }
+}
+
+for (const duplicatedScreenMarker of [
+  'data-fv-screen="saved-result"',
+  'data-fv-screen="previous-trials"',
+  'data-fv-screen="oracle-reveal"',
+  'data-latest-verdict-cassette',
+]) {
+  if (demoLabComponent.includes(duplicatedScreenMarker)) {
+    violations.push(`DemoLab.tsx contains duplicated production markup ${duplicatedScreenMarker}`);
+  }
+}
+
+const demoFixtureState = await readFile(
+  new URL('../src/features/demo-lab/demoFixtureState.ts', import.meta.url),
+  'utf8',
+);
+if (!demoFixtureState.includes('openCurrentSavedResultRoute')) {
+  violations.push('Demo fixture state does not use the typed current saved-result route adapter');
+}
+if (demoFixtureState.includes('EvidenceRecordViewModel')) {
+  violations.push('Demo fixture state bypasses the production EvidenceRecordViewModel adapter');
+}
+for (const presentationState of ['openDisclosure', 'technicalMetadataOpen']) {
+  if (demoFixtureState.includes(presentationState)) {
+    violations.push(
+      `Demo fixture state mixes Evidence Record presentation state into scientific fixtures through ${presentationState}`,
+    );
+  }
+}
+
+const demoEvidenceRecordAdapter = await readFile(
+  new URL('../src/features/demo-lab/evidenceRecordDemoAdapter.ts', import.meta.url),
+  'utf8',
+);
+if (!demoEvidenceRecordAdapter.includes('EvidenceRecordDisclosureState')) {
+  violations.push('Demo Evidence Record adapter is not typed against production disclosure state');
+}
+for (const scientificDependency of [
+  'evaluateRedness',
+  'canonicalRednessFixtures',
+  'rawScoreDelta',
+  'provisionalDetectablePoints',
+  'provisionalStrongPoints',
+]) {
+  if (demoEvidenceRecordAdapter.includes(scientificDependency)) {
+    violations.push(
+      `Demo Evidence Record adapter contains scientific fixture logic through ${scientificDependency}`,
+    );
+  }
+}
+
+const archiveScreen = await readFile(
+  new URL('../src/features/archive/Archive.tsx', import.meta.url),
+  'utf8',
+);
+if (archiveScreen.includes('Demo controls') || archiveScreen.includes('Clear demo data')) {
+  violations.push('Archive.tsx still exposes scattered demo controls');
 }
 
 const productionJourney = await readFile(

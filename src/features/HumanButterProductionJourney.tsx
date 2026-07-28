@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { useFaceValue } from '../app/faceValueContext';
 import styles from '../styles/FaceValue.module.css';
 import { FaceValueApplication } from './FaceValueApplication';
+import { DemoRuntimeBanner } from './demo-lab/DemoRuntimeBanner';
+import { DEMO_LAB_ENABLED } from './demo-lab/demoLabAccess';
 
 function DemoSessionRecovery() {
   const [dismissed, setDismissed] = useState(false);
@@ -50,7 +52,7 @@ function DemoSessionRecovery() {
 }
 
 export function HumanButterProductionJourney() {
-  const { state, dispatch } = useFaceValue();
+  const { state, dispatch, demoRuntime } = useFaceValue();
 
   if (state.stage === 'comparison_refused' && state.analysisError?.code === 'protocol_mismatch') {
     return (
@@ -85,6 +87,9 @@ export function HumanButterProductionJourney() {
   return (
     <>
       <FaceValueApplication />
+      {DEMO_LAB_ENABLED && demoRuntime.mode !== 'ordinary' && (
+        <DemoRuntimeBanner runtime={demoRuntime} />
+      )}
       {needsDemoSession && <DemoSessionRecovery />}
     </>
   );
