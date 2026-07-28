@@ -36,6 +36,8 @@ for (const file of sourceFiles) {
       'classifyEffect',
       'activeDetectableBoundary',
       'rawScoreDelta',
+      'evaluateRedness',
+      'canonicalRednessFixtures',
     ]) {
       if (source.includes(scientificIdentifier)) {
         violations.push(`${path} contains scientific decision identifier ${scientificIdentifier}`);
@@ -48,6 +50,56 @@ for (const file of sourceFiles) {
       violations.push(`${path} references retired verdict derivation ${retiredDerivation}`);
     }
   }
+}
+
+const demoLabComponent = await readFile(
+  new URL('../src/features/demo-lab/DemoLab.tsx', import.meta.url),
+  'utf8',
+);
+for (const forbiddenDemoDependency of [
+  'domain/evidence/redness',
+  'evaluateRedness',
+  'thresholds',
+  'EvidenceRecord',
+  'OracleRevealScene',
+  'LatestVerdictCassette',
+  'Archive',
+]) {
+  if (demoLabComponent.includes(forbiddenDemoDependency)) {
+    violations.push(
+      `DemoLab.tsx duplicates or directly derives a production screen through ${forbiddenDemoDependency}`,
+    );
+  }
+}
+
+for (const duplicatedScreenMarker of [
+  'data-fv-screen="saved-result"',
+  'data-fv-screen="previous-trials"',
+  'data-fv-screen="oracle-reveal"',
+  'data-latest-verdict-cassette',
+]) {
+  if (demoLabComponent.includes(duplicatedScreenMarker)) {
+    violations.push(`DemoLab.tsx contains duplicated production markup ${duplicatedScreenMarker}`);
+  }
+}
+
+const demoFixtureState = await readFile(
+  new URL('../src/features/demo-lab/demoFixtureState.ts', import.meta.url),
+  'utf8',
+);
+if (!demoFixtureState.includes('openCurrentSavedResultRoute')) {
+  violations.push('Demo fixture state does not use the typed current saved-result route adapter');
+}
+if (demoFixtureState.includes('EvidenceRecordViewModel')) {
+  violations.push('Demo fixture state invents the pending EvidenceRecordViewModel integration');
+}
+
+const archiveScreen = await readFile(
+  new URL('../src/features/archive/Archive.tsx', import.meta.url),
+  'utf8',
+);
+if (archiveScreen.includes('Demo controls') || archiveScreen.includes('Clear demo data')) {
+  violations.push('Archive.tsx still exposes scattered demo controls');
 }
 
 const productionJourney = await readFile(

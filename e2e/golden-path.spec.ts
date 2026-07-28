@@ -174,8 +174,16 @@ for (const scenario of cases) {
     await expect(page.getByText('Azelaic Topical Acid', { exact: true })).toBeVisible();
     await expect(page.getByRole('button', { name: 'TAKE FOLLOW-UP' })).toHaveCount(0);
 
-    await expect(page.getByRole('button', { name: 'ADVANCE DEMO TIMELINE' })).toBeVisible();
-    await page.getByRole('button', { name: 'ADVANCE DEMO TIMELINE' }).click();
+    await page.evaluate((key) => {
+      const raw = localStorage.getItem(key);
+      if (!raw) throw new Error('Expected a persisted baseline trial.');
+      const persisted = JSON.parse(raw) as {
+        demoTimelineAdvanced: boolean;
+      };
+      persisted.demoTimelineAdvanced = true;
+      localStorage.setItem(key, JSON.stringify(persisted));
+    }, STORAGE_KEY);
+    await page.reload();
     await expect(page.getByText('FOLLOW-UP READY').first()).toBeVisible();
     await expect(page.getByRole('button', { name: 'TAKE FOLLOW-UP' })).toBeVisible();
     await expect(page.getByText('DEMO TIMELINE ADVANCED · BASELINE DATE UNCHANGED')).toBeVisible();

@@ -18,9 +18,6 @@ import { EvidenceRecord } from './evidence-record/EvidenceRecord';
 import { LatestVerdictCassette, OracleRevealScene } from './oracle-reveal/OracleRevealScene';
 import { ProductRegistration } from './product-registration/ProductRegistration';
 
-const showDemoControls =
-  import.meta.env.DEV && import.meta.env.VITE_SHOW_DEMO_CONTROLS === 'true';
-
 const localDateFormatter = new Intl.DateTimeFormat(undefined, {
   weekday: 'short',
   month: 'short',
@@ -37,7 +34,7 @@ const formatLocalDate = (value: string | null): string => {
 };
 
 export function FaceValueApplication() {
-  const { state, dispatch } = useFaceValue();
+  const { state, dispatch, demoRuntime } = useFaceValue();
   const registeredSpecimen = useMemo(
     () => (state.registeredProduct ? specimenFromRegisteredProduct(state.registeredProduct) : null),
     [state.registeredProduct],
@@ -66,6 +63,7 @@ export function FaceValueApplication() {
   useEffect(() => {
     if (
       state.stage !== 'analysis' ||
+      demoRuntime.startingPoint === 'comparison_processing' ||
       state.analysis ||
       state.longitudinalEvidence.comparison ||
       !state.longitudinalEvidence.baseline ||
@@ -92,6 +90,7 @@ export function FaceValueApplication() {
     state.longitudinalEvidence.comparison,
     state.longitudinalEvidence.followUp,
     state.stage,
+    demoRuntime.startingPoint,
   ]);
 
   useEffect(() => {
@@ -230,21 +229,6 @@ export function FaceValueApplication() {
             >
               <span>TAKE FOLLOW-UP</span>
               <span aria-hidden="true">→</span>
-            </button>
-          )}
-
-          {!eligible && hasActiveTrial && showDemoControls && (
-            <button
-              type="button"
-              className={styles.secondaryAction}
-              onClick={() =>
-                dispatch({
-                  type: 'ADVANCE_DEMO_TIMELINE',
-                  now: systemClock.now(),
-                })
-              }
-            >
-              ADVANCE DEMO TIMELINE
             </button>
           )}
 
@@ -624,7 +608,6 @@ export function FaceValueApplication() {
             records={state.archive}
             onOpen={(record) => dispatch({ type: 'VIEW_RECORD', record })}
             onBack={() => dispatch({ type: 'BACK' })}
-            onClear={() => dispatch({ type: 'CLEAR_DEMO_DATA' })}
           />
         );
 
