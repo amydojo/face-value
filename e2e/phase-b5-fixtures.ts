@@ -128,4 +128,8 @@ export const persistedSealedTrial = {
   },
   demoTimelineAdvanced: false,
   resultRevealed: false,
+  oracleRevealState: 'sealed',
+  oracleEvidenceDispensed: false,
+  oracleCollectionStarted: false,
+  oracleCommittedAt: null,
 };

@@ -18,13 +18,13 @@ async function openPersistedSealedResult(page: Page): Promise<void> {
   ).toBeVisible();
 }
 
-test('result handle owns pointer drag without taking page scroll ownership', async ({
+test('reveal handle owns pointer drag without taking page scroll ownership', async ({
   page,
 }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await openPersistedSealedResult(page);
   const handle = page.getByRole('button', {
-    name: /Reveal result for Azelaic Topical Acid/i,
+    name: /Reveal sealed result for Azelaic Topical Acid/i,
   });
   await expect(handle).toHaveCSS('touch-action', 'none');
   expect(
@@ -43,11 +43,14 @@ test('result handle owns pointer drag without taking page scroll ownership', asy
     { steps: 3 },
   );
   await page.mouse.up();
-  await expect(
-    page.getByRole('heading', {
-      name: 'A small favorable shift showed up.',
-    }),
-  ).toBeVisible({ timeout: 2_000 });
+  await expect(page.locator('[data-oracle-machine]')).toHaveAttribute(
+    'data-oracle-state',
+    'verdict_revealed',
+    { timeout: 3_000 },
+  );
+  await expect(page.locator('[data-firmware-state="resolved"]')).toContainText(
+    'A small favorable shift showed up.',
+  );
   await expect(page).toHaveURL(/\/$/);
 });
 
@@ -56,7 +59,7 @@ test('pointer cancellation and lost capture leave the next activation usable', a
 }) => {
   await openPersistedSealedResult(page);
   const handle = page.getByRole('button', {
-    name: /Reveal result for Azelaic Topical Acid/i,
+    name: /Reveal sealed result for Azelaic Topical Acid/i,
   });
   await handle.dispatchEvent('pointerdown', {
     pointerId: 7,
@@ -79,11 +82,11 @@ test('pointer cancellation and lost capture leave the next activation usable', a
   });
   await handle.dispatchEvent('lostpointercapture', { pointerId: 8 });
   await handle.press('Enter');
-  await expect(
-    page.getByRole('heading', {
-      name: 'A small favorable shift showed up.',
-    }),
-  ).toBeVisible({ timeout: 2_000 });
+  await expect(page.locator('[data-oracle-machine]')).toHaveAttribute(
+    'data-oracle-state',
+    'verdict_revealed',
+    { timeout: 3_000 },
+  );
 });
 
 test('Escape is deterministic and cannot bypass the sealed or revealed state', async ({
@@ -96,23 +99,22 @@ test('Escape is deterministic and cannot bypass the sealed or revealed state', a
   ).toBeVisible();
   await page
     .getByRole('button', {
-      name: /Reveal result for Azelaic Topical Acid/i,
+      name: /Reveal sealed result for Azelaic Topical Acid/i,
     })
     .press('Space');
-  await expect(
-    page.getByRole('heading', {
-      name: 'A small favorable shift showed up.',
-    }),
-  ).toBeVisible({ timeout: 2_000 });
+  await expect(page.locator('[data-oracle-machine]')).toHaveAttribute(
+    'data-oracle-state',
+    'verdict_revealed',
+    { timeout: 3_000 },
+  );
   await page.keyboard.press('Escape');
-  await expect(
-    page.getByRole('heading', {
-      name: 'A small favorable shift showed up.',
-    }),
-  ).toBeVisible();
+  await expect(page.locator('[data-firmware-state="resolved"]')).toContainText(
+    'A small favorable shift showed up.',
+  );
   await expect(
     page.getByRole('button', {
-      name: 'Press amber to keep this evidence',
+      name: 'Keep this result',
+      exact: true,
     }),
   ).toBeVisible();
 });
@@ -124,39 +126,41 @@ test('reduced motion preserves reveal, atomic release, presentation, and collect
   await openPersistedSealedResult(page);
   await page
     .getByRole('button', {
-      name: /Reveal result for Azelaic Topical Acid/i,
+      name: /Reveal sealed result for Azelaic Topical Acid/i,
     })
     .press('Enter');
-  await expect(
-    page.getByRole('heading', {
-      name: 'A small favorable shift showed up.',
-    }),
-  ).toBeVisible({ timeout: 1_000 });
+  const machine = page.locator('[data-oracle-machine]');
+  await expect(machine).toHaveAttribute(
+    'data-oracle-state',
+    'verdict_revealed',
+    { timeout: 1_000 },
+  );
 
   const amber = page.getByRole('button', {
-    name: 'Press amber to keep this evidence',
+    name: 'Keep this result',
+    exact: true,
   });
   await amber.evaluate((element) => {
     (element as HTMLButtonElement).click();
     (element as HTMLButtonElement).click();
   });
-  const machine = page.locator('[data-evidence-machine]');
   await expect(machine).toHaveAttribute(
-    'data-release-state',
-    'record-presented',
+    'data-oracle-state',
+    'dispensing',
     { timeout: 1_000 },
   );
-  await expect(page.locator('[data-evidence-record-artifact]')).toHaveCount(
-    1,
+  await expect(page.locator('[data-oracle-paper]')).toHaveAttribute(
+    'data-paper-position',
+    'final',
+    { timeout: 1_000 },
   );
   await page
     .getByRole('button', {
-      name: /Collect Evidence Record for .*Azelaic Topical Acid/i,
+      name: /Evidence record for Naturium · Azelaic Topical Acid/i,
     })
     .press('Enter');
-  await expect(
-    page.getByRole('heading', { name: 'Your evidence.' }),
-  ).toBeVisible();
+  await expect(machine).toHaveAttribute('data-oracle-state', 'collected');
+  await expect(page.getByRole('button', { name: 'DONE' })).toBeVisible();
 });
 
 test('canceling guided capture releases the fixture and ignores stale completion', async ({
