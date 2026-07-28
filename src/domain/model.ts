@@ -1,4 +1,5 @@
 import type { AnalysisProtocol } from '../adapters/analysis/youcam/contracts';
+import type { OracleRevealState } from './oracleRevealMachine';
 
 export type CabinetState = 'closed' | 'opening' | 'open' | 'closing';
 export type ObservationState =
@@ -260,6 +261,10 @@ export interface FaceValueState {
   followUpContext?: CaptureContext | null;
   demoTimelineAdvanced?: boolean;
   resultRevealed?: boolean;
+  oracleRevealState?: OracleRevealState;
+  oracleEvidenceDispensed?: boolean;
+  oracleCollectionStarted?: boolean;
+  oracleCommittedAt?: string | null;
 }
 
 export type AnalysisScenario =

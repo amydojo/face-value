@@ -26,8 +26,13 @@ function restoredStageFor(persisted: PersistedDemoData): AppStage {
 
   if (persisted.stage === 'archive') return 'archive';
   if (persisted.stage === 'record' && persisted.record) return 'record';
-  if (persisted.placementSealed && persisted.record) return 'placement';
-  if (persisted.resultRevealed && hasComparison) return 'placement';
+  if (persisted.oracleRevealState === 'done') return 'cabinet';
+  if (
+    persisted.oracleRevealState === 'collected' &&
+    persisted.record
+  ) {
+    return 'analysis';
+  }
   if (hasComparison) return 'analysis';
   if (hasBaseline && hasFollowUp) {
     return persisted.stage === 'followup_context'
@@ -82,14 +87,17 @@ function hydrateState(): PhaseBFaceValueState {
   );
   const restoredStage = restoredStageFor(persisted);
   const hasPendingRelease = Boolean(
-    restoredStage === 'placement' &&
-      persisted.placementSealed &&
-      persisted.record,
+    restoredStage === 'analysis' &&
+      persisted.oracleRevealState === 'dispensing',
   );
   const hasPendingDecision = Boolean(
-    restoredStage === 'placement' &&
-      persisted.resultRevealed &&
-      !persisted.placementSealed,
+    restoredStage === 'analysis' &&
+      persisted.oracleRevealState === 'verdict_revealed',
+  );
+  const hasCollectedEvidence = Boolean(
+    restoredStage === 'analysis' &&
+      persisted.oracleRevealState === 'collected' &&
+      persisted.record,
   );
 
   const hydrated = normalizePhaseBState({
@@ -107,10 +115,12 @@ function hydrateState(): PhaseBFaceValueState {
     activeAnalysisRequestId: null,
     pendingAnalysisCapture: null,
     analysisError: null,
-    announcement: hasPendingRelease
-      ? 'Your Evidence Record was restored and is ready to collect.'
-      : hasPendingDecision
-        ? 'Your result was restored. Press amber to keep this evidence.'
+    announcement: hasCollectedEvidence
+      ? 'Your recorded evidence was restored. Done returns to Your trials.'
+      : hasPendingRelease
+        ? 'Your evidence dispense was restored.'
+        : hasPendingDecision
+          ? 'Your result was restored and is ready to keep.'
         : completeSignalsAwaitingComparison
           ? 'Your matched scans were restored. Comparison is resuming.'
           : restoredStage === 'welcome'
