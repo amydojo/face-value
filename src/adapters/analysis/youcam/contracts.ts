@@ -24,6 +24,7 @@ export interface AnalyzeCaptureInput {
   protocol: AnalysisProtocol;
   capturedAt: string;
   role?: 'baseline' | 'followup';
+  fromCameraKit?: boolean;
   signal?: AbortSignal;
 }
 

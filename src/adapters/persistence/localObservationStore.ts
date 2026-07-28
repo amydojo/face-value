@@ -1,5 +1,8 @@
 import type {
   AnalysisResult,
+  AppStage,
+  CaptureContext,
+  CaptureKind,
   CaptureMetadata,
   ComparisonState,
   DisturbanceState,
@@ -11,15 +14,23 @@ import type {
   ObservationState,
   ProductPlacement,
   RednessComparison,
+  RegisteredProduct,
   TraceEntry,
 } from '../../domain/model';
+import {
+  FOLLOW_UP_INTERVAL_DAYS,
+  addCalendarDays,
+  isValidRegisteredProduct,
+} from '../../domain/phaseB5';
 
 export const STORAGE_KEY = 'face-value:structured-demo:v1';
 
 export interface PersistedDemoData {
+  stage: AppStage | null;
   selectedDrawerIndex: number;
   selectedSpecimenId: string;
   assignedJob: string | null;
+  captureKind: CaptureKind;
   observation: ObservationState;
   placement: ProductPlacement;
   placementSealed: boolean;
@@ -33,6 +44,13 @@ export interface PersistedDemoData {
   record: EvidenceRecordData | null;
   archive: EvidenceRecordData[];
   longitudinalEvidence: LongitudinalSkinEvidence;
+  registeredProduct: RegisteredProduct | null;
+  baselineLockedAt: string | null;
+  followUpEligibleAt: string | null;
+  baselineContext: CaptureContext | null;
+  followUpContext: CaptureContext | null;
+  demoTimelineAdvanced: boolean;
+  resultRevealed: boolean;
 }
 
 const emptyLongitudinalEvidence = (): LongitudinalSkinEvidence => ({
@@ -81,6 +99,30 @@ const disturbanceStates = new Set<DisturbanceState>([
   'overlap_retained',
 ]);
 const captureKinds = new Set<CaptureMetadata['kind']>(['baseline', 'followup']);
+const appStages = new Set<AppStage>([
+  'welcome',
+  'product_registration',
+  'cabinet',
+  'browse',
+  'specimen',
+  'job',
+  'capture_contract',
+  'camera',
+  'baseline_context',
+  'baseline_locked',
+  'waiting_for_followup',
+  'followup_ready',
+  'followup_context',
+  'observation',
+  'disturbance',
+  'analysis',
+  'analysis_failure',
+  'comparison_refused',
+  'progress',
+  'placement',
+  'record',
+  'archive',
+]);
 const captureSources = new Set<CaptureMetadata['source']>(['camera', 'file']);
 const captureMimeTypes = new Set<CaptureMetadata['mimeType']>([
   'image/jpeg',
@@ -88,6 +130,10 @@ const captureMimeTypes = new Set<CaptureMetadata['mimeType']>([
   'image/webp',
   'image/heic',
   'image/unknown',
+]);
+const cameraCaptureProfiles = new Set([
+  'youcam-camera-kit-hd-1080p',
+  'youcam-camera-kit-hd-1920p',
 ]);
 
 const isObject = (value: unknown): value is Record<string, unknown> =>
@@ -107,7 +153,18 @@ const isCaptureMetadata = (value: unknown): value is CaptureMetadata =>
   captureSources.has(value.source as CaptureMetadata['source']) &&
   captureMimeTypes.has(value.mimeType as CaptureMetadata['mimeType']) &&
   typeof value.createdAt === 'string' &&
-  value.orientationRule === 'analysis-unmirrored';
+  value.orientationRule === 'analysis-unmirrored' &&
+  (value.cameraProfileId === undefined ||
+    value.cameraProfileId === null ||
+    cameraCaptureProfiles.has(String(value.cameraProfileId)));
+
+const isCaptureContext = (value: unknown): value is CaptureContext =>
+  isObject(value) &&
+  typeof value.makeup === 'boolean' &&
+  typeof value.recentHeatOrExercise === 'boolean' &&
+  typeof value.recentCleansingOrSkincare === 'boolean' &&
+  typeof value.routineOrTreatmentChange === 'boolean' &&
+  (value.note === null || typeof value.note === 'string');
 
 const isEvidenceRecord = (value: unknown): value is EvidenceRecordData =>
   isObject(value) &&
@@ -118,6 +175,21 @@ const isEvidenceRecord = (value: unknown): value is EvidenceRecordData =>
   typeof value.job === 'string' &&
   typeof value.finding === 'string' &&
   value.includesFaceImage === false &&
+  (value.productBrand === undefined || typeof value.productBrand === 'string') &&
+  (value.productStrength === undefined ||
+    value.productStrength === null ||
+    typeof value.productStrength === 'string') &&
+  (value.productVolume === undefined ||
+    value.productVolume === null ||
+    typeof value.productVolume === 'string') &&
+  (value.baselineContext === undefined ||
+    value.baselineContext === null ||
+    isCaptureContext(value.baselineContext)) &&
+  (value.followUpContext === undefined ||
+    value.followUpContext === null ||
+    isCaptureContext(value.followUpContext)) &&
+  (value.demoOriginated === undefined ||
+    typeof value.demoOriginated === 'boolean') &&
   (value.baselineRawScore === undefined ||
     (typeof value.baselineRawScore === 'number' && Number.isFinite(value.baselineRawScore))) &&
   (value.followUpRawScore === undefined ||
@@ -181,11 +253,42 @@ const isLongitudinalEvidence = (value: unknown): value is LongitudinalSkinEviden
   (value.followUp === null || isDurableSignal(value.followUp)) &&
   (value.comparison === null || isRednessComparison(value.comparison));
 
+const migrateLegacyRegisteredProduct = (input: {
+  selectedSpecimenId: string;
+  assignedJob: string | null;
+  baselineCapture: CaptureMetadata | null;
+  longitudinalEvidence: LongitudinalSkinEvidence;
+}): RegisteredProduct | null => {
+  if (
+    input.selectedSpecimenId !== 'one-thing' ||
+    input.assignedJob !== 'Reduce visible redness' ||
+    !input.longitudinalEvidence.baseline
+  ) {
+    return null;
+  }
+
+  return {
+    id: 'legacy-registered-product-one-thing',
+    accession: '02',
+    brand: 'FACE VALUE',
+    productName: '02 / ONE THING',
+    strength: null,
+    volume: '30 ML',
+    assignedJob: 'Reduce visible redness',
+    protocolId: 'youcam-redness-v1',
+    createdAt:
+      input.baselineCapture?.createdAt ??
+      input.longitudinalEvidence.baseline.capturedAt,
+  };
+};
+
 export function toPersistedDemoData(state: FaceValueState): PersistedDemoData {
   return {
+    stage: state.stage,
     selectedDrawerIndex: state.selectedDrawerIndex,
     selectedSpecimenId: state.selectedSpecimenId,
     assignedJob: state.assignedJob,
+    captureKind: state.captureKind,
     observation: state.observation,
     placement: state.placement,
     placementSealed: state.placementSealed,
@@ -200,6 +303,13 @@ export function toPersistedDemoData(state: FaceValueState): PersistedDemoData {
     archive: state.archive,
     longitudinalEvidence:
       state.longitudinalEvidence ?? emptyLongitudinalEvidence(),
+    registeredProduct: state.registeredProduct ?? null,
+    baselineLockedAt: state.baselineLockedAt ?? null,
+    followUpEligibleAt: state.followUpEligibleAt ?? null,
+    baselineContext: state.baselineContext ?? null,
+    followUpContext: state.followUpContext ?? null,
+    demoTimelineAdvanced: state.demoTimelineAdvanced ?? false,
+    resultRevealed: state.resultRevealed ?? false,
   };
 }
 
@@ -229,6 +339,21 @@ export function loadStructuredDemoData(
     const record = value.record;
     const longitudinalEvidence =
       value.longitudinalEvidence ?? emptyLongitudinalEvidence();
+    const stage =
+      typeof value.stage === 'string' && appStages.has(value.stage as AppStage)
+        ? (value.stage as AppStage)
+        : null;
+    const captureKind =
+      captureKinds.has(value.captureKind as CaptureKind)
+        ? (value.captureKind as CaptureKind)
+        : 'baseline';
+    const baselineLockedAt = value.baselineLockedAt ?? null;
+    const followUpEligibleAt = value.followUpEligibleAt ?? null;
+    const baselineContext = value.baselineContext ?? null;
+    const followUpContext = value.followUpContext ?? null;
+    const demoTimelineAdvanced = value.demoTimelineAdvanced ?? false;
+    const resultRevealed = value.resultRevealed ?? false;
+    const registeredProductValue = value.registeredProduct ?? null;
 
     if (
       typeof value.selectedDrawerIndex !== 'number' ||
@@ -249,19 +374,81 @@ export function loadStructuredDemoData(
       !(record === null || isEvidenceRecord(record)) ||
       !Array.isArray(archive) ||
       !archive.every(isEvidenceRecord) ||
-      !isLongitudinalEvidence(longitudinalEvidence)
+      !isLongitudinalEvidence(longitudinalEvidence) ||
+      !(registeredProductValue === null ||
+        isValidRegisteredProduct(
+          registeredProductValue as RegisteredProduct,
+        )) ||
+      !(
+        baselineLockedAt === null ||
+        typeof baselineLockedAt === 'string'
+      ) ||
+      !(
+        followUpEligibleAt === null ||
+        typeof followUpEligibleAt === 'string'
+      ) ||
+      !(baselineContext === null || isCaptureContext(baselineContext)) ||
+      !(followUpContext === null || isCaptureContext(followUpContext)) ||
+      typeof demoTimelineAdvanced !== 'boolean' ||
+      typeof resultRevealed !== 'boolean'
     ) {
       throw new Error('Invalid persisted data');
     }
 
+    const validatedRegisteredProduct =
+      registeredProductValue === null
+        ? null
+        : (registeredProductValue as RegisteredProduct);
+    const registeredProduct =
+      validatedRegisteredProduct ??
+      migrateLegacyRegisteredProduct({
+        selectedSpecimenId: value.selectedSpecimenId,
+        assignedJob,
+        baselineCapture,
+        longitudinalEvidence,
+      });
+    const restoredBaselineLockedAt =
+      baselineLockedAt ??
+      registeredProduct?.createdAt ??
+      longitudinalEvidence.baseline?.capturedAt ??
+      null;
+    const restoredFollowUpEligibleAt =
+      followUpEligibleAt ??
+      (restoredBaselineLockedAt && registeredProduct
+        ? addCalendarDays(
+            restoredBaselineLockedAt,
+            FOLLOW_UP_INTERVAL_DAYS,
+          )
+        : null);
+
     return {
       ...(value as unknown as Omit<
         PersistedDemoData,
-        'baselineCapture' | 'followupCapture' | 'longitudinalEvidence'
+        | 'stage'
+        | 'captureKind'
+        | 'baselineCapture'
+        | 'followupCapture'
+        | 'longitudinalEvidence'
+        | 'registeredProduct'
+        | 'baselineLockedAt'
+        | 'followUpEligibleAt'
+        | 'baselineContext'
+        | 'followUpContext'
+        | 'demoTimelineAdvanced'
+        | 'resultRevealed'
       >),
+      stage,
+      captureKind,
       baselineCapture,
       followupCapture,
       longitudinalEvidence,
+      registeredProduct,
+      baselineLockedAt: restoredBaselineLockedAt,
+      followUpEligibleAt: restoredFollowUpEligibleAt,
+      baselineContext,
+      followUpContext,
+      demoTimelineAdvanced,
+      resultRevealed,
     };
   } catch {
     storage.removeItem(STORAGE_KEY);

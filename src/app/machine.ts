@@ -9,7 +9,12 @@ import type {
   ProductPlacement,
   TraceEntry,
 } from '../domain/model';
-import { PRODUCTS } from '../fixtures/products';
+import { specimenFromRegisteredProduct } from '../adapters/product/specimenFromRegisteredProduct';
+import {
+  LEGACY_DEFAULT_SPECIMEN,
+  PRODUCTS,
+  legacySpecimenFor,
+} from '../fixtures/products';
 
 /*
  * Original MVP event keys and several evidence-domain fields remain internal for
@@ -25,7 +30,7 @@ export type FaceValueEvent =
   | { type: 'NEXT_DRAWER' }
   | { type: 'OPEN_DRAWER' }
   | { type: 'ASSIGN_JOB'; job: string }
-  | { type: 'BEGIN_CAPTURE'; kind: 'baseline' | 'followup' }
+  | { type: 'BEGIN_CAPTURE'; kind: 'baseline' | 'followup'; now?: string }
   | { type: 'CONFIRM_CONTRACT'; outcome: CaptureContractOutcome }
   | { type: 'CAMERA_REQUESTED' }
   | { type: 'CAMERA_READY' }
@@ -67,7 +72,7 @@ export const initialState: FaceValueState = {
   placement: 'observation',
   placementSealed: false,
   selectedDrawerIndex: 0,
-  selectedSpecimenId: PRODUCTS[0].id,
+  selectedSpecimenId: LEGACY_DEFAULT_SPECIMEN.id,
   assignedJob: null,
   captureKind: 'baseline',
   contractOutcome: null,
@@ -109,14 +114,22 @@ const enforceOverlapBoundary = (state: FaceValueState, result: AnalysisResult): 
 
 export function createEvidenceRecord(state: FaceValueState, now: string): EvidenceRecordData {
   if (!state.analysis || !state.assignedJob) throw new Error('Saved result requires analysis and job');
-  const specimen = PRODUCTS.find((item) => item.id === state.selectedSpecimenId) ?? PRODUCTS[0];
+  const registeredProduct = state.registeredProduct ?? null;
+  const specimen = registeredProduct
+    ? specimenFromRegisteredProduct(registeredProduct)
+    : legacySpecimenFor(
+        state.selectedSpecimenId,
+        state.selectedDrawerIndex,
+      );
   return {
     id: `ER-${now.replace(/\D/g, '').slice(0, 12)}`,
     specimenId: specimen.id,
     accession: specimen.accession,
     product: specimen.product,
     job: state.assignedJob,
-    observationWindow: 'Baseline to follow-up · fixture timeline',
+    observationWindow: registeredProduct
+      ? 'Baseline to follow-up'
+      : 'Baseline to follow-up · legacy fixture timeline',
     comparison: state.analysis.comparison,
     finding: state.analysis.finding,
     nonFinding: state.analysis.nonFinding,
@@ -130,6 +143,12 @@ export function createEvidenceRecord(state: FaceValueState, now: string): Eviden
     note: state.trace?.detail ?? null,
     baselineCapture: state.baselineCapture,
     followupCapture: state.followupCapture,
+    productBrand: registeredProduct?.brand,
+    productStrength: registeredProduct?.strength,
+    productVolume: registeredProduct?.volume,
+    baselineContext: state.baselineContext ?? null,
+    followUpContext: state.followUpContext ?? null,
+    demoOriginated: state.demoTimelineAdvanced === true,
   };
 }
 

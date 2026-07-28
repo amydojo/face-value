@@ -64,36 +64,43 @@ export function formatRawScore(value: number): string {
   }).format(value);
 }
 
-function scoreMovementCopy(comparison: RednessComparison): string {
-  const baseline = formatRawScore(comparison.baselineRawScore);
-  const followUp = formatRawScore(comparison.followUpRawScore);
-
+function resultCopy(comparison: RednessComparison): {
+  finding: string;
+  support: string;
+} {
   if (comparison.direction === 'favorable') {
-    return `The redness condition score increased from ${baseline} to ${followUp}. Higher scores indicate a more favorable skin condition.`;
+    return {
+      finding: 'A small favorable shift showed up.',
+      support: 'Visible redness moved in the intended direction.',
+    };
   }
 
   if (comparison.direction === 'unfavorable') {
-    return `The redness condition score decreased from ${baseline} to ${followUp}. Higher scores indicate a more favorable skin condition.`;
+    return {
+      finding: 'No favorable shift showed up yet.',
+      support: 'Visible redness did not move in the intended direction.',
+    };
   }
 
-  return `The redness condition score remained at ${baseline}. No directional movement was detected.`;
+  return {
+    finding: 'No directional shift showed up yet.',
+    support: 'The follow-up remained close to the baseline.',
+  };
 }
 
 export function analysisResultFromComparison(
   comparison: RednessComparison,
 ): AnalysisResult {
-  const favorable = comparison.direction === 'favorable';
+  const copy = resultCopy(comparison);
   return {
     captureQuality: 'accepted',
     comparison: 'comparable',
     visibleSignal: 'visible redness',
     confidence: 'possible',
-    finding: favorable
-      ? 'Favorable direction detected'
-      : 'No favorable direction yet',
-    nonFinding: scoreMovementCopy(comparison),
+    finding: copy.finding,
+    nonFinding: copy.support,
     relevantContext:
-      'This comparison may reflect normal scan variation. Prototype noise boundary has not been calibrated.',
+      'This prototype cannot yet tell whether the shift is larger than normal scan variation.',
     recommendedAction: 'wait',
     claimBoundary:
       'Possible directional evidence only. This does not establish product efficacy or clinical significance.',
@@ -129,6 +136,8 @@ export function translateProviderError(
     retryable = false;
   } else if (includesAny(normalized, ['timeout', 'expired'])) {
     message = 'Analysis took too long. Retry without losing this trial.';
+  } else if (includesAny(normalized, ['network', 'connection', 'fetch'])) {
+    message = 'Connection interrupted. This scan was not added.';
   } else if (includesAny(normalized, ['unauthorized', 'session'])) {
     message = 'Analysis access expired. Reopen the protected demo session.';
   } else if (normalized === 'protocol_mismatch') {

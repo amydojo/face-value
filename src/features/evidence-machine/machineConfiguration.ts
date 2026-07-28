@@ -100,7 +100,7 @@ export function resolveMachineConfiguration(state: EvidenceTrialState): MachineC
           'SAVE READY',
           'PRESS TO SAVE',
           'save-result',
-          'Save result and release Evidence Record',
+          'Press amber to keep this evidence',
         );
       }
       return machineOwned('VERDICT READY', 'PRESS TO RELEASE', 'reveal-verdict', 'Release Evidence Record');

@@ -75,10 +75,57 @@
   line-height: 1.45;
 }
 
+.decision > .limitation {
+  margin-bottom: 16px;
+  padding: 12px;
+  border-left: 3px solid var(--fv-signal-active);
+  background: rgba(255, 255, 255, 0.035);
+  color: var(--fv-text-on-dark);
+}
+
 .decision h2 {
   margin: 8px 0;
   font-size: 20px;
   line-height: 1.15;
+}
+
+.technicalDetail {
+  margin-top: 12px;
+  padding: 14px;
+  border: 1px solid #3d3933;
+  border-radius: 9px;
+}
+
+.technicalDetail dl {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+}
+
+.technicalDetail dl > div {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #302d28;
+}
+
+.technicalDetail dt,
+.technicalDetail dd {
+  margin: 0;
+  font: 600 8px var(--fv-font-mono);
+}
+
+.technicalDetail dt {
+  color: var(--fv-text-dark-muted);
+}
+
+.technicalDetail p,
+.technicalDetail small {
+  display: block;
+  color: var(--fv-text-dark-muted);
+  font-size: 10px;
+  line-height: 1.45;
 }
 
 .secondaryAction,

@@ -8,3 +8,6 @@ button, input, select { font: inherit; }
 button { min-width: 44px; min-height: 44px; }
 button:focus-visible, input:focus-visible, select:focus-visible { outline: 3px solid var(--fv-signal-active); outline-offset: 3px; }
 button:disabled { opacity: .42; cursor: not-allowed; }
+
+/* Stage headings receive programmatic focus for screen-reader orientation. */
+[data-stage-focus]:focus { outline: none; }

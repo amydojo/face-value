@@ -1,4 +1,7 @@
-import type { CaptureMetadata } from '../../domain/model';
+import type {
+  CameraCaptureProfileId,
+  CaptureMetadata,
+} from '../../domain/model';
 
 export type CameraFailureReason =
   | 'unsupported'
@@ -154,6 +157,7 @@ export function metadataForCapture(
   source: CaptureMetadata['source'],
   mimeType: string,
   now = new Date().toISOString(),
+  cameraProfileId: CameraCaptureProfileId | null = null,
 ): CaptureMetadata {
   const normalizedMime = [
     'image/jpeg',
@@ -171,6 +175,7 @@ export function metadataForCapture(
     mimeType: normalizedMime,
     createdAt: now,
     orientationRule: 'analysis-unmirrored',
+    cameraProfileId,
   };
 }
 

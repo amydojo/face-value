@@ -134,3 +134,19 @@ it('documents the unmirrored analysis orientation in capture metadata', () => {
     }),
   );
 });
+
+it('records the accepted Camera Kit profile without adding image data', () => {
+  expect(
+    metadataForCapture(
+      'baseline',
+      'camera',
+      'image/jpeg',
+      '2026-01-01',
+      'youcam-camera-kit-hd-1080p',
+    ),
+  ).toEqual(
+    expect.objectContaining({
+      cameraProfileId: 'youcam-camera-kit-hd-1080p',
+    }),
+  );
+});

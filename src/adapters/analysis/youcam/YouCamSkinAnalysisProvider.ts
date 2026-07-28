@@ -203,7 +203,7 @@ export class YouCamSkinAnalysisProvider implements SkinAnalysisProvider {
       body: JSON.stringify({
         fileId,
         protocol: input.protocol,
-        fromCameraKit: this.fromCameraKit,
+        fromCameraKit: input.fromCameraKit ?? this.fromCameraKit,
       }),
       signal: input.signal,
     });

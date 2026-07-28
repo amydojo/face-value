@@ -9,9 +9,14 @@ const forbidden = [
   'providerTaskId',
   'data:image',
   'blob:',
+  'URL.createObjectURL',
+  'readAsDataURL',
+  'MediaStream',
   'temporary mask URL',
   'signed provider URL',
   'raw provider payload',
+  'ADVANCE DEMO TIMELINE',
+  'VITE_SHOW_DEMO_CONTROLS',
 ];
 
 async function filesUnder(directory) {
