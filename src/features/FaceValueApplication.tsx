@@ -14,6 +14,7 @@ import styles from '../styles/FaceValue.module.css';
 import { Archive } from './archive/Archive';
 import { CaptureContextSurface } from './capture-context/CaptureContextSurface';
 import { CameraViewport } from './capture-contract/CameraViewport';
+import { evidenceRecordDisclosureStateForDemo } from './demo-lab/evidenceRecordDemoAdapter';
 import { EvidenceRecord } from './evidence-record/EvidenceRecord';
 import { LatestVerdictCassette, OracleRevealScene } from './oracle-reveal/OracleRevealScene';
 import { ProductRegistration } from './product-registration/ProductRegistration';
@@ -619,6 +620,9 @@ export function FaceValueApplication() {
             record={state.record}
             onArchive={() => dispatch({ type: 'VIEW_ARCHIVE' })}
             onBack={() => dispatch({ type: 'BACK' })}
+            initialDisclosureState={evidenceRecordDisclosureStateForDemo(
+              demoRuntime.startingPoint,
+            )}
           />
         );
 

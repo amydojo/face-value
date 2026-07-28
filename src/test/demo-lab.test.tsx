@@ -18,14 +18,15 @@ import {
   STORAGE_KEY,
   toPersistedDemoData,
 } from '../adapters/persistence/localObservationStore';
-import { FaceValueProvider } from '../app/FaceValueProvider';
+import { FaceValueContext } from '../app/faceValueContext';
 import { canonicalRednessFixtures, evaluateRedness } from '../domain/evidence/redness';
 import { DemoLab } from '../features/demo-lab/DemoLab';
 import { buildDemoFixtureState } from '../features/demo-lab/demoFixtureState';
 import { demoLabAccessEnabled } from '../features/demo-lab/demoLabAccess';
-import { DEFERRED_EVIDENCE_RECORD_INTEGRATIONS } from '../features/demo-lab/evidenceRecordDemoAdapter';
+import { evidenceRecordDisclosureStateForDemo } from '../features/demo-lab/evidenceRecordDemoAdapter';
 import { DEMO_RESULT_FIXTURES, DEMO_STARTING_POINTS } from '../domain/demoLab';
 import { FaceValueApplication } from '../features/FaceValueApplication';
+import { evidenceRecordViewModelFromRecord } from '../features/evidence-record/evidenceRecordViewModel';
 import { verdictViewModelFromRecord } from '../features/verdict/verdictViewModel';
 
 describe('Demo Lab access boundary', () => {
@@ -104,18 +105,40 @@ describe('canonical typed fixture states', () => {
     ).toBe(true);
   });
 
-  it('keeps current saved-result routing behind one typed adapter', () => {
-    const state = buildDemoFixtureState('saved_result', 'clear_favorable_change');
+  it.each([
+    ['saved_result', null, false],
+    ['evidence_record_reasoning_expanded', 'why', false],
+    ['evidence_record_full_technical_expanded', 'full', true],
+  ] as const)(
+    'keeps Evidence Record state %s behind the typed route and disclosure adapter',
+    (startingPoint, openDisclosure, technicalMetadataOpen) => {
+      const state = buildDemoFixtureState(startingPoint, 'clear_favorable_change');
+      const record = state.record;
+      if (!record?.rednessEvaluation) {
+        throw new Error('Expected a canonical synthetic Evidence Record.');
+      }
+      const evidenceRecord = evidenceRecordViewModelFromRecord(record);
+      const verdict = verdictViewModelFromRecord(record);
 
-    expect(state.stage).toBe('record');
-    expect(state.record).toBe(state.archive[0]);
-    expect(state.returnStage).toBe('archive');
-    expect(DEFERRED_EVIDENCE_RECORD_INTEGRATIONS.map(({ id }) => id)).toEqual([
-      'summary',
-      'reasoning_expanded',
-      'full_technical_record_expanded',
-    ]);
-  });
+      expect(state.stage).toBe('record');
+      expect(record).toBe(state.archive[0]);
+      expect(state.returnStage).toBe('archive');
+      expect(record.demoOriginated).toBe(true);
+      expect(evidenceRecord.recordId).toBe(record.id);
+      expect(evidenceRecord.headline).toBe(verdict.headline);
+      expect(evidenceRecord.nextStep.canonicalAction).toBe(
+        record.rednessEvaluation.interpretation.recommendedAction,
+      );
+      expect(evidenceRecord.comparison).toMatchObject({
+        baseline: String(record.rednessEvaluation.baselineRawMedian),
+        followUp: String(record.rednessEvaluation.endpointRawMedian),
+      });
+      expect(evidenceRecordDisclosureStateForDemo(startingPoint)).toEqual({
+        openDisclosure,
+        technicalMetadataOpen,
+      });
+    },
+  );
 });
 
 describe('Demo Lab persistence modes', () => {
@@ -229,21 +252,54 @@ describe('Demo Lab controls and production-screen reuse', () => {
     expect(loadDemoJourney()?.origin).toBe(DEMO_ORIGIN);
   });
 
-  it('opens the current saved result through the real production component', () => {
-    const savedResult = buildDemoFixtureState('saved_result', 'clear_favorable_change');
-    saveStructuredDemoData(savedResult);
-    const record = savedResult.record;
-    if (!record) throw new Error('Expected a saved demo record.');
-    const verdict = verdictViewModelFromRecord(record);
+  it.each([
+    ['saved_result', 'false', 'false', false],
+    ['evidence_record_reasoning_expanded', 'true', 'false', false],
+    ['evidence_record_full_technical_expanded', 'false', 'true', true],
+  ] as const)(
+    'opens %s through the real production Evidence Record',
+    (startingPoint, whyExpanded, fullExpanded, technicalExpanded) => {
+      const state = buildDemoFixtureState(startingPoint, 'clear_favorable_change');
+      const record = state.record;
+      if (!record?.rednessEvaluation) {
+        throw new Error('Expected a saved canonical demo record.');
+      }
+      const snapshotBeforeRender = structuredClone(record.rednessEvaluation);
+      const verdict = verdictViewModelFromRecord(record);
 
-    render(
-      <FaceValueProvider>
-        <FaceValueApplication />
-      </FaceValueProvider>,
-    );
+      render(
+        <FaceValueContext.Provider
+          value={{
+            state,
+            dispatch: vi.fn(),
+            demoRuntime: {
+              mode: 'preview',
+              startingPoint,
+              resultFixture: 'clear_favorable_change',
+            },
+          }}
+        >
+          <FaceValueApplication />
+        </FaceValueContext.Provider>,
+      );
 
-    expect(screen.getByRole('heading', { name: 'SAVED RESULT' })).toBeVisible();
-    expect(screen.getAllByText(verdict.headline).length).toBeGreaterThan(0);
-    expect(screen.getByRole('button', { name: 'View previous trials' })).toBeVisible();
-  });
+      expect(screen.getByRole('heading', { name: 'Evidence record' })).toBeVisible();
+      expect(screen.getAllByText(verdict.headline).length).toBeGreaterThan(0);
+      expect(
+        screen.getByRole('button', { name: /Why Face Value reached this result/i }),
+      ).toHaveAttribute('aria-expanded', whyExpanded);
+      expect(screen.getByRole('button', { name: /Full evidence record/i })).toHaveAttribute(
+        'aria-expanded',
+        fullExpanded,
+      );
+      if (technicalExpanded) {
+        expect(screen.getByText('Technical metadata').closest('details')).toHaveAttribute(
+          'open',
+        );
+        expect(screen.getByText('Configuration hash')).toBeVisible();
+      }
+      expect(screen.getByRole('button', { name: 'View previous trials' })).toBeVisible();
+      expect(record.rednessEvaluation).toEqual(snapshotBeforeRender);
+    },
+  );
 });

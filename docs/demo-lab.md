@@ -76,7 +76,9 @@ only. It does not remove ordinary saved trials.
 - Baseline locked
 - Comparison processing
 - Cassette revealed
-- Current production saved-result route
+- Evidence Record summary
+- Evidence Record reasoning expanded
+- Evidence Record full technical record expanded
 
 ## Canonical result fixtures
 
@@ -100,36 +102,21 @@ come from a physical capture.
 ordinary production route without injecting capture results. Existing ordinary
 trial persistence remains intact.
 
-## Deferred Evidence Record integration
+## Evidence Record integration
 
-The progressive-disclosure Evidence Record redesign is being developed
-separately and is not present on the base branch. These typed integration
-targets intentionally remain disconnected:
+The Demo Lab opens the merged production Evidence Record in three deterministic
+presentation states:
 
-- Evidence Record summary
-- Evidence Record reasoning expanded
-- Evidence Record full technical record expanded
+- Summary with both disclosures collapsed
+- Plain-language reasoning expanded
+- Full evidence record and technical metadata expanded
 
-The Demo Lab can currently open the existing production saved-result route
-through `evidenceRecordDemoAdapter.ts`. It does not import, duplicate,
-special-case, or visually snapshot the legacy Evidence Record.
+All three states share the same canonical fixture construction and immutable
+saved `RednessEvaluationSnapshot`. `evidenceRecordDemoAdapter.ts` maps the
+selected starting point to the production component's initial disclosure state;
+it does not build an `EvidenceRecordViewModel`, evaluate a score, or alter a
+saved result.
 
-Required integration sequence:
-
-1. Merge the Evidence Record redesign.
-2. Update `agent/demo-lab` from the new `main`.
-3. Connect the new presentation adapter and disclosure state through the
-   existing typed Demo Lab launch boundary.
-4. Re-run unit, architecture, privacy, build, browser, and visual checks.
-5. Only then mark the Demo Lab pull request ready for review.
-
-This branch will require a rebase or merge from `main` after the redesign
-lands. The files most likely to need reconciliation are:
-
-- `src/features/FaceValueApplication.tsx`
-- `src/features/demo-lab/evidenceRecordDemoAdapter.ts`
-- `src/features/demo-lab/demoFixtureState.ts`
-- Evidence Record tests added by the redesign
-
-The Demo Lab branch does not modify the current
-`src/features/evidence-record/EvidenceRecord.tsx`.
+Disclosure state remains separate from `demoFixtureState.ts`. The production
+`EvidenceRecord` continues to construct its view model from the saved record
+through `evidenceRecordViewModelFromRecord`.

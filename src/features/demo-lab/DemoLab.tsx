@@ -9,7 +9,6 @@ import {
   type DemoLaunch,
 } from '../../adapters/persistence/demoJourneyStore';
 import { buildDemoFixtureState } from './demoFixtureState';
-import { DEFERRED_EVIDENCE_RECORD_INTEGRATIONS } from './evidenceRecordDemoAdapter';
 import {
   DEMO_RESULT_FIXTURES,
   DEMO_STARTING_POINTS,
@@ -248,20 +247,6 @@ export function DemoLab({ navigate = browserNavigate }: { navigate?: Navigate })
           >
             CLEAR DEMO DATA
           </button>
-        </section>
-
-        <section className={styles.pending} aria-labelledby="pending-integration-heading">
-          <p>PENDING MAIN-BRANCH INTEGRATION</p>
-          <h2 id="pending-integration-heading">Premium Evidence Record disclosures</h2>
-          <ul>
-            {DEFERRED_EVIDENCE_RECORD_INTEGRATIONS.map((target) => (
-              <li key={target.id}>{target.label}</li>
-            ))}
-          </ul>
-          <p>
-            These targets remain disconnected until the progressive Evidence Record redesign is
-            merged into main.
-          </p>
         </section>
 
         <p className={styles.status} role="status" aria-live="polite">

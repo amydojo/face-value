@@ -67,8 +67,20 @@ export const DEMO_STARTING_POINTS = [
   },
   {
     id: 'saved_result',
-    label: 'Saved result · current route',
-    description: 'Open the current production saved-result route through the integration adapter.',
+    label: 'Evidence Record summary',
+    description: 'Open the production Evidence Record with both disclosures collapsed.',
+    frequent: false,
+  },
+  {
+    id: 'evidence_record_reasoning_expanded',
+    label: 'Evidence Record reasoning expanded',
+    description: 'Open the production Evidence Record with its plain-language reasoning visible.',
+    frequent: false,
+  },
+  {
+    id: 'evidence_record_full_technical_expanded',
+    label: 'Evidence Record full technical record expanded',
+    description: 'Open the production full record with technical metadata visible.',
     frequent: false,
   },
 ] as const;

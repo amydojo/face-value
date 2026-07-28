@@ -1,9 +1,14 @@
+import { mkdir } from 'node:fs/promises';
+import { resolve } from 'node:path';
 import { expect, test, type Page } from '@playwright/test';
 import {
   DEMO_JOURNEY_STORAGE_KEY,
   DEMO_PREVIEW_SESSION_KEY,
 } from '../src/adapters/persistence/demoJourneyStore';
 import { STORAGE_KEY, persistedSealedTrial } from './phase-b5-fixtures';
+
+const captureDemoLabEvidence = process.env.CAPTURE_DEMO_LAB_EVIDENCE === 'true';
+const demoLabEvidenceDirectory = resolve('docs/verification/demo-lab-55');
 
 async function assertNoHorizontalOverflow(page: Page): Promise<void> {
   const overflow = await page.evaluate(
@@ -24,6 +29,21 @@ async function openPreview(
   await expect(page).toHaveURL(/\/$/);
   await expect(page.getByLabel('Synthetic demo state')).toContainText('SYNTHETIC DEMO DATA');
 }
+
+async function captureDemoLabState(page: Page, fileName: string): Promise<void> {
+  if (!captureDemoLabEvidence) return;
+  await page.screenshot({
+    path: resolve(demoLabEvidenceDirectory, fileName),
+    animations: 'disabled',
+    fullPage: true,
+  });
+}
+
+test.beforeAll(async () => {
+  if (captureDemoLabEvidence) {
+    await mkdir(demoLabEvidenceDirectory, { recursive: true });
+  }
+});
 
 test.beforeEach(async ({ page }) => {
   await page.addInitScript(
@@ -109,6 +129,15 @@ test('persistent journey survives reload and keeps Home, Previous Trials, and sa
   const recordId = await latestRecord.getAttribute('data-record-id');
   const finding = await latestRecord.locator('[data-evidence-finding]').innerText();
   const identity = await latestRecord.locator('[data-oracle-trial-identity]').innerText();
+  const product = 'Face Value Lab · One Thing Redness Trial';
+  const snapshotBeforeNavigation = await page.evaluate((key) => {
+    const raw = localStorage.getItem(key);
+    if (!raw) throw new Error('Expected a persisted demo journey.');
+    return JSON.parse(raw).state.record.rednessEvaluation;
+  }, DEMO_JOURNEY_STORAGE_KEY);
+
+  await expect(latestRecord).toContainText(product);
+  await expect(latestRecord).toContainText(/retry(?: it)? alone/i);
 
   await page.reload();
   await expect(page.getByLabel('Synthetic demo state')).toContainText('LOADED DEMO JOURNEY');
@@ -121,23 +150,119 @@ test('persistent journey survives reload and keeps Home, Previous Trials, and sa
     .click();
   const archivedRecord = page.locator(`[data-archive-record][data-record-id="${recordId}"]`);
   await expect(archivedRecord).toContainText(identity);
+  await expect(archivedRecord).toContainText(product);
+  await expect(archivedRecord).toContainText(/retry(?: it)? alone/i);
   expect((await archivedRecord.innerText()).toLowerCase()).toContain(finding.toLowerCase());
   await archivedRecord.click();
 
-  await expect(page.getByRole('heading', { name: 'SAVED RESULT' })).toBeVisible();
-  await expect(page.getByLabel(`Saved result ${recordId}`)).toContainText(identity);
-  expect((await page.getByLabel(`Saved result ${recordId}`).innerText()).toLowerCase()).toContain(
-    finding.toLowerCase(),
+  await expect(
+    page.getByRole('heading', { name: 'Evidence record', exact: true }),
+  ).toBeVisible();
+  await expect(page.locator('[data-fv-part="screen-header"]')).toContainText(identity);
+  const evidenceRecord = page.locator(`[data-evidence-record][data-record-id="${recordId}"]`);
+  await expect(evidenceRecord).toContainText(product);
+  await expect(evidenceRecord).toContainText(/retry it alone/i);
+  expect((await evidenceRecord.innerText()).toLowerCase()).toContain(finding.toLowerCase());
+  const comparison = evidenceRecord.locator('[data-evidence-comparison]');
+  await expect(comparison).toContainText(String(snapshotBeforeNavigation.baselineRawMedian));
+  await expect(comparison).toContainText(String(snapshotBeforeNavigation.endpointRawMedian));
+  await expect(comparison).toContainText(
+    `${snapshotBeforeNavigation.rawScoreDelta > 0 ? '+' : ''}${snapshotBeforeNavigation.rawScoreDelta} points`,
   );
 
   const serializedDemo = await page.evaluate(
     (key) => localStorage.getItem(key),
     DEMO_JOURNEY_STORAGE_KEY,
   );
+  const snapshotAfterNavigation = await page.evaluate((key) => {
+    const raw = localStorage.getItem(key);
+    if (!raw) throw new Error('Expected a persisted demo journey.');
+    return JSON.parse(raw).state.record.rednessEvaluation;
+  }, DEMO_JOURNEY_STORAGE_KEY);
+  expect(snapshotAfterNavigation).toEqual(snapshotBeforeNavigation);
   expect(serializedDemo).toContain('"origin":"face-value-demo-lab"');
   expect(serializedDemo).toContain('"demoOriginated":true');
   expect(serializedDemo).not.toMatch(/data:image|blob:|base64|imageBytes|objectURL|MediaStream/);
   await assertNoHorizontalOverflow(page);
+});
+
+test('Evidence Record summary, reasoning, and full technical states use production disclosure controls', async ({
+  page,
+}) => {
+  const runtimeErrors: string[] = [];
+  page.on('pageerror', (error) => runtimeErrors.push(`page: ${error.message}`));
+  page.on('console', (message) => {
+    if (message.type() === 'error') runtimeErrors.push(`console: ${message.text()}`);
+  });
+  page.on('response', (response) => {
+    if (response.status() >= 500) {
+      runtimeErrors.push(`${response.status()} ${response.url()}`);
+    }
+  });
+  await page.setViewportSize({ width: 390, height: 844 });
+
+  for (const state of [
+    {
+      id: 'saved_result',
+      whyExpanded: 'false',
+      fullExpanded: 'false',
+      technicalMetadataOpen: false,
+      screenshot: '01-evidence-record-summary.png',
+    },
+    {
+      id: 'evidence_record_reasoning_expanded',
+      whyExpanded: 'true',
+      fullExpanded: 'false',
+      technicalMetadataOpen: false,
+      screenshot: '02-evidence-record-reasoning-expanded.png',
+    },
+    {
+      id: 'evidence_record_full_technical_expanded',
+      whyExpanded: 'false',
+      fullExpanded: 'true',
+      technicalMetadataOpen: true,
+      screenshot: '03-evidence-record-full-technical-expanded.png',
+    },
+  ] as const) {
+    await openPreview(page, state.id);
+    await expect(
+      page.getByRole('heading', { name: 'Evidence record', exact: true }),
+    ).toBeVisible();
+    await expect(page.locator('[data-evidence-record]')).toHaveAttribute(
+      'data-snapshot-kind',
+      'canonical',
+    );
+
+    const why = page.getByRole('button', {
+      name: /Why Face Value reached this result/i,
+    });
+    const full = page.getByRole('button', { name: /Full evidence record/i });
+    await expect(why).toHaveAttribute('aria-expanded', state.whyExpanded);
+    await expect(full).toHaveAttribute('aria-expanded', state.fullExpanded);
+    await expect(page.locator('[data-evidence-comparison]')).toContainText('+12 points');
+
+    if (state.id === 'evidence_record_reasoning_expanded') {
+      await expect(
+        page.getByRole('region', { name: /Why Face Value reached this result/i }),
+      ).toBeVisible();
+      await expect(page.getByRole('heading', { name: 'What supported this result' })).toBeVisible();
+    }
+
+    const technicalMetadata = page.locator('details').filter({ hasText: 'Technical metadata' });
+    if (state.technicalMetadataOpen) {
+      await expect(page.getByRole('region', { name: 'Full evidence record' })).toBeVisible();
+      await expect(technicalMetadata).toHaveAttribute('open', '');
+      await expect(technicalMetadata).toContainText('Configuration hash');
+      await expect(technicalMetadata).toContainText('Immutable snapshot identity');
+    } else {
+      await expect(technicalMetadata).toHaveCount(0);
+    }
+
+    await assertNoHorizontalOverflow(page);
+    await captureDemoLabState(page, state.screenshot);
+  }
+
+  expect(runtimeErrors).toEqual([]);
 });
 
 test('core synthetic starting points open real production screens', async ({ page }) => {

@@ -91,7 +91,35 @@ if (!demoFixtureState.includes('openCurrentSavedResultRoute')) {
   violations.push('Demo fixture state does not use the typed current saved-result route adapter');
 }
 if (demoFixtureState.includes('EvidenceRecordViewModel')) {
-  violations.push('Demo fixture state invents the pending EvidenceRecordViewModel integration');
+  violations.push('Demo fixture state bypasses the production EvidenceRecordViewModel adapter');
+}
+for (const presentationState of ['openDisclosure', 'technicalMetadataOpen']) {
+  if (demoFixtureState.includes(presentationState)) {
+    violations.push(
+      `Demo fixture state mixes Evidence Record presentation state into scientific fixtures through ${presentationState}`,
+    );
+  }
+}
+
+const demoEvidenceRecordAdapter = await readFile(
+  new URL('../src/features/demo-lab/evidenceRecordDemoAdapter.ts', import.meta.url),
+  'utf8',
+);
+if (!demoEvidenceRecordAdapter.includes('EvidenceRecordDisclosureState')) {
+  violations.push('Demo Evidence Record adapter is not typed against production disclosure state');
+}
+for (const scientificDependency of [
+  'evaluateRedness',
+  'canonicalRednessFixtures',
+  'rawScoreDelta',
+  'provisionalDetectablePoints',
+  'provisionalStrongPoints',
+]) {
+  if (demoEvidenceRecordAdapter.includes(scientificDependency)) {
+    violations.push(
+      `Demo Evidence Record adapter contains scientific fixture logic through ${scientificDependency}`,
+    );
+  }
 }
 
 const archiveScreen = await readFile(

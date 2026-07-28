@@ -373,6 +373,8 @@ export function buildDemoFixtureState(
         announcement: 'One synthetic previous trial.',
       };
     case 'saved_result':
+    case 'evidence_record_reasoning_expanded':
+    case 'evidence_record_full_technical_expanded':
       return openCurrentSavedResultRoute(homeWithSavedResult(evaluated.record), evaluated.record);
   }
 }
