@@ -203,15 +203,59 @@ for (const scenario of cases) {
     const comparedData = JSON.parse(comparedStorage!) as {
       baselineCapture: { cameraProfileId?: string };
       followupCapture: { cameraProfileId?: string };
+      analysis: {
+        rednessEvaluation: {
+          frameworkVersion: string;
+          schemaVersion: string;
+          engineVersion: string;
+          assignedJob: string;
+          baseline: { sessionCount: number; acceptedRawScores: number[] };
+          endpoint: { sessionCount: number; acceptedRawScores: number[] };
+          rawScoreDelta: number;
+          threshold: {
+            source: string;
+            version: string;
+            configHash: string;
+            provisional: boolean;
+          };
+          measurementQuality: string;
+          evidenceQuality: string;
+          interpretation: { recommendedAction: string };
+          privacy: { includesFaceImage: boolean };
+        };
+      };
+      longitudinalEvidence: { evaluation: unknown };
     };
     expect(comparedData.followupCapture.cameraProfileId).toBe(
       comparedData.baselineCapture.cameraProfileId,
     );
+    const evaluation = comparedData.analysis.rednessEvaluation;
+    expect(evaluation).toMatchObject({
+      frameworkVersion: 'redness-v1',
+      schemaVersion: 'redness-evidence-v1',
+      engineVersion: 'face-value-redness-engine-v1.0.0',
+      assignedJob: 'calm_visible_redness',
+      baseline: { sessionCount: 1, acceptedRawScores: [93.3356] },
+      endpoint: { sessionCount: 1, acceptedRawScores: [100] },
+      threshold: {
+        source: 'provisional_fixture',
+        version: 'redness-provisional-v1',
+        provisional: true,
+      },
+      measurementQuality: 'limited',
+      evidenceQuality: 'possible',
+      interpretation: { recommendedAction: 'test_longer' },
+      privacy: { includesFaceImage: false },
+    });
+    expect(evaluation.rawScoreDelta).toBeCloseTo(6.6644, 8);
+    expect(evaluation.threshold.configHash).toMatch(/^sha256:[a-f0-9]{64}$/);
+    expect(comparedData.longitudinalEvidence.evaluation).toEqual(evaluation);
+    expect(comparedStorage).not.toMatch(/ui_score|uiScore/);
 
     const forbiddenResultText = [
-      'A small favorable shift showed up.',
-      'Visible redness moved in the intended direction.',
-      'normal scan variation',
+      'Visible redness moved in a favorable direction.',
+      'The direction looks encouraging',
+      'The trial window is not complete',
       'TEST LONGER',
       '93.34',
       '100.00',
@@ -245,7 +289,7 @@ for (const scenario of cases) {
       ),
     ).toBe(true);
     await expect(page.locator('[data-firmware-state="resolved"]')).toContainText(
-      'A small favorable shift showed up.',
+      'Visible redness moved in a favorable direction.',
     );
     await expect(page.getByLabel('Result recommendation').locator(':scope > p')).toBeVisible();
     await expect(page.locator('[data-firmware-state="resolved"]')).toContainText('TEST LONGER');
@@ -262,8 +306,8 @@ for (const scenario of cases) {
 
     await page.getByRole('button', { name: 'SEE WHY' }).click();
     await expect(
-      page.getByText(
-        'This prototype cannot yet tell whether the shift is larger than normal scan variation.',
+      page.locator('#oracle-why').getByText(
+        'The trial window is not complete. Keep the predeclared schedule before judging this product job.',
       ),
     ).toBeVisible();
 
@@ -322,24 +366,41 @@ for (const scenario of cases) {
     await expect(page.getByRole('button', { name: 'DONE' })).toHaveCount(1);
     await page.getByRole('button', { name: 'VIEW EVIDENCE' }).click();
     await expect(page.getByRole('heading', { name: 'EVIDENCE DETAIL' })).toBeVisible();
+    const evidenceDetail = page.locator('[data-evidence-detail]');
     await expect(
-      page.getByText(
-        /Demo timeline was advanced explicitly; the original baseline timestamp was not changed/i,
+      page.getByText(/Demo timing was advanced explicitly; capture timestamps remain unchanged/i),
+    ).toBeVisible();
+    await expect(
+      evidenceDetail.getByText(
+        'Production thresholds require repeat-scan calibration.',
+        { exact: true },
       ),
     ).toBeVisible();
-    await expect(page.getByText(/YouCam Skin Analysis v2.1/i)).toBeVisible();
+    await expect(
+      evidenceDetail.getByText(/provisional_fixture · redness-provisional-v1/i),
+    ).toBeVisible();
 
     const savedStorage = await page.evaluate((key) => {
       return localStorage.getItem(key);
     }, STORAGE_KEY);
     const savedData = JSON.parse(savedStorage!) as {
-      archive: Array<{ id: string; demoOriginated?: boolean }>;
-      record: { id: string; demoOriginated?: boolean };
+      archive: Array<{
+        id: string;
+        demoOriginated?: boolean;
+        rednessEvaluation: unknown;
+      }>;
+      record: {
+        id: string;
+        demoOriginated?: boolean;
+        rednessEvaluation: unknown;
+      };
     };
     expect(savedData.archive).toHaveLength(1);
     expect(savedData.archive[0].id).toBe(recordId);
     expect(savedData.record.id).toBe(recordId);
     expect(savedData.record.demoOriginated).toBe(true);
+    expect(savedData.record.rednessEvaluation).toEqual(evaluation);
+    expect(savedData.archive[0].rednessEvaluation).toEqual(evaluation);
     assertFaceFreeStorage(savedStorage);
 
     await page.getByRole('button', { name: 'VIEW EVIDENCE' }).click();
@@ -349,6 +410,9 @@ for (const scenario of cases) {
     await expect(page.locator('[data-cassette-variant="latest-verdict"]')).toHaveAttribute(
       'data-cassette-state',
       'partially-revealed',
+    );
+    await expect(page.locator('[data-latest-verdict-record] [data-evidence-finding]')).toHaveText(
+      'Visible redness moved in a favorable direction.',
     );
     await expect(page.getByRole('button', { name: 'START A NEW TRIAL' })).toBeVisible();
 
@@ -366,6 +430,15 @@ for (const scenario of cases) {
     await expect(
       page.getByLabel('Previous trials').getByRole('button', { name: /Open saved result/i }),
     ).toHaveCount(1);
+    await page
+      .getByLabel('Previous trials')
+      .getByRole('button', { name: /Open saved result/i })
+      .click();
+    await expect(page.getByRole('heading', { name: 'SAVED RESULT' })).toBeVisible();
+    await expect(page.getByText('Visible redness moved in a favorable direction.')).not.toHaveCount(
+      0,
+    );
+    await expect(page.getByText(/provisional_fixture · redness-provisional-v1/i)).toBeVisible();
     const restoredArchive = await page.evaluate((key) => {
       return localStorage.getItem(key);
     }, STORAGE_KEY);

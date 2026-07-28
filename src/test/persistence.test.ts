@@ -6,6 +6,29 @@ import {
   toPersistedDemoData,
 } from '../adapters/persistence/localObservationStore';
 import { initialState } from '../app/machine';
+import { clearImprovementFixture, evaluateRedness } from '../domain/evidence/redness';
+import type { EvidenceRecordData } from '../domain/model';
+import { verdictViewModelFromRecord } from '../features/verdict/verdictViewModel';
+
+const legacyRecord: EvidenceRecordData = {
+  id: 'ER-LEGACY',
+  specimenId: 'legacy-product',
+  accession: 'FV–001',
+  product: 'Legacy Redness Product',
+  productBrand: 'Face Value',
+  job: 'Reduce visible redness',
+  observationWindow: 'Legacy baseline to follow-up',
+  comparison: 'comparable',
+  finding: 'Legacy saved finding.',
+  nonFinding: 'Legacy saved limitation.',
+  confidence: 'possible',
+  disturbance: 'none',
+  finalPlacement: 'paused',
+  recommendedAction: 'wait',
+  claimBoundary: 'Legacy claim boundary.',
+  createdAt: '2026-06-01T12:00:00.000Z',
+  includesFaceImage: false,
+};
 
 it('persists structured scan metadata without images or object URLs', () => {
   const state = {
@@ -45,25 +68,85 @@ it('persists structured scan metadata without images or object URLs', () => {
 });
 
 it('backfills older structured data without capture metadata', () => {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify({
-    selectedDrawerIndex: 0,
-    selectedSpecimenId: 'fermented-essence',
-    assignedJob: 'Post-acne pigmentation',
-    observation: 'active_stable',
-    placement: 'observation',
-    placementSealed: false,
-    comparison: 'not_available',
-    confidence: 'insufficient',
-    disturbance: 'none',
-    trace: null,
-    analysis: null,
-    record: null,
-    archive: [],
-  }));
+  localStorage.setItem(
+    STORAGE_KEY,
+    JSON.stringify({
+      selectedDrawerIndex: 0,
+      selectedSpecimenId: 'fermented-essence',
+      assignedJob: 'Post-acne pigmentation',
+      observation: 'active_stable',
+      placement: 'observation',
+      placementSealed: false,
+      comparison: 'not_available',
+      confidence: 'insufficient',
+      disturbance: 'none',
+      trace: null,
+      analysis: null,
+      record: null,
+      archive: [],
+    }),
+  );
 
   expect(loadStructuredDemoData()).toMatchObject({
     baselineCapture: null,
     followupCapture: null,
+  });
+});
+
+it('keeps a versioned canonical evaluation byte-stable after persistence', () => {
+  const snapshot = evaluateRedness(structuredClone(clearImprovementFixture));
+  const record: EvidenceRecordData = {
+    ...legacyRecord,
+    id: 'ER-CANONICAL',
+    accession: 'FV–014',
+    finding: snapshot.interpretation.finding,
+    nonFinding: snapshot.interpretation.nonFinding,
+    confidence: snapshot.evidenceQuality,
+    finalPlacement: 'established',
+    recommendedAction: 'keep',
+    claimBoundary: snapshot.interpretation.claimBoundary.join(' '),
+    createdAt: snapshot.evaluatedAt,
+    rednessEvaluation: snapshot,
+  };
+  const serializedSnapshot = JSON.stringify(snapshot);
+
+  saveStructuredDemoData({
+    ...initialState,
+    stage: 'record',
+    record,
+    archive: [record],
+  });
+
+  const futureInput = structuredClone(clearImprovementFixture);
+  futureInput.threshold = {
+    version: 'future-calibration-test-only',
+    source: 'technical_calibration',
+    activeN95: 20,
+    configHash: 'future-calibration-test-only',
+    provisional: false,
+  };
+  evaluateRedness(futureInput);
+
+  const restored = loadStructuredDemoData();
+  expect(JSON.stringify(restored?.archive[0].rednessEvaluation)).toBe(serializedSnapshot);
+  expect(restored?.archive[0].rednessEvaluation?.threshold.version).toBe('redness-provisional-v1');
+});
+
+it('keeps pre-engine saved records readable without inventing a snapshot', () => {
+  saveStructuredDemoData({
+    ...initialState,
+    stage: 'record',
+    record: legacyRecord,
+    archive: [legacyRecord],
+  });
+
+  const restored = loadStructuredDemoData();
+  const restoredRecord = restored?.archive[0];
+  expect(restoredRecord?.rednessEvaluation).toBeUndefined();
+  expect(verdictViewModelFromRecord(restoredRecord!)).toMatchObject({
+    headline: 'Legacy saved finding.',
+    explanation: 'Legacy saved limitation.',
+    evidenceQuality: 'POSSIBLE',
   });
 });
 

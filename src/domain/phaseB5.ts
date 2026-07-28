@@ -1,15 +1,7 @@
-import type {
-  AnalysisResult,
-  CaptureContext,
-  ProductPlacement,
-  RednessComparison,
-  RegisteredProduct,
-} from './model';
+import type { AnalysisResult, CaptureContext, ProductPlacement, RegisteredProduct } from './model';
+import { REDNESS_MVP_OBSERVATION_WINDOW } from './evidence/redness';
 
-export const FOLLOW_UP_INTERVAL_DAYS = 14;
-export const CAPTURE_CONTEXT_LIMITATION =
-  'User-reported capture context may limit attribution.';
-
+export const FOLLOW_UP_INTERVAL_DAYS = REDNESS_MVP_OBSERVATION_WINDOW.minimum;
 export type ProductRegistrationInput = {
   brand: string;
   productName: string;
@@ -17,14 +9,9 @@ export type ProductRegistrationInput = {
   volume?: string | null;
 };
 
-export type ProductRegistrationErrors = Partial<
-  Record<keyof ProductRegistrationInput, string>
->;
+export type ProductRegistrationErrors = Partial<Record<keyof ProductRegistrationInput, string>>;
 
-const normalizedText = (
-  value: string | null | undefined,
-  maximumLength: number,
-): string | null => {
+const normalizedText = (value: string | null | undefined, maximumLength: number): string | null => {
   const normalized = value?.trim().replace(/\s+/g, ' ').slice(0, maximumLength) ?? '';
   return normalized || null;
 };
@@ -59,6 +46,9 @@ export function createRegisteredProduct(
     volume: normalizedText(input.volume, 48),
     assignedJob: 'Reduce visible redness',
     protocolId: 'youcam-redness-v1',
+    expectedObservationWindowDays: {
+      ...REDNESS_MVP_OBSERVATION_WINDOW,
+    },
     createdAt: now,
   };
 }
@@ -68,19 +58,17 @@ export function isValidRegisteredProduct(
 ): product is RegisteredProduct {
   return Boolean(
     product &&
-      product.id.trim() &&
-      product.accession.trim() &&
-      product.brand.trim() &&
-      product.productName.trim() &&
-      product.assignedJob === 'Reduce visible redness' &&
-      product.protocolId === 'youcam-redness-v1' &&
-      product.createdAt.trim(),
+    product.id.trim() &&
+    product.accession.trim() &&
+    product.brand.trim() &&
+    product.productName.trim() &&
+    product.assignedJob === 'Reduce visible redness' &&
+    product.protocolId === 'youcam-redness-v1' &&
+    product.createdAt.trim(),
   );
 }
 
-export function isYouCamProtocolEligible(
-  product: RegisteredProduct | null | undefined,
-): boolean {
+export function isYouCamProtocolEligible(product: RegisteredProduct | null | undefined): boolean {
   return product?.protocolId === 'youcam-redness-v1';
 }
 
@@ -102,37 +90,15 @@ export function normalizeCaptureContext(context: CaptureContext): CaptureContext
   };
 }
 
-export function hasMeaningfulCaptureContext(
-  context: CaptureContext | null | undefined,
-): boolean {
+export function hasMeaningfulCaptureContext(context: CaptureContext | null | undefined): boolean {
   return Boolean(
     context &&
-      (context.makeup ||
-        context.recentHeatOrExercise ||
-        context.recentCleansingOrSkincare ||
-        context.routineOrTreatmentChange ||
-        context.note),
+    (context.makeup ||
+      context.recentHeatOrExercise ||
+      context.recentCleansingOrSkincare ||
+      context.routineOrTreatmentChange ||
+      context.note),
   );
-}
-
-export function comparisonWithCaptureContext(
-  comparison: RednessComparison,
-  baselineContext: CaptureContext | null,
-  followUpContext: CaptureContext | null,
-): RednessComparison {
-  if (
-    !hasMeaningfulCaptureContext(baselineContext) &&
-    !hasMeaningfulCaptureContext(followUpContext)
-  ) {
-    return comparison;
-  }
-
-  return {
-    ...comparison,
-    limitations: comparison.limitations.includes(CAPTURE_CONTEXT_LIMITATION)
-      ? comparison.limitations
-      : [...comparison.limitations, CAPTURE_CONTEXT_LIMITATION],
-  };
 }
 
 const parsedTime = (value: string): number | null => {
@@ -184,9 +150,7 @@ export function trialDaySummary(
   };
 }
 
-export function defaultPlacementForResult(
-  analysis: AnalysisResult,
-): ProductPlacement {
+export function defaultPlacementForResult(analysis: AnalysisResult): ProductPlacement {
   if (analysis.provider === 'youcam') return 'paused';
   return analysis.recommendedAction === 'keep' ? 'established' : 'paused';
 }

@@ -148,6 +148,7 @@ export function createEvidenceRecord(state: FaceValueState, now: string): Eviden
     baselineContext: state.baselineContext ?? null,
     followUpContext: state.followUpContext ?? null,
     demoOriginated: state.demoTimelineAdvanced === true,
+    rednessEvaluation: state.analysis.rednessEvaluation,
   };
 }
 

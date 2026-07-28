@@ -1365,8 +1365,10 @@ p {
 }
 
 .recordRows dd {
+  min-width: 0;
   margin: 0;
   font-size: 11px;
+  overflow-wrap: anywhere;
 }
 
 .claimBoundary {

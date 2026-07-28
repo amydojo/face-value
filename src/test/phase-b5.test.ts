@@ -2,11 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { HD_REDNESS_PROTOCOL } from '../adapters/analysis/youcam/contracts';
 import { specimenFromRegisteredProduct } from '../adapters/product/specimenFromRegisteredProduct';
 import { toPersistedDemoData } from '../adapters/persistence/localObservationStore';
-import {
-  faceValueReducer,
-  initialState,
-  type PhaseBFaceValueState,
-} from '../app/phaseBMachine';
+import { faceValueReducer, initialState, type PhaseBFaceValueState } from '../app/phaseBMachine';
 import type {
   CameraCaptureProfileId,
   CaptureContext,
@@ -15,12 +11,15 @@ import type {
   RegisteredProduct,
 } from '../domain/model';
 import {
-  CAPTURE_CONTEXT_LIMITATION,
   FOLLOW_UP_INTERVAL_DAYS,
   createRegisteredProduct,
   isYouCamProtocolEligible,
   validateProductRegistration,
 } from '../domain/phaseB5';
+import {
+  verdictViewModelFromAnalysis,
+  verdictViewModelFromRecord,
+} from '../features/verdict/verdictViewModel';
 
 const BASELINE_AT = '2026-07-01T12:00:00.000Z';
 const EARLY_FOLLOW_UP_AT = '2026-07-08T12:00:00.000Z';
@@ -29,8 +28,7 @@ const ELIGIBLE_AT = '2026-07-15T12:00:00.000Z';
 const metadata = (
   kind: 'baseline' | 'followup',
   createdAt = kind === 'baseline' ? BASELINE_AT : ELIGIBLE_AT,
-  cameraProfileId: CameraCaptureProfileId =
-    'youcam-camera-kit-hd-1080p',
+  cameraProfileId: CameraCaptureProfileId = 'youcam-camera-kit-hd-1080p',
 ): CaptureMetadata => ({
   id: `${kind}-${createdAt}`,
   kind,
@@ -58,9 +56,7 @@ const signal = (
   captureQuality: 'accepted',
 });
 
-const product = (
-  overrides: Partial<RegisteredProduct> = {},
-): RegisteredProduct => ({
+const product = (overrides: Partial<RegisteredProduct> = {}): RegisteredProduct => ({
   ...createRegisteredProduct(
     {
       brand: '  Naturium  ',
@@ -166,9 +162,7 @@ const comparedTrial = (withContext = false): PhaseBFaceValueState => {
 
 describe('Phase B.5 registered product identity', () => {
   it('validates required identity, normalizes fields, and adapts one specimen', () => {
-    expect(
-      validateProductRegistration({ brand: ' ', productName: '' }),
-    ).toEqual({
+    expect(validateProductRegistration({ brand: ' ', productName: '' })).toEqual({
       brand: 'Enter the product brand.',
       productName: 'Enter the product name.',
     });
@@ -196,9 +190,7 @@ describe('Phase B.5 registered product identity', () => {
   });
 
   it('selects the provider by protocol, never by fixture identity', () => {
-    expect(
-      isYouCamProtocolEligible(product({ id: 'not-one-thing' })),
-    ).toBe(true);
+    expect(isYouCamProtocolEligible(product({ id: 'not-one-thing' }))).toBe(true);
     expect(
       isYouCamProtocolEligible({
         ...product({ id: 'one-thing' }),
@@ -269,9 +261,7 @@ describe('Phase B.5 timing and context laws', () => {
 
   it('freezes the accepted baseline capture profile for follow-up', () => {
     const waiting = waitingTrial();
-    expect(waiting.baselineCapture?.cameraProfileId).toBe(
-      'youcam-camera-kit-hd-1080p',
-    );
+    expect(waiting.baselineCapture?.cameraProfileId).toBe('youcam-camera-kit-hd-1080p');
     const ready = faceValueReducer(waiting, {
       type: 'CHECK_FOLLOWUP_ELIGIBILITY',
       now: ELIGIBLE_AT,
@@ -284,11 +274,7 @@ describe('Phase B.5 timing and context laws', () => {
     const mismatched = faceValueReducer(camera, {
       type: 'FOLLOWUP_ANALYSIS_STARTED',
       requestId: 'mismatched-profile',
-      metadata: metadata(
-        'followup',
-        ELIGIBLE_AT,
-        'youcam-camera-kit-hd-1920p',
-      ),
+      metadata: metadata('followup', ELIGIBLE_AT, 'youcam-camera-kit-hd-1920p'),
     });
     expect(mismatched).toEqual(camera);
 
@@ -314,12 +300,16 @@ describe('Phase B.5 timing and context laws', () => {
     expect(fileFallback.processing).toBe('running');
   });
 
-  it('persists optional context only as a limitation and never raises confidence', () => {
+  it('persists optional context as an attribution downgrade and never raises evidence quality', () => {
     const compared = comparedTrial(true);
     expect(compared.baselineContext?.recentHeatOrExercise).toBe(true);
-    expect(compared.longitudinalEvidence.comparison?.limitations).toContain(
-      CAPTURE_CONTEXT_LIMITATION,
+    expect(compared.longitudinalEvidence.evaluation?.confounders).toContainEqual(
+      expect.objectContaining({
+        code: 'baseline_recent_heat_or_exercise',
+        severity: 'downgrade',
+      }),
     );
+    expect(compared.longitudinalEvidence.evaluation?.attributionQuality).toBe('weak');
     expect(compared.confidence).toBe('possible');
   });
 });
@@ -330,9 +320,7 @@ describe('Phase B.5 sealed result and atomic release', () => {
     expect(sealed.stage).toBe('analysis');
     expect(sealed.resultRevealed).toBe(false);
     expect(sealed.oracleRevealState).toBe('sealed');
-    expect(sealed.analysis?.finding).toBe(
-      'A small favorable shift showed up.',
-    );
+    expect(sealed.analysis?.finding).toBe('Visible redness moved in a favorable direction.');
 
     const opening = faceValueReducer(sealed, {
       type: 'REVEAL_STARTED',
@@ -413,6 +401,8 @@ describe('Phase B.5 sealed result and atomic release', () => {
     expect(collected.placementSealed).toBe(true);
     expect(collected.archive).toHaveLength(1);
     expect(collected.announcement).toContain('Your result is saved.');
+    expect(collected.announcement).toContain('Next: test longer.');
+    expect(collected.announcement).not.toContain('Next: paused.');
     expect(collected.announcement).not.toContain('Evidence recorded.');
     expect(collected.record).toMatchObject({
       id: 'ER-202607151230',
@@ -423,6 +413,19 @@ describe('Phase B.5 sealed result and atomic release', () => {
       finalPlacement: 'paused',
       includesFaceImage: false,
     });
+    expect(collected.record?.rednessEvaluation).toEqual(revealed.analysis?.rednessEvaluation);
+    expect(collected.archive[0].rednessEvaluation).toEqual(revealed.analysis?.rednessEvaluation);
+    const resultViewModel = verdictViewModelFromAnalysis({
+      trialId: collected.record!.accession,
+      productName: collected.record!.product,
+      productBrand: collected.record!.productBrand,
+      analysis: revealed.analysis!,
+      confidence: revealed.confidence,
+      placement: revealed.placement,
+      evaluatedAt: revealed.analysis?.rednessEvaluation?.evaluatedAt,
+    });
+    const savedViewModel = verdictViewModelFromRecord(collected.archive[0]);
+    expect(savedViewModel).toEqual(resultViewModel);
     expect(duplicateCollection).toEqual(collected);
 
     const archive = faceValueReducer(collected, { type: 'VIEW_ARCHIVE' });
@@ -474,9 +477,7 @@ describe('Phase B.5 sealed result and atomic release', () => {
     const backedOut = faceValueReducer(cancelled, { type: 'BACK' });
 
     for (const state of [failed, cancelled, backedOut]) {
-      expect(state.registeredProduct?.productName).toBe(
-        'Azelaic Topical Acid',
-      );
+      expect(state.registeredProduct?.productName).toBe('Azelaic Topical Acid');
       expect(state.longitudinalEvidence.baseline?.rawScore).toBe(93.3356);
     }
     expect(backedOut.stage).toBe('followup_ready');
@@ -485,14 +486,11 @@ describe('Phase B.5 sealed result and atomic release', () => {
   it('serializes durable truth without requests, blobs, or face images', () => {
     const persisted = JSON.stringify(
       toPersistedDemoData(
-        faceValueReducer(
-          faceValueReducer(comparedTrial(), { type: 'REVEAL_RESULT' }),
-          {
-            type: 'COMMIT_RESULT_AND_RELEASE',
-            placement: 'paused',
-            now: '2026-07-15T12:30:00.000Z',
-          },
-        ),
+        faceValueReducer(faceValueReducer(comparedTrial(), { type: 'REVEAL_RESULT' }), {
+          type: 'COMMIT_RESULT_AND_RELEASE',
+          placement: 'paused',
+          now: '2026-07-15T12:30:00.000Z',
+        }),
       ),
     );
     expect(persisted).toContain('Naturium');

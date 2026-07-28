@@ -19,6 +19,10 @@ import type {
 } from '../../domain/model';
 import type { OracleRevealState } from '../../domain/oracleRevealMachine';
 import {
+  REDNESS_MVP_OBSERVATION_WINDOW,
+  isRednessEvaluationSnapshot,
+} from '../../domain/evidence/redness';
+import {
   FOLLOW_UP_INTERVAL_DAYS,
   addCalendarDays,
   isValidRegisteredProduct,
@@ -63,6 +67,7 @@ const emptyLongitudinalEvidence = (): LongitudinalSkinEvidence => ({
   baseline: null,
   followUp: null,
   comparison: null,
+  evaluation: null,
 });
 
 const placements = new Set<ProductPlacement>([
@@ -136,10 +141,7 @@ const captureMimeTypes = new Set<CaptureMetadata['mimeType']>([
   'image/heic',
   'image/unknown',
 ]);
-const cameraCaptureProfiles = new Set([
-  'youcam-camera-kit-hd-1080p',
-  'youcam-camera-kit-hd-1920p',
-]);
+const cameraCaptureProfiles = new Set(['youcam-camera-kit-hd-1080p', 'youcam-camera-kit-hd-1920p']);
 const oracleRevealStates = new Set<OracleRevealState>([
   'sealed',
   'opening',
@@ -203,12 +205,12 @@ const isEvidenceRecord = (value: unknown): value is EvidenceRecordData =>
   (value.followUpContext === undefined ||
     value.followUpContext === null ||
     isCaptureContext(value.followUpContext)) &&
-  (value.demoOriginated === undefined ||
-    typeof value.demoOriginated === 'boolean') &&
+  (value.demoOriginated === undefined || typeof value.demoOriginated === 'boolean') &&
   (value.baselineRawScore === undefined ||
     (typeof value.baselineRawScore === 'number' && Number.isFinite(value.baselineRawScore))) &&
   (value.followUpRawScore === undefined ||
-    (typeof value.followUpRawScore === 'number' && Number.isFinite(value.followUpRawScore)));
+    (typeof value.followUpRawScore === 'number' && Number.isFinite(value.followUpRawScore))) &&
+  (value.rednessEvaluation === undefined || isRednessEvaluationSnapshot(value.rednessEvaluation));
 
 const isAnalysisResult = (value: unknown): value is AnalysisResult =>
   isObject(value) &&
@@ -221,7 +223,8 @@ const isAnalysisResult = (value: unknown): value is AnalysisResult =>
   (value.followUpRawScore === undefined ||
     (typeof value.followUpRawScore === 'number' && Number.isFinite(value.followUpRawScore))) &&
   (value.delta === undefined ||
-    (typeof value.delta === 'number' && Number.isFinite(value.delta)));
+    (typeof value.delta === 'number' && Number.isFinite(value.delta))) &&
+  (value.rednessEvaluation === undefined || isRednessEvaluationSnapshot(value.rednessEvaluation));
 
 const isProtocol = (value: unknown): value is NonNullable<LongitudinalSkinEvidence['protocol']> =>
   isObject(value) &&
@@ -256,7 +259,7 @@ const isRednessComparison = (value: unknown): value is RednessComparison =>
   typeof value.delta === 'number' &&
   Number.isFinite(value.delta) &&
   ['favorable', 'unfavorable', 'unchanged'].includes(String(value.direction)) &&
-  ['pending', 'prototype_calibrated'].includes(String(value.calibration)) &&
+  ['pending', 'prototype_calibrated', 'provisional_fixture'].includes(String(value.calibration)) &&
   ['possible', 'likely', 'insufficient'].includes(String(value.confidence)) &&
   Array.isArray(value.limitations) &&
   value.limitations.every((item) => typeof item === 'string');
@@ -266,7 +269,10 @@ const isLongitudinalEvidence = (value: unknown): value is LongitudinalSkinEviden
   (value.protocol === null || isProtocol(value.protocol)) &&
   (value.baseline === null || isDurableSignal(value.baseline)) &&
   (value.followUp === null || isDurableSignal(value.followUp)) &&
-  (value.comparison === null || isRednessComparison(value.comparison));
+  (value.comparison === null || isRednessComparison(value.comparison)) &&
+  (value.evaluation === undefined ||
+    value.evaluation === null ||
+    isRednessEvaluationSnapshot(value.evaluation));
 
 const migrateLegacyRegisteredProduct = (input: {
   selectedSpecimenId: string;
@@ -291,9 +297,10 @@ const migrateLegacyRegisteredProduct = (input: {
     volume: '30 ML',
     assignedJob: 'Reduce visible redness',
     protocolId: 'youcam-redness-v1',
-    createdAt:
-      input.baselineCapture?.createdAt ??
-      input.longitudinalEvidence.baseline.capturedAt,
+    expectedObservationWindowDays: {
+      ...REDNESS_MVP_OBSERVATION_WINDOW,
+    },
+    createdAt: input.baselineCapture?.createdAt ?? input.longitudinalEvidence.baseline.capturedAt,
   };
 };
 
@@ -316,8 +323,7 @@ export function toPersistedDemoData(state: FaceValueState): PersistedDemoData {
     analysis: state.analysis,
     record: state.record,
     archive: state.archive,
-    longitudinalEvidence:
-      state.longitudinalEvidence ?? emptyLongitudinalEvidence(),
+    longitudinalEvidence: state.longitudinalEvidence ?? emptyLongitudinalEvidence(),
     registeredProduct: state.registeredProduct ?? null,
     baselineLockedAt: state.baselineLockedAt ?? null,
     followUpEligibleAt: state.followUpEligibleAt ?? null,
@@ -339,9 +345,7 @@ export function saveStructuredDemoData(
   storage.setItem(STORAGE_KEY, JSON.stringify(toPersistedDemoData(state)));
 }
 
-export function loadStructuredDemoData(
-  storage: Storage = localStorage,
-): PersistedDemoData | null {
+export function loadStructuredDemoData(storage: Storage = localStorage): PersistedDemoData | null {
   const raw = storage.getItem(STORAGE_KEY);
   if (!raw) return null;
 
@@ -356,16 +360,14 @@ export function loadStructuredDemoData(
     const trace = value.trace;
     const analysis = value.analysis;
     const record = value.record;
-    const longitudinalEvidence =
-      value.longitudinalEvidence ?? emptyLongitudinalEvidence();
+    const longitudinalEvidence = value.longitudinalEvidence ?? emptyLongitudinalEvidence();
     const stage =
       typeof value.stage === 'string' && appStages.has(value.stage as AppStage)
         ? (value.stage as AppStage)
         : null;
-    const captureKind =
-      captureKinds.has(value.captureKind as CaptureKind)
-        ? (value.captureKind as CaptureKind)
-        : 'baseline';
+    const captureKind = captureKinds.has(value.captureKind as CaptureKind)
+      ? (value.captureKind as CaptureKind)
+      : 'baseline';
     const baselineLockedAt = value.baselineLockedAt ?? null;
     const followUpEligibleAt = value.followUpEligibleAt ?? null;
     const baselineContext = value.baselineContext ?? null;
@@ -384,15 +386,11 @@ export function loadStructuredDemoData(
               ? 'verdict_revealed'
               : 'sealed';
     const oracleEvidenceDispensed =
-      value.oracleEvidenceDispensed ??
-      Boolean(value.placementSealed === true && record);
-    const oracleCollectionStarted =
-      value.oracleCollectionStarted ?? false;
+      value.oracleEvidenceDispensed ?? Boolean(value.placementSealed === true && record);
+    const oracleCollectionStarted = value.oracleCollectionStarted ?? false;
     const oracleCommittedAt =
       value.oracleCommittedAt ??
-      (value.placementSealed === true && isObject(record)
-        ? record.createdAt ?? null
-        : null);
+      (value.placementSealed === true && isObject(record) ? (record.createdAt ?? null) : null);
     const registeredProductValue = value.registeredProduct ?? null;
 
     if (
@@ -415,18 +413,12 @@ export function loadStructuredDemoData(
       !Array.isArray(archive) ||
       !archive.every(isEvidenceRecord) ||
       !isLongitudinalEvidence(longitudinalEvidence) ||
-      !(registeredProductValue === null ||
-        isValidRegisteredProduct(
-          registeredProductValue as RegisteredProduct,
-        )) ||
       !(
-        baselineLockedAt === null ||
-        typeof baselineLockedAt === 'string'
+        registeredProductValue === null ||
+        isValidRegisteredProduct(registeredProductValue as RegisteredProduct)
       ) ||
-      !(
-        followUpEligibleAt === null ||
-        typeof followUpEligibleAt === 'string'
-      ) ||
+      !(baselineLockedAt === null || typeof baselineLockedAt === 'string') ||
+      !(followUpEligibleAt === null || typeof followUpEligibleAt === 'string') ||
       !(baselineContext === null || isCaptureContext(baselineContext)) ||
       !(followUpContext === null || isCaptureContext(followUpContext)) ||
       typeof demoTimelineAdvanced !== 'boolean' ||
@@ -434,18 +426,13 @@ export function loadStructuredDemoData(
       !oracleRevealStates.has(oracleRevealState) ||
       typeof oracleEvidenceDispensed !== 'boolean' ||
       typeof oracleCollectionStarted !== 'boolean' ||
-      !(
-        oracleCommittedAt === null ||
-        typeof oracleCommittedAt === 'string'
-      )
+      !(oracleCommittedAt === null || typeof oracleCommittedAt === 'string')
     ) {
       throw new Error('Invalid persisted data');
     }
 
     const validatedRegisteredProduct =
-      registeredProductValue === null
-        ? null
-        : (registeredProductValue as RegisteredProduct);
+      registeredProductValue === null ? null : (registeredProductValue as RegisteredProduct);
     const registeredProduct =
       validatedRegisteredProduct ??
       migrateLegacyRegisteredProduct({
@@ -462,10 +449,7 @@ export function loadStructuredDemoData(
     const restoredFollowUpEligibleAt =
       followUpEligibleAt ??
       (restoredBaselineLockedAt && registeredProduct
-        ? addCalendarDays(
-            restoredBaselineLockedAt,
-            FOLLOW_UP_INTERVAL_DAYS,
-          )
+        ? addCalendarDays(restoredBaselineLockedAt, FOLLOW_UP_INTERVAL_DAYS)
         : null);
 
     return {

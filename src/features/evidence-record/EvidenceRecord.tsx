@@ -1,7 +1,11 @@
 import type { EvidenceRecordData } from '../../domain/model';
 import { oracleTrialIdentityForRecord } from '../../domain/oracleTrialIdentity';
 import { ScreenHeader } from '../../components/hardware';
-import { verdictProduct, verdictViewModelFromRecord } from '../verdict/verdictViewModel';
+import {
+  evidenceDetailViewModelFromRecord,
+  verdictProduct,
+  verdictViewModelFromRecord,
+} from '../verdict/verdictViewModel';
 import styles from '../../styles/FaceValue.module.css';
 
 const dateFormatter = new Intl.DateTimeFormat('en-US', {
@@ -73,15 +77,15 @@ export function RecordFolio({ record }: { record: EvidenceRecordData }) {
       <strong>{verdictProduct(viewModel)}</strong>
       <small>{observationWindow}</small>
       <p>
-        {record.finding}
+        {viewModel.headline}
         <br />
-        {record.nonFinding}
+        {viewModel.explanation}
       </p>
       <em>{viewModel.nextStepLabel}</em>
       <div data-fv-part="confidence-rail">
         <i />
       </div>
-      <b>{record.confidence.toUpperCase()}</b>
+      <b>{viewModel.evidenceQuality}</b>
     </div>
   );
 }
@@ -98,28 +102,36 @@ export function EvidenceRecord({
   onBack: () => void;
 }) {
   const identity = oracleTrialIdentityForRecord(record);
-  const viewModel = verdictViewModelFromRecord(record);
+  const detail = evidenceDetailViewModelFromRecord(record);
   const anotherProduct =
     record.disturbance === 'none' || record.disturbance === 'returned_to_cooling'
       ? 'No second product remained during the comparison'
       : 'Two products shared this trial';
-  const rows = [
-    ['TRIAL', identity.folio],
-    ['TRIAL WINDOW', observationWindowFor(record)],
-    [
-      'COMPARISON',
-      record.comparison === 'comparable'
-        ? 'Comparable across two scans'
-        : record.comparison.replaceAll('_', ' '),
-    ],
-    ['FINDING', record.finding],
-    ['WHAT WAS NOT CONCLUDED', record.nonFinding],
-    ['NOTE', record.note ?? 'No note added'],
-    ['ANOTHER PRODUCT', anotherProduct],
-    ['CONFIDENCE', record.confidence],
-    ['NEXT STEP', viewModel.nextStepLabel],
-    ['SAVED', timestampFor(record.createdAt)],
-  ];
+  const rows = record.rednessEvaluation
+    ? [
+        ['TRIAL', identity.folio],
+        ['TRIAL WINDOW', observationWindowFor(record)],
+        ['NOTE', record.note ?? 'No note added'],
+        ...detail.rows.map(({ label, value }) => [label, value]),
+        ['SAVED', timestampFor(record.createdAt)],
+      ]
+    : [
+        ['TRIAL', identity.folio],
+        ['TRIAL WINDOW', observationWindowFor(record)],
+        [
+          'COMPARISON',
+          record.comparison === 'comparable'
+            ? 'Comparable across two scans'
+            : record.comparison.replaceAll('_', ' '),
+        ],
+        ['FINDING', record.finding],
+        ['WHAT WAS NOT CONCLUDED', record.nonFinding],
+        ['NOTE', record.note ?? 'No note added'],
+        ['ANOTHER PRODUCT', anotherProduct],
+        ['CONFIDENCE', record.confidence],
+        ['NEXT STEP', verdictViewModelFromRecord(record).nextStepLabel],
+        ['SAVED', timestampFor(record.createdAt)],
+      ];
 
   return (
     <>
@@ -145,12 +157,21 @@ export function EvidenceRecord({
           {rows.map(([label, value]) => (
             <div key={label}>
               <dt>{label}</dt>
-              <dd className={label === 'CONFIDENCE' ? styles.eyebrow : undefined}>{value}</dd>
+              <dd
+                className={
+                  label === 'EVIDENCE QUALITY' || label === 'CONFIDENCE'
+                    ? styles.eyebrow
+                    : undefined
+                }
+              >
+                {value}
+              </dd>
             </div>
           ))}
         </dl>
+        {detail.technicalNote && <p className={styles.claimBoundary}>{detail.technicalNote}</p>}
         <p className={styles.claimBoundary} data-fv-part="record-claim-boundary">
-          {record.claimBoundary}
+          {detail.claimBoundary}
         </p>
         <div className={styles.privacyBadge} data-fv-part="record-privacy">
           PRIVATE BY DEFAULT · FACE EXCLUDED

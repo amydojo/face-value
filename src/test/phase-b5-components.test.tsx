@@ -9,10 +9,9 @@ import {
 import { saveStructuredDemoData } from '../adapters/persistence/localObservationStore';
 import { FaceValueProvider } from '../app/FaceValueProvider';
 import { StageFocusManager } from '../app/StageFocusManager';
-import { initialState, type PhaseBFaceValueState } from '../app/phaseBMachine';
+import { faceValueReducer, initialState, type PhaseBFaceValueState } from '../app/phaseBMachine';
 import type { CaptureMetadata, DurableSkinSignal, EvidenceRecordData } from '../domain/model';
 import { createRegisteredProduct } from '../domain/phaseB5';
-import { analysisResultFromComparison, compareRednessSignals } from '../domain/youcamEvidence';
 import { FaceValueApplication } from '../features/FaceValueApplication';
 import { HumanButterProductionJourney } from '../features/HumanButterProductionJourney';
 import { CameraViewport } from '../features/capture-contract/CameraViewport';
@@ -54,8 +53,7 @@ const sealedState = (): PhaseBFaceValueState => {
   );
   const baseline = signal(93.3356, BASELINE_AT);
   const followUp = signal(100, FOLLOW_UP_AT);
-  const comparison = compareRednessSignals(baseline, followUp);
-  return {
+  const state: PhaseBFaceValueState = {
     ...initialState,
     stage: 'analysis',
     cabinet: 'open',
@@ -68,7 +66,7 @@ const sealedState = (): PhaseBFaceValueState => {
     captureKind: 'followup',
     baselineCapture: metadata('baseline', BASELINE_AT),
     followupCapture: metadata('followup', FOLLOW_UP_AT),
-    analysis: analysisResultFromComparison(comparison),
+    analysis: null,
     registeredProduct,
     baselineLockedAt: BASELINE_AT,
     followUpEligibleAt: FOLLOW_UP_AT,
@@ -92,9 +90,11 @@ const sealedState = (): PhaseBFaceValueState => {
       protocol: HD_REDNESS_PROTOCOL,
       baseline,
       followUp,
-      comparison,
+      comparison: null,
+      evaluation: null,
     },
   };
+  return faceValueReducer(state, { type: 'COMPARISON_CREATED' });
 };
 
 const savedRecord = (overrides: Partial<EvidenceRecordData> = {}): EvidenceRecordData => ({
@@ -194,6 +194,7 @@ it('keeps active-trial status calm while exposing the latest verdict and real hi
         ...active.longitudinalEvidence,
         followUp: null,
         comparison: null,
+        evaluation: null,
       },
       record: latest,
       archive: [latest, older],
@@ -231,9 +232,7 @@ it('keeps active-trial status calm while exposing the latest verdict and real hi
   ]);
   expect(within(archivedResults[0]).getByText('FV–014')).toBeVisible();
   expect(within(archivedResults[0]).getByText('Naturium · Azelaic Topical Acid')).toBeVisible();
-  expect(
-    within(archivedResults[0]).getByText('A small favorable shift showed up.'),
-  ).toBeVisible();
+  expect(within(archivedResults[0]).getByText('A small favorable shift showed up.')).toBeVisible();
   expect(
     within(archivedResults[0]).getByText('Visible redness moved in the intended direction.'),
   ).toBeVisible();
@@ -465,6 +464,10 @@ it('keeps one canonical machine through reveal, dispense, collection, and Done',
   expect(screen.getByText('VERDICT READY')).toBeVisible();
   expect(screen.getByRole('heading', { name: 'The result is in.' })).toBeVisible();
   const preRevealTree = document.body.textContent ?? '';
+  expect(preRevealTree).not.toContain('Visible redness moved in a favorable direction.');
+  expect(preRevealTree).not.toContain(
+    'The direction looks encouraging, but the change is not yet strong or consistent enough to call.',
+  );
   expect(preRevealTree).not.toContain('A small favorable shift showed up.');
   expect(preRevealTree).not.toContain(
     'This prototype cannot yet tell whether the shift is larger than normal scan variation.',
@@ -495,10 +498,10 @@ it('keeps one canonical machine through reveal, dispense, collection, and Done',
   fireEvent.animationEnd(document.querySelector('[data-oracle-motion="transmission"]')!);
   expect(machine).toHaveAttribute('data-oracle-state', 'verdict_revealed');
   expect(screen.getByRole('heading', { name: 'The result is in.' })).toBeVisible();
-  expect(screen.getByText('A small favorable shift showed up.')).toBeVisible();
+  expect(screen.getByText('Visible redness moved in a favorable direction.')).toBeVisible();
   const recommendationRegion = screen.getByLabelText('Result recommendation');
   expect(recommendationRegion.querySelector('p')).toHaveTextContent(
-    'Visible redness moved in the intended direction.',
+    'The direction looks encouraging, but the change is not yet strong or consistent enough to call.',
   );
   expect(document.querySelector('[data-firmware-state="resolved"]')).toHaveTextContent(
     'TEST LONGER',
@@ -563,7 +566,7 @@ it('keeps one canonical machine through reveal, dispense, collection, and Done',
   expect(screen.getByText('Your result is saved.')).toBeVisible();
   expect(screen.getAllByText('FV–014').length).toBeGreaterThan(0);
   expect(screen.getByText('Naturium · Azelaic Topical Acid')).toBeVisible();
-  expect(screen.getByText('A small favorable shift showed up.')).toBeVisible();
+  expect(screen.getByText('Visible redness moved in a favorable direction.')).toBeVisible();
   expect(screen.getByText('TEST LONGER')).toBeVisible();
   expect(document.querySelector('[data-result-summary]')).toBeVisible();
   expect(document.querySelector('[data-result-actions]')).toBeVisible();

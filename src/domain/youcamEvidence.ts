@@ -1,17 +1,7 @@
 import type { SkinAnalysisSignal } from '../adapters/analysis/youcam/contracts';
-import type {
-  AnalysisErrorState,
-  AnalysisResult,
-  DurableSkinSignal,
-  RednessComparison,
-} from './model';
+import type { AnalysisErrorState, DurableSkinSignal } from './model';
 
-export const PROTOTYPE_CALIBRATION_LIMITATION =
-  'Prototype noise boundary has not been calibrated.';
-
-export function normalizeSkinAnalysisSignal(
-  signal: SkinAnalysisSignal,
-): DurableSkinSignal {
+export function normalizeSkinAnalysisSignal(signal: SkinAnalysisSignal): DurableSkinSignal {
   if (
     signal.provider !== 'youcam' ||
     signal.apiVersion !== '2.1' ||
@@ -38,80 +28,11 @@ export function normalizeSkinAnalysisSignal(
   };
 }
 
-export function compareRednessSignals(
-  baseline: DurableSkinSignal,
-  followUp: DurableSkinSignal,
-): RednessComparison {
-  const delta = followUp.rawScore - baseline.rawScore;
-  const direction: RednessComparison['direction'] =
-    delta > 0 ? 'favorable' : delta < 0 ? 'unfavorable' : 'unchanged';
-
-  return {
-    baselineRawScore: baseline.rawScore,
-    followUpRawScore: followUp.rawScore,
-    delta,
-    direction,
-    calibration: 'pending',
-    confidence: 'possible',
-    limitations: [PROTOTYPE_CALIBRATION_LIMITATION],
-  };
-}
-
 export function formatRawScore(value: number): string {
   return new Intl.NumberFormat('en-US', {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   }).format(value);
-}
-
-function resultCopy(comparison: RednessComparison): {
-  finding: string;
-  support: string;
-} {
-  if (comparison.direction === 'favorable') {
-    return {
-      finding: 'A small favorable shift showed up.',
-      support: 'Visible redness moved in the intended direction.',
-    };
-  }
-
-  if (comparison.direction === 'unfavorable') {
-    return {
-      finding: 'No favorable shift showed up yet.',
-      support: 'Visible redness did not move in the intended direction.',
-    };
-  }
-
-  return {
-    finding: 'No favorable shift showed up yet.',
-    support: 'The follow-up remained close to the baseline.',
-  };
-}
-
-export function analysisResultFromComparison(
-  comparison: RednessComparison,
-): AnalysisResult {
-  const copy = resultCopy(comparison);
-  return {
-    captureQuality: 'accepted',
-    comparison: 'comparable',
-    visibleSignal: 'visible redness',
-    confidence: 'possible',
-    finding: copy.finding,
-    nonFinding: copy.support,
-    relevantContext:
-      'This prototype cannot yet tell whether the shift is larger than normal scan variation.',
-    recommendedAction: 'wait',
-    claimBoundary:
-      'Possible directional evidence only. This does not establish product efficacy or clinical significance.',
-    simulated: false,
-    provider: 'youcam',
-    baselineRawScore: comparison.baselineRawScore,
-    followUpRawScore: comparison.followUpRawScore,
-    delta: comparison.delta,
-    direction: comparison.direction,
-    limitations: [...comparison.limitations],
-  };
 }
 
 const includesAny = (value: string, fragments: string[]): boolean =>
@@ -167,20 +88,19 @@ export function summarizeCalibration(scores: number[]): CalibrationSummary {
   const absoluteConsecutiveDeltas = consecutiveDeltas.map(Math.abs);
   const sorted = [...absoluteConsecutiveDeltas].sort((a, b) => a - b);
   const middle = Math.floor(sorted.length / 2);
-  const medianAbsoluteDelta = sorted.length === 0
-    ? 0
-    : sorted.length % 2 === 1
-      ? sorted[middle]
-      : (sorted[middle - 1] + sorted[middle]) / 2;
+  const medianAbsoluteDelta =
+    sorted.length === 0
+      ? 0
+      : sorted.length % 2 === 1
+        ? sorted[middle]
+        : (sorted[middle - 1] + sorted[middle]) / 2;
 
   return {
     scores: [...scores],
     consecutiveDeltas,
     absoluteConsecutiveDeltas,
     medianAbsoluteDelta,
-    maxAbsoluteDelta: absoluteConsecutiveDeltas.length
-      ? Math.max(...absoluteConsecutiveDeltas)
-      : 0,
+    maxAbsoluteDelta: absoluteConsecutiveDeltas.length ? Math.max(...absoluteConsecutiveDeltas) : 0,
     minimumScore: Math.min(...scores),
     maximumScore: Math.max(...scores),
   };

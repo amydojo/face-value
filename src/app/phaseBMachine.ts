@@ -1,4 +1,10 @@
 import type { AnalysisProtocol } from '../adapters/analysis/youcam/contracts';
+import {
+  analysisResultFromRednessEvaluation,
+  buildMvpRednessEvaluation,
+  placementForRednessAction,
+  rednessComparisonFromEvaluation,
+} from '../adapters/analysis/youcam/rednessEvidenceAdapter';
 import type {
   AnalysisErrorState,
   CaptureContext,
@@ -18,17 +24,16 @@ import {
   type OracleRevealState,
 } from '../domain/oracleRevealMachine';
 import { oracleTrialIdentity } from '../domain/oracleTrialIdentity';
+import { REDNESS_MVP_OBSERVATION_WINDOW } from '../domain/evidence/redness';
 import {
   FOLLOW_UP_INTERVAL_DAYS,
   addCalendarDays,
-  comparisonWithCaptureContext,
   defaultPlacementForResult,
   emptyCaptureContext,
   followUpIsEligible,
   isValidRegisteredProduct,
   normalizeCaptureContext,
 } from '../domain/phaseB5';
-import { analysisResultFromComparison, compareRednessSignals } from '../domain/youcamEvidence';
 import {
   createEvidenceRecord,
   faceValueReducer as legacyFaceValueReducer,
@@ -130,6 +135,7 @@ export const createEmptyLongitudinalEvidence = (): LongitudinalSkinEvidence => (
   baseline: null,
   followUp: null,
   comparison: null,
+  evaluation: null,
 });
 
 export const initialState: PhaseBFaceValueState = {
@@ -163,7 +169,12 @@ export function normalizePhaseBState(state: FaceValueState): PhaseBFaceValueStat
           : 'sealed';
   return {
     ...state,
-    longitudinalEvidence: state.longitudinalEvidence ?? createEmptyLongitudinalEvidence(),
+    longitudinalEvidence: state.longitudinalEvidence
+      ? {
+          ...state.longitudinalEvidence,
+          evaluation: state.longitudinalEvidence.evaluation ?? null,
+        }
+      : createEmptyLongitudinalEvidence(),
     analysisRole: state.analysisRole ?? null,
     activeAnalysisRequestId: state.activeAnalysisRequestId ?? null,
     pendingAnalysisCapture: state.pendingAnalysisCapture ?? null,
@@ -210,7 +221,8 @@ const applyOracleEvent = (
 
 function enrichRecord(state: PhaseBFaceValueState, record: EvidenceRecordData): EvidenceRecordData {
   const comparison = state.longitudinalEvidence.comparison;
-  if (!comparison || state.analysis?.provider !== 'youcam') return record;
+  const evaluation = state.longitudinalEvidence.evaluation;
+  if (!comparison || !evaluation || state.analysis?.provider !== 'youcam') return record;
 
   return {
     ...record,
@@ -226,6 +238,7 @@ function enrichRecord(state: PhaseBFaceValueState, record: EvidenceRecordData): 
     baselineContext: state.baselineContext,
     followUpContext: state.followUpContext,
     demoOriginated: state.demoTimelineAdvanced,
+    rednessEvaluation: evaluation,
   };
 }
 
@@ -258,6 +271,33 @@ function enrichSavedRecord(
     record: enriched,
     archive: next.archive.map((record) => (record.id === enriched.id ? enriched : record)),
   };
+}
+
+function productForRednessEvaluation(
+  state: PhaseBFaceValueState,
+  baseline: DurableSkinSignal,
+): RegisteredProduct {
+  if (state.registeredProduct) return state.registeredProduct;
+  return {
+    id: state.selectedSpecimenId || 'legacy-redness-product',
+    accession: 'LEGACY',
+    brand: 'FACE VALUE',
+    productName: state.selectedSpecimenId || 'Legacy redness trial',
+    strength: null,
+    volume: null,
+    assignedJob: 'Reduce visible redness',
+    protocolId: 'youcam-redness-v1',
+    expectedObservationWindowDays: {
+      ...REDNESS_MVP_OBSERVATION_WINDOW,
+    },
+    createdAt: baseline.capturedAt,
+  };
+}
+
+function placementForAnalysis(analysis: NonNullable<PhaseBFaceValueState['analysis']>) {
+  return analysis.rednessEvaluation
+    ? placementForRednessAction(analysis.rednessEvaluation.interpretation.recommendedAction)
+    : defaultPlacementForResult(analysis);
 }
 
 export function faceValueReducer(
@@ -462,7 +502,7 @@ export function faceValueReducer(
       const next = applyOracleEvent(state, event);
       return {
         ...next,
-        placement: defaultPlacementForResult(state.analysis),
+        placement: placementForAnalysis(state.analysis),
         placementSealed: false,
         announcement: 'Reveal started. Preparing the result.',
       };
@@ -558,13 +598,16 @@ export function faceValueReducer(
       const archive = state.archive.some((item) => item.id === record.id)
         ? state.archive
         : [record, ...state.archive];
+      const announcedNextStep =
+        record.rednessEvaluation?.interpretation.recommendedAction.replaceAll('_', ' ') ??
+        record.finalPlacement.replaceAll('_', ' ');
       return {
         ...next,
         observation: 'complete',
         placementSealed: true,
         record,
         archive,
-        announcement: `Your result is saved. ${record.finding} Next: ${record.finalPlacement.replaceAll('_', ' ')}.`,
+        announcement: `Your result is saved. ${record.finding} Next: ${announcedNextStep}.`,
       };
     }
 
@@ -625,7 +668,7 @@ export function faceValueReducer(
       });
       return {
         ...revealed,
-        placement: defaultPlacementForResult(state.analysis),
+        placement: placementForAnalysis(state.analysis),
         resultRevealed: true,
         announcement: 'Result revealed. The finding and recommended next step are ready.',
       };
@@ -681,6 +724,7 @@ export function faceValueReducer(
           baseline: event.signal,
           followUp: null,
           comparison: null,
+          evaluation: null,
         },
         analysisRole: null,
         activeAnalysisRequestId: null,
@@ -779,6 +823,7 @@ export function faceValueReducer(
           ...state.longitudinalEvidence,
           followUp: event.signal,
           comparison: null,
+          evaluation: null,
         },
         analysisRole: null,
         activeAnalysisRequestId: null,
@@ -829,6 +874,7 @@ export function faceValueReducer(
           ...state.longitudinalEvidence,
           followUp: null,
           comparison: null,
+          evaluation: null,
         },
         resultRevealed: false,
         oracleRevealState: 'sealed',
@@ -850,12 +896,24 @@ export function faceValueReducer(
       ) {
         return state;
       }
-      const comparison = comparisonWithCaptureContext(
-        compareRednessSignals(baseline, followUp),
-        state.baselineContext,
-        state.followUpContext,
-      );
-      const analysis = analysisResultFromComparison(comparison);
+      const trialIdentity = oracleTrialIdentity({
+        baselineAt: state.baselineLockedAt ?? baseline.capturedAt,
+        followUpAt: state.followupCapture?.createdAt ?? followUp.capturedAt,
+        accession: state.registeredProduct?.accession,
+      });
+      const evaluation = buildMvpRednessEvaluation({
+        trialId: trialIdentity.folio,
+        product: productForRednessEvaluation(state, baseline),
+        baseline,
+        endpoint: followUp,
+        baselineCapture: state.baselineCapture,
+        endpointCapture: state.followupCapture,
+        baselineContext: state.baselineContext,
+        endpointContext: state.followUpContext,
+        disturbance: state.disturbance,
+      });
+      const comparison = rednessComparisonFromEvaluation(evaluation);
+      const analysis = analysisResultFromRednessEvaluation(evaluation);
       return {
         ...state,
         stage: 'analysis',
@@ -864,12 +922,13 @@ export function faceValueReducer(
         confidence: analysis.confidence,
         processing: 'succeeded',
         observation: 'review_due',
-        placement: defaultPlacementForResult(analysis),
+        placement: placementForRednessAction(evaluation.interpretation.recommendedAction),
         placementSealed: false,
         record: null,
         longitudinalEvidence: {
           ...state.longitudinalEvidence,
           comparison,
+          evaluation,
         },
         resultRevealed: false,
         oracleRevealState: 'sealed',
