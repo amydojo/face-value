@@ -4,6 +4,8 @@ const capturingHomeVerdictEvidence =
   process.env.CAPTURE_HOME_VERDICT_EVIDENCE === 'true';
 const capturingRednessEvidence =
   process.env.CAPTURE_REDNESS_EVIDENCE === 'true';
+const capturingEvidenceRecord =
+  process.env.CAPTURE_EVIDENCE_RECORD === 'true';
 const requestedPort = Number(process.env.PLAYWRIGHT_PORT);
 const serverPort =
   Number.isInteger(requestedPort) && requestedPort > 0
@@ -12,7 +14,9 @@ const serverPort =
       ? 4174
       : capturingRednessEvidence
         ? 4175
-        : 4173;
+        : capturingEvidenceRecord
+          ? 4176
+          : 4173;
 const baseURL = `http://127.0.0.1:${serverPort}`;
 
 export default defineConfig({
@@ -27,13 +31,16 @@ export default defineConfig({
   use: { baseURL, trace: 'retain-on-failure' },
   webServer: {
     command: `${
-      capturingHomeVerdictEvidence ? '' : 'VITE_SHOW_DEMO_CONTROLS=true '
+      capturingHomeVerdictEvidence || capturingEvidenceRecord
+        ? ''
+        : 'VITE_SHOW_DEMO_CONTROLS=true '
     }VITE_CAMERA_KIT_MODE=fixture npm run dev -- --host 127.0.0.1 --port ${serverPort}`,
     url: baseURL,
     reuseExistingServer:
       !process.env.CI &&
       !capturingHomeVerdictEvidence &&
       !capturingRednessEvidence &&
+      !capturingEvidenceRecord &&
       !process.env.PLAYWRIGHT_PORT,
   },
   projects: [{ name: 'mobile-webkit', use: { ...devices['iPhone 13'] } }],

@@ -50,6 +50,7 @@ export function FaceValueApplication() {
     state.stage === 'camera' ||
     state.stage === 'analysis' ||
     state.stage === 'archive' ||
+    state.stage === 'record' ||
     homeStage
       ? 'dark'
       : 'light';
@@ -634,7 +635,6 @@ export function FaceValueApplication() {
           <EvidenceRecord
             record={state.record}
             onArchive={() => dispatch({ type: 'VIEW_ARCHIVE' })}
-            onIndex={() => dispatch({ type: 'RETURN_TO_CABINET' })}
             onBack={() => dispatch({ type: 'BACK' })}
           />
         );

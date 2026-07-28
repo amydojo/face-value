@@ -164,13 +164,13 @@ test('home keeps one hierarchy and the exact verdict across home, detail, and hi
   await viewTrial.click();
 
   const savedResult = page.locator('[data-fv-screen="saved-result"]');
-  await expect(page.getByRole('heading', { name: 'SAVED RESULT' })).toBeVisible();
-  await expect(savedResult).toContainText('FV–014');
+  await expect(page.getByRole('heading', { name: 'Evidence record' })).toBeVisible();
+  await expect(page.locator('[data-oracle-trial-identity]')).toHaveText('FV–014');
   await expect(savedResult).toContainText('Naturium · Azelaic Topical Acid');
   await expect(savedResult).toContainText('A small favorable shift showed up.');
   await expect(savedResult).toContainText('TEST LONGER');
 
-  await page.getByRole('button', { name: '←' }).click();
+  await page.getByRole('button', { name: 'Back to previous view' }).click();
   await expect(cassette).toBeVisible();
 
   const previousTrials = page.getByRole('button', {
@@ -211,7 +211,7 @@ test('home keeps one hierarchy and the exact verdict across home, detail, and hi
     await savedRecords.first().evaluate((element) => getComputedStyle(element).outlineStyle),
   ).not.toBe('none');
   await savedRecords.first().click();
-  await expect(savedResult).toContainText('FV–014');
+  await expect(page.locator('[data-oracle-trial-identity]')).toHaveText('FV–014');
   await expect(savedResult).toContainText('Naturium · Azelaic Topical Acid');
   await noHorizontalOverflow(page);
 });

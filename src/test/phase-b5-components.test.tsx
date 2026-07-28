@@ -608,9 +608,9 @@ it('keeps one canonical machine through reveal, dispense, collection, and Done',
       name: 'View trial FV–014 for Naturium · Azelaic Topical Acid',
     }),
   );
-  expect(screen.getByRole('heading', { name: 'SAVED RESULT' })).toBeVisible();
-  expect(screen.getAllByText('TEST LONGER').length).toBeGreaterThan(0);
-  await user.click(screen.getByRole('button', { name: 'Your trials' }));
+  expect(screen.getByRole('heading', { name: 'Evidence record' })).toBeVisible();
+  expect(screen.getByRole('heading', { name: 'Test longer' })).toBeVisible();
+  await user.click(screen.getByRole('button', { name: 'Back to previous view' }));
 
   await user.click(
     screen.getByRole('button', {
@@ -623,5 +623,6 @@ it('keeps one canonical machine through reveal, dispense, collection, and Done',
   });
   expect(within(archived).getAllByText('FV–014').length).toBeGreaterThan(0);
   await user.click(archived);
-  expect(screen.getAllByText('FV–014').length).toBeGreaterThanOrEqual(3);
+  expect(screen.getByText('FV–014')).toBeVisible();
+  expect(screen.getByRole('heading', { name: 'Evidence record' })).toBeVisible();
 });
