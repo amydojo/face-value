@@ -5,3 +5,5 @@ playwright-report
 test-results
 .env
 .DS_Store
+.vercel
+.env*
