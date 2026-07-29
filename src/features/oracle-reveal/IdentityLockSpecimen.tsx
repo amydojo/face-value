@@ -119,6 +119,15 @@ export function IdentityLockSpecimen({
   const displayProduct = compactProduct(visibleIdentity);
   const displayStrength = numericStrength(visibleIdentity);
   const displayVolume = compactVolume(visibleIdentity.volume);
+  const unresolvedPreview =
+    specimenState === 'registration-preview' &&
+    (!identity || visibleIdentity.productName === 'UNNAMED PRODUCT');
+  const labelFooter = unresolvedPreview
+    ? 'PREVIEW'
+    : displayVolume
+      ? `${displayVolume} · BASE`
+      : 'BASE';
+  const statusLocked = identityLockState === 'locked';
 
   return (
     <div
@@ -137,6 +146,7 @@ export function IdentityLockSpecimen({
       data-display-brand={displayBrand}
       data-display-product={displayProduct}
       data-display-strength={displayStrength}
+      data-label-layout="safe"
       aria-hidden="true"
     >
       <i className={styles.contactShadow} data-specimen-layer="contact-shadow" />
@@ -173,29 +183,34 @@ export function IdentityLockSpecimen({
           data-label-scan-beam
           data-label-scan-state={scanActive ? 'active' : 'inactive'}
         />
-        <span className={styles.labelMetadata} data-label-group="metadata">
-          <small>FV / S01</small>
-          <small data-label-brand>{displayBrand}</small>
-        </span>
-        <b className={styles.labelProduct} data-label-group="product-identity" data-label-product>
-          {displayProduct}
-        </b>
-        <strong
-          className={styles.labelStrength}
-          data-label-group="strength"
-          data-label-has-strength={Boolean(displayStrength)}
-        >
-          {displayStrength || '—'}
-        </strong>
-        <span className={styles.labelSupport} data-label-group="supporting-metadata">
-          CLINICAL TOPICAL
-        </span>
-        <span className={styles.labelFooter} data-label-group="footer">
-          {displayVolume ? `${displayVolume} · ` : ''}BASELINE
-        </span>
-        <em className={styles.labelLock} data-label-group="lock-confirmation">
-          LOCK
-        </em>
+        <div className={styles.labelContent} data-label-content>
+          <span className={styles.labelMetadata} data-label-group="metadata">
+            <small>FV / S01</small>
+            <small>SPECIMEN ID</small>
+          </span>
+          <b className={styles.labelProduct} data-label-group="product-identity" data-label-product>
+            {displayProduct}
+          </b>
+          <strong
+            className={styles.labelStrength}
+            data-label-group="strength"
+            data-label-has-strength={Boolean(displayStrength)}
+          >
+            {displayStrength}
+          </strong>
+          <span className={styles.labelSupport} data-label-group="supporting-metadata">
+            TOPICAL
+          </span>
+          <span className={styles.labelFooter} data-label-group="footer">
+            {labelFooter}
+          </span>
+        </div>
+        <i
+          className={styles.labelStatus}
+          data-label-status-marker
+          data-label-status-state={statusLocked ? 'locked' : 'hidden'}
+          aria-hidden="true"
+        />
       </div>
     </div>
   );

@@ -158,7 +158,8 @@ describe('First Trial specimen ingestion', () => {
       target: { value: 'Naturium' },
     });
     expect(specimen).toHaveAttribute('data-specimen-brand', 'Naturium');
-    expect(within(specimen).getByText('NATURIUM')).toBeVisible();
+    expect(specimen).toHaveAttribute('data-display-brand', 'NATURIUM');
+    expect(within(specimen).queryByText('NATURIUM')).not.toBeInTheDocument();
 
     fireEvent.change(screen.getByLabelText('Product name'), {
       target: { value: 'Azelaic Topical Acid' },

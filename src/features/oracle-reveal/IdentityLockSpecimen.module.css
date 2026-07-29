@@ -536,61 +536,80 @@
   pointer-events: none;
 }
 
+.labelContent {
+  position: absolute;
+  top: 3px;
+  right: 10px;
+  bottom: 3px;
+  left: 4px;
+  z-index: 5;
+  min-width: 0;
+  display: grid;
+  grid-template-rows: 5px minmax(6px, 12px) 6px 5px 5px;
+  align-content: start;
+  overflow: hidden;
+  opacity: 1;
+  filter: none;
+  mix-blend-mode: normal;
+  transform: none;
+  will-change: auto;
+}
+
 .labelMetadata,
 .labelProduct,
 .labelStrength,
 .labelSupport,
-.labelFooter,
-.labelLock {
-  z-index: 5;
+.labelFooter {
+  position: static;
+  min-height: 0;
   min-width: 0;
+  max-width: 100%;
+  margin: 0;
   overflow: hidden;
   color: #11110f;
+  opacity: 1;
+  filter: none;
+  mix-blend-mode: normal;
+  transform: none;
   text-overflow: clip;
   white-space: nowrap;
+  will-change: auto;
 }
 
 .labelMetadata {
-  top: 6%;
-  left: 5.9701%;
-  width: 86.5672%;
-  height: 14%;
-  display: flex !important;
+  display: grid !important;
+  grid-template-columns: max-content minmax(0, 1fr);
   align-items: center;
-  justify-content: space-between;
-  gap: 2px;
+  gap: 1px;
 }
 
 .labelMetadata small {
   min-width: 0;
   overflow: hidden;
-  font: 500 5.5px/7px var(--fv-font-mono);
-  letter-spacing: 0.22px;
+  font: 600 3.1px/5px var(--fv-font-mono);
+  letter-spacing: 0;
   text-overflow: clip;
   white-space: nowrap;
 }
 
 .labelMetadata small:last-child {
-  max-width: 8ch;
   text-align: right;
 }
 
 .labelProduct {
-  top: 26%;
-  left: 5.9701%;
-  width: 83.5821%;
-  height: 16%;
-  font: 650 7px/8px var(--fv-font-mono);
+  display: -webkit-box;
+  max-height: 12px;
+  font: 650 5.8px/6px var(--fv-font-mono);
   letter-spacing: -0.08px;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
 
 .labelStrength {
-  top: 44%;
-  left: 5.9701%;
-  width: 35.8209%;
-  height: 20%;
-  font: 700 9.5px/10px var(--fv-font-mono);
-  letter-spacing: -0.1px;
+  font: 700 6.2px/6px var(--fv-font-mono);
+  letter-spacing: -0.06px;
 }
 
 .labelStrength[data-label-has-strength='false'] {
@@ -598,32 +617,34 @@
 }
 
 .labelSupport {
-  top: 68%;
-  left: 5.9701%;
-  width: 86.5672%;
-  height: 14%;
-  font: 500 5.5px/7px var(--fv-font-mono);
-  letter-spacing: 0.08px;
+  font: 600 4.5px/5px var(--fv-font-mono);
+  letter-spacing: 0.04px;
 }
 
 .labelFooter {
-  top: 84%;
-  left: 5.9701%;
-  width: 86.5672%;
-  height: 14%;
-  font: 500 5.5px/7px var(--fv-font-mono);
-  letter-spacing: 0.05px;
+  font: 550 4.4px/5px var(--fv-font-mono);
+  letter-spacing: 0;
 }
 
-.labelLock {
-  top: 46%;
-  right: 5.9701%;
-  width: 31.3433%;
-  height: 14%;
-  color: #5c2810;
-  font: 700 5.5px/7px var(--fv-font-mono);
-  letter-spacing: 0.16px;
-  text-align: right;
+.labelStatus {
+  top: calc(50% - 1.5px);
+  right: 3px;
+  z-index: 6;
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  opacity: 0;
+  background: #a64f17;
+  box-shadow: 0 0 0 1px rgba(112, 50, 15, 0.18);
+  filter: none;
+  mix-blend-mode: normal;
+  transform: none;
+  animation: none;
+  will-change: auto;
+}
+
+.labelStatus[data-label-status-state='locked'] {
+  opacity: 1;
 }
 
 .oracleSpecimen[data-identity-lock-state='loading'] .contactShadow {
@@ -699,7 +720,7 @@
 }
 
 .oracleSpecimen[data-identity-lock-state='loading'] .lockReflection,
-.oracleSpecimen[data-identity-lock-state='loading'] .labelLock {
+.oracleSpecimen[data-identity-lock-state='loading'] .labelStatus {
   opacity: 0;
 }
 
@@ -836,6 +857,12 @@
 }
 
 .oracleSpecimen[data-specimen-state='baseline-ready'][data-ingestion-phase='materializing']
+  .paperTone {
+  animation: thermalPaperMaterialize var(--fv-materialize-duration) cubic-bezier(0.16, 1, 0.3, 1)
+    both;
+}
+
+.oracleSpecimen[data-specimen-state='baseline-ready'][data-ingestion-phase='materializing']
   .labelMetadata {
   opacity: 0.66;
 }
@@ -868,7 +895,7 @@
 }
 
 .oracleSpecimen[data-specimen-state='baseline-ready'][data-ingestion-phase='loading']
-  :is(.labelStrength, .labelSupport, .labelFooter, .labelLock) {
+  :is(.labelStrength, .labelSupport, .labelFooter, .labelStatus) {
   opacity: 0;
 }
 
@@ -897,10 +924,6 @@
   animation: labelGroupResolve 42ms linear 92ms both;
 }
 
-.oracleSpecimen[data-specimen-state='baseline-ready'][data-ingestion-phase='locking'] .labelLock {
-  animation: labelGroupResolve 32ms linear 118ms both;
-}
-
 .oracleSpecimen[data-specimen-state='baseline-ready'][data-ingestion-phase='confirming'] {
   opacity: 1;
   transform: translateY(0);
@@ -908,9 +931,36 @@
 }
 
 .oracleSpecimen[data-specimen-state='baseline-ready'][data-ingestion-phase='ready'] {
-  opacity: 0.995;
+  opacity: 1;
   transform: translateY(0);
   transition: none;
+}
+
+.oracleSpecimen[data-specimen-state='baseline-ready']:is(
+    [data-ingestion-phase='confirming'],
+    [data-ingestion-phase='ready']
+  ),
+.oracleSpecimen[data-specimen-state='baseline-ready']:is(
+    [data-ingestion-phase='confirming'],
+    [data-ingestion-phase='ready']
+  )
+  .thermalEvidenceLabel,
+.oracleSpecimen[data-specimen-state='baseline-ready']:is(
+    [data-ingestion-phase='confirming'],
+    [data-ingestion-phase='ready']
+  )
+  .labelContent,
+.oracleSpecimen[data-specimen-state='baseline-ready']:is(
+    [data-ingestion-phase='confirming'],
+    [data-ingestion-phase='ready']
+  )
+  [data-label-group] {
+  opacity: 1;
+  filter: none;
+  mix-blend-mode: normal;
+  transform: none;
+  animation: none;
+  will-change: auto;
 }
 
 .oracleSpecimen[data-specimen-state='baseline-ready'][data-ingestion-phase='confirming']
@@ -936,7 +986,12 @@
 
 .oracleSpecimen[data-specimen-state='baseline-ready'][data-ingestion-phase='materializing']
   .thermalEvidenceLabel {
-  will-change: transform, opacity, filter;
+  will-change: transform, opacity;
+}
+
+.oracleSpecimen[data-specimen-state='baseline-ready'][data-ingestion-phase='materializing']
+  .paperTone {
+  will-change: filter;
 }
 
 .oracleSpecimen[data-specimen-state='baseline-ready'][data-ingestion-phase='locking']
@@ -947,14 +1002,22 @@
 @keyframes thermalLabelMaterialize {
   from {
     opacity: 0;
-    filter: blur(4px);
     transform: translateY(5px);
   }
 
   to {
     opacity: 0.84;
-    filter: blur(0);
     transform: translateY(0);
+  }
+}
+
+@keyframes thermalPaperMaterialize {
+  from {
+    filter: blur(4px);
+  }
+
+  to {
+    filter: none;
   }
 }
 
@@ -1015,7 +1078,7 @@
       .labelStrength,
       .labelSupport,
       .labelFooter,
-      .labelLock
+      .labelStatus
     ) {
     opacity: 1 !important;
     filter: none !important;
