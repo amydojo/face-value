@@ -177,7 +177,8 @@ describe('Machine Continuity production projections', () => {
     expect(machine).toHaveAttribute('data-machine-implementation', 'oracle');
     expect(specimen).toHaveAttribute('data-specimen-brand', 'Face Value Lab');
     expect(specimen).toHaveAttribute('data-specimen-product', 'One Thing Redness Trial');
-    expect(within(machine).getByText('FACE VAL')).toBeVisible();
+    expect(specimen).toHaveAttribute('data-display-brand', 'FACE VAL');
+    expect(within(machine).queryByText('FACE VAL')).not.toBeInTheDocument();
     expect(within(machine).getByText('ONE THING')).toBeVisible();
     expect(within(machine).getByText('REDUCE VISIBLE REDNESS')).toBeVisible();
     expect(within(machine).getByText('DAY 01 OF 14')).toBeVisible();

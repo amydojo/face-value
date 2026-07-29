@@ -222,7 +222,11 @@ it('keeps active-trial data inside the canonical loaded machine with the real hi
     'data-specimen-product',
     'Azelaic Topical Acid',
   );
-  expect(screen.getByText('NATURIUM')).toBeVisible();
+  expect(document.querySelector('[data-oracle-specimen]')).toHaveAttribute(
+    'data-display-brand',
+    'NATURIUM',
+  );
+  expect(screen.queryByText('NATURIUM')).not.toBeInTheDocument();
   expect(screen.getByText('AZELAIC')).toBeVisible();
   expect(document.querySelector('[data-latest-verdict-cassette]')).toBeNull();
   expect(screen.queryByRole('button', { name: 'START A NEW TRIAL' })).not.toBeInTheDocument();
@@ -297,7 +301,11 @@ it('starts with real registration and ends session one at Baseline locked', asyn
     'data-specimen-product',
     'Azelaic Topical Acid',
   );
-  expect(screen.getByText('NATURIUM')).toBeVisible();
+  expect(document.querySelector('[data-oracle-specimen]')).toHaveAttribute(
+    'data-display-brand',
+    'NATURIUM',
+  );
+  expect(screen.queryByText('NATURIUM')).not.toBeInTheDocument();
   expect(screen.getByText('AZELAIC')).toBeVisible();
   expect(screen.getByText('REDUCE VISIBLE REDNESS')).toBeVisible();
 
