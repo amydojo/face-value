@@ -275,7 +275,7 @@ export function IdentityLockSpecimen({
         `${visibleIdentity.brand} ${visibleIdentity.productName}`,
       )}
       data-label-layout="safe"
-      aria-label={`${displayProduct}. ${visibleIdentity.brand} ${visibleIdentity.productName}`.trim()}
+      aria-hidden="true"
     >
       <i className={styles.contactShadow} data-specimen-layer="contact-shadow" />
       <i className={styles.amberGroundBounce} data-specimen-layer="amber-ground-bounce" />
