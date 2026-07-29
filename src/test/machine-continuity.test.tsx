@@ -44,7 +44,7 @@ const machinePartSelectors = {
   carbon: '[data-oracle-carbon-texture]',
   bezel: '[data-oracle-display-opening]',
   glass: '[data-oracle-display-glass]',
-  silhouette: '[data-oracle-specimen-silhouette]',
+  specimen: '[data-oracle-specimen]',
   lowerDeck: '[data-oracle-lower-deck]',
   slot: '[data-oracle-slot]',
   amber: '[data-oracle-amber-control]',
@@ -70,15 +70,13 @@ function machineStructure(machine: HTMLElement) {
   }
 
   return {
-    tags: Object.fromEntries(
-      Object.entries(parts).map(([name, part]) => [name, part?.tagName]),
-    ),
+    tags: Object.fromEntries(Object.entries(parts).map(([name, part]) => [name, part?.tagName])),
     parents: {
       chassis: parts.chassis?.parentElement === machine,
       carbon: parts.carbon?.parentElement === parts.chassis,
       bezel: parts.bezel?.parentElement === parts.chassis,
       glass: parts.glass?.parentElement === parts.bezel,
-      silhouette: parts.silhouette?.parentElement === parts.glass,
+      specimen: parts.specimen?.parentElement === parts.glass,
       lowerDeck: parts.lowerDeck?.parentElement === parts.chassis,
       slot: parts.slot?.parentElement === parts.lowerDeck,
       amber: parts.amber?.parentElement === parts.lowerDeck,
@@ -113,9 +111,10 @@ describe('Machine Continuity production projections', () => {
     const { dispatch } = renderState(initialState, null);
 
     expect(screen.getByText('ONE PRODUCT · ONE JOB · ONE HONEST RESULT')).toBeVisible();
-    expect(screen.getByRole('heading', { name: 'Is your skincare actually doing anything?' }))
-      .toBeVisible();
-    expect(screen.getByText('NO TRIAL LOADED')).toBeVisible();
+    expect(
+      screen.getByRole('heading', { name: 'Is your skincare actually doing anything?' }),
+    ).toBeVisible();
+    expect(screen.getByText('NO SPECIMEN LOADED')).toBeVisible();
     expect(screen.getByText('Insert one product to begin.')).toBeVisible();
     expect(document.querySelector('main')).toHaveAttribute('data-fv-tone', 'dark');
     expect(document.querySelector('[data-trial-machine-state="empty"]')).toHaveAttribute(
@@ -124,7 +123,7 @@ describe('Machine Continuity production projections', () => {
     );
     expect(document.querySelectorAll('[data-oracle-chassis]')).toHaveLength(1);
 
-    await user.click(screen.getByRole('button', { name: 'START A PRODUCT TRIAL' }));
+    await user.click(screen.getByRole('button', { name: 'LOAD A PRODUCT' }));
     expect(dispatch).toHaveBeenCalledWith({ type: 'START_PRODUCT_REGISTRATION' });
   });
 
@@ -173,19 +172,20 @@ describe('Machine Continuity production projections', () => {
     const { dispatch } = renderState(state, 'trial_pending');
     const machine = document.querySelector('[data-trial-machine-state="pending"]');
     if (!(machine instanceof HTMLElement)) throw new Error('Expected the pending machine.');
+    const specimen = machine.querySelector('[data-oracle-specimen]');
 
     expect(machine).toHaveAttribute('data-machine-implementation', 'oracle');
-    expect(within(machine).getByText('Face Value Lab')).toBeVisible();
-    expect(within(machine).getByText('One Thing Redness Trial')).toBeVisible();
-    expect(within(machine).getByText('Reduce visible redness')).toBeVisible();
+    expect(specimen).toHaveAttribute('data-specimen-brand', 'Face Value Lab');
+    expect(specimen).toHaveAttribute('data-specimen-product', 'One Thing Redness Trial');
+    expect(specimen).toHaveAttribute('data-display-brand', 'FACE VAL');
+    expect(within(machine).queryByText('FACE VAL')).not.toBeInTheDocument();
+    expect(within(machine).getByText('ONE THING')).toBeVisible();
+    expect(within(machine).getByText('REDUCE VISIBLE REDNESS')).toBeVisible();
     expect(within(machine).getByText('DAY 01 OF 14')).toBeVisible();
     expect(screen.getByText('IN 14 DAYS')).toBeVisible();
     expect(screen.getByLabelText('Follow-up scan available in 14 days')).toBeVisible();
-    expect(screen.queryByRole('button', { name: /Take follow-up scan/i })).not
-      .toBeInTheDocument();
-    expect(
-      dispatch.mock.calls.some(([event]) => event.type === 'BEGIN_CAPTURE'),
-    ).toBe(false);
+    expect(screen.queryByRole('button', { name: /Take follow-up scan/i })).not.toBeInTheDocument();
+    expect(dispatch.mock.calls.some(([event]) => event.type === 'BEGIN_CAPTURE')).toBe(false);
     expect(document.querySelectorAll('[data-oracle-chassis]')).toHaveLength(1);
   });
 

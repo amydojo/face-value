@@ -149,19 +149,19 @@ test('canceling guided capture releases the fixture and ignores stale completion
   const runtimeErrors: string[] = [];
   page.on('pageerror', (error) => runtimeErrors.push(error.message));
   await page.goto('/');
-  await page.getByRole('button', { name: 'START A PRODUCT TRIAL' }).click();
+  await page.getByRole('button', { name: 'LOAD A PRODUCT' }).click();
   await page.getByLabel('Brand').fill('Experiment');
   await page.getByLabel('Product name').fill('Quiet Serum');
-  await page.getByRole('button', { name: 'REGISTER PRODUCT' }).click();
+  await page.getByRole('button', { name: 'REGISTER & LOAD' }).click();
   await page.getByRole('button', { name: 'TAKE GUIDED BASELINE' }).click();
   await expect(page.locator('[data-camera-kit-fixture="active"]')).toHaveCount(0);
   await page.getByRole('button', { name: 'START GUIDED CAPTURE' }).click();
   await expect(page.locator('[data-camera-kit-fixture="active"]')).toBeVisible();
   await page.getByRole('button', { name: '← Back' }).click();
-  await expect(page.getByRole('heading', { name: 'Your product is ready.' })).toBeVisible();
+  await expect(page.getByText('READY TO SCAN')).toBeVisible();
   await expect(page.locator('[data-camera-kit-fixture="active"]')).toHaveCount(0);
   await page.waitForTimeout(1_100);
-  await expect(page.getByRole('heading', { name: 'Your product is ready.' })).toBeVisible();
+  await expect(page.getByText('READY TO SCAN')).toBeVisible();
   expect(runtimeErrors).toEqual([]);
 });
 
@@ -174,10 +174,10 @@ test('a stalled preview restarts from a fresh tap and Back releases it', async (
     }
   });
   await page.goto('/?camera-stall=1');
-  await page.getByRole('button', { name: 'START A PRODUCT TRIAL' }).click();
+  await page.getByRole('button', { name: 'LOAD A PRODUCT' }).click();
   await page.getByLabel('Brand').fill('Experiment');
   await page.getByLabel('Product name').fill('Quiet Serum');
-  await page.getByRole('button', { name: 'REGISTER PRODUCT' }).click();
+  await page.getByRole('button', { name: 'REGISTER & LOAD' }).click();
   await page.getByRole('button', { name: 'TAKE GUIDED BASELINE' }).click();
   await page.getByRole('button', { name: 'START GUIDED CAPTURE' }).click();
 
@@ -190,10 +190,10 @@ test('a stalled preview restarts from a fresh tap and Back releases it', async (
   await expect(page.locator('[data-preview-state="preview-live"]')).toBeVisible();
   await expect(page.locator('[data-camera-kit-fixture="active"]')).toBeVisible();
   await page.getByRole('button', { name: '← Back' }).click();
-  await expect(page.getByRole('heading', { name: 'Your product is ready.' })).toBeVisible();
+  await expect(page.getByText('READY TO SCAN')).toBeVisible();
   await expect(page.locator('[data-camera-kit-fixture="active"]')).toHaveCount(0);
   await page.waitForTimeout(1_100);
-  await expect(page.getByRole('heading', { name: 'Your product is ready.' })).toBeVisible();
+  await expect(page.getByText('READY TO SCAN')).toBeVisible();
   expect(runtimeErrors).toEqual([]);
 });
 
@@ -206,10 +206,10 @@ test('preview-live gates visible Face, Position, and Light progression', async (
     }
   });
   await page.goto('/?camera-quality-proof=1');
-  await page.getByRole('button', { name: 'START A PRODUCT TRIAL' }).click();
+  await page.getByRole('button', { name: 'LOAD A PRODUCT' }).click();
   await page.getByLabel('Brand').fill('Experiment');
   await page.getByLabel('Product name').fill('Quiet Serum');
-  await page.getByRole('button', { name: 'REGISTER PRODUCT' }).click();
+  await page.getByRole('button', { name: 'REGISTER & LOAD' }).click();
   await page.getByRole('button', { name: 'TAKE GUIDED BASELINE' }).click();
   await page.getByRole('button', { name: 'START GUIDED CAPTURE' }).click();
 
@@ -226,6 +226,6 @@ test('preview-live gates visible Face, Position, and Light progression', async (
   await page.getByRole('button', { name: '← Back' }).click();
   await expect(page.locator('[data-camera-kit-fixture="active"]')).toHaveCount(0);
   await page.waitForTimeout(900);
-  await expect(page.getByRole('heading', { name: 'Your product is ready.' })).toBeVisible();
+  await expect(page.getByText('READY TO SCAN')).toBeVisible();
   expect(runtimeErrors).toEqual([]);
 });

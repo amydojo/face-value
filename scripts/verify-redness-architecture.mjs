@@ -140,6 +140,142 @@ if (productionJourney.includes("type: 'ANALYSIS_SUCCEEDED'")) {
   );
 }
 
+const firstTrialScene = await readFile(
+  new URL('../src/features/first-trial/FirstTrialScene.tsx', import.meta.url),
+  'utf8',
+);
+for (const forbiddenFirstTrialDependency of [
+  'domain/evidence/redness',
+  'evidence/redness/thresholds',
+  'adapters/analysis',
+  'evaluateRedness',
+  'classifyEffect',
+  'PROVISIONAL_REDNESS_THRESHOLDS',
+]) {
+  if (firstTrialScene.includes(forbiddenFirstTrialDependency)) {
+    violations.push(
+      `FirstTrialScene.tsx crosses the evidence boundary through ${forbiddenFirstTrialDependency}`,
+    );
+  }
+}
+for (const forbiddenDraftPersistence of [
+  'localStorage',
+  'sessionStorage',
+  'saveStructuredDemoData',
+  'saveDemoJourney',
+]) {
+  if (firstTrialScene.includes(forbiddenDraftPersistence)) {
+    violations.push(
+      `FirstTrialScene.tsx persists presentation-only draft state through ${forbiddenDraftPersistence}`,
+    );
+  }
+}
+if (!productionJourney.includes('return <FirstTrialScene />')) {
+  violations.push(
+    'FaceValueApplication.tsx does not route the durable first-trial stages through FirstTrialScene',
+  );
+}
+for (const splitFirstTrialCase of [
+  "case 'welcome':",
+  "case 'product_registration':",
+  "case 'job':",
+]) {
+  if (productionJourney.includes(splitFirstTrialCase)) {
+    violations.push(
+      `FaceValueApplication.tsx still contains a split first-trial branch ${splitFirstTrialCase}`,
+    );
+  }
+}
+
+const oracleScene = await readFile(
+  new URL('../src/features/oracle-reveal/OracleRevealScene.tsx', import.meta.url),
+  'utf8',
+);
+const trialDisplayStart = oracleScene.indexOf('function TrialStateDisplay');
+const trialDisplayEnd = oracleScene.indexOf('function OracleMachine');
+const trialDisplaySource = oracleScene.slice(trialDisplayStart, trialDisplayEnd);
+for (const forbiddenTrialClassification of ['score', 'threshold', 'classify', 'evaluate']) {
+  if (trialDisplaySource.toLowerCase().includes(forbiddenTrialClassification)) {
+    violations.push(
+      `Oracle trial presentation classifies evidence through ${forbiddenTrialClassification}`,
+    );
+  }
+}
+
+const machineMarkerOwners = [];
+for (const file of sourceFiles.filter((file) => file.endsWith('.tsx'))) {
+  const source = await readFile(file, 'utf8');
+  if (source.includes('data-oracle-machine')) {
+    machineMarkerOwners.push(relative(rootPath, file));
+  }
+}
+if (
+  machineMarkerOwners.length !== 1 ||
+  machineMarkerOwners[0] !== 'features/oracle-reveal/OracleRevealScene.tsx'
+) {
+  violations.push(
+    `Oracle hardware marker must have one production owner; found ${machineMarkerOwners.join(', ') || 'none'}`,
+  );
+}
+
+const specimenMarkerOwners = [];
+const thermalLabelOwners = [];
+for (const file of sourceFiles.filter((file) => file.endsWith('.tsx'))) {
+  const source = await readFile(file, 'utf8');
+  if (source.includes('data-oracle-specimen')) {
+    specimenMarkerOwners.push(relative(rootPath, file));
+  }
+  if (source.includes('data-specimen-layer="thermal-evidence-label"')) {
+    thermalLabelOwners.push(relative(rootPath, file));
+  }
+}
+const identityLockSpecimenPath = 'features/oracle-reveal/IdentityLockSpecimen.tsx';
+if (specimenMarkerOwners.length !== 1 || specimenMarkerOwners[0] !== identityLockSpecimenPath) {
+  violations.push(
+    `Oracle specimen marker must have one production owner; found ${specimenMarkerOwners.join(', ') || 'none'}`,
+  );
+}
+if (thermalLabelOwners.length !== 1 || thermalLabelOwners[0] !== identityLockSpecimenPath) {
+  violations.push(
+    `Oracle thermal label must have one production owner; found ${thermalLabelOwners.join(', ') || 'none'}`,
+  );
+}
+const identityLockSpecimen = await readFile(
+  new URL('../src/features/oracle-reveal/IdentityLockSpecimen.tsx', import.meta.url),
+  'utf8',
+);
+for (const flattenedSpecimenAsset of ['<img', '.png', '.jpg', '.webp']) {
+  if (identityLockSpecimen.toLowerCase().includes(flattenedSpecimenAsset)) {
+    violations.push(
+      `IdentityLockSpecimen.tsx flattens the canonical specimen through ${flattenedSpecimenAsset}`,
+    );
+  }
+}
+if (oracleScene.includes('function OracleSpecimen')) {
+  violations.push('OracleRevealScene.tsx retains a second specimen implementation');
+}
+
+const faceValueStyles = await readFile(
+  new URL('../src/styles/FaceValue.module.css', import.meta.url),
+  'utf8',
+);
+for (const retiredFirstTrialBridge of [
+  'registeredScreen',
+  'registeredSpecimen',
+  'PRODUCT REGISTERED',
+  'Your product is ready.',
+]) {
+  if (
+    productionJourney.includes(retiredFirstTrialBridge) ||
+    firstTrialScene.includes(retiredFirstTrialBridge) ||
+    faceValueStyles.includes(retiredFirstTrialBridge)
+  ) {
+    violations.push(
+      `Production first-trial source retains the legacy bridge marker ${retiredFirstTrialBridge}`,
+    );
+  }
+}
+
 const reducer = await readFile(new URL('../src/app/phaseBMachine.ts', import.meta.url), 'utf8');
 if (!reducer.includes('buildMvpRednessEvaluation')) {
   violations.push('phaseBMachine.ts is not wired to the canonical redness evidence adapter');
@@ -154,7 +290,7 @@ for (const forbiddenEvidenceRecordDependency of [
   'buildMvpRednessEvaluation',
   'classifyEffect',
   'PROVISIONAL_REDNESS_THRESHOLDS',
-  "domain/evidence/redness/thresholds",
+  'domain/evidence/redness/thresholds',
 ]) {
   if (evidenceRecordComponent.includes(forbiddenEvidenceRecordDependency)) {
     violations.push(
@@ -164,10 +300,7 @@ for (const forbiddenEvidenceRecordDependency of [
 }
 
 const evidenceRecordAdapter = await readFile(
-  new URL(
-    '../src/features/evidence-record/evidenceRecordViewModel.ts',
-    import.meta.url,
-  ),
+  new URL('../src/features/evidence-record/evidenceRecordViewModel.ts', import.meta.url),
   'utf8',
 );
 for (const forbiddenPresentationDependency of [
@@ -175,7 +308,7 @@ for (const forbiddenPresentationDependency of [
   'buildMvpRednessEvaluation',
   'classifyEffect',
   'PROVISIONAL_REDNESS_THRESHOLDS',
-  "domain/evidence/redness/thresholds",
+  'domain/evidence/redness/thresholds',
 ]) {
   if (evidenceRecordAdapter.includes(forbiddenPresentationDependency)) {
     violations.push(

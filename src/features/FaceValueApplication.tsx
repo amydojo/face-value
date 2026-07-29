@@ -5,15 +5,11 @@ import { useFaceValue } from '../app/faceValueContext';
 import { EvidenceShell, ScreenHeader } from '../components/hardware';
 import {
   FOLLOW_UP_INTERVAL_DAYS,
-  createRegisteredProduct,
   emptyCaptureContext,
   followUpIsEligible,
   trialDaySummary,
 } from '../domain/phaseB5';
-import {
-  oracleTrialIdentity,
-  oracleTrialIdentityForRecord,
-} from '../domain/oracleTrialIdentity';
+import { oracleTrialIdentity, oracleTrialIdentityForRecord } from '../domain/oracleTrialIdentity';
 import styles from '../styles/FaceValue.module.css';
 import { Archive } from './archive/Archive';
 import { CaptureContextSurface } from './capture-context/CaptureContextSurface';
@@ -25,7 +21,7 @@ import {
   OracleRevealScene,
   OracleTrialStateMachine,
 } from './oracle-reveal/OracleRevealScene';
-import { ProductRegistration } from './product-registration/ProductRegistration';
+import { FirstTrialScene } from './first-trial/FirstTrialScene';
 
 const localDateFormatter = new Intl.DateTimeFormat(undefined, {
   weekday: 'short',
@@ -42,8 +38,7 @@ const formatLocalDate = (value: string | null): string => {
     : localDateFormatter.format(date);
 };
 
-const readTrialNow = (fixtureNow: string | null): string =>
-  fixtureNow ?? systemClock.now();
+const readTrialNow = (fixtureNow: string | null): string => fixtureNow ?? systemClock.now();
 
 function TrialTimeline({
   day,
@@ -95,11 +90,7 @@ function TrialTimeline({
         data-timeline-position="followup"
         data-timeline-state={eligible ? 'current' : 'future'}
         role="listitem"
-        aria-label={
-          eligible
-            ? 'Follow-up ready'
-            : `Follow-up scheduled for day ${intervalDays}`
-        }
+        aria-label={eligible ? 'Follow-up ready' : `Follow-up scheduled for day ${intervalDays}`}
       >
         <i className={styles.timelineMarker} aria-hidden="true" />
         <span>FOLLOW-UP</span>
@@ -136,7 +127,7 @@ function FollowUpActionContents({
 
 export function FaceValueApplication() {
   const { state, dispatch, demoRuntime } = useFaceValue();
-  const registeredSpecimen = useMemo(
+  const captureSpecimen = useMemo(
     () => (state.registeredProduct ? specimenFromRegisteredProduct(state.registeredProduct) : null),
     [state.registeredProduct],
   );
@@ -144,8 +135,10 @@ export function FaceValueApplication() {
   const [baselineNoteEditing, setBaselineNoteEditing] = useState(false);
   const [baselineNoteDraft, setBaselineNoteDraft] = useState(state.baselineContext?.note ?? '');
   const homeStage = ['cabinet', 'waiting_for_followup', 'followup_ready'].includes(state.stage);
+  const firstTrialStage =
+    state.stage === 'welcome' || state.stage === 'product_registration' || state.stage === 'job';
   const tone =
-    state.stage === 'welcome' ||
+    firstTrialStage ||
     state.stage === 'camera' ||
     state.stage === 'analysis' ||
     state.stage === 'archive' ||
@@ -248,8 +241,7 @@ export function FaceValueApplication() {
     const activeIdentity =
       hasActiveTrial && state.registeredProduct
         ? oracleTrialIdentity({
-            baselineAt:
-              state.baselineLockedAt ?? state.longitudinalEvidence.baseline?.capturedAt,
+            baselineAt: state.baselineLockedAt ?? state.longitudinalEvidence.baseline?.capturedAt,
             followUpAt: state.followUpEligibleAt,
             accession: state.registeredProduct.accession,
           })
@@ -396,111 +388,13 @@ export function FaceValueApplication() {
   };
 
   const renderContent = () => {
+    if (firstTrialStage) {
+      return <FirstTrialScene />;
+    }
+
     switch (state.stage) {
-      case 'welcome':
-        return (
-          <>
-            <ScreenHeader dark />
-            <section className={styles.welcomeContinuity} data-fv-screen="welcome">
-              <p className={styles.welcomeContinuityEyebrow}>
-                ONE PRODUCT · ONE JOB · ONE HONEST RESULT
-              </p>
-              <h1 className={styles.welcomeContinuityTitle} data-stage-focus tabIndex={-1}>
-                Is your skincare actually doing anything?
-              </h1>
-              <p className={styles.welcomeContinuityCopy}>
-                Put one product on trial. Compare repeat scans.
-                <br />
-                Get one honest result.
-              </p>
-              <button
-                className={styles.welcomeContinuityAction}
-                type="button"
-                data-welcome-action
-                onClick={() => dispatch({ type: 'START_PRODUCT_REGISTRATION' })}
-              >
-                <span>START A PRODUCT TRIAL</span>
-                <span aria-hidden="true">→</span>
-              </button>
-              <div className={styles.welcomeContinuityMachine}>
-                <OracleTrialStateMachine state="empty" />
-              </div>
-              <footer className={styles.welcomeContinuityPrivacy} data-welcome-privacy>
-                PRIVATE BY DEFAULT · FACE IMAGES STAY IN MEMORY
-              </footer>
-            </section>
-          </>
-        );
-
-      case 'product_registration':
-        return (
-          <>
-            <ScreenHeader />
-            <ProductRegistration
-              existingProduct={state.registeredProduct}
-              onBack={() => dispatch({ type: 'BACK' })}
-              onRegister={(input) =>
-                dispatch({
-                  type: 'REGISTER_PRODUCT',
-                  product: createRegisteredProduct(input, systemClock.now()),
-                })
-              }
-            />
-          </>
-        );
-
-      case 'job':
-        if (!state.registeredProduct) return renderTrialIndex();
-        return (
-          <>
-            <ScreenHeader />
-            <section className={styles.registeredScreen} data-fv-screen="registered-product">
-              <button
-                type="button"
-                className={styles.textButton}
-                onClick={() => dispatch({ type: 'BACK' })}
-              >
-                ← Edit product
-              </button>
-              <p className={styles.eyebrow}>PRODUCT REGISTERED</p>
-              <h1 data-stage-focus tabIndex={-1}>
-                Your product is ready.
-              </h1>
-              <article className={styles.registeredSpecimen}>
-                <span>SPECIMEN 01</span>
-                <b>REGISTERED</b>
-                <p>{state.registeredProduct.brand}</p>
-                <h2>{state.registeredProduct.productName}</h2>
-                {state.registeredProduct.strength && <p>{state.registeredProduct.strength}</p>}
-                {state.registeredProduct.volume && <small>{state.registeredProduct.volume}</small>}
-                <div>
-                  <span>ASSIGNED JOB</span>
-                  <strong>REDUCE VISIBLE REDNESS</strong>
-                </div>
-              </article>
-              <p>
-                Face Value will guide one starting scan and do the technical work automatically.
-              </p>
-              <button
-                type="button"
-                className={styles.primaryAction}
-                onClick={() =>
-                  dispatch({
-                    type: 'BEGIN_CAPTURE',
-                    kind: 'baseline',
-                    now: systemClock.now(),
-                  })
-                }
-              >
-                <span>TAKE GUIDED BASELINE</span>
-                <span aria-hidden="true">→</span>
-              </button>
-            </section>
-          </>
-        );
-
       case 'camera':
-        if (!registeredSpecimen) {
+        if (!captureSpecimen) {
           return (
             <section
               className={styles.failureScreen}
@@ -524,8 +418,8 @@ export function FaceValueApplication() {
         return (
           <CameraViewport
             kind={state.captureKind}
-            accession={registeredSpecimen.accession}
-            product={registeredSpecimen.product}
+            accession={captureSpecimen.accession}
+            product={captureSpecimen.product}
             job={state.assignedJob}
             cameraState={state.camera}
             onRequesting={() => dispatch({ type: 'CAMERA_REQUESTED' })}
@@ -673,7 +567,7 @@ export function FaceValueApplication() {
             </>
           );
         }
-        if (!registeredSpecimen) {
+        if (!captureSpecimen) {
           return (
             <section
               className={styles.failureScreen}
@@ -760,9 +654,7 @@ export function FaceValueApplication() {
             record={state.record}
             onArchive={() => dispatch({ type: 'VIEW_ARCHIVE' })}
             onBack={() => dispatch({ type: 'BACK' })}
-            initialDisclosureState={evidenceRecordDisclosureStateForDemo(
-              demoRuntime.startingPoint,
-            )}
+            initialDisclosureState={evidenceRecordDisclosureStateForDemo(demoRuntime.startingPoint)}
           />
         );
 
@@ -773,9 +665,11 @@ export function FaceValueApplication() {
 
   return (
     <EvidenceShell tone={tone} label="Face Value product trial">
-      <div className={styles.liveRegion} aria-live="polite" aria-atomic="true">
-        {state.announcement}
-      </div>
+      {!firstTrialStage && (
+        <div className={styles.liveRegion} aria-live="polite" aria-atomic="true">
+          {state.announcement}
+        </div>
+      )}
       {renderContent()}
     </EvidenceShell>
   );

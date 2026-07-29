@@ -1,0 +1,423 @@
+{
+  "viewport": {
+    "width": 390,
+    "height": 844
+  },
+  "states": {
+    "empty": {
+      "implementation": "oracle",
+      "partCounts": {
+        "chassis": 1,
+        "carbon": 1,
+        "bezel": 1,
+        "glass": 1,
+        "specimen": 1,
+        "lowerDeck": 1,
+        "slot": 1,
+        "amber": 1,
+        "handle": 1,
+        "bottomRail": 1,
+        "evidencePath": 1,
+        "slotLip": 1
+      },
+      "machine": {
+        "x": 20,
+        "y": 0,
+        "width": 350,
+        "height": 350,
+        "right": 350,
+        "bottom": 350,
+        "aspectRatio": 1,
+        "computedAspectRatio": "1 / 1",
+        "borderRadius": "0px"
+      },
+      "chassis": {
+        "x": 0,
+        "y": 0,
+        "width": 350,
+        "height": 301,
+        "right": 350,
+        "bottom": 301,
+        "borderRadius": "19px 19px 14px 14px",
+        "aspectRatio": 1.16
+      },
+      "displayBezel": {
+        "x": 22.56,
+        "y": 19.53,
+        "width": 304.84,
+        "height": 170.42,
+        "right": 327.41,
+        "bottom": 189.95,
+        "borderRadius": "13px"
+      },
+      "lowerDeck": {
+        "x": 16.3,
+        "y": 203.44,
+        "width": 317.38,
+        "height": 85.2,
+        "right": 333.67,
+        "bottom": 288.64,
+        "borderRadius": "9px"
+      },
+      "amberControl": {
+        "x": 269.55,
+        "y": 214.44,
+        "width": 48,
+        "height": 48,
+        "right": 317.55,
+        "bottom": 262.44,
+        "borderRadius": "50%"
+      },
+      "pullHandle": {
+        "x": 116.66,
+        "y": 237.64,
+        "width": 132.45,
+        "height": 44,
+        "right": 249.11,
+        "bottom": 281.64,
+        "borderRadius": "0px"
+      },
+      "bottomRail": {
+        "x": 33.06,
+        "y": 286.64,
+        "width": 283.83,
+        "height": 7,
+        "right": 316.89,
+        "bottom": 293.64,
+        "borderRadius": "0px 0px 6px 6px"
+      }
+    },
+    "registration_preview": {
+      "implementation": "oracle",
+      "partCounts": {
+        "chassis": 1,
+        "carbon": 1,
+        "bezel": 1,
+        "glass": 1,
+        "specimen": 1,
+        "lowerDeck": 1,
+        "slot": 1,
+        "amber": 1,
+        "handle": 1,
+        "bottomRail": 1,
+        "evidencePath": 1,
+        "slotLip": 1
+      },
+      "machine": {
+        "x": 20,
+        "y": 0,
+        "width": 350,
+        "height": 350,
+        "right": 350,
+        "bottom": 350,
+        "aspectRatio": 1,
+        "computedAspectRatio": "1 / 1",
+        "borderRadius": "0px"
+      },
+      "chassis": {
+        "x": 0,
+        "y": 0,
+        "width": 350,
+        "height": 301,
+        "right": 350,
+        "bottom": 301,
+        "borderRadius": "19px 19px 14px 14px",
+        "aspectRatio": 1.16
+      },
+      "displayBezel": {
+        "x": 22.56,
+        "y": 19.53,
+        "width": 304.84,
+        "height": 170.42,
+        "right": 327.41,
+        "bottom": 189.95,
+        "borderRadius": "13px"
+      },
+      "lowerDeck": {
+        "x": 16.3,
+        "y": 203.44,
+        "width": 317.38,
+        "height": 85.2,
+        "right": 333.67,
+        "bottom": 288.64,
+        "borderRadius": "9px"
+      },
+      "amberControl": {
+        "x": 269.55,
+        "y": 214.44,
+        "width": 48,
+        "height": 48,
+        "right": 317.55,
+        "bottom": 262.44,
+        "borderRadius": "50%"
+      },
+      "pullHandle": {
+        "x": 116.66,
+        "y": 237.64,
+        "width": 132.45,
+        "height": 44,
+        "right": 249.11,
+        "bottom": 281.64,
+        "borderRadius": "0px"
+      },
+      "bottomRail": {
+        "x": 33.06,
+        "y": 286.64,
+        "width": 283.83,
+        "height": 7,
+        "right": 316.89,
+        "bottom": 293.64,
+        "borderRadius": "0px 0px 6px 6px"
+      }
+    },
+    "baseline_ready": {
+      "implementation": "oracle",
+      "partCounts": {
+        "chassis": 1,
+        "carbon": 1,
+        "bezel": 1,
+        "glass": 1,
+        "specimen": 1,
+        "lowerDeck": 1,
+        "slot": 1,
+        "amber": 1,
+        "handle": 1,
+        "bottomRail": 1,
+        "evidencePath": 1,
+        "slotLip": 1
+      },
+      "machine": {
+        "x": 20,
+        "y": 0,
+        "width": 350,
+        "height": 350,
+        "right": 350,
+        "bottom": 350,
+        "aspectRatio": 1,
+        "computedAspectRatio": "1 / 1",
+        "borderRadius": "0px"
+      },
+      "chassis": {
+        "x": 0,
+        "y": 0,
+        "width": 350,
+        "height": 301,
+        "right": 350,
+        "bottom": 301,
+        "borderRadius": "19px 19px 14px 14px",
+        "aspectRatio": 1.16
+      },
+      "displayBezel": {
+        "x": 22.56,
+        "y": 19.53,
+        "width": 304.84,
+        "height": 170.42,
+        "right": 327.41,
+        "bottom": 189.95,
+        "borderRadius": "13px"
+      },
+      "lowerDeck": {
+        "x": 16.3,
+        "y": 203.44,
+        "width": 317.38,
+        "height": 85.2,
+        "right": 333.67,
+        "bottom": 288.64,
+        "borderRadius": "9px"
+      },
+      "amberControl": {
+        "x": 269.55,
+        "y": 214.44,
+        "width": 48,
+        "height": 48,
+        "right": 317.55,
+        "bottom": 262.44,
+        "borderRadius": "50%"
+      },
+      "pullHandle": {
+        "x": 116.66,
+        "y": 237.64,
+        "width": 132.45,
+        "height": 44,
+        "right": 249.11,
+        "bottom": 281.64,
+        "borderRadius": "0px"
+      },
+      "bottomRail": {
+        "x": 33.06,
+        "y": 286.64,
+        "width": 283.83,
+        "height": 7,
+        "right": 316.89,
+        "bottom": 293.64,
+        "borderRadius": "0px 0px 6px 6px"
+      }
+    },
+    "trial_pending": {
+      "implementation": "oracle",
+      "partCounts": {
+        "chassis": 1,
+        "carbon": 1,
+        "bezel": 1,
+        "glass": 1,
+        "specimen": 1,
+        "lowerDeck": 1,
+        "slot": 1,
+        "amber": 1,
+        "handle": 1,
+        "bottomRail": 1,
+        "evidencePath": 1,
+        "slotLip": 1
+      },
+      "machine": {
+        "x": 20,
+        "y": 0,
+        "width": 350,
+        "height": 350,
+        "right": 350,
+        "bottom": 350,
+        "aspectRatio": 1,
+        "computedAspectRatio": "1 / 1",
+        "borderRadius": "0px"
+      },
+      "chassis": {
+        "x": 0,
+        "y": 0,
+        "width": 350,
+        "height": 301,
+        "right": 350,
+        "bottom": 301,
+        "borderRadius": "19px 19px 14px 14px",
+        "aspectRatio": 1.16
+      },
+      "displayBezel": {
+        "x": 22.56,
+        "y": 19.53,
+        "width": 304.84,
+        "height": 170.42,
+        "right": 327.41,
+        "bottom": 189.95,
+        "borderRadius": "13px"
+      },
+      "lowerDeck": {
+        "x": 16.3,
+        "y": 203.44,
+        "width": 317.38,
+        "height": 85.2,
+        "right": 333.67,
+        "bottom": 288.64,
+        "borderRadius": "9px"
+      },
+      "amberControl": {
+        "x": 269.55,
+        "y": 214.44,
+        "width": 48,
+        "height": 48,
+        "right": 317.55,
+        "bottom": 262.44,
+        "borderRadius": "50%"
+      },
+      "pullHandle": {
+        "x": 116.66,
+        "y": 237.64,
+        "width": 132.45,
+        "height": 44,
+        "right": 249.11,
+        "bottom": 281.64,
+        "borderRadius": "0px"
+      },
+      "bottomRail": {
+        "x": 33.06,
+        "y": 286.64,
+        "width": 283.83,
+        "height": 7,
+        "right": 316.89,
+        "bottom": 293.64,
+        "borderRadius": "0px 0px 6px 6px"
+      }
+    },
+    "followup_ready": {
+      "implementation": "oracle",
+      "partCounts": {
+        "chassis": 1,
+        "carbon": 1,
+        "bezel": 1,
+        "glass": 1,
+        "specimen": 1,
+        "lowerDeck": 1,
+        "slot": 1,
+        "amber": 1,
+        "handle": 1,
+        "bottomRail": 1,
+        "evidencePath": 1,
+        "slotLip": 1
+      },
+      "machine": {
+        "x": 20,
+        "y": 0,
+        "width": 350,
+        "height": 350,
+        "right": 350,
+        "bottom": 350,
+        "aspectRatio": 1,
+        "computedAspectRatio": "1 / 1",
+        "borderRadius": "0px"
+      },
+      "chassis": {
+        "x": 0,
+        "y": 0,
+        "width": 350,
+        "height": 301,
+        "right": 350,
+        "bottom": 301,
+        "borderRadius": "19px 19px 14px 14px",
+        "aspectRatio": 1.16
+      },
+      "displayBezel": {
+        "x": 22.56,
+        "y": 19.53,
+        "width": 304.84,
+        "height": 170.42,
+        "right": 327.41,
+        "bottom": 189.95,
+        "borderRadius": "13px"
+      },
+      "lowerDeck": {
+        "x": 16.3,
+        "y": 203.44,
+        "width": 317.38,
+        "height": 85.2,
+        "right": 333.67,
+        "bottom": 288.64,
+        "borderRadius": "9px"
+      },
+      "amberControl": {
+        "x": 269.55,
+        "y": 214.44,
+        "width": 48,
+        "height": 48,
+        "right": 317.55,
+        "bottom": 262.44,
+        "borderRadius": "50%"
+      },
+      "pullHandle": {
+        "x": 116.66,
+        "y": 237.64,
+        "width": 132.45,
+        "height": 44,
+        "right": 249.11,
+        "bottom": 281.64,
+        "borderRadius": "0px"
+      },
+      "bottomRail": {
+        "x": 33.06,
+        "y": 286.64,
+        "width": 283.83,
+        "height": 7,
+        "right": 316.89,
+        "bottom": 293.64,
+        "borderRadius": "0px 0px 6px 6px"
+      }
+    }
+  }
+}
