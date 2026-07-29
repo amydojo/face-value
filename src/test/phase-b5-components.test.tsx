@@ -168,7 +168,7 @@ it('renders the no-history home with direct trial and previous-trials navigation
   expect(screen.getByRole('button', { name: 'Previous trials, 0 saved results' })).toBeVisible();
 
   await user.click(screen.getByRole('button', { name: 'START A NEW TRIAL' }));
-  expect(screen.getByRole('heading', { name: 'What are you putting on trial?' })).toBeVisible();
+  expect(screen.getByRole('heading', { name: 'Give the specimen an identity.' })).toBeVisible();
 });
 
 it('keeps active-trial data inside the canonical loaded machine with the real history count', async () => {
@@ -251,20 +251,19 @@ it('starts with real registration and ends session one at Baseline locked', asyn
     </FaceValueProvider>,
   );
 
-  await user.click(screen.getByRole('button', { name: 'START A PRODUCT TRIAL' }));
-  await waitFor(() =>
-    expect(
-      screen.getByRole('heading', {
-        name: 'What are you putting on trial?',
-      }),
-    ).toHaveFocus(),
-  );
+  await user.click(screen.getByRole('button', { name: 'LOAD A PRODUCT' }));
+  const registrationHeading = screen.getByRole('heading', {
+    name: 'Give the specimen an identity.',
+  });
+  expect(registrationHeading).toBeVisible();
+  expect(registrationHeading).not.toHaveFocus();
+  expect(screen.getByRole('textbox', { name: /^Brand/ })).not.toHaveFocus();
 
-  await user.click(screen.getByRole('button', { name: 'REGISTER PRODUCT' }));
+  await user.click(screen.getByRole('button', { name: 'REGISTER & LOAD' }));
   const brandField = screen.getByRole('textbox', { name: /^Brand/ });
   expect(brandField).toHaveFocus();
   await user.type(brandField, 'Naturium');
-  await user.click(screen.getByRole('button', { name: 'REGISTER PRODUCT' }));
+  await user.click(screen.getByRole('button', { name: 'REGISTER & LOAD' }));
   const productNameField = screen.getByRole('textbox', {
     name: /^Product name/,
   });
@@ -279,8 +278,9 @@ it('starts with real registration and ends session one at Baseline locked', asyn
     screen.queryByRole('radio', { name: /dryness|pigmentation|acne/i }),
   ).not.toBeInTheDocument();
 
-  await user.click(screen.getByRole('button', { name: 'REGISTER PRODUCT' }));
-  expect(screen.getByRole('heading', { name: 'Your product is ready.' })).toBeVisible();
+  await user.click(screen.getByRole('button', { name: 'REGISTER & LOAD' }));
+  await waitFor(() => expect(screen.getByText('READY TO SCAN')).toBeVisible());
+  expect(screen.queryByRole('heading', { name: 'Your product is ready.' })).not.toBeInTheDocument();
   expect(screen.getByText('Naturium')).toBeVisible();
   expect(screen.getByText('Azelaic Topical Acid')).toBeVisible();
   expect(screen.getByText('REDUCE VISIBLE REDNESS')).toBeVisible();
@@ -310,8 +310,7 @@ it('starts with real registration and ends session one at Baseline locked', asyn
   expect(screen.getByRole('heading', { name: 'Your trials' })).toBeVisible();
   expect(screen.getByText('DAY 01 OF 14')).toBeVisible();
   expect(screen.getByText('IN 14 DAYS')).toBeVisible();
-  expect(screen.queryByRole('button', { name: /Take follow-up scan/i })).not
-    .toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: /Take follow-up scan/i })).not.toBeInTheDocument();
   expect(
     screen.queryByRole('button', {
       name: 'ADVANCE DEMO TIMELINE',

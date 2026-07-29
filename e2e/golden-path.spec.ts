@@ -124,23 +124,23 @@ for (const scenario of cases) {
         name: 'Is your skincare actually doing anything?',
       }),
     ).toBeVisible();
-    await expect(page.getByRole('button', { name: 'START A PRODUCT TRIAL' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'LOAD A PRODUCT' })).toBeVisible();
     await assertNoHorizontalOverflow(page);
     await assertNoInternalJourneyJargon(page);
 
-    await page.getByRole('button', { name: 'START A PRODUCT TRIAL' }).click();
+    await page.getByRole('button', { name: 'LOAD A PRODUCT' }).click();
     await page.getByLabel('Brand').fill('Naturium');
     await page.getByLabel('Product name').fill('Azelaic Topical Acid');
     await page.getByLabel('Strength or concentration').fill('10%');
     await page.getByLabel('Volume').fill('30 ml');
     await expect(page.getByRole('radio')).toHaveCount(1);
     await expect(page.getByRole('radio')).toBeChecked();
-    await page.getByRole('button', { name: 'REGISTER PRODUCT' }).click();
+    await page.getByRole('button', { name: 'REGISTER & LOAD' }).click();
 
-    await expect(page.getByRole('heading', { name: 'Your product is ready.' })).toBeVisible();
+    await expect(page.getByText('READY TO SCAN')).toBeVisible();
     await expect(page.getByText('Naturium', { exact: true })).toBeVisible();
     await expect(page.getByText('Azelaic Topical Acid', { exact: true })).toBeVisible();
-    await expect(page.getByText('SPECIMEN 01')).toBeVisible();
+    await expect(page.getByText('FV / S01')).toBeVisible();
     await assertNoHorizontalOverflow(page);
 
     await page.getByRole('button', { name: 'TAKE GUIDED BASELINE' }).click();
@@ -314,9 +314,11 @@ for (const scenario of cases) {
 
     await page.getByRole('button', { name: 'SEE WHY' }).click();
     await expect(
-      page.locator('#oracle-why').getByText(
-        'The trial window is not complete. Keep the predeclared schedule before judging this product job.',
-      ),
+      page
+        .locator('#oracle-why')
+        .getByText(
+          'The trial window is not complete. Keep the predeclared schedule before judging this product job.',
+        ),
     ).toBeVisible();
 
     const amber = page.getByRole('button', {
@@ -379,10 +381,9 @@ for (const scenario of cases) {
       page.getByText(/Demo timing was advanced explicitly; capture timestamps remain unchanged/i),
     ).toBeVisible();
     await expect(
-      evidenceDetail.getByText(
-        'Production thresholds require repeat-scan calibration.',
-        { exact: true },
-      ),
+      evidenceDetail.getByText('Production thresholds require repeat-scan calibration.', {
+        exact: true,
+      }),
     ).toBeVisible();
     await expect(
       evidenceDetail.getByText(/provisional_fixture · redness-provisional-v1/i),

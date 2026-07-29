@@ -14,11 +14,7 @@ import { systemClock } from '../../adapters/clock/clock';
 import { useFaceValue } from '../../app/faceValueContext';
 import { createOracleEvidenceRecord } from '../../app/phaseBMachine';
 import { ScreenHeader } from '../../components/hardware';
-import type {
-  EvidenceRecordData,
-  ProductPlacement,
-  RegisteredProduct,
-} from '../../domain/model';
+import type { EvidenceRecordData, ProductPlacement, RegisteredProduct } from '../../domain/model';
 import { oracleMotionDuration, type OracleRevealState } from '../../domain/oracleRevealMachine';
 import {
   oracleTrialIdentity,
@@ -393,11 +389,32 @@ function LatestVerdictPaper({
   );
 }
 
-export type OracleTrialState = 'empty' | 'pending' | 'followup-ready';
+export type SpecimenIngestionPhase =
+  'idle' | 'materializing' | 'loading' | 'locking' | 'confirming' | 'ready';
+
+export type OracleTrialState =
+  'empty' | 'registration-preview' | 'baseline-ready' | 'pending' | 'followup-ready';
+
+export interface OracleSpecimenIdentity {
+  brand: string;
+  productName: string;
+  strength: string | null;
+  volume: string | null;
+  assignedJob: 'Reduce visible redness';
+}
 
 export type OracleTrialStateMachineProps =
   | {
       state: 'empty';
+    }
+  | {
+      state: 'registration-preview';
+      identity: OracleSpecimenIdentity;
+    }
+  | {
+      state: 'baseline-ready';
+      product: RegisteredProduct;
+      phase: SpecimenIngestionPhase;
     }
   | {
       state: 'pending' | 'followup-ready';
@@ -429,60 +446,142 @@ type OracleTrialMachineProps = {
   variant: 'trial-state';
   trialState: OracleTrialState;
   product: RegisteredProduct | null;
+  identity: OracleSpecimenIdentity | null;
+  ingestionPhase: SpecimenIngestionPhase;
   day: number | null;
   intervalDays: number | null;
 };
 
 type OracleMachineProps = OracleVerdictMachineProps | OracleTrialMachineProps;
 
+function specimenIdentityFromRegisteredProduct(product: RegisteredProduct): OracleSpecimenIdentity {
+  const specimen = specimenFromRegisteredProduct(product);
+  return {
+    brand: specimen.brand,
+    productName: specimen.product,
+    strength: product.strength,
+    volume: product.volume,
+    assignedJob: product.assignedJob,
+  };
+}
+
+function OracleSpecimen({
+  identity,
+  specimenState,
+  phase,
+}: {
+  identity: OracleSpecimenIdentity | null;
+  specimenState: OracleTrialState | 'verdict';
+  phase: SpecimenIngestionPhase;
+}) {
+  const visibleIdentity = identity ?? {
+    brand: 'UNASSIGNED',
+    productName: 'FACE VALUE SPECIMEN',
+    strength: null,
+    volume: null,
+    assignedJob: 'Reduce visible redness' as const,
+  };
+  const ingestionActive = specimenState === 'baseline-ready' && !['idle', 'ready'].includes(phase);
+
+  return (
+    <div
+      className={styles.oracleSpecimen}
+      data-oracle-specimen
+      data-specimen-state={specimenState}
+      data-ingestion-phase={phase}
+      data-ingestion-active={ingestionActive}
+      data-specimen-brand={visibleIdentity.brand}
+      data-specimen-product={visibleIdentity.productName}
+      data-specimen-strength={visibleIdentity.strength ?? ''}
+      data-specimen-volume={visibleIdentity.volume ?? ''}
+      aria-hidden="true"
+    >
+      <i className={styles.specimenCap} />
+      <span className={styles.specimenBody} />
+      <div className={styles.specimenLabel}>
+        <small>FV / S01</small>
+        <b>{visibleIdentity.brand}</b>
+        <span>{visibleIdentity.productName}</span>
+        {visibleIdentity.strength && <em>{visibleIdentity.strength}</em>}
+      </div>
+    </div>
+  );
+}
+
 function TrialStateDisplay({
   state,
-  product,
+  phase,
   day,
   intervalDays,
 }: {
   state: OracleTrialState;
-  product: RegisteredProduct | null;
+  phase: SpecimenIngestionPhase;
   day: number | null;
   intervalDays: number | null;
 }) {
-  const loaded = state !== 'empty' && product !== null;
+  const headerState =
+    state === 'empty'
+      ? 'STANDBY'
+      : state === 'registration-preview'
+        ? 'REGISTRATION'
+        : state === 'baseline-ready'
+          ? 'BASELINE'
+          : state === 'followup-ready'
+            ? 'FOLLOW-UP'
+            : 'ACTIVE TRIAL';
+  const caseStatus =
+    state === 'empty'
+      ? 'NO SPECIMEN LOADED'
+      : state === 'registration-preview'
+        ? 'LABEL PREVIEW'
+        : state === 'baseline-ready'
+          ? phase === 'loading'
+            ? 'LOADING SPECIMEN'
+            : phase === 'locking'
+              ? 'IDENTITY LOCKING'
+              : phase === 'confirming' || phase === 'ready'
+                ? 'SPECIMEN LOADED'
+                : 'PREPARING SPECIMEN'
+          : 'SPECIMEN LOADED';
+  const footerLabel =
+    state === 'empty' ? 'SYSTEM' : state === 'registration-preview' ? 'INPUT' : 'PROTOCOL';
+  const footerValue =
+    state === 'empty'
+      ? 'READY'
+      : state === 'registration-preview'
+        ? 'NOT YET LOADED'
+        : state === 'baseline-ready'
+          ? phase === 'ready'
+            ? 'READY TO SCAN'
+            : phase === 'confirming'
+              ? 'CONFIRMING'
+              : 'PREPARING'
+          : day !== null && intervalDays !== null
+            ? `DAY ${String(day).padStart(2, '0')} OF ${String(intervalDays).padStart(2, '0')}`
+            : 'READY';
+  const showJob = state !== 'empty';
 
   return (
-    <div
-      className={styles.trialStateDisplay}
-      data-oracle-trial-display
-      data-trial-state={state}
-    >
+    <div className={styles.trialStateDisplay} data-oracle-trial-display data-trial-state={state}>
       <header>
         <span>FACE VALUE</span>
-        <span>{state === 'followup-ready' ? 'FOLLOW-UP' : loaded ? 'ACTIVE TRIAL' : 'STANDBY'}</span>
+        <span>{headerState}</span>
       </header>
       <div className={styles.trialStateBody}>
         <span>CASE STATUS</span>
-        <strong>{loaded ? 'SPECIMEN LOADED' : 'NO TRIAL LOADED'}</strong>
-        {loaded ? (
-          <>
-            <p className={styles.trialStateProduct}>
-              <b>{product.brand}</b>
-              <span>{product.productName}</span>
-            </p>
-            <p className={styles.trialStateJob}>
-              <span>JOB</span>
-              <b>{product.assignedJob}</b>
-            </p>
-          </>
+        <strong>{caseStatus}</strong>
+        {showJob ? (
+          <p className={styles.trialStateJob}>
+            <span>JOB</span>
+            <b>REDUCE VISIBLE REDNESS</b>
+          </p>
         ) : (
           <p className={styles.trialStateInstruction}>Insert one product to begin.</p>
         )}
       </div>
       <footer>
-        <span>{loaded ? 'PROTOCOL' : 'SYSTEM'}</span>
-        <strong>
-          {loaded && day !== null && intervalDays !== null
-            ? `DAY ${String(day).padStart(2, '0')} OF ${String(intervalDays).padStart(2, '0')}`
-            : 'READY'}
-        </strong>
+        <span>{footerLabel}</span>
+        <strong>{footerValue}</strong>
       </footer>
     </div>
   );
@@ -492,20 +591,35 @@ function OracleMachine(props: OracleMachineProps) {
   const trialMachine = props.variant === 'trial-state' ? props : null;
   const verdictMachine = props.variant === 'trial-state' ? null : props;
   const latestVerdict = verdictMachine?.variant === 'latest-verdict';
-  const phase = trialMachine ? 'done' : verdictMachine?.phase ?? 'sealed';
+  const phase = trialMachine ? 'done' : (verdictMachine?.phase ?? 'sealed');
   const viewModel = verdictMachine?.viewModel ?? null;
   const trialIdentity = verdictMachine?.trialIdentity ?? null;
   const record = verdictMachine?.record ?? null;
   const displayOn =
-    trialMachine !== null ||
-    latestVerdict ||
-    !['sealed', 'opening'].includes(phase);
+    trialMachine !== null || latestVerdict || !['sealed', 'opening'].includes(phase);
+  const ingestionPhase = trialMachine?.ingestionPhase ?? 'ready';
+  const specimenIdentity =
+    trialMachine?.identity ??
+    (viewModel
+      ? {
+          brand: viewModel.productBrand ?? 'FACE VALUE',
+          productName: viewModel.productName,
+          strength: null,
+          volume: null,
+          assignedJob: 'Reduce visible redness' as const,
+        }
+      : null);
   const amberState = trialMachine
     ? trialMachine.trialState === 'followup-ready'
       ? 'followup-ready'
       : trialMachine.trialState === 'pending'
         ? 'trial-pending'
-        : 'idle'
+        : trialMachine.trialState === 'baseline-ready' &&
+            trialMachine.ingestionPhase === 'confirming'
+          ? 'specimen-confirming'
+          : trialMachine.trialState === 'baseline-ready' && trialMachine.ingestionPhase === 'ready'
+            ? 'baseline-ready'
+            : 'idle'
     : latestVerdict
       ? 'latest'
       : phase === 'verdict_revealed'
@@ -529,10 +643,32 @@ function OracleMachine(props: OracleMachineProps) {
     : latestVerdict
       ? 'partially-revealed'
       : phase;
+  const registrationDraftDetails =
+    trialMachine?.trialState === 'registration-preview' && trialMachine.identity
+      ? [
+          trialMachine.identity.brand === 'UNNAMED BRAND'
+            ? null
+            : trialMachine.identity.brand,
+          trialMachine.identity.productName === 'UNNAMED PRODUCT'
+            ? null
+            : trialMachine.identity.productName,
+          trialMachine.identity.strength,
+        ].filter((value): value is string => Boolean(value))
+      : [];
   const machineLabel = trialMachine
     ? trialMachine.trialState === 'empty'
-      ? 'Dormant Face Value machine. No trial loaded. Insert one product to begin.'
-      : `${trialMachine.trialState === 'followup-ready' ? 'Follow-up ready' : 'Trial pending'} for ${trialMachine.product?.brand ?? ''} ${trialMachine.product?.productName ?? ''}. Specimen loaded.`
+      ? 'Empty Face Value instrument. No specimen loaded.'
+      : trialMachine.trialState === 'registration-preview'
+        ? `Product identity preview. The specimen has not been loaded.${
+            registrationDraftDetails.length > 0
+              ? ` Draft specimen: ${registrationDraftDetails.join(', ')}.`
+              : ''
+          }`
+        : trialMachine.trialState === 'baseline-ready'
+          ? trialMachine.ingestionPhase === 'ready'
+            ? `Baseline-ready Face Value instrument. Specimen loaded: ${trialMachine.product?.brand ?? ''}, ${trialMachine.product?.productName ?? ''}. Assigned job: Reduce visible redness. Ready to take the baseline scan.`
+            : `Face Value instrument preparing specimen: ${trialMachine.product?.brand ?? ''}, ${trialMachine.product?.productName ?? ''}. Assigned job: Reduce visible redness.`
+          : `${trialMachine.trialState === 'followup-ready' ? 'Follow-up ready' : 'Trial pending'} for ${trialMachine.product?.brand ?? ''} ${trialMachine.product?.productName ?? ''}. Specimen loaded.`
     : latestVerdict && viewModel
       ? `Latest verdict cassette for ${verdictProduct(viewModel)}. ${viewModel.headline}`
       : viewModel && (phase === 'sealed' || phase === 'opening')
@@ -541,13 +677,10 @@ function OracleMachine(props: OracleMachineProps) {
           ? `Face Value result cassette. ${viewModel.headline}`
           : 'Face Value result cassette.';
   const onReveal = verdictMachine?.onReveal ?? (() => undefined);
-  const onOpeningComplete =
-    verdictMachine?.onOpeningComplete ?? (() => undefined);
-  const onTransmissionComplete =
-    verdictMachine?.onTransmissionComplete ?? (() => undefined);
+  const onOpeningComplete = verdictMachine?.onOpeningComplete ?? (() => undefined);
+  const onTransmissionComplete = verdictMachine?.onTransmissionComplete ?? (() => undefined);
   const onKeep = verdictMachine?.onKeep ?? (() => undefined);
-  const onCommitComplete =
-    verdictMachine?.onCommitComplete ?? (() => undefined);
+  const onCommitComplete = verdictMachine?.onCommitComplete ?? (() => undefined);
   const onDispensed = verdictMachine?.onDispensed ?? (() => undefined);
   const onCollect = verdictMachine?.onCollect ?? (() => undefined);
   const onCollected = verdictMachine?.onCollected ?? (() => undefined);
@@ -565,37 +698,24 @@ function OracleMachine(props: OracleMachineProps) {
       data-cassette-state={cassetteState}
       data-machine-implementation="oracle"
       data-trial-machine-state={trialMachine?.trialState}
+      data-ingestion-phase={trialMachine?.ingestionPhase}
       data-machine-material="carbon"
       data-machine-instance="face-value-oracle"
       aria-label={machineLabel}
     >
       <div className={styles.chassis} data-oracle-chassis>
-        <div
-          className={styles.carbonTexture}
-          data-oracle-carbon-texture
-          aria-hidden="true"
-        />
+        <div className={styles.carbonTexture} data-oracle-carbon-texture aria-hidden="true" />
         <div className={styles.displayBezel} data-oracle-display-opening>
           <div className={styles.displayGlass} data-oracle-display-glass>
-            <div
-              className={styles.specimenSilhouette}
-              data-oracle-specimen-silhouette
-              data-specimen-state={
-                trialMachine
-                  ? trialMachine.trialState === 'empty'
-                    ? 'empty'
-                    : 'loaded'
-                  : undefined
-              }
-              aria-hidden="true"
-            >
-              <i />
-              <span />
-            </div>
+            <OracleSpecimen
+              identity={specimenIdentity}
+              specimenState={trialMachine?.trialState ?? 'verdict'}
+              phase={ingestionPhase}
+            />
             {trialMachine && (
               <TrialStateDisplay
                 state={trialMachine.trialState}
-                product={trialMachine.product}
+                phase={trialMachine.ingestionPhase}
                 day={trialMachine.day}
                 intervalDays={trialMachine.intervalDays}
               />
@@ -641,15 +761,9 @@ function OracleMachine(props: OracleMachineProps) {
                 ? 'Keep this result'
                 : undefined
             }
-            aria-hidden={Boolean(
-              trialMachine || latestVerdict || phase !== 'verdict_revealed',
-            )}
-            tabIndex={
-              !trialMachine && !latestVerdict && phase === 'verdict_revealed' ? 0 : -1
-            }
-            disabled={Boolean(
-              trialMachine || latestVerdict || phase !== 'verdict_revealed',
-            )}
+            aria-hidden={Boolean(trialMachine || latestVerdict || phase !== 'verdict_revealed')}
+            tabIndex={!trialMachine && !latestVerdict && phase === 'verdict_revealed' ? 0 : -1}
+            disabled={Boolean(trialMachine || latestVerdict || phase !== 'verdict_revealed')}
             onClick={onKeep}
           >
             <span aria-hidden="true" />
@@ -657,7 +771,9 @@ function OracleMachine(props: OracleMachineProps) {
           <OraclePullHandle
             active={!trialMachine && !latestVerdict && phase === 'sealed'}
             phase={phase}
-            product={trialMachine?.product?.productName ?? viewModel?.productName ?? 'Face Value product'}
+            product={
+              trialMachine?.product?.productName ?? viewModel?.productName ?? 'Face Value product'
+            }
             onReveal={onReveal}
           />
           <div className={styles.bottomRail} data-oracle-bottom-rail aria-hidden="true" />
@@ -703,16 +819,16 @@ function OracleMachine(props: OracleMachineProps) {
           record &&
           viewModel &&
           (phase === 'committing' || phase === 'dispensing') && (
-          <OracleEvidencePaper
-            record={record}
-            viewModel={viewModel}
-            dispensed={evidenceDispensed}
-            collecting={collectionStarted}
-            onDispensed={onDispensed}
-            onCollect={onCollect}
-            onCollected={onCollected}
-          />
-        )}
+            <OracleEvidencePaper
+              record={record}
+              viewModel={viewModel}
+              dispensed={evidenceDispensed}
+              collecting={collectionStarted}
+              onDispensed={onDispensed}
+              onCollect={onCollect}
+              onCollected={onCollected}
+            />
+          )}
       </div>
       <div className={styles.slotLip} data-oracle-slot-lip aria-hidden="true" />
     </section>
@@ -720,13 +836,36 @@ function OracleMachine(props: OracleMachineProps) {
 }
 
 export function OracleTrialStateMachine(props: OracleTrialStateMachineProps) {
+  const product =
+    props.state === 'baseline-ready' ||
+    props.state === 'pending' ||
+    props.state === 'followup-ready'
+      ? props.product
+      : null;
+  const identity =
+    props.state === 'registration-preview'
+      ? props.identity
+      : product
+        ? specimenIdentityFromRegisteredProduct(product)
+        : null;
+  const ingestionPhase =
+    props.state === 'baseline-ready'
+      ? props.phase
+      : props.state === 'empty' || props.state === 'registration-preview'
+        ? 'idle'
+        : 'ready';
+
   return (
     <OracleMachine
       variant="trial-state"
       trialState={props.state}
-      product={props.state === 'empty' ? null : props.product}
-      day={props.state === 'empty' ? null : props.day}
-      intervalDays={props.state === 'empty' ? null : props.intervalDays}
+      product={product}
+      identity={identity}
+      ingestionPhase={ingestionPhase}
+      day={props.state === 'pending' || props.state === 'followup-ready' ? props.day : null}
+      intervalDays={
+        props.state === 'pending' || props.state === 'followup-ready' ? props.intervalDays : null
+      }
     />
   );
 }

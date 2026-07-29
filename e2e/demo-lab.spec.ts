@@ -346,6 +346,18 @@ test('core synthetic starting points open real production screens', async ({ pag
     'oracle',
   );
 
+  await openPreview(page, 'product_registered');
+  await expect(page.locator('[data-fv-screen="baseline-ready"]')).toHaveAttribute(
+    'data-ingestion-phase',
+    'ready',
+  );
+  await expect(page.locator('[data-registration-panel]')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'TAKE GUIDED BASELINE' })).toBeEnabled();
+
+  await openPreview(page, 'baseline_ready');
+  await expect(page.getByRole('heading', { name: 'Center your face' })).toBeVisible();
+  await expect(page.locator('[data-oracle-machine]')).toHaveCount(0);
+
   await openPreview(page, 'baseline_locked');
   await expect(page.getByRole('heading', { name: 'Baseline locked.' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'DONE' })).toBeVisible();

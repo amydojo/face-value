@@ -169,42 +169,259 @@
   pointer-events: none;
 }
 
-.specimenSilhouette {
+.oracleSpecimen {
   position: absolute;
-  inset: 15% 38% 10%;
-  z-index: 0;
-  opacity: 0.2;
-  filter: blur(5px);
+  top: 18%;
+  right: 7.5%;
+  z-index: 5;
+  width: 31%;
+  height: 67%;
+  opacity: 0.34;
+  transform: translateY(0);
+  pointer-events: none;
 }
 
-.specimenSilhouette i,
-.specimenSilhouette span {
+.specimenCap,
+.specimenBody {
   position: absolute;
   left: 50%;
   display: block;
-  background: #a89780;
   transform: translateX(-50%);
 }
 
-.specimenSilhouette i {
+.specimenCap {
   top: 0;
-  width: 42%;
-  height: 19%;
-  border-radius: 4px 4px 1px 1px;
+  z-index: 2;
+  width: 45%;
+  height: 18%;
+  border: 1px solid rgba(218, 209, 195, 0.28);
+  border-radius: 4px 4px 2px 2px;
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.08), transparent 34%), #5c554b;
+  box-shadow: inset 0 -3px 5px rgba(0, 0, 0, 0.36);
 }
 
-.specimenSilhouette span {
-  inset: 17% 0 0 50%;
-  width: 76%;
+.specimenBody {
+  top: 15%;
+  bottom: 0;
+  z-index: 1;
+  width: 78%;
+  border: 1px solid rgba(224, 215, 199, 0.28);
   border-radius: 9px 9px 5px 5px;
+  opacity: 0.62;
+  background:
+    linear-gradient(
+      100deg,
+      rgba(220, 209, 190, 0.2),
+      rgba(151, 139, 121, 0.42) 28%,
+      rgba(84, 77, 66, 0.62) 74%,
+      rgba(202, 190, 170, 0.18)
+    ),
+    #5c554b;
+  box-shadow:
+    inset 7px 0 9px rgba(235, 225, 208, 0.08),
+    inset -8px 0 11px rgba(0, 0, 0, 0.28),
+    0 5px 11px rgba(0, 0, 0, 0.28);
 }
 
-.specimenSilhouette[data-specimen-state='empty'] {
-  opacity: 0.1;
+.specimenLabel {
+  position: absolute;
+  top: 38%;
+  left: 4%;
+  z-index: 3;
+  width: 92%;
+  min-height: 45%;
+  display: grid;
+  align-content: start;
+  gap: 2px;
+  padding: 5px 5px 4px;
+  overflow: hidden;
+  border: 1px solid rgba(57, 51, 43, 0.38);
+  border-radius: 2px;
+  color: #26221d;
+  background: linear-gradient(105deg, rgba(255, 255, 255, 0.2), transparent 46%), #c9c0b1;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.36);
+  opacity: 0;
+  font-family: var(--fv-font-mono);
+  overflow-wrap: anywhere;
 }
 
-.specimenSilhouette[data-specimen-state='loaded'] {
-  opacity: 0.34;
+.specimenLabel::after {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  background: linear-gradient(
+    180deg,
+    transparent 0 42%,
+    rgba(235, 154, 59, 0.72) 48% 52%,
+    transparent 58% 100%
+  );
+  content: '';
+  pointer-events: none;
+}
+
+.specimenLabel small,
+.specimenLabel b,
+.specimenLabel span,
+.specimenLabel em {
+  min-width: 0;
+  margin: 0;
+  font-style: normal;
+}
+
+.specimenLabel small {
+  color: #655d52;
+  font-size: 6px;
+  line-height: 1.1;
+  letter-spacing: 0.04em;
+}
+
+.specimenLabel b {
+  overflow: hidden;
+  color: #29241e;
+  font-size: 6.5px;
+  font-weight: 750;
+  line-height: 1.15;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.specimenLabel span {
+  display: -webkit-box;
+  overflow: hidden;
+  color: #312b24;
+  font-size: 7px;
+  font-weight: 580;
+  line-height: 1.08;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.specimenLabel em {
+  overflow: hidden;
+  color: #5c5449;
+  font-size: 6px;
+  font-weight: 650;
+  line-height: 1.1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.oracleSpecimen[data-specimen-state='empty'] {
+  opacity: 0.09;
+}
+
+.oracleSpecimen[data-specimen-state='empty'] .specimenLabel,
+.oracleSpecimen[data-specimen-state='verdict'] .specimenLabel {
+  opacity: 0;
+}
+
+.oracleSpecimen[data-specimen-state='registration-preview'] {
+  opacity: 0.64;
+}
+
+.oracleSpecimen[data-specimen-state='registration-preview'] .specimenBody {
+  opacity: 0.5;
+}
+
+.oracleSpecimen[data-specimen-state='registration-preview'] .specimenLabel {
+  opacity: 0.84;
+}
+
+.oracleSpecimen[data-specimen-state='baseline-ready'][data-ingestion-phase='materializing'] {
+  opacity: 1;
+  transform: translateY(26px);
+}
+
+.oracleSpecimen[data-specimen-state='baseline-ready'][data-ingestion-phase='materializing']
+  .specimenBody {
+  opacity: 0.18;
+}
+
+.oracleSpecimen[data-specimen-state='baseline-ready'][data-ingestion-phase='materializing']
+  .specimenLabel {
+  animation: specimenLabelMaterialize var(--fv-materialize-duration) cubic-bezier(0.16, 1, 0.3, 1)
+    both;
+}
+
+.oracleSpecimen[data-specimen-state='baseline-ready'][data-ingestion-phase='loading'] {
+  opacity: 1;
+  transform: translateY(0);
+  transition: transform var(--fv-loading-duration) cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.oracleSpecimen[data-specimen-state='baseline-ready'][data-ingestion-phase='loading']
+  .specimenBody {
+  opacity: 0.92;
+  transition: opacity var(--fv-loading-duration) cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.oracleSpecimen[data-specimen-state='baseline-ready'][data-ingestion-phase='loading']
+  .specimenLabel {
+  opacity: 1;
+}
+
+.oracleSpecimen[data-specimen-state='baseline-ready'][data-ingestion-phase='locking'] {
+  opacity: 1;
+}
+
+.oracleSpecimen[data-specimen-state='baseline-ready'][data-ingestion-phase='locking']
+  .specimenBody {
+  opacity: 0.92;
+}
+
+.oracleSpecimen[data-specimen-state='baseline-ready'][data-ingestion-phase='locking']
+  .specimenLabel {
+  animation: specimenLabelLock var(--fv-locking-duration) linear both;
+}
+
+.oracleSpecimen[data-specimen-state='baseline-ready'][data-ingestion-phase='locking']
+  .specimenLabel::after {
+  animation: specimenLabelScan 150ms linear both;
+}
+
+.oracleSpecimen[data-specimen-state='baseline-ready'][data-ingestion-phase='confirming'],
+.oracleSpecimen[data-specimen-state='baseline-ready'][data-ingestion-phase='ready'] {
+  opacity: 1;
+}
+
+.oracleSpecimen[data-specimen-state='baseline-ready'][data-ingestion-phase='confirming']
+  .specimenBody,
+.oracleSpecimen[data-specimen-state='baseline-ready'][data-ingestion-phase='ready'] .specimenBody {
+  opacity: 0.96;
+}
+
+.oracleSpecimen[data-specimen-state='baseline-ready'][data-ingestion-phase='confirming']
+  .specimenLabel,
+.oracleSpecimen[data-specimen-state='baseline-ready'][data-ingestion-phase='ready'] .specimenLabel {
+  opacity: 1;
+}
+
+.oracleSpecimen[data-specimen-state='pending'] {
+  opacity: 0.82;
+}
+
+.oracleSpecimen[data-specimen-state='pending'] .specimenLabel {
+  opacity: 0.88;
+}
+
+.oracleSpecimen[data-specimen-state='followup-ready'] {
+  opacity: 0.96;
+}
+
+.oracleSpecimen[data-specimen-state='followup-ready'] .specimenLabel {
+  opacity: 1;
+}
+
+.oracleSpecimen[data-ingestion-active='true'] {
+  will-change: transform, opacity;
+}
+
+.oracleSpecimen[data-ingestion-active='true'] .specimenBody {
+  will-change: opacity;
+}
+
+.oracleSpecimen[data-ingestion-active='true'] .specimenLabel {
+  will-change: transform, opacity, filter;
 }
 
 .sealedOptics {
@@ -395,6 +612,86 @@
   font-family: var(--fv-font-mono);
 }
 
+.machine[data-trial-machine-state='registration-preview'] .displayGlass {
+  background:
+    radial-gradient(circle at 72% 50%, rgba(113, 85, 51, 0.1), transparent 31%),
+    linear-gradient(180deg, #090806, #100e0c);
+}
+
+.machine[data-trial-machine-state='baseline-ready'] .displayGlass {
+  background:
+    radial-gradient(circle at 72% 50%, rgba(126, 98, 64, 0.12), transparent 32%),
+    linear-gradient(180deg, #090806, #100e0c);
+}
+
+.machine[data-trial-machine-state='baseline-ready'][data-ingestion-phase='confirming']
+  .displayGlass,
+.machine[data-trial-machine-state='baseline-ready'][data-ingestion-phase='ready'] .displayGlass {
+  background:
+    radial-gradient(circle at 72% 50%, rgba(137, 108, 72, 0.15), transparent 32%),
+    linear-gradient(180deg, #0a0907, #13100d);
+}
+
+.machine[data-trial-machine-state='pending'] .displayGlass {
+  background:
+    radial-gradient(circle at 72% 50%, rgba(108, 80, 47, 0.1), transparent 31%),
+    linear-gradient(180deg, #080706, #0f0d0b);
+}
+
+.machine[data-trial-machine-state='followup-ready'] .displayGlass {
+  background:
+    radial-gradient(circle at 72% 50%, rgba(145, 102, 52, 0.16), transparent 32%),
+    linear-gradient(180deg, #0a0806, #13100d);
+}
+
+.trialStateDisplay[data-trial-state='registration-preview'] {
+  background:
+    linear-gradient(
+      90deg,
+      rgba(5, 5, 4, 0.94) 0%,
+      rgba(6, 6, 5, 0.8) 48%,
+      rgba(7, 7, 6, 0.24) 76%,
+      rgba(7, 7, 6, 0.48) 100%
+    ),
+    radial-gradient(circle at 72% 50%, rgba(130, 88, 43, 0.06), transparent 42%);
+}
+
+.trialStateDisplay[data-trial-state='baseline-ready'] {
+  background:
+    linear-gradient(
+      90deg,
+      rgba(5, 5, 4, 0.9) 0%,
+      rgba(6, 6, 5, 0.72) 48%,
+      rgba(7, 7, 6, 0.15) 76%,
+      rgba(7, 7, 6, 0.34) 100%
+    ),
+    radial-gradient(circle at 72% 50%, rgba(139, 100, 52, 0.07), transparent 42%);
+}
+
+.trialStateDisplay[data-trial-state='pending'] {
+  background:
+    linear-gradient(
+      90deg,
+      rgba(5, 5, 4, 0.94) 0%,
+      rgba(6, 6, 5, 0.82) 48%,
+      rgba(7, 7, 6, 0.32) 76%,
+      rgba(7, 7, 6, 0.55) 100%
+    ),
+    radial-gradient(circle at 72% 50%, rgba(110, 79, 43, 0.05), transparent 42%);
+}
+
+.trialStateDisplay[data-trial-state='followup-ready'] {
+  background:
+    linear-gradient(
+      90deg,
+      rgba(5, 5, 4, 0.91) 0%,
+      rgba(6, 6, 5, 0.75) 48%,
+      rgba(7, 7, 6, 0.2) 76%,
+      rgba(7, 7, 6, 0.4) 100%
+    ),
+    radial-gradient(circle at 72% 50%, rgba(145, 99, 47, 0.08), transparent 42%);
+}
+
 .trialStateDisplay header,
 .trialStateDisplay footer {
   display: flex;
@@ -406,7 +703,7 @@
 }
 
 .trialStateBody {
-  width: 76%;
+  width: 62%;
   min-height: 0;
   display: grid;
   align-content: center;
@@ -428,30 +725,9 @@
   letter-spacing: 0.01em;
 }
 
-.trialStateProduct,
 .trialStateJob,
 .trialStateInstruction {
   margin: 0;
-}
-
-.trialStateProduct {
-  display: grid;
-  gap: 1px;
-  padding-top: 3px;
-  font-family: var(--fv-font-sans);
-}
-
-.trialStateProduct b {
-  color: #d0c9bc;
-  font-size: 8px;
-  font-weight: 560;
-  line-height: 1.1;
-}
-
-.trialStateProduct span {
-  color: #eee7da;
-  font-size: clamp(9px, 2.7vw, 11px);
-  line-height: 1.08;
 }
 
 .trialStateJob {
@@ -490,7 +766,7 @@
     linear-gradient(180deg, #080706, #110f0c);
 }
 
-.latestMachine .specimenSilhouette {
+.latestMachine .oracleSpecimen {
   opacity: 0.27;
   filter: blur(9px) brightness(0.7) contrast(0.65);
 }
@@ -631,6 +907,17 @@
   box-shadow:
     inset 0 1px rgba(255, 237, 203, 0.36),
     0 0 15px rgba(200, 121, 32, 0.36);
+}
+
+.amberControl[data-amber-state='baseline-ready'] span {
+  background: #9b5e1f;
+  box-shadow:
+    inset 0 1px rgba(255, 237, 203, 0.24),
+    0 0 8px rgba(200, 121, 32, 0.18);
+}
+
+.amberControl[data-amber-state='specimen-confirming'] span {
+  animation: amberSpecimenConfirm var(--fv-confirming-duration) linear both;
 }
 
 .amberControl[data-amber-state='dispensing'] span {
@@ -1294,6 +1581,76 @@
   outline-color: #f0ece4;
 }
 
+@keyframes specimenLabelMaterialize {
+  from {
+    opacity: 0;
+    filter: blur(4px);
+    transform: translateY(5px);
+  }
+
+  to {
+    opacity: 1;
+    filter: blur(0);
+    transform: translateY(0);
+  }
+}
+
+@keyframes specimenLabelLock {
+  from {
+    opacity: 0.94;
+    transform: translateY(1px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes specimenLabelScan {
+  0% {
+    opacity: 0;
+    transform: translateY(-34%);
+  }
+
+  18%,
+  68% {
+    opacity: 0.72;
+  }
+
+  100% {
+    opacity: 0;
+    transform: translateY(34%);
+  }
+}
+
+@keyframes specimenLabelReduced {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes amberSpecimenConfirm {
+  0%,
+  100% {
+    opacity: 0.72;
+    background: #765021;
+    box-shadow: inset 0 1px rgba(255, 237, 203, 0.16);
+  }
+
+  52% {
+    opacity: 1;
+    background: #c87920;
+    box-shadow:
+      inset 0 1px rgba(255, 237, 203, 0.3),
+      0 0 7px rgba(200, 121, 32, 0.22);
+  }
+}
+
 @keyframes openingDriver {
   0%,
   99% {
@@ -1491,6 +1848,25 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .oracleSpecimen[data-specimen-state='baseline-ready'] {
+    transform: none !important;
+    transition: none !important;
+  }
+
+  .oracleSpecimen[data-specimen-state='baseline-ready'] .specimenBody {
+    transition: none !important;
+  }
+
+  .oracleSpecimen[data-specimen-state='baseline-ready'][data-ingestion-phase='materializing']
+    .specimenLabel {
+    animation: specimenLabelReduced var(--fv-reduced-ingestion-duration) linear both;
+  }
+
+  .oracleSpecimen .specimenLabel::after,
+  .amberControl[data-amber-state='specimen-confirming'] span {
+    animation: none !important;
+  }
+
   .openingMechanism,
   .commitMechanism,
   .machine[data-oracle-state='opening'] .chassis,

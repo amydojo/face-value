@@ -1,9 +1,4 @@
-import {
-  useRef,
-  useState,
-  type FormEvent,
-} from 'react';
-import type { RegisteredProduct } from '../../domain/model';
+import { useRef, useState, type FormEvent } from 'react';
 import {
   validateProductRegistration,
   type ProductRegistrationErrors,
@@ -11,29 +6,31 @@ import {
 } from '../../domain/phaseB5';
 import styles from '../../styles/FaceValue.module.css';
 
+export interface ProductRegistrationProps {
+  value: ProductRegistrationInput;
+  disabled?: boolean;
+  exiting?: boolean;
+  submitLabel?: string;
+  onChange(value: ProductRegistrationInput): void;
+  onRegister(value: ProductRegistrationInput): void;
+}
+
 export function ProductRegistration({
-  existingProduct,
+  value,
+  disabled = false,
+  exiting = false,
+  submitLabel = 'REGISTER & LOAD',
+  onChange,
   onRegister,
-  onBack,
-}: {
-  existingProduct?: RegisteredProduct | null;
-  onRegister(input: ProductRegistrationInput): void;
-  onBack(): void;
-}) {
-  const [brand, setBrand] = useState(existingProduct?.brand ?? '');
-  const [productName, setProductName] = useState(
-    existingProduct?.productName ?? '',
-  );
-  const [strength, setStrength] = useState(existingProduct?.strength ?? '');
-  const [volume, setVolume] = useState(existingProduct?.volume ?? '');
+}: ProductRegistrationProps) {
   const [errors, setErrors] = useState<ProductRegistrationErrors>({});
   const brandRef = useRef<HTMLInputElement | null>(null);
   const productNameRef = useRef<HTMLInputElement | null>(null);
 
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const input = { brand, productName, strength, volume };
-    const nextErrors = validateProductRegistration(input);
+    if (disabled) return;
+    const nextErrors = validateProductRegistration(value);
     setErrors(nextErrors);
     if (nextErrors.brand) {
       brandRef.current?.focus();
@@ -43,25 +40,19 @@ export function ProductRegistration({
       productNameRef.current?.focus();
       return;
     }
-    onRegister(input);
+    onRegister(value);
   };
 
   return (
     <section
-      className={styles.registrationScreen}
-      data-fv-screen="product-registration"
+      className={styles.registrationPanel}
+      data-registration-panel
+      data-registration-panel-state={exiting ? 'exiting' : 'active'}
+      aria-busy={disabled}
     >
-      <button type="button" className={styles.textButton} onClick={onBack}>
-        ← Back
-      </button>
       <p className={styles.eyebrow}>REGISTER ONE PRODUCT</p>
-      <h1 data-stage-focus tabIndex={-1}>
-        What are you putting on trial?
-      </h1>
-      <p>
-        Add only what Face Value cannot observe. You can leave strength and
-        volume blank.
-      </p>
+      <h2>Give the specimen an identity.</h2>
+      <p>Strength and volume are optional.</p>
 
       <form className={styles.registrationForm} onSubmit={submit} noValidate>
         <label>
@@ -70,10 +61,11 @@ export function ProductRegistration({
             ref={brandRef}
             name="brand"
             autoComplete="organization"
-            value={brand}
+            value={value.brand}
+            disabled={disabled}
             aria-invalid={Boolean(errors.brand)}
             aria-describedby={errors.brand ? 'brand-error' : undefined}
-            onChange={(event) => setBrand(event.target.value)}
+            onChange={(event) => onChange({ ...value, brand: event.target.value })}
           />
           {errors.brand && (
             <small id="brand-error" role="alert">
@@ -87,12 +79,11 @@ export function ProductRegistration({
             ref={productNameRef}
             name="product-name"
             autoComplete="off"
-            value={productName}
+            value={value.productName}
+            disabled={disabled}
             aria-invalid={Boolean(errors.productName)}
-            aria-describedby={
-              errors.productName ? 'product-name-error' : undefined
-            }
-            onChange={(event) => setProductName(event.target.value)}
+            aria-describedby={errors.productName ? 'product-name-error' : undefined}
+            onChange={(event) => onChange({ ...value, productName: event.target.value })}
           />
           {errors.productName && (
             <small id="product-name-error" role="alert">
@@ -105,31 +96,28 @@ export function ProductRegistration({
             <span>Strength or concentration</span>
             <input
               name="strength"
-              value={strength}
+              value={value.strength ?? ''}
+              disabled={disabled}
               placeholder="10%"
-              onChange={(event) => setStrength(event.target.value)}
+              onChange={(event) => onChange({ ...value, strength: event.target.value })}
             />
           </label>
           <label>
             <span>Volume</span>
             <input
               name="volume"
-              value={volume}
+              value={value.volume ?? ''}
+              disabled={disabled}
               placeholder="30 ml"
-              onChange={(event) => setVolume(event.target.value)}
+              onChange={(event) => onChange({ ...value, volume: event.target.value })}
             />
           </label>
         </div>
 
-        <fieldset className={styles.registrationJob}>
+        <fieldset className={styles.registrationJob} disabled={disabled}>
           <legend>ITS JOB</legend>
           <label>
-            <input
-              type="radio"
-              name="supported-job"
-              checked
-              readOnly
-            />
+            <input type="radio" name="supported-job" checked readOnly />
             <span>
               <strong>REDUCE VISIBLE REDNESS</strong>
               <small>The one supported job in this protocol</small>
@@ -137,8 +125,8 @@ export function ProductRegistration({
           </label>
         </fieldset>
 
-        <button type="submit" className={styles.primaryAction}>
-          <span>REGISTER PRODUCT</span>
+        <button type="submit" className={styles.primaryAction} disabled={disabled}>
+          <span>{submitLabel}</span>
           <span aria-hidden="true">→</span>
         </button>
       </form>

@@ -152,9 +152,9 @@ test('home keeps one hierarchy and the exact verdict across home, detail, and hi
   await expect(latestPaper.locator('[data-latest-paper-action]')).toContainText('VIEW TRIAL');
   await latestPaper.focus();
   await expect(latestPaper).toBeFocused();
-  expect(
-    await latestPaper.evaluate((element) => getComputedStyle(element).outlineStyle),
-  ).not.toBe('none');
+  expect(await latestPaper.evaluate((element) => getComputedStyle(element).outlineStyle)).not.toBe(
+    'none',
+  );
 
   const viewTrial = page.getByRole('button', {
     name: 'View trial FV–014 for Naturium · Azelaic Topical Acid',
@@ -197,7 +197,9 @@ test('home keeps one hierarchy and the exact verdict across home, detail, and hi
   await expect(savedRecords.first()).toContainText('FV–014');
   await expect(savedRecords.first()).toContainText('Naturium · Azelaic Topical Acid');
   await expect(savedRecords.first()).toContainText('A small favorable shift showed up.');
-  await expect(savedRecords.first()).toContainText('Visible redness moved in the intended direction.');
+  await expect(savedRecords.first()).toContainText(
+    'Visible redness moved in the intended direction.',
+  );
   await expect(savedRecords.first()).toContainText('POSSIBLE');
   await expect(savedRecords.first()).toContainText('TEST LONGER');
   await expect(savedRecords.first()).toContainText('→');
@@ -245,7 +247,7 @@ test('empty history keeps the status compact and Start a New Trial preserves reg
   const start = page.getByRole('button', { name: 'START A NEW TRIAL' });
   expect((await start.boundingBox())?.height).toBeGreaterThanOrEqual(44);
   await start.click();
-  await expect(page.getByRole('heading', { name: 'What are you putting on trial?' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Give the specimen an identity.' })).toBeVisible();
 });
 
 test('mobile widths, long verdict content, focus, and reduced motion remain stable', async ({
@@ -304,9 +306,7 @@ test('previous-trials case files remain compact, ordered, and overflow-safe', as
   ]) {
     await page.setViewportSize(viewport);
     await loadState(page, completedState([evidenceRecord, olderEvidenceRecord]));
-    await page
-      .getByRole('button', { name: 'Previous trials, 2 saved results' })
-      .click();
+    await page.getByRole('button', { name: 'Previous trials, 2 saved results' }).click();
 
     const archive = page.getByLabel('Previous trials');
     const cards = archive.getByRole('button', { name: /Open saved result/i });
@@ -449,9 +449,7 @@ test('captures final mobile verification evidence', async ({ page }) => {
   await expect(latestPaper).toBeFocused();
   await captureEvidence(page, '10-home-paper-focused-390');
 
-  await page
-    .getByRole('button', { name: 'Previous trials, 2 saved results' })
-    .click();
+  await page.getByRole('button', { name: 'Previous trials, 2 saved results' }).click();
   await expect(page.getByText('Demo controls')).toHaveCount(0);
   await captureEvidence(page, '06-previous-trials');
 
@@ -459,9 +457,7 @@ test('captures final mobile verification evidence', async ({ page }) => {
   await loadState(page, completedState([evidenceRecord, olderEvidenceRecord]));
   await captureEvidence(page, '02-home-narrow-320');
 
-  await page
-    .getByRole('button', { name: 'Previous trials, 2 saved results' })
-    .click();
+  await page.getByRole('button', { name: 'Previous trials, 2 saved results' }).click();
   await expect(page.getByText('Demo controls')).toHaveCount(0);
   await noHorizontalOverflow(page);
   await captureEvidence(page, '11-previous-trials-narrow-320');

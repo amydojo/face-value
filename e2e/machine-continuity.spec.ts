@@ -1,4 +1,4 @@
-import { mkdir, readFile } from 'node:fs/promises';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { expect, test, type Page } from '@playwright/test';
 import {
@@ -9,9 +9,12 @@ import type { DemoStartingPoint } from '../src/domain/demoLab';
 import { addCalendarDays } from '../src/domain/phaseB5';
 import { buildDemoFixtureState } from '../src/features/demo-lab/demoFixtureState';
 
-const evidenceDirectory = resolve(
-  'docs/verification/machine-continuity-2026-07-28',
+const evidenceDirectory = resolve('docs/verification/machine-continuity-2026-07-28');
+const firstTrialEvidenceDirectory = resolve(
+  'docs/verification/first-trial-specimen-ingestion-v1',
 );
+const captureFirstTrialEvidence =
+  process.env.CAPTURE_FIRST_TRIAL_EVIDENCE === 'true';
 
 type RuntimeIssue = {
   kind: 'console' | 'page' | 'response';
@@ -24,18 +27,14 @@ type ViewportSelector = {
 };
 
 type OrdinaryFixture =
-  | 'trial_pending'
-  | 'followup_ready'
-  | 'verdict_ready'
-  | 'cassette_revealed'
-  | 'home_saved_result';
+  'trial_pending' | 'followup_ready' | 'verdict_ready' | 'cassette_revealed' | 'home_saved_result';
 
 const machineParts = {
   chassis: '[data-oracle-chassis]',
   carbon: '[data-oracle-carbon-texture]',
   bezel: '[data-oracle-display-opening]',
   glass: '[data-oracle-display-glass]',
-  silhouette: '[data-oracle-specimen-silhouette]',
+  specimen: '[data-oracle-specimen]',
   lowerDeck: '[data-oracle-lower-deck]',
   slot: '[data-oracle-slot]',
   amber: '[data-oracle-amber-control]',
@@ -71,10 +70,7 @@ function collectRuntimeIssues(page: Page): RuntimeIssue[] {
 }
 
 function ordinaryFixture(startingPoint: OrdinaryFixture) {
-  const state = buildDemoFixtureState(
-    startingPoint,
-    'clear_favorable_change',
-  );
+  const state = buildDemoFixtureState(startingPoint, 'clear_favorable_change');
 
   if (startingPoint === 'trial_pending') {
     const baselineLockedAt = new Date().toISOString();
@@ -92,10 +88,7 @@ function ordinaryFixture(startingPoint: OrdinaryFixture) {
   return toPersistedDemoData(state);
 }
 
-async function openOrdinaryFixture(
-  page: Page,
-  startingPoint: OrdinaryFixture,
-): Promise<void> {
+async function openOrdinaryFixture(page: Page, startingPoint: OrdinaryFixture): Promise<void> {
   await page.goto('/');
   await page.evaluate(
     ({ key, value }) => {
@@ -120,17 +113,12 @@ async function openDemoPreview(
   startingPoint: Extract<DemoStartingPoint, 'trial_pending' | 'followup_ready'>,
 ): Promise<void> {
   await page.goto('/demo');
-  await page
-    .getByRole('combobox', { name: /Starting point/ })
-    .selectOption(startingPoint);
+  await page.getByRole('combobox', { name: /Starting point/ }).selectOption(startingPoint);
   await page.getByRole('button', { name: /OPEN DEMO STATE/ }).click();
   await expect(page).toHaveURL(/\/$/);
 }
 
-async function assertViewportContract(
-  page: Page,
-  selectors: ViewportSelector[],
-): Promise<void> {
+async function assertViewportContract(page: Page, selectors: ViewportSelector[]): Promise<void> {
   const measurements = await page.evaluate((requestedSelectors) => {
     const viewport = {
       width: document.documentElement.clientWidth,
@@ -170,10 +158,8 @@ async function assertViewportContract(
             }
             const rect = element.getBoundingClientRect();
             if (rect.width <= 1 || rect.height <= 1) return false;
-            const clipsX =
-              style.overflowX === 'hidden' || style.overflowX === 'clip';
-            const clipsY =
-              style.overflowY === 'hidden' || style.overflowY === 'clip';
+            const clipsX = style.overflowX === 'hidden' || style.overflowX === 'clip';
+            const clipsY = style.overflowY === 'hidden' || style.overflowY === 'clip';
             return (
               (clipsX && element.scrollWidth > element.clientWidth + 1) ||
               (clipsY && element.scrollHeight > element.clientHeight + 1) ||
@@ -201,39 +187,23 @@ async function assertViewportContract(
     };
   }, selectors);
 
-  expect(measurements.document.width).toBeLessThanOrEqual(
-    measurements.viewport.width,
-  );
-  expect(measurements.body.width).toBeLessThanOrEqual(
-    measurements.viewport.width,
-  );
-  expect(measurements.document.height).toBeLessThanOrEqual(
-    measurements.viewport.height,
-  );
-  expect(measurements.body.height).toBeLessThanOrEqual(
-    measurements.viewport.height,
-  );
+  expect(measurements.document.width).toBeLessThanOrEqual(measurements.viewport.width);
+  expect(measurements.body.width).toBeLessThanOrEqual(measurements.viewport.width);
+  expect(measurements.document.height).toBeLessThanOrEqual(measurements.viewport.height);
+  expect(measurements.body.height).toBeLessThanOrEqual(measurements.viewport.height);
   expect(measurements.clippedText).toEqual([]);
 
   for (const measurement of measurements.boxes) {
     expect(measurement.box, `${measurement.name} should exist`).not.toBeNull();
     if (!measurement.box) continue;
-    expect(
-      measurement.box.x,
-      `${measurement.name} left edge`,
-    ).toBeGreaterThanOrEqual(-0.5);
-    expect(
-      measurement.box.y,
-      `${measurement.name} top edge`,
-    ).toBeGreaterThanOrEqual(-0.5);
-    expect(
-      measurement.box.right,
-      `${measurement.name} right edge`,
-    ).toBeLessThanOrEqual(measurements.viewport.width + 0.5);
-    expect(
-      measurement.box.bottom,
-      `${measurement.name} bottom edge`,
-    ).toBeLessThanOrEqual(measurements.viewport.height + 0.5);
+    expect(measurement.box.x, `${measurement.name} left edge`).toBeGreaterThanOrEqual(-0.5);
+    expect(measurement.box.y, `${measurement.name} top edge`).toBeGreaterThanOrEqual(-0.5);
+    expect(measurement.box.right, `${measurement.name} right edge`).toBeLessThanOrEqual(
+      measurements.viewport.width + 0.5,
+    );
+    expect(measurement.box.bottom, `${measurement.name} bottom edge`).toBeLessThanOrEqual(
+      measurements.viewport.height + 0.5,
+    );
   }
 }
 
@@ -315,21 +285,21 @@ async function hardwareMetrics(page: Page) {
       if (!part) throw new Error(`Missing Oracle hardware part: ${selector}`);
       return part;
     };
-    const chassis = requiredPart(selectors.chassis);
-    const chassisBox = chassis.getBoundingClientRect();
-    const relativeBounds = (selector: string) => {
-      const box = requiredPart(selector).getBoundingClientRect();
+    const machineBox = machine.getBoundingClientRect();
+    const relativeBounds = (element: HTMLElement) => {
+      const box = element.getBoundingClientRect();
       return {
-        x: rounded(box.x - chassisBox.x),
-        y: rounded(box.y - chassisBox.y),
+        x: rounded(box.x - machineBox.x),
+        y: rounded(box.y - machineBox.y),
         width: rounded(box.width),
         height: rounded(box.height),
-        right: rounded(box.right - chassisBox.x),
-        bottom: rounded(box.bottom - chassisBox.y),
+        right: rounded(box.right - machineBox.x),
+        bottom: rounded(box.bottom - machineBox.y),
+        borderRadius: getComputedStyle(element).borderRadius,
       };
     };
-    const machineBox = machine.getBoundingClientRect();
-    const chassisStyle = getComputedStyle(chassis);
+    const partBounds = (selector: string) => relativeBounds(requiredPart(selector));
+    const chassis = requiredPart(selectors.chassis);
 
     return {
       implementation: machine.getAttribute('data-machine-implementation'),
@@ -340,22 +310,28 @@ async function hardwareMetrics(page: Page) {
         ]),
       ),
       machine: {
+        x: rounded(machineBox.x),
+        y: 0,
         width: rounded(machineBox.width),
         height: rounded(machineBox.height),
+        right: rounded(machineBox.width),
+        bottom: rounded(machineBox.height),
         aspectRatio: rounded(machineBox.width / machineBox.height),
         computedAspectRatio: getComputedStyle(machine).aspectRatio,
+        borderRadius: getComputedStyle(machine).borderRadius,
       },
       chassis: {
-        width: rounded(chassisBox.width),
-        height: rounded(chassisBox.height),
-        aspectRatio: rounded(chassisBox.width / chassisBox.height),
-        borderRadius: chassisStyle.borderRadius,
+        ...relativeBounds(chassis),
+        aspectRatio: rounded(
+          chassis.getBoundingClientRect().width /
+            chassis.getBoundingClientRect().height,
+        ),
       },
-      displayBezel: relativeBounds(selectors.bezel),
-      lowerDeck: relativeBounds(selectors.lowerDeck),
-      amberControl: relativeBounds(selectors.amber),
-      pullHandle: relativeBounds(selectors.handle),
-      bottomRail: relativeBounds(selectors.bottomRail),
+      displayBezel: partBounds(selectors.bezel),
+      lowerDeck: partBounds(selectors.lowerDeck),
+      amberControl: partBounds(selectors.amber),
+      pullHandle: partBounds(selectors.handle),
+      bottomRail: partBounds(selectors.bottomRail),
     };
   }, machineParts);
 }
@@ -385,11 +361,12 @@ async function activeScreenGeometry(page: Page) {
 
 test.beforeAll(async () => {
   await mkdir(evidenceDirectory, { recursive: true });
+  if (captureFirstTrialEvidence) {
+    await mkdir(firstTrialEvidenceDirectory, { recursive: true });
+  }
 });
 
-test('First Run uses the original Oracle machine and fits at 390 × 844', async ({
-  page,
-}) => {
+test('First Run uses the original Oracle machine and fits at 390 × 844', async ({ page }) => {
   const runtimeIssues = collectRuntimeIssues(page);
   await page.setViewportSize({ width: 390, height: 844 });
   await openOrdinaryFirstRun(page);
@@ -404,10 +381,8 @@ test('First Run uses the original Oracle machine and fits at 390 × 844', async 
       name: 'Is your skincare actually doing anything?',
     }),
   ).toBeVisible();
-  await expect(
-    page.getByRole('button', { name: 'START A PRODUCT TRIAL' }),
-  ).toBeVisible();
-  await expect(page.getByText('NO TRIAL LOADED')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'LOAD A PRODUCT' })).toBeVisible();
+  await expect(page.getByText('NO SPECIMEN LOADED')).toBeVisible();
   await expect(page.getByText('Insert one product to begin.')).toBeVisible();
 
   await assertViewportContract(page, [
@@ -418,9 +393,7 @@ test('First Run uses the original Oracle machine and fits at 390 × 844', async 
   expect(runtimeIssues).toEqual([]);
 });
 
-test('First Run remains complete across supported mobile viewports', async ({
-  page,
-}) => {
+test('First Run remains complete across supported mobile viewports', async ({ page }) => {
   const runtimeIssues = collectRuntimeIssues(page);
   for (const viewport of [
     { width: 375, height: 812 },
@@ -438,29 +411,20 @@ test('First Run remains complete across supported mobile viewports', async ({
   expect(runtimeIssues).toEqual([]);
 });
 
-test('Trial Pending renders live data, remains inert, and survives reload', async ({
-  page,
-}) => {
+test('Trial Pending renders live data, remains inert, and survives reload', async ({ page }) => {
   const runtimeIssues = collectRuntimeIssues(page);
   await page.setViewportSize({ width: 390, height: 844 });
   await openOrdinaryFixture(page, 'trial_pending');
 
   const pendingMachine = page.locator('[data-trial-machine-state="pending"]');
   await expect(page.locator('[data-fv-screen="trial-pending"]')).toBeVisible();
-  await expect(pendingMachine).toHaveAttribute(
-    'data-machine-implementation',
-    'oracle',
-  );
+  await expect(pendingMachine).toHaveAttribute('data-machine-implementation', 'oracle');
   await expect(pendingMachine).toContainText('Face Value Lab');
   await expect(pendingMachine).toContainText('One Thing Redness Trial');
-  await expect(pendingMachine).toContainText('Reduce visible redness');
+  await expect(pendingMachine).toContainText('REDUCE VISIBLE REDNESS');
   await expect(pendingMachine).toContainText('DAY 01 OF 14');
-  await expect(page.locator('[data-followup-action="pending"]')).toContainText(
-    'IN 14 DAYS',
-  );
-  await expect(
-    page.getByRole('button', { name: 'Take follow-up scan' }),
-  ).toHaveCount(0);
+  await expect(page.locator('[data-followup-action="pending"]')).toContainText('IN 14 DAYS');
+  await expect(page.getByRole('button', { name: 'Take follow-up scan' })).toHaveCount(0);
 
   await assertViewportContract(page, [
     ...coreMachineSelectors,
@@ -474,13 +438,11 @@ test('Trial Pending renders live data, remains inert, and survives reload', asyn
 
   await page.reload();
   await expect(page.locator('[data-trial-machine-state="pending"]')).toBeVisible();
-  await expect(page.locator('[data-followup-action="pending"]')).toContainText(
-    'IN 14 DAYS',
-  );
+  await expect(page.locator('[data-followup-action="pending"]')).toContainText('IN 14 DAYS');
   expect(runtimeIssues).toEqual([]);
 });
 
-test('Empty, pending, ready, and sealed verdict share exact hardware geometry', async ({
+test('Empty, registration preview, baseline ready, pending, and follow-up ready share exact hardware geometry', async ({
   page,
 }) => {
   await page.setViewportSize({ width: 390, height: 844 });
@@ -489,22 +451,40 @@ test('Empty, pending, ready, and sealed verdict share exact hardware geometry', 
   await openOrdinaryFirstRun(page);
   metrics.empty = await hardwareMetrics(page);
 
-  for (const startingPoint of [
-    'trial_pending',
-    'followup_ready',
-    'verdict_ready',
-  ] as const) {
+  await page.getByRole('button', { name: 'LOAD A PRODUCT' }).click();
+  await expect(page.locator('[data-trial-machine-state="registration-preview"]')).toBeVisible();
+  metrics.registration_preview = await hardwareMetrics(page);
+  await page.getByRole('textbox', { name: 'Brand' }).fill('Face Value Lab');
+  await page
+    .getByRole('textbox', { name: 'Product name' })
+    .fill('One Thing Redness Trial');
+  await page.getByRole('button', { name: 'REGISTER & LOAD' }).click();
+  await expect(page.locator('[data-oracle-machine]')).toHaveAttribute(
+    'data-ingestion-phase',
+    'ready',
+  );
+  metrics.baseline_ready = await hardwareMetrics(page);
+
+  for (const startingPoint of ['trial_pending', 'followup_ready'] as const) {
     await openOrdinaryFixture(page, startingPoint);
     metrics[startingPoint] = await hardwareMetrics(page);
   }
 
-  expect(metrics.verdict_ready.implementation).toBe('oracle');
-  expect(Object.values(metrics.verdict_ready.partCounts)).toEqual(
+  expect(metrics.empty.implementation).toBe('oracle');
+  expect(Object.values(metrics.empty.partCounts)).toEqual(
     Object.values(machineParts).map(() => 1),
   );
-  expect(metrics.empty).toEqual(metrics.verdict_ready);
-  expect(metrics.trial_pending).toEqual(metrics.verdict_ready);
-  expect(metrics.followup_ready).toEqual(metrics.verdict_ready);
+  expect(metrics.registration_preview).toEqual(metrics.empty);
+  expect(metrics.baseline_ready).toEqual(metrics.empty);
+  expect(metrics.trial_pending).toEqual(metrics.empty);
+  expect(metrics.followup_ready).toEqual(metrics.empty);
+
+  if (captureFirstTrialEvidence) {
+    await writeFile(
+      resolve(firstTrialEvidenceDirectory, 'geometry-measurements.json'),
+      `${JSON.stringify({ viewport: { width: 390, height: 844 }, states: metrics }, null, 2)}\n`,
+    );
+  }
 });
 
 test('Pending and ready keep identical screen geometry and differ only by approved state', async ({
@@ -524,10 +504,7 @@ test('Pending and ready keep identical screen geometry and differ only by approv
     'data-amber-state',
     'trial-pending',
   );
-  await expect(page.locator('[data-followup-action="pending"]')).toHaveAttribute(
-    'role',
-    'status',
-  );
+  await expect(page.locator('[data-followup-action="pending"]')).toHaveAttribute('role', 'status');
 
   await openOrdinaryFixture(page, 'followup_ready');
   const readyHardware = await hardwareMetrics(page);
@@ -549,9 +526,7 @@ test('Pending and ready keep identical screen geometry and differ only by approv
   await page.reload();
   await expect(page.locator('[data-trial-machine-state="followup-ready"]')).toBeVisible();
   await page.getByRole('button', { name: 'Take follow-up scan' }).click();
-  await expect(
-    page.getByRole('heading', { name: 'Center your face' }),
-  ).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Center your face' })).toBeVisible();
   expect(runtimeIssues).toEqual([]);
 });
 
@@ -580,10 +555,7 @@ test('Trial Pending remains graceful across supported viewports and reduced moti
   await page.setViewportSize({ width: 390, height: 844 });
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await openOrdinaryFixture(page, 'trial_pending');
-  await expect(page.locator('[data-followup-action="pending"]')).toHaveAttribute(
-    'role',
-    'status',
-  );
+  await expect(page.locator('[data-followup-action="pending"]')).toHaveAttribute('role', 'status');
   await assertViewportContract(page, [
     ...coreMachineSelectors,
     { name: 'timeline', selector: '[data-trial-timeline]' },
@@ -608,15 +580,14 @@ test('Demo Lab pending and ready reach the same production Oracle implementation
   const pendingMetrics = await hardwareMetrics(page);
 
   await openDemoPreview(page, 'followup_ready');
-  await expect(
-    page.locator('[data-trial-machine-state="followup-ready"]'),
-  ).toHaveAttribute('data-machine-implementation', 'oracle');
+  await expect(page.locator('[data-trial-machine-state="followup-ready"]')).toHaveAttribute(
+    'data-machine-implementation',
+    'oracle',
+  );
   expect(await hardwareMetrics(page)).toEqual(pendingMetrics);
 });
 
-test('captures the repaired states beside unchanged verdict references', async ({
-  page,
-}) => {
+test('captures the repaired states beside unchanged verdict references', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
 
   await openOrdinaryFixture(page, 'home_saved_result');
