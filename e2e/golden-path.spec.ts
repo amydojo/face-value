@@ -69,14 +69,13 @@ function assertFaceFreeStorage(serialized: string | null): void {
 
 async function expectGuidedQualityReady(page: Page): Promise<void> {
   const quality = page.getByLabel('Capture quality');
-  await expect(quality.locator('[data-accepted="true"]')).toHaveCount(3, {
-    timeout: 800,
+  await expect(quality.locator('[data-quality-state="passed"]')).toHaveCount(3, {
+    timeout: 2_000,
   });
-  await expect(page.locator('p[aria-hidden="true"]', { hasText: 'Hold still…' })).toBeVisible();
 }
 
 async function takeGuidedCapture(page: Page, kind: 'baseline' | 'followup'): Promise<void> {
-  await expect(page.getByRole('heading', { name: 'Center your face' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Position your face' })).toBeVisible();
   await expect(page.getByRole('checkbox')).toHaveCount(0);
   await expect(
     page.getByRole('button', { name: /shutter|take photo|use this capture/i }),
@@ -91,7 +90,7 @@ async function takeGuidedCapture(page: Page, kind: 'baseline' | 'followup'): Pro
     page.getByRole('heading', {
       name: 'Anything meaningfully different today?',
     }),
-  ).toBeVisible({ timeout: 2_000 });
+  ).toBeVisible({ timeout: 5_000 });
   await expect(page.locator(`[data-fv-screen="${kind}-context"]`)).toBeVisible();
   await page.getByRole('button', { name: 'NOTHING DIFFERENT' }).click();
 }

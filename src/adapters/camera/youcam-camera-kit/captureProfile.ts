@@ -6,7 +6,7 @@ export interface CameraKitCaptureProfile {
   videoQuality: '1080p' | '1920p';
   imageFormat: 'blob';
   qualityLevel: 'moderate';
-  countingDuration: 800;
+  countingDuration: number;
   hideFlipCameraButton: true;
   disableCameraResolutionCheck: false;
 }
@@ -17,7 +17,7 @@ export const CAMERA_KIT_HD_1080_PROFILE: CameraKitCaptureProfile = {
   videoQuality: '1080p',
   imageFormat: 'blob',
   qualityLevel: 'moderate',
-  countingDuration: 800,
+  countingDuration: 2_400,
   hideFlipCameraButton: true,
   disableCameraResolutionCheck: false,
 };
@@ -28,9 +28,7 @@ export const CAMERA_KIT_HD_1920_PROFILE: CameraKitCaptureProfile = {
   videoQuality: '1920p',
 };
 
-export function isIPhoneSafari(
-  navigatorObject: Pick<Navigator, 'userAgent' | 'vendor'>,
-): boolean {
+export function isIPhoneSafari(navigatorObject: Pick<Navigator, 'userAgent' | 'vendor'>): boolean {
   const userAgent = navigatorObject.userAgent;
   return (
     /iPhone|iPod/i.test(userAgent) &&
@@ -43,10 +41,7 @@ export function isIPhoneSafari(
 
 export function selectCameraKitCaptureProfile({
   frozenCaptureProfileId,
-  navigatorObject =
-    typeof navigator === 'undefined'
-      ? { userAgent: '', vendor: '' }
-      : navigator,
+  navigatorObject = typeof navigator === 'undefined' ? { userAgent: '', vendor: '' } : navigator,
   highResolutionProven = false,
 }: {
   frozenCaptureProfileId?: CameraCaptureProfileId | null;

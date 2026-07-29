@@ -24,12 +24,24 @@ export function createCameraKitAdapter(): CameraKitAdapter {
   const slowQualityProgression =
     useFixture &&
     typeof location !== 'undefined' &&
-    new URLSearchParams(location.search).get('camera-quality-proof') ===
-      '1';
+    new URLSearchParams(location.search).get('camera-quality-proof') === '1';
+  const requestedScenario =
+    useFixture && typeof location !== 'undefined'
+      ? new URLSearchParams(location.search).get('camera-scenario')
+      : null;
+  const scenario =
+    requestedScenario === 'signal-flicker' ||
+    requestedScenario === 'lose-lock' ||
+    requestedScenario === 'lose-scan' ||
+    requestedScenario === 'permission-denied' ||
+    requestedScenario === 'camera-unavailable'
+      ? requestedScenario
+      : 'success';
   return useFixture
     ? new FixtureCameraKitAdapter({
         stallFirstSession,
         qualityStepMs: slowQualityProgression ? 600 : 60,
+        scenario,
       })
     : new YouCamCameraKitAdapter();
 }

@@ -183,7 +183,8 @@ test('a stalled preview restarts from a fresh tap and Back releases it', async (
 
   const restart = page.getByRole('button', { name: 'RESTART CAMERA' });
   await expect(restart).toBeFocused();
-  await expect(page.getByText('The camera preview did not start.')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Camera unavailable' })).toBeVisible();
+  await expect(page.getByText('Choose an existing photo to continue')).toBeVisible();
   await expect(page.locator('[data-camera-kit-fixture="active"]')).toHaveCount(0);
 
   await restart.click();
@@ -197,7 +198,7 @@ test('a stalled preview restarts from a fresh tap and Back releases it', async (
   expect(runtimeErrors).toEqual([]);
 });
 
-test('preview-live gates visible Face, Position, and Light progression', async ({ page }) => {
+test('preview-live gates one instruction and the canonical quality rail', async ({ page }) => {
   const runtimeErrors: string[] = [];
   page.on('pageerror', (error) => runtimeErrors.push(`page: ${error.message}`));
   page.on('console', (message) => {
@@ -214,14 +215,12 @@ test('preview-live gates visible Face, Position, and Light progression', async (
   await page.getByRole('button', { name: 'START GUIDED CAPTURE' }).click();
 
   await expect(page.locator('[data-preview-state="preview-live"]')).toBeVisible();
-  const indicators = page.getByLabel('Capture quality').locator(':scope > div');
-  await expect(indicators.nth(0)).toHaveAttribute('data-accepted', 'true');
-  await expect(indicators.nth(1)).toHaveAttribute('data-accepted', 'false');
-  await expect(indicators.nth(2)).toHaveAttribute('data-accepted', 'false');
-  await expect(indicators.nth(1)).toHaveAttribute('data-accepted', 'true');
-  await expect(indicators.nth(2)).toHaveAttribute('data-accepted', 'false');
-  await expect(indicators.nth(2)).toHaveAttribute('data-accepted', 'true');
-  await expect(page.locator('p[aria-hidden="true"]', { hasText: 'Hold still…' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Move slightly closer' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Move toward softer light' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Hold still' })).toBeVisible();
+  const quality = page.getByLabel('Capture quality');
+  await expect(quality.locator('[data-quality-state="passed"]')).toHaveCount(3);
+  await expect(page.getByText(/Good|Perfect|Success/)).toHaveCount(0);
 
   await page.getByRole('button', { name: '← Back' }).click();
   await expect(page.locator('[data-camera-kit-fixture="active"]')).toHaveCount(0);

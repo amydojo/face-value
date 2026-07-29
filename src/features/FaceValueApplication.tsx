@@ -664,7 +664,11 @@ export function FaceValueApplication() {
   };
 
   return (
-    <EvidenceShell tone={tone} label="Face Value product trial">
+    <EvidenceShell
+      tone={tone}
+      captureActive={state.stage === 'camera'}
+      label="Face Value product trial"
+    >
       {!firstTrialStage && (
         <div className={styles.liveRegion} aria-live="polite" aria-atomic="true">
           {state.announcement}

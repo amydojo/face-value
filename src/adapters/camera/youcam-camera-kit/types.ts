@@ -1,4 +1,5 @@
 import type { CameraCaptureProfileId } from '../../../domain/model';
+import type { CaptureSignalSample } from '../../../domain/captureAcquisition';
 
 export type CameraKitEventName =
   | 'loaded'
@@ -13,6 +14,7 @@ export type CameraKitListenerIdentifier = unknown;
 
 export interface CameraKitInitOptions {
   faceDetectionMode: 'hdskincare';
+  moduleMode: 'headless';
   imageFormat: 'blob';
   language: 'enu';
   qualityLevel: 'moderate';
@@ -22,6 +24,9 @@ export interface CameraKitInitOptions {
   disableCameraResolutionCheck: false;
   width: number;
   height: number;
+  qualityOverrides: {
+    face_ratio_lower_threshold: number;
+  };
 }
 
 export interface CameraKitQualityPayload {
@@ -29,6 +34,8 @@ export interface CameraKitQualityPayload {
   position?: string;
   frontal?: string;
   lighting?: string;
+  pose?: string;
+  size?: string | number;
 }
 
 export interface CameraKitCapturedImage {
@@ -60,23 +67,8 @@ export interface CameraKitWindow extends Window {
   YMKAsyncInit?: () => void;
 }
 
-export type GuidedCaptureGuidance =
-  | 'center-face'
-  | 'move-closer'
-  | 'move-back'
-  | 'look-forward'
-  | 'more-light'
-  | 'hold-still'
-  | 'ready';
-
-export interface GuidedCaptureQuality {
-  hasFace: boolean;
-  positionAccepted: boolean;
-  frontalAccepted: boolean;
-  lightingAccepted: boolean;
-  resolutionAccepted: boolean;
+export interface GuidedCaptureQuality extends CaptureSignalSample {
   ready: boolean;
-  guidance: GuidedCaptureGuidance;
 }
 
 export type GuidedCaptureFailure =
@@ -94,12 +86,7 @@ export interface GuidedCaptureSession {
 }
 
 export type GuidedCaptureStatus =
-  | 'loading'
-  | 'camera-opening'
-  | 'preview-live'
-  | 'preview-stalled'
-  | 'captured'
-  | 'closed';
+  'loading' | 'camera-opening' | 'preview-live' | 'preview-stalled' | 'captured' | 'closed';
 
 export type CameraKitDiagnosticStage =
   | 'sdk-loaded'

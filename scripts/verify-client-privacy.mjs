@@ -9,7 +9,6 @@ const forbidden = [
   'providerTaskId',
   'data:image',
   'blob:',
-  'URL.createObjectURL',
   'readAsDataURL',
   'MediaStream',
   'temporary mask URL',
@@ -18,6 +17,14 @@ const forbidden = [
   ...[process.env.YOUCAM_API_KEY, process.env.YOUCAM_SPIKE_TOKEN]
     .map((value) => value?.trim())
     .filter((value) => value),
+];
+
+const requiredPairs = [
+  {
+    trigger: 'URL.createObjectURL',
+    cleanup: 'URL.revokeObjectURL',
+    description: 'object URL creation without bundled revocation support',
+  },
 ];
 
 async function filesUnder(directory) {
@@ -47,6 +54,11 @@ for (const file of await filesUnder(rootPath)) {
   for (const marker of forbidden) {
     if (text.includes(marker)) {
       violations.push(`${relative(rootPath, file)} contains ${JSON.stringify(marker)}`);
+    }
+  }
+  for (const pair of requiredPairs) {
+    if (text.includes(pair.trigger) && !text.includes(pair.cleanup)) {
+      violations.push(`${relative(rootPath, file)} contains ${pair.description}`);
     }
   }
 }
