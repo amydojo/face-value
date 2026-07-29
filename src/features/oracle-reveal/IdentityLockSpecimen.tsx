@@ -1,7 +1,9 @@
+import type { CSSProperties } from 'react';
+import type {
+  SpecimenRegistrationPhase,
+  SpecimenRegistrationSnapshot,
+} from '../../domain/specimenRegistration';
 import styles from './IdentityLockSpecimen.module.css';
-
-export type SpecimenIngestionPhase =
-  'idle' | 'materializing' | 'loading' | 'locking' | 'confirming' | 'ready';
 
 export type OracleTrialState =
   'empty' | 'registration-preview' | 'baseline-ready' | 'pending' | 'followup-ready';
@@ -17,11 +19,19 @@ export interface OracleSpecimenIdentity {
 export interface IdentityLockSpecimenProps {
   identity: OracleSpecimenIdentity | null;
   specimenState: OracleTrialState | 'verdict';
-  phase: SpecimenIngestionPhase;
+  registration: SpecimenRegistrationSnapshot;
 }
 
 type IdentityLockState = 'loading' | 'locking' | 'locked';
 type ActiveIdentity = { label: string; aliases: string[] };
+type SpecimenRegistrationStyle = CSSProperties & {
+  '--fv-label-blur': string;
+  '--fv-label-opacity': string;
+  '--fv-paper-catchlight-opacity': string;
+  '--fv-scan-edge-opacity': string;
+  '--fv-scan-translate': string;
+  '--fv-scan-wash-opacity': string;
+};
 
 const fallbackIdentity: OracleSpecimenIdentity = {
   brand: 'UNASSIGNED',
@@ -123,15 +133,46 @@ const activeIdentities: ActiveIdentity[] = [
 );
 
 const genericFormulationWords = new Set([
-  'SERUM', 'CREAM', 'LOTION', 'GEL', 'TONER', 'ESSENCE', 'AMPOULE', 'CONCENTRATE',
-  'EMULSION', 'CLEANSER', 'WASH', 'MASK', 'BALM', 'MOISTURIZER', 'TREATMENT',
-  'SOLUTION', 'SUSPENSION', 'FORMULA', 'COMPLEX', 'BOOSTER', 'SUPPORT', 'BARRIER',
-  'REPAIR', 'BRIGHTENING', 'CALMING', 'SOOTHING', 'HYDRATING', 'EXFOLIATING',
-  'RENEWAL', 'DAILY', 'NIGHT', 'ADVANCED', 'CLINICAL',
+  'SERUM',
+  'CREAM',
+  'LOTION',
+  'GEL',
+  'TONER',
+  'ESSENCE',
+  'AMPOULE',
+  'CONCENTRATE',
+  'EMULSION',
+  'CLEANSER',
+  'WASH',
+  'MASK',
+  'BALM',
+  'MOISTURIZER',
+  'TREATMENT',
+  'SOLUTION',
+  'SUSPENSION',
+  'FORMULA',
+  'COMPLEX',
+  'BOOSTER',
+  'SUPPORT',
+  'BARRIER',
+  'REPAIR',
+  'BRIGHTENING',
+  'CALMING',
+  'SOOTHING',
+  'HYDRATING',
+  'EXFOLIATING',
+  'RENEWAL',
+  'DAILY',
+  'NIGHT',
+  'ADVANCED',
+  'CLINICAL',
 ]);
 
 const words = (value: string): string[] =>
-  value.trim().toUpperCase().match(/[A-Z0-9]+(?:[.-][A-Z0-9]+)?/g) ?? [];
+  value
+    .trim()
+    .toUpperCase()
+    .match(/[A-Z0-9]+(?:[.-][A-Z0-9]+)?/g) ?? [];
 
 const normalizeForMatching = (value: string): string =>
   value
@@ -141,17 +182,6 @@ const normalizeForMatching = (value: string): string =>
     .replace(/\s+/g, ' ')
     .trim();
 
-const compactWords = (tokens: string[], maximumCharacters: number): string => {
-  if (tokens.length === 0) return '';
-  const accepted: string[] = [];
-  for (const token of tokens) {
-    const candidate = [...accepted, token].join(' ');
-    if (candidate.length > maximumCharacters) break;
-    accepted.push(token);
-  }
-  return accepted.length > 0 ? accepted.join(' ') : tokens[0].slice(0, maximumCharacters);
-};
-
 const compactBrand = (brand: string): string => {
   const tokens = words(brand);
   const complete = tokens.join(' ');
@@ -160,10 +190,12 @@ const compactBrand = (brand: string): string => {
   return complete.slice(0, 8);
 };
 
-const numericStrength = (identity: OracleSpecimenIdentity): string => {
-  const explicit = identity.strength?.match(/\d+(?:[.,]\d+)?/);
-  const embedded = identity.productName.match(/\d+(?:[.,]\d+)?\s*%/);
-  return (explicit?.[0] ?? embedded?.[0] ?? '').replace(',', '.').replace(/\s*%$/, '');
+const percentageStrength = (identity: OracleSpecimenIdentity): string => {
+  for (const source of [identity.strength, identity.productName]) {
+    const percentage = source?.match(/(\d+(?:[.,]\d+)?)\s*%/);
+    if (percentage) return `${percentage[1].replace(',', '.')}%`;
+  }
+  return '';
 };
 
 const recognizedActives = (value: string): string[] => {
@@ -180,7 +212,10 @@ const recognizedActives = (value: string): string[] => {
     matches.push({ label: identity.label, index: best.index, specificity: best.alias.length });
   }
 
-  if (matches.some(({ label }) => label === 'AHA') && matches.some(({ label }) => label === 'BHA')) {
+  if (
+    matches.some(({ label }) => label === 'AHA') &&
+    matches.some(({ label }) => label === 'BHA')
+  ) {
     return ['AHA', 'BHA'];
   }
 
@@ -212,55 +247,85 @@ const compactProduct = (identity: OracleSpecimenIdentity): string => {
   return actives.length > 0 ? actives.join(' + ') : safeFallbackProduct(identity);
 };
 
-const compactVolume = (volume: string | null): string => {
-  if (!volume?.trim()) return '';
-  const normalized = volume.trim().toUpperCase().replace(/\s+/g, ' ');
-  const measured = normalized.match(/(\d+(?:[.,]\d+)?)\s*(ML|FL OZ|OZ|G)\b/);
-  if (measured) return `${measured[1].replace(',', '.')} ${measured[2]}`;
-  return compactWords(words(normalized), 8);
+const identityNameLines = (identity: string): string[] => {
+  const activeParts = identity.split(/\s+\+\s+/);
+  if (activeParts.length === 2) return [activeParts[0], `+ ${activeParts[1]}`];
+
+  const tokens = identity.split(/\s+/).filter(Boolean);
+  if (tokens.length <= 1) return tokens;
+
+  let splitIndex = 1;
+  let smallestDifference = Number.POSITIVE_INFINITY;
+  for (let index = 1; index < tokens.length; index += 1) {
+    const left = tokens.slice(0, index).join(' ');
+    const right = tokens.slice(index).join(' ');
+    const difference = Math.abs(left.length - right.length);
+    if (difference < smallestDifference) {
+      smallestDifference = difference;
+      splitIndex = index;
+    }
+  }
+  return [tokens.slice(0, splitIndex).join(' '), tokens.slice(splitIndex).join(' ')];
 };
 
 const identityLockStateFor = (
   specimenState: OracleTrialState | 'verdict',
-  phase: SpecimenIngestionPhase,
+  phase: SpecimenRegistrationPhase,
 ): IdentityLockState => {
   if (specimenState !== 'baseline-ready') {
     return ['pending', 'followup-ready', 'verdict'].includes(specimenState) ? 'locked' : 'loading';
   }
-  if (phase === 'locking') return 'locking';
-  return phase === 'confirming' || phase === 'ready' ? 'locked' : 'loading';
+  if (phase === 'scanning') return 'locking';
+  return ['processing', 'verified', 'ready'].includes(phase) ? 'locked' : 'loading';
 };
 
 export function IdentityLockSpecimen({
   identity,
   specimenState,
-  phase,
+  registration,
 }: IdentityLockSpecimenProps) {
   const visibleIdentity = identity ?? fallbackIdentity;
+  const { phase, scanProgress, isRegistering, isVerified, isReady, reducedMotion } = registration;
   const identityLockState = identityLockStateFor(specimenState, phase);
-  const ingestionActive = specimenState === 'baseline-ready' && !['idle', 'ready'].includes(phase);
-  const scanActive = specimenState === 'baseline-ready' && phase === 'locking';
+  const registrationActive = specimenState === 'baseline-ready' && isRegistering;
+  const scanActive = specimenState === 'baseline-ready' && phase === 'scanning';
+  const scanState = scanActive ? (reducedMotion ? 'wash' : 'active') : 'inactive';
   const displayBrand = compactBrand(visibleIdentity.brand) || 'UNNAMED';
   const displayProduct = compactProduct(visibleIdentity);
-  const displayStrength = numericStrength(visibleIdentity);
-  const displayVolume = compactVolume(visibleIdentity.volume);
-  const unresolvedPreview =
-    specimenState === 'registration-preview' &&
-    (!identity || visibleIdentity.productName === 'UNNAMED PRODUCT');
-  const labelFooter = unresolvedPreview
-    ? 'PREVIEW'
-    : displayVolume
-      ? `${displayVolume} · BASE`
-      : 'BASE';
-  const statusLocked = identityLockState === 'locked';
+  const displayStrength = percentageStrength(visibleIdentity);
+  const nameLines = identityNameLines(displayProduct).slice(0, 2);
+  const normalizedScanProgress = Math.max(0, Math.min(1, scanProgress));
+  const scanResponse = Math.sin(normalizedScanProgress * Math.PI);
+  const labelSoftened =
+    specimenState === 'baseline-ready' && ['preparing', 'aligning'].includes(phase);
+  const labelBlur = scanActive ? (1 - normalizedScanProgress) * 1.15 : labelSoftened ? 1.15 : 0;
+  const labelOpacity = scanActive ? 0.64 + normalizedScanProgress * 0.36 : labelSoftened ? 0.64 : 1;
+  const registrationStyle: SpecimenRegistrationStyle = {
+    '--fv-label-blur': `${labelBlur.toFixed(3)}px`,
+    '--fv-label-opacity': labelOpacity.toFixed(3),
+    '--fv-paper-catchlight-opacity': (0.24 + scanResponse * 0.62).toFixed(3),
+    '--fv-scan-edge-opacity': (0.28 + scanResponse * 0.5).toFixed(3),
+    '--fv-scan-translate': `${(-26 + normalizedScanProgress * 104).toFixed(3)}px`,
+    '--fv-scan-wash-opacity': (scanResponse * 0.2).toFixed(3),
+  };
+  const statusLocked =
+    (specimenState === 'baseline-ready' && isVerified) ||
+    ['pending', 'followup-ready', 'verdict'].includes(specimenState);
 
   return (
     <div
       className={styles.oracleSpecimen}
+      style={registrationStyle}
       data-oracle-specimen
       data-specimen-state={specimenState}
       data-ingestion-phase={phase}
-      data-ingestion-active={ingestionActive}
+      data-ingestion-active={registrationActive}
+      data-registration-phase={phase}
+      data-registration-active={registrationActive}
+      data-registration-complete={isReady}
+      data-registration-id={registration.registrationId ?? ''}
+      data-scan-state={scanState}
+      data-scan-progress={normalizedScanProgress.toFixed(3)}
       data-identity-lock-state={identityLockState}
       data-label-scan-active={scanActive}
       data-specimen-aspect-ratio="104/136"
@@ -290,6 +355,13 @@ export function IdentityLockSpecimen({
       <i className={styles.leftRim} data-specimen-layer="left-rim" />
       <i className={styles.rightRim} data-specimen-layer="right-rim" />
       <i className={styles.shoulderHighlight} data-specimen-layer="shoulder-highlight" />
+      <i className={styles.alignmentFrame} data-specimen-layer="alignment-frame" />
+      <i
+        className={styles.labelScanBeam}
+        data-label-scan-beam
+        data-label-scan-state={scanState}
+        data-scan-progress={normalizedScanProgress.toFixed(3)}
+      />
       <span className={styles.collar} data-specimen-layer="collar" />
       <i className={styles.capContactSeam} data-specimen-layer="cap-contact-seam" />
       <span className={styles.cap} data-specimen-layer="cap" />
@@ -306,18 +378,19 @@ export function IdentityLockSpecimen({
         <i className={styles.adhesivePressureLine} />
         <i className={styles.registrationNotch} />
         <i className={styles.lockReflection} />
-        <i
-          className={styles.labelScanBeam}
-          data-label-scan-beam
-          data-label-scan-state={scanActive ? 'active' : 'inactive'}
-        />
         <div className={styles.labelContent} data-label-content>
-          <span className={styles.labelMetadata} data-label-group="metadata">
-            <small>FV / S01</small>
-            <small>SPECIMEN ID</small>
-          </span>
-          <b className={styles.labelProduct} data-label-group="product-identity" data-label-product>
-            {displayProduct}
+          <b
+            className={styles.labelProduct}
+            data-label-group="product-identity"
+            data-label-product
+            data-label-name-lines={nameLines.length}
+          >
+            {nameLines.map((line, index) => (
+              <span data-label-name-line key={`${line}-${index}`}>
+                {index > 0 ? ' ' : ''}
+                {line}
+              </span>
+            ))}
           </b>
           <strong
             className={styles.labelStrength}
@@ -326,12 +399,6 @@ export function IdentityLockSpecimen({
           >
             {displayStrength}
           </strong>
-          <span className={styles.labelSupport} data-label-group="supporting-metadata">
-            TOPICAL
-          </span>
-          <span className={styles.labelFooter} data-label-group="footer">
-            {labelFooter}
-          </span>
         </div>
         <i
           className={styles.labelStatus}

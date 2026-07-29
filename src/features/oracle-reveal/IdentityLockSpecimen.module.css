@@ -246,6 +246,25 @@
   );
 }
 
+.alignmentFrame {
+  top: 39.7059%;
+  left: 7.6923%;
+  z-index: 13;
+  width: 84.6154%;
+  height: 46.3235%;
+  opacity: 0;
+  background:
+    linear-gradient(var(--fv-amber-core), var(--fv-amber-core)) 0 0 / 7px 1px no-repeat,
+    linear-gradient(var(--fv-amber-core), var(--fv-amber-core)) 0 0 / 1px 7px no-repeat,
+    linear-gradient(var(--fv-amber-core), var(--fv-amber-core)) 100% 0 / 7px 1px no-repeat,
+    linear-gradient(var(--fv-amber-core), var(--fv-amber-core)) 100% 0 / 1px 7px no-repeat,
+    linear-gradient(var(--fv-amber-core), var(--fv-amber-core)) 0 100% / 7px 1px no-repeat,
+    linear-gradient(var(--fv-amber-core), var(--fv-amber-core)) 0 100% / 1px 7px no-repeat,
+    linear-gradient(var(--fv-amber-core), var(--fv-amber-core)) 100% 100% / 7px 1px no-repeat,
+    linear-gradient(var(--fv-amber-core), var(--fv-amber-core)) 100% 100% / 1px 7px no-repeat;
+  pointer-events: none;
+}
+
 .collar {
   top: 13.2353%;
   left: 30.7692%;
@@ -517,49 +536,107 @@
 }
 
 .labelScanBeam {
-  inset: 0;
-  z-index: 4;
-  display: none !important;
-  width: 100%;
-  height: 100%;
+  top: 16%;
+  left: 8%;
+  z-index: 12;
+  display: block;
+  width: 84%;
+  height: 24px;
   opacity: 0;
   background: linear-gradient(
     180deg,
-    rgba(255, 244, 219, 0),
-    rgba(255, 228, 187, 0.76) 42%,
-    rgba(229, 116, 25, 0.72) 58%,
-    rgba(229, 116, 25, 0)
+    rgba(231, 118, 22, 0) 0%,
+    rgba(231, 118, 22, 0.04) 20%,
+    rgba(231, 118, 22, 0.16) 68%,
+    rgba(231, 118, 22, 0.02) 100%
   );
-  background-repeat: no-repeat;
-  background-position: 0 -8%;
-  background-size: 100% 8%;
+  filter: drop-shadow(0 0 4px var(--fv-amber-bloom));
+  transform: translate3d(0, var(--fv-scan-translate), 0);
   pointer-events: none;
+  will-change: transform, opacity;
+}
+
+.labelScanBeam::before,
+.labelScanBeam::after {
+  position: absolute;
+  right: 0;
+  left: 0;
+  content: '';
+}
+
+.labelScanBeam::before {
+  bottom: 3px;
+  height: 2px;
+  background: linear-gradient(
+    90deg,
+    rgba(255, 235, 204, 0.16),
+    #ffe3b9 18%,
+    var(--fv-amber-core) 72%,
+    rgba(231, 118, 22, 0.18)
+  );
+  box-shadow:
+    0 0 3px rgba(255, 212, 159, 0.72),
+    0 0 7px var(--fv-amber-bloom);
+}
+
+.labelScanBeam::after {
+  bottom: 0;
+  height: 7px;
+  background: linear-gradient(180deg, rgba(255, 220, 174, 0.18), rgba(231, 118, 22, 0.04));
+  filter: blur(2px);
+}
+
+.labelScanBeam[data-label-scan-state='active'] {
+  opacity: 0.94;
+}
+
+.labelScanBeam[data-label-scan-state='inactive'] {
+  opacity: 0;
+  transform: translate3d(0, -26px, 0);
+}
+
+.labelScanBeam[data-label-scan-state='wash'] {
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: var(--fv-scan-wash-opacity);
+  background: linear-gradient(
+    90deg,
+    rgba(231, 118, 22, 0),
+    rgba(231, 118, 22, 0.32) 52%,
+    rgba(231, 118, 22, 0)
+  );
+  filter: blur(5px);
+  transform: none;
+}
+
+.labelScanBeam[data-label-scan-state='wash']::before,
+.labelScanBeam[data-label-scan-state='wash']::after {
+  display: none;
 }
 
 .labelContent {
   position: absolute;
-  top: 3px;
-  right: 10px;
-  bottom: 3px;
-  left: 4px;
+  top: 7px;
+  right: 9px;
+  bottom: 7px;
+  left: 5px;
   z-index: 5;
   min-width: 0;
   display: grid;
-  grid-template-rows: 5px minmax(6px, 12px) 6px 5px 5px;
-  align-content: start;
+  grid-template-rows: minmax(7px, 14px) 8px;
+  align-content: center;
+  gap: 2px;
   overflow: hidden;
-  opacity: 1;
-  filter: none;
+  opacity: var(--fv-label-opacity);
+  filter: blur(var(--fv-label-blur));
   mix-blend-mode: normal;
   transform: none;
-  will-change: auto;
+  will-change: filter, opacity;
 }
 
-.labelMetadata,
 .labelProduct,
-.labelStrength,
-.labelSupport,
-.labelFooter {
+.labelStrength {
   position: static;
   min-height: 0;
   min-width: 0;
@@ -576,54 +653,29 @@
   will-change: auto;
 }
 
-.labelMetadata {
-  display: grid !important;
-  grid-template-columns: max-content minmax(0, 1fr);
-  align-items: center;
-  gap: 1px;
+.labelProduct {
+  display: block;
+  max-height: 14px;
+  font: 650 6.2px/7px var(--fv-font-mono);
+  letter-spacing: -0.06px;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
-.labelMetadata small {
-  min-width: 0;
+.labelProduct [data-label-name-line] {
+  display: block;
+  height: 7px;
   overflow: hidden;
-  font: 600 3.1px/5px var(--fv-font-mono);
-  letter-spacing: 0;
-  text-overflow: clip;
   white-space: nowrap;
 }
 
-.labelMetadata small:last-child {
-  text-align: right;
-}
-
-.labelProduct {
-  display: -webkit-box;
-  max-height: 12px;
-  font: 650 5.8px/6px var(--fv-font-mono);
-  letter-spacing: -0.08px;
-  white-space: normal;
-  overflow-wrap: anywhere;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-}
-
 .labelStrength {
-  font: 700 6.2px/6px var(--fv-font-mono);
+  font: 700 7px/8px var(--fv-font-mono);
   letter-spacing: -0.06px;
 }
 
 .labelStrength[data-label-has-strength='false'] {
   visibility: hidden;
-}
-
-.labelSupport {
-  font: 600 4.5px/5px var(--fv-font-mono);
-  letter-spacing: 0.04px;
-}
-
-.labelFooter {
-  font: 550 4.4px/5px var(--fv-font-mono);
-  letter-spacing: 0;
 }
 
 .labelStatus {
@@ -827,143 +879,103 @@
   opacity: 0.88;
 }
 
-.oracleSpecimen[data-specimen-state='registration-preview'] .labelMetadata,
 .oracleSpecimen[data-specimen-state='registration-preview'] .labelProduct {
   opacity: 0.88;
 }
 
-.oracleSpecimen[data-specimen-state='registration-preview'] .labelStrength,
-.oracleSpecimen[data-specimen-state='registration-preview'] .labelSupport,
-.oracleSpecimen[data-specimen-state='registration-preview'] .labelFooter {
+.oracleSpecimen[data-specimen-state='registration-preview'] .labelStrength {
   opacity: 0.7;
 }
 
-.oracleSpecimen[data-specimen-state='baseline-ready'][data-ingestion-phase='materializing'] {
+.oracleSpecimen[data-specimen-state='baseline-ready'][data-registration-phase='preparing'] {
   opacity: 1;
-  transform: translateY(26px);
+  transform: translateY(0);
 }
 
-.oracleSpecimen[data-specimen-state='baseline-ready'][data-ingestion-phase='materializing']
-  .shoulderForm,
-.oracleSpecimen[data-specimen-state='baseline-ready'][data-ingestion-phase='materializing']
-  .bottleBody {
+.oracleSpecimen[data-specimen-state='baseline-ready'][data-registration-phase='preparing']
+  .warmChamberBounce {
   opacity: 0.18;
+  transition: opacity 300ms linear;
 }
 
-.oracleSpecimen[data-specimen-state='baseline-ready'][data-ingestion-phase='materializing']
-  .thermalEvidenceLabel {
-  animation: thermalLabelMaterialize var(--fv-materialize-duration) cubic-bezier(0.16, 1, 0.3, 1)
-    both;
+.oracleSpecimen[data-specimen-state='baseline-ready'][data-registration-phase='aligning'] {
+  opacity: 1;
+  transform: translateY(1.5px);
+  transition: transform var(--fv-registration-aligning-duration) cubic-bezier(0.2, 0, 0.16, 1);
 }
 
-.oracleSpecimen[data-specimen-state='baseline-ready'][data-ingestion-phase='materializing']
+.oracleSpecimen[data-specimen-state='baseline-ready'][data-registration-phase='aligning']
+  .alignmentFrame {
+  opacity: 0.34;
+  transition: opacity 180ms linear;
+}
+
+.oracleSpecimen[data-specimen-state='baseline-ready'][data-registration-phase='aligning']
+  .warmChamberBounce {
+  opacity: 0.34;
+  transition: opacity var(--fv-registration-aligning-duration) linear;
+}
+
+.oracleSpecimen[data-specimen-state='baseline-ready'][data-registration-phase='scanning'] {
+  opacity: 1;
+  transform: translateY(0);
+  transition: transform 160ms cubic-bezier(0.32, 0, 0.11, 1);
+}
+
+.oracleSpecimen[data-specimen-state='baseline-ready'][data-registration-phase='scanning']
+  .alignmentFrame {
+  opacity: 0.22;
+  transition: opacity 160ms linear;
+}
+
+.oracleSpecimen[data-specimen-state='baseline-ready'][data-registration-phase='scanning']
+  .leftPaperCatchlight {
+  opacity: var(--fv-paper-catchlight-opacity);
+}
+
+.oracleSpecimen[data-specimen-state='baseline-ready'][data-registration-phase='scanning']
+  :is(.leftRim, .rightRim, .centerSheen) {
+  opacity: var(--fv-scan-edge-opacity);
+}
+
+.oracleSpecimen[data-specimen-state='baseline-ready'][data-registration-phase='scanning']
   .paperTone {
-  animation: thermalPaperMaterialize var(--fv-materialize-duration) cubic-bezier(0.16, 1, 0.3, 1)
-    both;
+  filter: brightness(calc(0.98 + var(--fv-scan-wash-opacity)));
 }
 
-.oracleSpecimen[data-specimen-state='baseline-ready'][data-ingestion-phase='materializing']
-  .labelMetadata {
-  opacity: 0.66;
-}
-
-.oracleSpecimen[data-specimen-state='baseline-ready'][data-ingestion-phase='materializing']
-  :is(.labelProduct, .labelStrength, .labelSupport, .labelFooter) {
-  opacity: 0;
-}
-
-.oracleSpecimen[data-specimen-state='baseline-ready'][data-ingestion-phase='loading'] {
-  opacity: 1;
-  transform: translateY(0);
-  transition: transform var(--fv-loading-duration) cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-.oracleSpecimen[data-specimen-state='baseline-ready'][data-ingestion-phase='loading']
-  :is(.shoulderForm, .bottleBody) {
-  opacity: 0.92;
-  transition: opacity var(--fv-loading-duration) cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-.oracleSpecimen[data-specimen-state='baseline-ready'][data-ingestion-phase='loading']
-  .labelMetadata {
-  opacity: 0.78;
-}
-
-.oracleSpecimen[data-specimen-state='baseline-ready'][data-ingestion-phase='loading']
-  .labelProduct {
-  opacity: 0.12;
-}
-
-.oracleSpecimen[data-specimen-state='baseline-ready'][data-ingestion-phase='loading']
-  :is(.labelStrength, .labelSupport, .labelFooter, .labelStatus) {
-  opacity: 0;
-}
-
-.oracleSpecimen[data-specimen-state='baseline-ready'][data-ingestion-phase='locking']
-  .labelScanBeam {
-  display: block !important;
-  animation: thermalLabelScan 145ms linear both;
-}
-
-.oracleSpecimen[data-specimen-state='baseline-ready'][data-ingestion-phase='locking']
-  .labelProduct {
-  animation: labelGroupResolve 42ms linear 10ms both;
-}
-
-.oracleSpecimen[data-specimen-state='baseline-ready'][data-ingestion-phase='locking']
-  .labelStrength {
-  animation: labelGroupResolve 42ms linear 38ms both;
-}
-
-.oracleSpecimen[data-specimen-state='baseline-ready'][data-ingestion-phase='locking']
-  .labelSupport {
-  animation: labelGroupResolve 42ms linear 66ms both;
-}
-
-.oracleSpecimen[data-specimen-state='baseline-ready'][data-ingestion-phase='locking'] .labelFooter {
-  animation: labelGroupResolve 42ms linear 92ms both;
-}
-
-.oracleSpecimen[data-specimen-state='baseline-ready'][data-ingestion-phase='confirming'] {
-  opacity: 1;
-  transform: translateY(0);
-  transition: none;
-}
-
-.oracleSpecimen[data-specimen-state='baseline-ready'][data-ingestion-phase='ready'] {
+.oracleSpecimen[data-specimen-state='baseline-ready']:is(
+    [data-registration-phase='processing'],
+    [data-registration-phase='verified'],
+    [data-registration-phase='ready']
+  ) {
   opacity: 1;
   transform: translateY(0);
   transition: none;
 }
 
 .oracleSpecimen[data-specimen-state='baseline-ready']:is(
-    [data-ingestion-phase='confirming'],
-    [data-ingestion-phase='ready']
-  ),
-.oracleSpecimen[data-specimen-state='baseline-ready']:is(
-    [data-ingestion-phase='confirming'],
-    [data-ingestion-phase='ready']
+    [data-registration-phase='processing'],
+    [data-registration-phase='verified'],
+    [data-registration-phase='ready']
   )
-  .thermalEvidenceLabel,
+  .alignmentFrame {
+  opacity: 0;
+  transition: opacity 120ms linear;
+}
+
 .oracleSpecimen[data-specimen-state='baseline-ready']:is(
-    [data-ingestion-phase='confirming'],
-    [data-ingestion-phase='ready']
+    [data-registration-phase='processing'],
+    [data-registration-phase='verified'],
+    [data-registration-phase='ready']
   )
-  .labelContent,
-.oracleSpecimen[data-specimen-state='baseline-ready']:is(
-    [data-ingestion-phase='confirming'],
-    [data-ingestion-phase='ready']
-  )
-  [data-label-group] {
+  :is(.thermalEvidenceLabel, .labelContent, [data-label-group]) {
   opacity: 1;
   filter: none;
   mix-blend-mode: normal;
-  transform: none;
   animation: none;
-  will-change: auto;
 }
 
-.oracleSpecimen[data-specimen-state='baseline-ready'][data-ingestion-phase='confirming']
+.oracleSpecimen[data-specimen-state='baseline-ready'][data-registration-phase='processing']
   .contactShadow {
   opacity: 0.86;
 }
@@ -980,82 +992,13 @@
   opacity: 1;
 }
 
-.oracleSpecimen[data-ingestion-active='true'] {
+.oracleSpecimen[data-registration-active='true'] {
   will-change: transform, opacity;
 }
 
-.oracleSpecimen[data-specimen-state='baseline-ready'][data-ingestion-phase='materializing']
-  .thermalEvidenceLabel {
-  will-change: transform, opacity;
-}
-
-.oracleSpecimen[data-specimen-state='baseline-ready'][data-ingestion-phase='materializing']
-  .paperTone {
-  will-change: filter;
-}
-
-.oracleSpecimen[data-specimen-state='baseline-ready'][data-ingestion-phase='locking']
+.oracleSpecimen[data-specimen-state='baseline-ready'][data-registration-phase='scanning']
   .evidenceLockStrip {
   will-change: transform, opacity;
-}
-
-@keyframes thermalLabelMaterialize {
-  from {
-    opacity: 0;
-    transform: translateY(5px);
-  }
-
-  to {
-    opacity: 0.84;
-    transform: translateY(0);
-  }
-}
-
-@keyframes thermalPaperMaterialize {
-  from {
-    filter: blur(4px);
-  }
-
-  to {
-    filter: none;
-  }
-}
-
-@keyframes thermalLabelScan {
-  0% {
-    opacity: 0;
-    background-position: 0 -8%;
-  }
-
-  12%,
-  78% {
-    opacity: 0.82;
-  }
-
-  100% {
-    opacity: 0;
-    background-position: 0 108%;
-  }
-}
-
-@keyframes labelGroupResolve {
-  from {
-    opacity: 0.12;
-  }
-
-  to {
-    opacity: 1;
-  }
-}
-
-@keyframes reducedSpecimenResolve {
-  from {
-    opacity: 0.18;
-  }
-
-  to {
-    opacity: 1;
-  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -1064,20 +1007,13 @@
     transition: none !important;
   }
 
-  .oracleSpecimen[data-specimen-state='baseline-ready'][data-ingestion-phase='materializing'] {
-    animation: reducedSpecimenResolve var(--fv-reduced-ingestion-duration) linear both;
-  }
-
   .oracleSpecimen[data-specimen-state='baseline-ready']
     :is(
       .shoulderForm,
       .bottleBody,
       .thermalEvidenceLabel,
-      .labelMetadata,
       .labelProduct,
       .labelStrength,
-      .labelSupport,
-      .labelFooter,
       .labelStatus
     ) {
     opacity: 1 !important;
@@ -1092,8 +1028,15 @@
     transition: none !important;
   }
 
+  .oracleSpecimen[data-specimen-state='baseline-ready'] .alignmentFrame {
+    transition: none !important;
+  }
+
   .labelScanBeam {
-    display: none !important;
     animation: none !important;
+  }
+
+  .labelScanBeam[data-label-scan-state='wash'] {
+    display: block !important;
   }
 }

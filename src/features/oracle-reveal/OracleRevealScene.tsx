@@ -16,6 +16,10 @@ import { createOracleEvidenceRecord } from '../../app/phaseBMachine';
 import { ScreenHeader } from '../../components/hardware';
 import type { EvidenceRecordData, ProductPlacement, RegisteredProduct } from '../../domain/model';
 import { oracleMotionDuration, type OracleRevealState } from '../../domain/oracleRevealMachine';
+import type {
+  SpecimenRegistrationPhase,
+  SpecimenRegistrationSnapshot,
+} from '../../domain/specimenRegistration';
 import {
   oracleTrialIdentity,
   oracleTrialIdentityForRecord,
@@ -32,16 +36,15 @@ import {
   IdentityLockSpecimen,
   type OracleSpecimenIdentity,
   type OracleTrialState,
-  type SpecimenIngestionPhase,
 } from './IdentityLockSpecimen';
 import { oracleMachineControlLabel } from './oraclePresentation';
 import styles from './OracleRevealScene.module.css';
 
+export type { OracleSpecimenIdentity, OracleTrialState } from './IdentityLockSpecimen';
 export type {
-  OracleSpecimenIdentity,
-  OracleTrialState,
-  SpecimenIngestionPhase,
-} from './IdentityLockSpecimen';
+  SpecimenRegistrationPhase,
+  SpecimenRegistrationSnapshot,
+} from '../../domain/specimenRegistration';
 
 const DRAG_INTENT_PX = 5;
 const DRAG_ACTIVATION_PX = 28;
@@ -412,7 +415,7 @@ export type OracleTrialStateMachineProps =
   | {
       state: 'baseline-ready';
       product: RegisteredProduct;
-      phase: SpecimenIngestionPhase;
+      registration: SpecimenRegistrationSnapshot;
     }
   | {
       state: 'pending' | 'followup-ready';
@@ -445,12 +448,32 @@ type OracleTrialMachineProps = {
   trialState: OracleTrialState;
   product: RegisteredProduct | null;
   identity: OracleSpecimenIdentity | null;
-  ingestionPhase: SpecimenIngestionPhase;
+  registration: SpecimenRegistrationSnapshot;
   day: number | null;
   intervalDays: number | null;
 };
 
 type OracleMachineProps = OracleVerdictMachineProps | OracleTrialMachineProps;
+
+const idleRegistrationSnapshot: SpecimenRegistrationSnapshot = {
+  registrationId: null,
+  phase: 'idle',
+  scanProgress: 0,
+  isRegistering: false,
+  isVerified: false,
+  isReady: false,
+  reducedMotion: false,
+};
+
+const completedRegistrationSnapshot: SpecimenRegistrationSnapshot = {
+  registrationId: null,
+  phase: 'ready',
+  scanProgress: 1,
+  isRegistering: false,
+  isVerified: true,
+  isReady: true,
+  reducedMotion: false,
+};
 
 function specimenIdentityFromRegisteredProduct(product: RegisteredProduct): OracleSpecimenIdentity {
   const specimen = specimenFromRegisteredProduct(product);
@@ -470,7 +493,7 @@ function TrialStateDisplay({
   intervalDays,
 }: {
   state: OracleTrialState;
-  phase: SpecimenIngestionPhase;
+  phase: SpecimenRegistrationPhase;
   day: number | null;
   intervalDays: number | null;
 }) {
@@ -480,7 +503,9 @@ function TrialStateDisplay({
       : state === 'registration-preview'
         ? 'REGISTRATION'
         : state === 'baseline-ready'
-          ? 'BASELINE'
+          ? phase === 'ready'
+            ? 'BASELINE'
+            : 'REGISTRATION'
           : state === 'followup-ready'
             ? 'FOLLOW-UP'
             : 'ACTIVE TRIAL';
@@ -490,13 +515,17 @@ function TrialStateDisplay({
       : state === 'registration-preview'
         ? 'LABEL PREVIEW'
         : state === 'baseline-ready'
-          ? phase === 'loading'
-            ? 'LOADING SPECIMEN'
-            : phase === 'locking'
-              ? 'IDENTITY LOCKING'
-              : phase === 'confirming' || phase === 'ready'
-                ? 'SPECIMEN LOADED'
-                : 'PREPARING SPECIMEN'
+          ? phase === 'preparing'
+            ? 'PREPARING'
+            : phase === 'aligning'
+              ? 'ALIGNING SPECIMEN'
+              : phase === 'scanning'
+                ? 'REGISTERING SPECIMEN'
+                : phase === 'processing'
+                  ? 'VERIFYING SPECIMEN'
+                  : phase === 'verified'
+                    ? 'SPECIMEN VERIFIED'
+                    : 'SPECIMEN LOADED'
           : 'SPECIMEN LOADED';
   const footerLabel =
     state === 'empty' ? 'SYSTEM' : state === 'registration-preview' ? 'INPUT' : 'PROTOCOL';
@@ -508,9 +537,17 @@ function TrialStateDisplay({
         : state === 'baseline-ready'
           ? phase === 'ready'
             ? 'READY TO SCAN'
-            : phase === 'confirming'
-              ? 'CONFIRMING'
-              : 'PREPARING'
+            : phase === 'preparing'
+              ? 'INITIALIZING'
+              : phase === 'aligning'
+                ? 'CALIBRATING'
+                : phase === 'scanning'
+                  ? 'SCANNING'
+                  : phase === 'processing'
+                    ? 'PROCESSING'
+                    : phase === 'verified'
+                      ? 'REGISTERED'
+                      : 'INITIALIZING'
           : day !== null && intervalDays !== null
             ? `DAY ${String(day).padStart(2, '0')} OF ${String(intervalDays).padStart(2, '0')}`
             : 'READY';
@@ -552,7 +589,8 @@ function OracleMachine(props: OracleMachineProps) {
   const record = verdictMachine?.record ?? null;
   const displayOn =
     trialMachine !== null || latestVerdict || !['sealed', 'opening'].includes(phase);
-  const ingestionPhase = trialMachine?.ingestionPhase ?? 'ready';
+  const registration = trialMachine?.registration ?? completedRegistrationSnapshot;
+  const ingestionPhase = registration.phase;
   const specimenIdentity =
     trialMachine?.identity ??
     (viewModel
@@ -569,12 +607,19 @@ function OracleMachine(props: OracleMachineProps) {
       ? 'followup-ready'
       : trialMachine.trialState === 'pending'
         ? 'trial-pending'
-        : trialMachine.trialState === 'baseline-ready' &&
-            trialMachine.ingestionPhase === 'confirming'
-          ? 'specimen-confirming'
-          : trialMachine.trialState === 'baseline-ready' && trialMachine.ingestionPhase === 'ready'
-            ? 'baseline-ready'
-            : 'idle'
+        : trialMachine.trialState === 'baseline-ready'
+          ? ingestionPhase === 'preparing'
+            ? 'specimen-preparing'
+            : ingestionPhase === 'aligning' || ingestionPhase === 'scanning'
+              ? 'specimen-registering'
+              : ingestionPhase === 'processing'
+                ? 'specimen-processing'
+                : ingestionPhase === 'verified'
+                  ? 'specimen-verified'
+                  : ingestionPhase === 'ready'
+                    ? 'baseline-ready'
+                    : 'idle'
+          : 'idle'
     : latestVerdict
       ? 'latest'
       : phase === 'verdict_revealed'
@@ -618,9 +663,9 @@ function OracleMachine(props: OracleMachineProps) {
               : ''
           }`
         : trialMachine.trialState === 'baseline-ready'
-          ? trialMachine.ingestionPhase === 'ready'
+          ? ingestionPhase === 'ready'
             ? `Baseline-ready Face Value instrument. Specimen loaded: ${trialMachine.product?.brand ?? ''}, ${trialMachine.product?.productName ?? ''}. Assigned job: Reduce visible redness. Ready to take the baseline scan.`
-            : `Face Value instrument preparing specimen: ${trialMachine.product?.brand ?? ''}, ${trialMachine.product?.productName ?? ''}. Assigned job: Reduce visible redness.`
+            : `Face Value instrument registering specimen: ${trialMachine.product?.brand ?? ''}, ${trialMachine.product?.productName ?? ''}. Assigned job: Reduce visible redness.`
           : `${trialMachine.trialState === 'followup-ready' ? 'Follow-up ready' : 'Trial pending'} for ${trialMachine.product?.brand ?? ''} ${trialMachine.product?.productName ?? ''}. Specimen loaded.`
     : latestVerdict && viewModel
       ? `Latest verdict cassette for ${verdictProduct(viewModel)}. ${viewModel.headline}`
@@ -651,7 +696,18 @@ function OracleMachine(props: OracleMachineProps) {
       data-cassette-state={cassetteState}
       data-machine-implementation="oracle"
       data-trial-machine-state={trialMachine?.trialState}
-      data-ingestion-phase={trialMachine?.ingestionPhase}
+      data-ingestion-phase={trialMachine?.registration.phase}
+      data-registration-phase={trialMachine?.registration.phase}
+      data-registration-active={trialMachine?.registration.isRegistering}
+      data-registration-complete={trialMachine?.registration.isReady}
+      data-scan-state={
+        trialMachine?.registration.phase === 'scanning'
+          ? trialMachine.registration.reducedMotion
+            ? 'wash'
+            : 'active'
+          : 'inactive'
+      }
+      data-scan-progress={trialMachine?.registration.scanProgress.toFixed(3)}
       data-machine-material="carbon"
       data-machine-finish="smoked-graphite"
       data-machine-instance="face-value-oracle"
@@ -664,12 +720,12 @@ function OracleMachine(props: OracleMachineProps) {
             <IdentityLockSpecimen
               identity={specimenIdentity}
               specimenState={trialMachine?.trialState ?? 'verdict'}
-              phase={ingestionPhase}
+              registration={registration}
             />
             {trialMachine && (
               <TrialStateDisplay
                 state={trialMachine.trialState}
-                phase={trialMachine.ingestionPhase}
+                phase={trialMachine.registration.phase}
                 day={trialMachine.day}
                 intervalDays={trialMachine.intervalDays}
               />
@@ -802,12 +858,15 @@ export function OracleTrialStateMachine(props: OracleTrialStateMachineProps) {
       : product
         ? specimenIdentityFromRegisteredProduct(product)
         : null;
-  const ingestionPhase =
+  const registration =
     props.state === 'baseline-ready'
-      ? props.phase
+      ? props.registration
       : props.state === 'empty' || props.state === 'registration-preview'
-        ? 'idle'
-        : 'ready';
+        ? idleRegistrationSnapshot
+        : {
+            ...completedRegistrationSnapshot,
+            registrationId: product?.id ?? null,
+          };
 
   return (
     <OracleMachine
@@ -815,7 +874,7 @@ export function OracleTrialStateMachine(props: OracleTrialStateMachineProps) {
       trialState={props.state}
       product={product}
       identity={identity}
-      ingestionPhase={ingestionPhase}
+      registration={registration}
       day={props.state === 'pending' || props.state === 'followup-ready' ? props.day : null}
       intervalDays={
         props.state === 'pending' || props.state === 'followup-ready' ? props.intervalDays : null

@@ -291,7 +291,9 @@ it('starts with real registration and ends session one at Baseline locked', asyn
   ).not.toBeInTheDocument();
 
   await user.click(screen.getByRole('button', { name: 'REGISTER & LOAD' }));
-  await waitFor(() => expect(screen.getByText('READY TO SCAN')).toBeVisible());
+  await waitFor(() => expect(screen.getByText('READY TO SCAN')).toBeVisible(), {
+    timeout: 2_000,
+  });
   expect(screen.queryByRole('heading', { name: 'Your product is ready.' })).not.toBeInTheDocument();
   expect(document.querySelector('[data-oracle-specimen]')).toHaveAttribute(
     'data-specimen-brand',

@@ -405,9 +405,29 @@
     linear-gradient(180deg, #040403, #12100d);
 }
 
-.machine[data-trial-machine-state='baseline-ready'][data-ingestion-phase='confirming']
-  .displayGlass,
-.machine[data-trial-machine-state='baseline-ready'][data-ingestion-phase='ready'] .displayGlass {
+.machine[data-trial-machine-state='baseline-ready'][data-registration-phase='preparing']
+  .displayGlass {
+  background:
+    radial-gradient(ellipse at 72% 51%, rgba(131, 91, 48, 0.12), transparent 32%),
+    linear-gradient(180deg, #040403, #100e0c);
+}
+
+.machine[data-trial-machine-state='baseline-ready']:is(
+    [data-registration-phase='aligning'],
+    [data-registration-phase='scanning']
+  )
+  .displayGlass {
+  background:
+    radial-gradient(ellipse at 72% 51%, rgba(151, 103, 52, 0.17), transparent 32%),
+    linear-gradient(180deg, #050403, #14100d);
+}
+
+.machine[data-trial-machine-state='baseline-ready']:is(
+    [data-registration-phase='processing'],
+    [data-registration-phase='verified'],
+    [data-registration-phase='ready']
+  )
+  .displayGlass {
   background:
     radial-gradient(ellipse at 72% 51%, rgba(151, 113, 73, 0.18), transparent 32%),
     linear-gradient(180deg, #050504, #15110e);
@@ -741,14 +761,62 @@
     0 0 8px rgba(200, 121, 32, 0.18);
 }
 
-.amberControl[data-amber-state='specimen-confirming'] span {
-  opacity: 1;
+.amberControl[data-amber-state='specimen-preparing'] span {
+  background:
+    radial-gradient(circle at 42% 34%, rgba(255, 230, 194, 0.18), transparent 15%),
+    radial-gradient(circle at 50% 54%, #8e551f, #633817 66%, #2d1b0f);
+  box-shadow:
+    inset 0 1px rgba(255, 237, 203, 0.2),
+    0 0 7px rgba(231, 118, 22, 0.14);
+  animation: specimenLedPrepare 300ms linear both;
+}
+
+.amberControl[data-amber-state='specimen-registering'] span {
   background:
     radial-gradient(circle at 42% 34%, rgba(255, 235, 203, 0.3), transparent 15%),
     radial-gradient(circle at 50% 54%, #c87920, #8d4d18 64%, #3f250f);
   box-shadow:
     inset 0 1px rgba(255, 237, 203, 0.3),
     0 0 7px rgba(200, 121, 32, 0.22);
+}
+
+.amberControl[data-amber-state='specimen-processing'] span {
+  background:
+    radial-gradient(circle at 42% 34%, rgba(255, 235, 203, 0.28), transparent 15%),
+    radial-gradient(circle at 50% 54%, #bc6d20, #814717 64%, #3a220f);
+  animation: specimenLedProcess var(--fv-registration-processing-duration) ease-in-out both;
+}
+
+.amberControl[data-amber-state='specimen-verified'] span {
+  background:
+    radial-gradient(circle at 42% 34%, rgba(255, 235, 203, 0.34), transparent 15%),
+    radial-gradient(circle at 50% 54%, #d07820, #914e18 64%, #40250f);
+  box-shadow:
+    inset 0 1px rgba(255, 237, 203, 0.32),
+    0 0 8px rgba(231, 118, 22, 0.24);
+}
+
+@keyframes specimenLedPrepare {
+  from {
+    opacity: 0.28;
+  }
+
+  to {
+    opacity: 0.82;
+  }
+}
+
+@keyframes specimenLedProcess {
+  0%,
+  100% {
+    opacity: 0.72;
+    filter: brightness(0.9);
+  }
+
+  50% {
+    opacity: 1;
+    filter: brightness(1.16);
+  }
 }
 
 .amberControl[data-amber-state='dispensing'] span {
@@ -1654,6 +1722,14 @@
   }
 
   .latestMachine .glassReflection {
+    animation: none;
+  }
+
+  .amberControl:is(
+      [data-amber-state='specimen-preparing'],
+      [data-amber-state='specimen-processing']
+    )
+    span {
     animation: none;
   }
 

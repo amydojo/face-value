@@ -10,9 +10,16 @@ import {
 } from '../app/phaseBMachine';
 import { ordinaryDemoRuntime, type DemoRuntime } from '../domain/demoLab';
 import { createRegisteredProduct } from '../domain/phaseB5';
+import {
+  specimenRegistrationMilestones,
+  specimenRegistrationTiming,
+} from '../domain/specimenRegistration';
 import { FaceValueApplication } from '../features/FaceValueApplication';
 import { buildDemoFixtureState } from '../features/demo-lab/demoFixtureState';
-import { specimenIngestionTiming } from '../features/first-trial/FirstTrialScene';
+
+const normalRegistrationMilestones = specimenRegistrationMilestones(
+  specimenRegistrationTiming.normal,
+);
 
 function installMatchMedia(reducedMotion: boolean) {
   Object.defineProperty(window, 'matchMedia', {
@@ -172,7 +179,7 @@ describe('First Trial specimen ingestion', () => {
     expect(currentMachine()).toBe(machine);
     expect(currentSpecimen()).toBe(specimen);
     expect(machine).toHaveAttribute('data-trial-machine-state', 'baseline-ready');
-    expect(machine).toHaveAttribute('data-ingestion-phase', 'materializing');
+    expect(machine).toHaveAttribute('data-registration-phase', 'preparing');
     expect(specimen).toHaveAttribute('data-identity-lock-state', 'loading');
     expect(specimen).toHaveAttribute('data-specimen-brand', 'Naturium');
     expect(specimen).toHaveAttribute('data-specimen-product', 'Azelaic Topical Acid');
@@ -187,9 +194,9 @@ describe('First Trial specimen ingestion', () => {
     const specimen = currentSpecimen();
     expect(specimen).toHaveAttribute('data-specimen-product', 'The Ordinary Glycolic Acid 5%');
     expect(specimen).toHaveAttribute('data-display-product', 'GLYCOLIC ACID');
-    expect(specimen).toHaveAttribute('data-display-strength', '5');
-    expect(within(specimen).getByText('GLYCOLIC ACID')).toBeVisible();
-    expect(within(specimen).getByText('5')).toBeVisible();
+    expect(specimen).toHaveAttribute('data-display-strength', '5%');
+    expect(specimen.querySelector('[data-label-product]')).toHaveTextContent('GLYCOLIC ACID');
+    expect(within(specimen).getByText('5%')).toBeVisible();
 
     fillRequiredProduct(
       'Clinical Laboratory',
@@ -200,7 +207,7 @@ describe('First Trial specimen ingestion', () => {
       'Clinical Laboratory Azelaic Topical Acid Barrier 10%',
     );
     expect(specimen).toHaveAttribute('data-display-product', 'AZELAIC');
-    expect(specimen).toHaveAttribute('data-display-strength', '10');
+    expect(specimen).toHaveAttribute('data-display-strength', '10%');
   });
 
   it('preserves existing validation messages and invalid-field focus order', () => {
@@ -221,7 +228,7 @@ describe('First Trial specimen ingestion', () => {
     expect(screen.getByText('Enter the product name.')).toBeVisible();
   });
 
-  it('runs materializing, loading, locking, confirming, and ready in order', () => {
+  it('runs the exact 3.8-second registration ceremony and unlocks the CTA only at ready', () => {
     vi.useFakeTimers();
     const { events } = renderApplication();
     enterRegistration();
@@ -232,52 +239,76 @@ describe('First Trial specimen ingestion', () => {
       name: 'TAKE GUIDED BASELINE',
     });
 
-    expect(machine).toHaveAttribute('data-ingestion-phase', 'materializing');
+    const status = screen.getByRole('status');
+
+    expect(machine).toHaveAttribute('data-registration-phase', 'preparing');
+    expect(machine).toHaveAttribute('data-registration-active', 'true');
     expect(currentSpecimen()).toHaveAttribute('data-identity-lock-state', 'loading');
-    expect(currentSpecimen()).toHaveAttribute('data-label-scan-active', 'false');
+    expect(currentSpecimen()).toHaveAttribute('data-scan-state', 'inactive');
+    expect(within(machine).getByText('PREPARING')).toBeVisible();
+    expect(within(machine).getByText('INITIALIZING')).toBeVisible();
+    expect(status).toHaveTextContent('Preparing specimen registration.');
     expect(action).toBeDisabled();
 
-    act(() => vi.advanceTimersByTime(specimenIngestionTiming.loadingStart));
-    expect(machine).toHaveAttribute('data-ingestion-phase', 'loading');
+    act(() => vi.advanceTimersByTime(normalRegistrationMilestones.aligning));
+    expect(machine).toHaveAttribute('data-registration-phase', 'aligning');
     expect(currentSpecimen()).toHaveAttribute('data-identity-lock-state', 'loading');
-    expect(within(machine).getByText('LOADING SPECIMEN')).toBeVisible();
+    expect(within(machine).getByText('ALIGNING SPECIMEN')).toBeVisible();
+    expect(within(machine).getByText('CALIBRATING')).toBeVisible();
+    expect(status).toHaveTextContent('Preparing specimen registration.');
     expect(action).toBeDisabled();
 
     act(() =>
       vi.advanceTimersByTime(
-        specimenIngestionTiming.lockingStart - specimenIngestionTiming.loadingStart,
+        normalRegistrationMilestones.scanning - normalRegistrationMilestones.aligning,
       ),
     );
-    expect(machine).toHaveAttribute('data-ingestion-phase', 'locking');
+    expect(machine).toHaveAttribute('data-registration-phase', 'scanning');
     expect(currentSpecimen()).toHaveAttribute('data-identity-lock-state', 'locking');
-    expect(currentSpecimen()).toHaveAttribute('data-label-scan-active', 'true');
-    expect(within(machine).getByText('IDENTITY LOCKING')).toBeVisible();
+    expect(currentSpecimen()).toHaveAttribute('data-scan-state', 'active');
+    expect(within(machine).getByText('REGISTERING SPECIMEN')).toBeVisible();
+    expect(within(machine).getByText('SCANNING')).toBeVisible();
+    expect(status).toHaveTextContent('Registering specimen.');
     expect(action).toBeDisabled();
 
     act(() =>
       vi.advanceTimersByTime(
-        specimenIngestionTiming.confirmingStart - specimenIngestionTiming.lockingStart,
+        normalRegistrationMilestones.processing - normalRegistrationMilestones.scanning,
       ),
     );
-    expect(machine).toHaveAttribute('data-ingestion-phase', 'confirming');
+    expect(machine).toHaveAttribute('data-registration-phase', 'processing');
     expect(currentSpecimen()).toHaveAttribute('data-identity-lock-state', 'locked');
-    expect(currentSpecimen()).toHaveAttribute('data-label-scan-active', 'false');
-    expect(within(machine).getByText('CONFIRMING')).toBeVisible();
+    expect(currentSpecimen()).toHaveAttribute('data-scan-state', 'inactive');
+    expect(currentSpecimen()).toHaveAttribute('data-scan-progress', '1.000');
+    expect(within(machine).getByText('VERIFYING SPECIMEN')).toBeVisible();
+    expect(within(machine).getByText('PROCESSING')).toBeVisible();
+    expect(status).toHaveTextContent('Registering specimen.');
     expect(action).toBeDisabled();
 
     act(() =>
       vi.advanceTimersByTime(
-        specimenIngestionTiming.readyStart - specimenIngestionTiming.confirmingStart,
+        normalRegistrationMilestones.verified - normalRegistrationMilestones.processing,
       ),
     );
-    expect(machine).toHaveAttribute('data-ingestion-phase', 'ready');
+    expect(machine).toHaveAttribute('data-registration-phase', 'verified');
     expect(currentSpecimen()).toHaveAttribute('data-identity-lock-state', 'locked');
-    expect(currentSpecimen()).toHaveAttribute('data-label-scan-active', 'false');
+    expect(currentSpecimen()).toHaveAttribute('data-registration-complete', 'false');
+    expect(within(machine).getByText('SPECIMEN VERIFIED')).toBeVisible();
+    expect(within(machine).getByText('REGISTERED')).toBeVisible();
+    expect(status).toHaveTextContent('Specimen verified.');
+    expect(action).toBeDisabled();
+
+    act(() =>
+      vi.advanceTimersByTime(
+        normalRegistrationMilestones.ready - normalRegistrationMilestones.verified,
+      ),
+    );
+    expect(machine).toHaveAttribute('data-registration-phase', 'ready');
+    expect(machine).toHaveAttribute('data-registration-complete', 'true');
+    expect(currentSpecimen()).toHaveAttribute('data-scan-state', 'inactive');
     expect(within(machine).getByText('READY TO SCAN')).toBeVisible();
     expect(action).toBeEnabled();
-    expect(
-      screen.getByText('Specimen loaded. Ready to take the baseline scan.'),
-    ).toBeInTheDocument();
+    expect(status).toHaveTextContent('Ready to take guided baseline.');
 
     act(() => {
       action.click();
@@ -290,10 +321,10 @@ describe('First Trial specimen ingestion', () => {
 
   it('renders direct job and Demo Lab product_registered entry ready without replay', () => {
     const ordinary = renderApplication(registeredJobState());
-    expect(currentMachine()).toHaveAttribute('data-ingestion-phase', 'ready');
+    expect(currentMachine()).toHaveAttribute('data-registration-phase', 'ready');
     expect(currentSpecimen()).toHaveAttribute('data-identity-lock-state', 'locked');
     expect(within(currentMachine()).getByText('READY TO SCAN')).toBeVisible();
-    expect(screen.queryByText('PREPARING SPECIMEN')).not.toBeInTheDocument();
+    expect(screen.queryByText('PREPARING')).not.toBeInTheDocument();
     ordinary.unmount();
 
     const demoState = buildDemoFixtureState('product_registered', 'clear_favorable_change');
@@ -303,14 +334,14 @@ describe('First Trial specimen ingestion', () => {
       resultFixture: 'clear_favorable_change',
       fixtureNow: null,
     });
-    expect(currentMachine()).toHaveAttribute('data-ingestion-phase', 'ready');
+    expect(currentMachine()).toHaveAttribute('data-registration-phase', 'ready');
     expect(currentSpecimen()).toHaveAttribute(
       'data-specimen-brand',
       demoState.registeredProduct?.brand,
     );
   });
 
-  it('uses the reduced-motion resolution without travel phases', () => {
+  it('uses the 1.35-second reduced-motion sequence with semantic phases and a soft wash', () => {
     vi.useFakeTimers();
     installMatchMedia(true);
     renderApplication();
@@ -318,14 +349,23 @@ describe('First Trial specimen ingestion', () => {
     fillRequiredProduct();
     registerProduct();
 
-    expect(currentMachine()).toHaveAttribute('data-ingestion-phase', 'materializing');
-    act(() => vi.advanceTimersByTime(79));
-    expect(currentMachine()).toHaveAttribute('data-ingestion-phase', 'materializing');
+    expect(currentMachine()).toHaveAttribute('data-registration-phase', 'preparing');
+    act(() => vi.advanceTimersByTime(149));
+    expect(currentMachine()).toHaveAttribute('data-registration-phase', 'preparing');
     act(() => vi.advanceTimersByTime(1));
-    expect(currentMachine()).toHaveAttribute('data-ingestion-phase', 'ready');
-    expect(currentSpecimen()).toHaveAttribute('data-label-scan-active', 'false');
-    expect(screen.queryByText('LOADING SPECIMEN')).not.toBeInTheDocument();
-    expect(screen.queryByText('IDENTITY LOCKING')).not.toBeInTheDocument();
+    expect(currentMachine()).toHaveAttribute('data-registration-phase', 'aligning');
+    act(() => vi.advanceTimersByTime(150));
+    expect(currentMachine()).toHaveAttribute('data-registration-phase', 'scanning');
+    expect(currentSpecimen()).toHaveAttribute('data-scan-state', 'wash');
+    act(() => vi.advanceTimersByTime(450));
+    expect(currentMachine()).toHaveAttribute('data-registration-phase', 'processing');
+    act(() => vi.advanceTimersByTime(250));
+    expect(currentMachine()).toHaveAttribute('data-registration-phase', 'verified');
+    expect(screen.getByRole('button', { name: 'TAKE GUIDED BASELINE' })).toBeDisabled();
+    act(() => vi.advanceTimersByTime(350));
+    expect(currentMachine()).toHaveAttribute('data-registration-phase', 'ready');
+    expect(currentSpecimen()).toHaveAttribute('data-scan-state', 'inactive');
+    expect(screen.getByRole('button', { name: 'TAKE GUIDED BASELINE' })).toBeEnabled();
   });
 
   it('cancels ingestion on Edit product and restores committed form values', () => {
@@ -337,17 +377,17 @@ describe('First Trial specimen ingestion', () => {
       target: { value: '10%' },
     });
     registerProduct();
-    act(() => vi.advanceTimersByTime(200));
-    expect(currentMachine()).toHaveAttribute('data-ingestion-phase', 'loading');
+    act(() => vi.advanceTimersByTime(400));
+    expect(currentMachine()).toHaveAttribute('data-registration-phase', 'aligning');
 
     fireEvent.click(screen.getByRole('button', { name: 'Edit product' }));
     expect(currentMachine()).toHaveAttribute('data-trial-machine-state', 'registration-preview');
-    expect(currentMachine()).toHaveAttribute('data-ingestion-phase', 'idle');
+    expect(currentMachine()).toHaveAttribute('data-registration-phase', 'idle');
     expect(screen.getByLabelText('Brand')).toHaveValue('Naturium');
     expect(screen.getByLabelText('Product name')).toHaveValue('Azelaic Topical Acid');
     expect(screen.getByLabelText('Strength or concentration')).toHaveValue('10%');
 
-    act(() => vi.advanceTimersByTime(2_000));
+    act(() => vi.advanceTimersByTime(5_000));
     expect(currentMachine()).toHaveAttribute('data-trial-machine-state', 'registration-preview');
     expect(screen.queryByText('READY TO SCAN')).not.toBeInTheDocument();
   });

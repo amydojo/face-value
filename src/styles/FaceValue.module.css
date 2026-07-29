@@ -549,12 +549,23 @@ button.followUpActionRail:focus-visible {
 
 .baselineActionRail {
   margin-top: 0;
+  opacity: 0.5;
+  transform: translateY(3px);
+  transition:
+    opacity var(--fv-registration-ready-duration) linear,
+    transform var(--fv-registration-ready-duration) cubic-bezier(0.32, 0, 0.11, 1),
+    border-color 120ms linear,
+    background-color 120ms linear;
 }
 
 .baselineActionRail:disabled {
-  opacity: 0.46;
   cursor: default;
   pointer-events: none;
+}
+
+.baselineActionRail[data-baseline-action-state='ready'] {
+  opacity: 1;
+  transform: translateY(0);
 }
 
 .baselineActionArrow {
@@ -1919,6 +1930,11 @@ button.followUpActionRail:focus-visible {
   .baselineActionArrow {
     transform: none !important;
     transition: none;
+  }
+
+  .baselineActionRail {
+    transform: none !important;
+    transition: opacity 120ms linear;
   }
 
   .dispositionCommit {
