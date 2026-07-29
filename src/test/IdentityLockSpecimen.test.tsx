@@ -153,7 +153,7 @@ describe('IdentityLockSpecimen', () => {
     expect(product).toHaveTextContent(expected);
     expect(product.textContent?.split('\n')).toHaveLength(1);
     expect(specimen).toHaveAttribute('data-specimen-product', productName);
-    expect(labelContent).toHaveClass(expect.any(String));
+    expect(labelContent.querySelector('[data-label-group="strength"]')).toBeInTheDocument();
     expect(within(labelContent).getByText('TOPICAL')).toBeVisible();
     expect(within(labelContent).getByText('30 ML · BASE')).toBeVisible();
   });
