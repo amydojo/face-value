@@ -21,11 +21,7 @@ export interface IdentityLockSpecimenProps {
 }
 
 type IdentityLockState = 'loading' | 'locking' | 'locked';
-
-type ActiveIdentity = {
-  label: string;
-  aliases: string[];
-};
+type ActiveIdentity = { label: string; aliases: string[] };
 
 const fallbackIdentity: OracleSpecimenIdentity = {
   brand: 'UNASSIGNED',
@@ -39,7 +35,7 @@ const activeIdentities: ActiveIdentity[] = [
   { label: 'GRANACTIVE RETINOID', aliases: ['HYDROXYPINACOLONE RETINOATE', 'GRANACTIVE RETINOID'] },
   { label: 'ETHYL VITAMIN C', aliases: ['3 O ETHYL ASCORBIC ACID', 'ETHYLATED ASCORBIC ACID'] },
   { label: 'SNAIL MUCIN', aliases: ['SNAIL SECRETION FILTRATE', 'SNAIL MUCIN'] },
-  { label: 'GROWTH FACTOR', aliases: ['GROWTH FACTOR'] },
+  { label: 'GROWTH FACTOR', aliases: ['GROWTH FACTOR', 'EGF'] },
   { label: 'HYALURONIC ACID', aliases: ['SODIUM HYALURONATE', 'HYALURONIC ACID'] },
   { label: 'VITAMIN C', aliases: ['L ASCORBIC ACID', 'ASCORBIC ACID', 'VITAMIN C'] },
   { label: 'ARGIRELINE', aliases: ['ACETYL HEXAPEPTIDE 8', 'ARGIRELINE'] },
@@ -120,7 +116,11 @@ const activeIdentities: ActiveIdentity[] = [
   { label: 'PETROLATUM', aliases: ['PETROLATUM'] },
   { label: 'AHA', aliases: ['AHA'] },
   { label: 'BHA', aliases: ['BHA'] },
-].sort((left, right) => Math.max(...right.aliases.map((alias) => alias.length)) - Math.max(...left.aliases.map((alias) => alias.length)));
+].sort(
+  (left, right) =>
+    Math.max(...right.aliases.map((alias) => alias.length)) -
+    Math.max(...left.aliases.map((alias) => alias.length)),
+);
 
 const genericFormulationWords = new Set([
   'SERUM', 'CREAM', 'LOTION', 'GEL', 'TONER', 'ESSENCE', 'AMPOULE', 'CONCENTRATE',
@@ -131,10 +131,7 @@ const genericFormulationWords = new Set([
 ]);
 
 const words = (value: string): string[] =>
-  value
-    .trim()
-    .toUpperCase()
-    .match(/[A-Z0-9]+(?:[.-][A-Z0-9]+)?/g) ?? [];
+  value.trim().toUpperCase().match(/[A-Z0-9]+(?:[.-][A-Z0-9]+)?/g) ?? [];
 
 const normalizeForMatching = (value: string): string =>
   value
@@ -152,17 +149,14 @@ const compactWords = (tokens: string[], maximumCharacters: number): string => {
     if (candidate.length > maximumCharacters) break;
     accepted.push(token);
   }
-  if (accepted.length > 0) return accepted.join(' ');
-  return tokens[0].slice(0, maximumCharacters);
+  return accepted.length > 0 ? accepted.join(' ') : tokens[0].slice(0, maximumCharacters);
 };
 
 const compactBrand = (brand: string): string => {
   const tokens = words(brand);
   const complete = tokens.join(' ');
   if (complete.length <= 8) return complete;
-  if (tokens.length > 1) {
-    return `${tokens[0].slice(0, 4)} ${tokens[1].slice(0, 3)}`.trim();
-  }
+  if (tokens.length > 1) return `${tokens[0].slice(0, 4)} ${tokens[1].slice(0, 3)}`.trim();
   return complete.slice(0, 8);
 };
 
@@ -199,13 +193,17 @@ const recognizedActives = (value: string): string[] => {
 
 const safeFallbackProduct = (identity: OracleSpecimenIdentity): string => {
   let product = normalizeForMatching(identity.productName);
+  if (product === 'UNNAMED PRODUCT') return 'UNNAMED';
+
   const brand = normalizeForMatching(identity.brand);
   if (brand && product.startsWith(`${brand} `)) product = product.slice(brand.length + 1);
+
   const productWords = words(product).filter(
     (token, index) =>
       (index > 0 || !['A', 'AN', 'THE'].includes(token)) && !genericFormulationWords.has(token),
   );
-  return compactWords(productWords, 24) || 'UNNAMED';
+
+  return productWords.slice(0, 2).join(' ') || 'UNNAMED';
 };
 
 const compactProduct = (identity: OracleSpecimenIdentity): string => {
@@ -273,7 +271,9 @@ export function IdentityLockSpecimen({
       data-display-brand={displayBrand}
       data-display-product={displayProduct}
       data-display-strength={displayStrength}
-      data-accessibility-product={normalizeForMatching(`${visibleIdentity.brand} ${visibleIdentity.productName}`)}
+      data-accessibility-product={normalizeForMatching(
+        `${visibleIdentity.brand} ${visibleIdentity.productName}`,
+      )}
       data-label-layout="safe"
       aria-label={`${displayProduct}. ${visibleIdentity.brand} ${visibleIdentity.productName}`.trim()}
     >
