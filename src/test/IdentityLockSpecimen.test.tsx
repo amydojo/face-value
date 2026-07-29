@@ -21,6 +21,29 @@ const longIdentity: OracleSpecimenIdentity = {
   assignedJob: 'Reduce visible redness',
 };
 
+const identity = (productName: string, strength: string | null = null): OracleSpecimenIdentity => ({
+  brand: 'Test Brand',
+  productName,
+  strength,
+  volume: '30 ml',
+  assignedJob: 'Reduce visible redness',
+});
+
+const renderIdentity = (productName: string, strength: string | null = null) => {
+  const result = render(
+    <IdentityLockSpecimen
+      identity={identity(productName, strength)}
+      specimenState="baseline-ready"
+      phase="ready"
+    />,
+  );
+  const specimen = document.querySelector<HTMLElement>('[data-oracle-specimen]');
+  const product = document.querySelector<HTMLElement>('[data-label-product]');
+  const labelContent = document.querySelector<HTMLElement>('[data-label-content]');
+  if (!specimen || !product || !labelContent) throw new Error('Expected the canonical specimen label.');
+  return { ...result, specimen, product, labelContent };
+};
+
 describe('IdentityLockSpecimen', () => {
   it('uses one bounded label layout and a concise blank preview', () => {
     render(
@@ -114,5 +137,75 @@ describe('IdentityLockSpecimen', () => {
       'data-label-status-state',
       'locked',
     );
+  });
+
+  it.each([
+    ['Niacinamide 10% Serum', 'NIACINAMIDE'],
+    ['Hyaluronic Acid 2% Serum', 'HYALURONIC ACID'],
+    ['Glycolic Acid 7% Toner', 'GLYCOLIC ACID'],
+    ['Salicylic Acid 2% Solution', 'SALICYLIC ACID'],
+    ['Benzoyl Peroxide 5% Gel', 'BENZOYL PEROXIDE'],
+    ['Vitamin C Suspension 23%', 'VITAMIN C'],
+    ['Alpha Arbutin 2% Serum', 'ALPHA ARBUTIN'],
+    ['Ceramides Barrier Repair Cream', 'CERAMIDES'],
+  ])('normalizes %s to %s without changing fixed label rows', (productName, expected) => {
+    const { specimen, product, labelContent } = renderIdentity(productName);
+    expect(product).toHaveTextContent(expected);
+    expect(product.textContent?.split('\n')).toHaveLength(1);
+    expect(specimen).toHaveAttribute('data-specimen-product', productName);
+    expect(labelContent).toHaveClass(expect.any(String));
+    expect(within(labelContent).getByText('TOPICAL')).toBeVisible();
+    expect(within(labelContent).getByText('30 ML · BASE')).toBeVisible();
+  });
+
+  it.each([
+    ['10% Niacinamide + 1% Zinc PCA Serum', 'NIACINAMIDE + ZINC PCA'],
+    ['Hyaluronic Acid 2% + B5', 'HYALURONIC ACID + PANTHENOL'],
+    ['AHA 30% + BHA 2% Peeling Solution', 'AHA + BHA'],
+    ['Retinal 0.1% Emulsion', 'RETINAL'],
+  ])('uses compact multi-active evidence identity for %s', (productName, expected) => {
+    const { specimen, product } = renderIdentity(productName);
+    expect(product).toHaveTextContent(expected);
+    expect(specimen).toHaveAttribute('data-display-product', expected);
+    expect(specimen).toHaveAttribute('data-accessibility-product', expect.stringContaining('TEST BRAND'));
+  });
+
+  it('keeps strength, support, and footer in the same grid rows for every identity', () => {
+    const cases = [
+      'NIACINAMIDE',
+      'HYALURONIC ACID',
+      'GLYCOLIC ACID',
+      'SALICYLIC ACID',
+      'BENZOYL PEROXIDE',
+      'NIACINAMIDE + ZINC PCA',
+      'HYALURONIC ACID + PANTHENOL',
+    ];
+
+    for (const productName of cases) {
+      const { unmount } = renderIdentity(productName, '10%');
+      const groups = Array.from(document.querySelectorAll('[data-label-group]')).map((node) =>
+        node.getAttribute('data-label-group'),
+      );
+      expect(groups).toEqual([
+        'metadata',
+        'product-identity',
+        'strength',
+        'supporting-metadata',
+        'footer',
+      ]);
+      expect(screen.getByText('10')).toBeVisible();
+      expect(screen.getByText('TOPICAL')).toBeVisible();
+      expect(screen.getByText('30 ML · BASE')).toBeVisible();
+      unmount();
+    }
+  });
+
+  it('uses a safe cleaned fallback for unknown products and stays within two hero lines', () => {
+    const productName = 'Test Brand Advanced Daily Moon Jelly Hydrating Treatment Serum 18%';
+    const { specimen, product } = renderIdentity(productName);
+    expect(product).toHaveTextContent('MOON JELLY');
+    expect(product.textContent?.split('\n').length).toBeLessThanOrEqual(2);
+    expect(specimen).toHaveAttribute('data-specimen-product', productName);
+    expect(specimen).toHaveAttribute('data-display-strength', '18');
   });
 });
