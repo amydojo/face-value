@@ -172,10 +172,13 @@ describe('Machine Continuity production projections', () => {
     const { dispatch } = renderState(state, 'trial_pending');
     const machine = document.querySelector('[data-trial-machine-state="pending"]');
     if (!(machine instanceof HTMLElement)) throw new Error('Expected the pending machine.');
+    const specimen = machine.querySelector('[data-oracle-specimen]');
 
     expect(machine).toHaveAttribute('data-machine-implementation', 'oracle');
-    expect(within(machine).getByText('Face Value Lab')).toBeVisible();
-    expect(within(machine).getByText('One Thing Redness Trial')).toBeVisible();
+    expect(specimen).toHaveAttribute('data-specimen-brand', 'Face Value Lab');
+    expect(specimen).toHaveAttribute('data-specimen-product', 'One Thing Redness Trial');
+    expect(within(machine).getByText('FACE VAL')).toBeVisible();
+    expect(within(machine).getByText('ONE THING')).toBeVisible();
     expect(within(machine).getByText('REDUCE VISIBLE REDNESS')).toBeVisible();
     expect(within(machine).getByText('DAY 01 OF 14')).toBeVisible();
     expect(screen.getByText('IN 14 DAYS')).toBeVisible();

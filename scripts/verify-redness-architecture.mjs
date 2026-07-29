@@ -218,6 +218,43 @@ if (
   );
 }
 
+const specimenMarkerOwners = [];
+const thermalLabelOwners = [];
+for (const file of sourceFiles.filter((file) => file.endsWith('.tsx'))) {
+  const source = await readFile(file, 'utf8');
+  if (source.includes('data-oracle-specimen')) {
+    specimenMarkerOwners.push(relative(rootPath, file));
+  }
+  if (source.includes('data-specimen-layer="thermal-evidence-label"')) {
+    thermalLabelOwners.push(relative(rootPath, file));
+  }
+}
+const identityLockSpecimenPath = 'features/oracle-reveal/IdentityLockSpecimen.tsx';
+if (specimenMarkerOwners.length !== 1 || specimenMarkerOwners[0] !== identityLockSpecimenPath) {
+  violations.push(
+    `Oracle specimen marker must have one production owner; found ${specimenMarkerOwners.join(', ') || 'none'}`,
+  );
+}
+if (thermalLabelOwners.length !== 1 || thermalLabelOwners[0] !== identityLockSpecimenPath) {
+  violations.push(
+    `Oracle thermal label must have one production owner; found ${thermalLabelOwners.join(', ') || 'none'}`,
+  );
+}
+const identityLockSpecimen = await readFile(
+  new URL('../src/features/oracle-reveal/IdentityLockSpecimen.tsx', import.meta.url),
+  'utf8',
+);
+for (const flattenedSpecimenAsset of ['<img', '.png', '.jpg', '.webp']) {
+  if (identityLockSpecimen.toLowerCase().includes(flattenedSpecimenAsset)) {
+    violations.push(
+      `IdentityLockSpecimen.tsx flattens the canonical specimen through ${flattenedSpecimenAsset}`,
+    );
+  }
+}
+if (oracleScene.includes('function OracleSpecimen')) {
+  violations.push('OracleRevealScene.tsx retains a second specimen implementation');
+}
+
 const faceValueStyles = await readFile(
   new URL('../src/styles/FaceValue.module.css', import.meta.url),
   'utf8',

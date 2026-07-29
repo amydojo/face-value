@@ -10,7 +10,7 @@
 
 .darkShell {
   color: var(--fv-text-on-dark);
-  background: #060606;
+  background: var(--fv-page-black);
 }
 
 .liveRegion,
@@ -83,7 +83,21 @@
 
 .firstTrialLeadSlot {
   min-width: 0;
+  min-height: 0;
+}
+
+.firstTrialScene[data-first-trial-stage='welcome'] .firstTrialLeadSlot {
   min-height: 161px;
+}
+
+.firstTrialScene:is([data-first-trial-stage='product_registration'], [data-first-trial-stage='job'])
+  .firstTrialLeadSlot {
+  min-height: 72px;
+}
+
+.firstTrialScene:is([data-first-trial-stage='product_registration'], [data-first-trial-stage='job'])
+  .firstTrialControls {
+  margin-top: 32px;
 }
 
 .firstTrialWelcomeLead {

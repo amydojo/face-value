@@ -1,0 +1,341 @@
+{
+  "viewport": {
+    "width": 390,
+    "height": 844
+  },
+  "welcomeMachine": {
+    "x": 20,
+    "viewportY": 237,
+    "documentY": 237,
+    "width": 350,
+    "height": 350,
+    "transform": "none",
+    "animationName": "none"
+  },
+  "workflowMachine": {
+    "x": 20,
+    "viewportY": 148,
+    "documentY": 148,
+    "width": 350,
+    "height": 350,
+    "transform": "none",
+    "animationName": "none"
+  },
+  "workflowLayout": {
+    "back": {
+      "x": 20,
+      "y": 76,
+      "width": 51.27,
+      "height": 44,
+      "right": 71.27,
+      "bottom": 120
+    },
+    "machine": {
+      "x": 20,
+      "y": 148,
+      "width": 350,
+      "height": 350,
+      "right": 370,
+      "bottom": 498
+    },
+    "panel": {
+      "x": 20,
+      "y": 530,
+      "width": 350,
+      "height": 570.42,
+      "right": 370,
+      "bottom": 1100.42
+    },
+    "backToMachine": 28,
+    "machineToPanel": 32
+  },
+  "stableMachinePhases": [
+    "registration-preview",
+    "materializing",
+    "loading",
+    "locking",
+    "confirming",
+    "ready"
+  ],
+  "hardware": {
+    "machine": {
+      "width": 350,
+      "height": 350,
+      "borderRadius": "0px"
+    },
+    "chassis": {
+      "x": 0,
+      "y": 0,
+      "width": 350,
+      "height": 301,
+      "borderRadius": "19px 19px 14px 14px"
+    },
+    "displayOpening": {
+      "x": 22.56,
+      "y": 19.53,
+      "width": 304.84,
+      "height": 170.42,
+      "borderRadius": "13px"
+    },
+    "lowerDeck": {
+      "x": 16.3,
+      "y": 203.44,
+      "width": 317.38,
+      "height": 85.2,
+      "borderRadius": "9px"
+    },
+    "amberControl": {
+      "x": 269.55,
+      "y": 214.44,
+      "width": 48,
+      "height": 48,
+      "borderRadius": "50%"
+    },
+    "pullHandle": {
+      "x": 116.66,
+      "y": 237.64,
+      "width": 132.45,
+      "height": 44,
+      "borderRadius": "0px"
+    },
+    "bottomRail": {
+      "x": 33.06,
+      "y": 286.64,
+      "width": 283.83,
+      "height": 7,
+      "borderRadius": "0px 0px 6px 6px"
+    }
+  },
+  "specimen": {
+    "registrationPreview": {
+      "root": {
+        "width": 84.61,
+        "height": 110.64,
+        "aspectRatio": 0.76,
+        "computedAspectRatio": "104 / 136"
+      },
+      "layers": {
+        "cap": {
+          "x": 27.66,
+          "y": 2.44,
+          "width": 29.28,
+          "height": 13.83
+        },
+        "collar": {
+          "x": 26.03,
+          "y": 14.64,
+          "width": 32.53,
+          "height": 5.69
+        },
+        "shoulder-form": {
+          "x": 16.27,
+          "y": 19.52,
+          "width": 52.06,
+          "height": 16.27
+        },
+        "bottle-body": {
+          "x": 8.13,
+          "y": 26.03,
+          "width": 68.33,
+          "height": 79.72
+        },
+        "thermal-evidence-label": {
+          "x": 14.64,
+          "y": 48.8,
+          "width": 54.5,
+          "height": 40.67
+        }
+      },
+      "lockStrip": {
+        "x": 11.38,
+        "y": 49.61,
+        "width": 6.5,
+        "height": 46.36
+      }
+    },
+    "loading": {
+      "root": {
+        "width": 84.61,
+        "height": 110.64,
+        "aspectRatio": 0.76,
+        "computedAspectRatio": "104 / 136"
+      },
+      "layers": {
+        "cap": {
+          "x": 27.66,
+          "y": 2.44,
+          "width": 29.28,
+          "height": 13.83
+        },
+        "collar": {
+          "x": 26.03,
+          "y": 14.64,
+          "width": 32.53,
+          "height": 5.69
+        },
+        "shoulder-form": {
+          "x": 16.27,
+          "y": 19.52,
+          "width": 52.06,
+          "height": 16.27
+        },
+        "bottle-body": {
+          "x": 8.13,
+          "y": 26.03,
+          "width": 68.33,
+          "height": 79.72
+        },
+        "thermal-evidence-label": {
+          "x": 14.64,
+          "y": 48.8,
+          "width": 54.5,
+          "height": 40.67
+        }
+      },
+      "lockStrip": {
+        "x": 11.38,
+        "y": 49.61,
+        "width": 6.5,
+        "height": 46.36
+      }
+    },
+    "locking": {
+      "root": {
+        "width": 84.61,
+        "height": 110.64,
+        "aspectRatio": 0.76,
+        "computedAspectRatio": "104 / 136"
+      },
+      "layers": {
+        "cap": {
+          "x": 27.66,
+          "y": 2.44,
+          "width": 29.28,
+          "height": 13.83
+        },
+        "collar": {
+          "x": 26.03,
+          "y": 14.64,
+          "width": 32.53,
+          "height": 5.69
+        },
+        "shoulder-form": {
+          "x": 16.27,
+          "y": 19.52,
+          "width": 52.06,
+          "height": 16.27
+        },
+        "bottle-body": {
+          "x": 8.13,
+          "y": 26.03,
+          "width": 68.33,
+          "height": 79.72
+        },
+        "thermal-evidence-label": {
+          "x": 14.64,
+          "y": 48.8,
+          "width": 54.5,
+          "height": 40.67
+        }
+      },
+      "lockStrip": {
+        "x": 11.38,
+        "y": 47.65,
+        "width": 6.5,
+        "height": 46.36
+      }
+    },
+    "confirming": {
+      "root": {
+        "width": 84.61,
+        "height": 110.64,
+        "aspectRatio": 0.76,
+        "computedAspectRatio": "104 / 136"
+      },
+      "layers": {
+        "cap": {
+          "x": 27.66,
+          "y": 2.44,
+          "width": 29.28,
+          "height": 13.83
+        },
+        "collar": {
+          "x": 26.03,
+          "y": 14.64,
+          "width": 32.53,
+          "height": 5.69
+        },
+        "shoulder-form": {
+          "x": 16.27,
+          "y": 19.52,
+          "width": 52.06,
+          "height": 16.27
+        },
+        "bottle-body": {
+          "x": 8.13,
+          "y": 26.03,
+          "width": 68.33,
+          "height": 79.72
+        },
+        "thermal-evidence-label": {
+          "x": 14.64,
+          "y": 48.8,
+          "width": 54.5,
+          "height": 40.67
+        }
+      },
+      "lockStrip": {
+        "x": 11.38,
+        "y": 45.55,
+        "width": 6.5,
+        "height": 46.36
+      }
+    },
+    "ready": {
+      "root": {
+        "width": 84.61,
+        "height": 110.64,
+        "aspectRatio": 0.76,
+        "computedAspectRatio": "104 / 136"
+      },
+      "layers": {
+        "cap": {
+          "x": 27.66,
+          "y": 2.44,
+          "width": 29.28,
+          "height": 13.83
+        },
+        "collar": {
+          "x": 26.03,
+          "y": 14.64,
+          "width": 32.53,
+          "height": 5.69
+        },
+        "shoulder-form": {
+          "x": 16.27,
+          "y": 19.52,
+          "width": 52.06,
+          "height": 16.27
+        },
+        "bottle-body": {
+          "x": 8.13,
+          "y": 26.03,
+          "width": 68.33,
+          "height": 79.72
+        },
+        "thermal-evidence-label": {
+          "x": 14.64,
+          "y": 48.8,
+          "width": 54.5,
+          "height": 40.67
+        }
+      },
+      "lockStrip": {
+        "x": 11.38,
+        "y": 45.55,
+        "width": 6.5,
+        "height": 46.36
+      }
+    }
+  }
+}

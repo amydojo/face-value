@@ -131,6 +131,19 @@ describe('First Trial specimen ingestion', () => {
 
     expect(document.querySelectorAll('[data-fv-part="screen-header"]')).toHaveLength(1);
     expect(document.querySelectorAll('[data-oracle-machine]')).toHaveLength(1);
+    expect(document.querySelectorAll('[data-oracle-specimen]')).toHaveLength(1);
+    expect(document.querySelectorAll('[data-label-scan-beam]')).toHaveLength(1);
+    expect(specimen).toHaveAttribute('data-specimen-aspect-ratio', '104/136');
+    for (const layer of [
+      'cap',
+      'collar',
+      'shoulder-form',
+      'bottle-body',
+      'evidence-lock-strip',
+      'thermal-evidence-label',
+    ]) {
+      expect(specimen.querySelectorAll(`[data-specimen-layer="${layer}"]`)).toHaveLength(1);
+    }
     expect(machine).toHaveAttribute('data-trial-machine-state', 'empty');
     expect(within(machine).getByText('NO SPECIMEN LOADED')).toBeVisible();
 
@@ -145,13 +158,13 @@ describe('First Trial specimen ingestion', () => {
       target: { value: 'Naturium' },
     });
     expect(specimen).toHaveAttribute('data-specimen-brand', 'Naturium');
-    expect(within(specimen).getByText('Naturium')).toBeVisible();
+    expect(within(specimen).getByText('NATURIUM')).toBeVisible();
 
     fireEvent.change(screen.getByLabelText('Product name'), {
       target: { value: 'Azelaic Topical Acid' },
     });
     expect(specimen).toHaveAttribute('data-specimen-product', 'Azelaic Topical Acid');
-    expect(within(specimen).getByText('Azelaic Topical Acid')).toBeVisible();
+    expect(within(specimen).getByText('AZELAIC')).toBeVisible();
 
     registerProduct();
     expect(events.filter((event) => event.type === 'REGISTER_PRODUCT')).toHaveLength(1);
@@ -159,9 +172,34 @@ describe('First Trial specimen ingestion', () => {
     expect(currentSpecimen()).toBe(specimen);
     expect(machine).toHaveAttribute('data-trial-machine-state', 'baseline-ready');
     expect(machine).toHaveAttribute('data-ingestion-phase', 'materializing');
+    expect(specimen).toHaveAttribute('data-identity-lock-state', 'loading');
     expect(specimen).toHaveAttribute('data-specimen-brand', 'Naturium');
     expect(specimen).toHaveAttribute('data-specimen-product', 'Azelaic Topical Acid');
     expect(document.querySelectorAll('[data-oracle-machine]')).toHaveLength(1);
+  });
+
+  it('formats long commercial identities as compact evidence labels without changing source data', () => {
+    renderApplication();
+    enterRegistration();
+    fillRequiredProduct('The Ordinary', 'The Ordinary Glycolic Acid 5%');
+
+    const specimen = currentSpecimen();
+    expect(specimen).toHaveAttribute('data-specimen-product', 'The Ordinary Glycolic Acid 5%');
+    expect(specimen).toHaveAttribute('data-display-product', 'GLYCOLIC ACID');
+    expect(specimen).toHaveAttribute('data-display-strength', '5');
+    expect(within(specimen).getByText('GLYCOLIC ACID')).toBeVisible();
+    expect(within(specimen).getByText('5')).toBeVisible();
+
+    fillRequiredProduct(
+      'Clinical Laboratory',
+      'Clinical Laboratory Azelaic Topical Acid Barrier 10%',
+    );
+    expect(specimen).toHaveAttribute(
+      'data-specimen-product',
+      'Clinical Laboratory Azelaic Topical Acid Barrier 10%',
+    );
+    expect(specimen).toHaveAttribute('data-display-product', 'AZELAIC');
+    expect(specimen).toHaveAttribute('data-display-strength', '10');
   });
 
   it('preserves existing validation messages and invalid-field focus order', () => {
@@ -194,10 +232,13 @@ describe('First Trial specimen ingestion', () => {
     });
 
     expect(machine).toHaveAttribute('data-ingestion-phase', 'materializing');
+    expect(currentSpecimen()).toHaveAttribute('data-identity-lock-state', 'loading');
+    expect(currentSpecimen()).toHaveAttribute('data-label-scan-active', 'false');
     expect(action).toBeDisabled();
 
     act(() => vi.advanceTimersByTime(specimenIngestionTiming.loadingStart));
     expect(machine).toHaveAttribute('data-ingestion-phase', 'loading');
+    expect(currentSpecimen()).toHaveAttribute('data-identity-lock-state', 'loading');
     expect(within(machine).getByText('LOADING SPECIMEN')).toBeVisible();
     expect(action).toBeDisabled();
 
@@ -207,6 +248,8 @@ describe('First Trial specimen ingestion', () => {
       ),
     );
     expect(machine).toHaveAttribute('data-ingestion-phase', 'locking');
+    expect(currentSpecimen()).toHaveAttribute('data-identity-lock-state', 'locking');
+    expect(currentSpecimen()).toHaveAttribute('data-label-scan-active', 'true');
     expect(within(machine).getByText('IDENTITY LOCKING')).toBeVisible();
     expect(action).toBeDisabled();
 
@@ -216,6 +259,8 @@ describe('First Trial specimen ingestion', () => {
       ),
     );
     expect(machine).toHaveAttribute('data-ingestion-phase', 'confirming');
+    expect(currentSpecimen()).toHaveAttribute('data-identity-lock-state', 'locked');
+    expect(currentSpecimen()).toHaveAttribute('data-label-scan-active', 'false');
     expect(within(machine).getByText('CONFIRMING')).toBeVisible();
     expect(action).toBeDisabled();
 
@@ -225,6 +270,8 @@ describe('First Trial specimen ingestion', () => {
       ),
     );
     expect(machine).toHaveAttribute('data-ingestion-phase', 'ready');
+    expect(currentSpecimen()).toHaveAttribute('data-identity-lock-state', 'locked');
+    expect(currentSpecimen()).toHaveAttribute('data-label-scan-active', 'false');
     expect(within(machine).getByText('READY TO SCAN')).toBeVisible();
     expect(action).toBeEnabled();
     expect(
@@ -243,6 +290,7 @@ describe('First Trial specimen ingestion', () => {
   it('renders direct job and Demo Lab product_registered entry ready without replay', () => {
     const ordinary = renderApplication(registeredJobState());
     expect(currentMachine()).toHaveAttribute('data-ingestion-phase', 'ready');
+    expect(currentSpecimen()).toHaveAttribute('data-identity-lock-state', 'locked');
     expect(within(currentMachine()).getByText('READY TO SCAN')).toBeVisible();
     expect(screen.queryByText('PREPARING SPECIMEN')).not.toBeInTheDocument();
     ordinary.unmount();
@@ -274,6 +322,7 @@ describe('First Trial specimen ingestion', () => {
     expect(currentMachine()).toHaveAttribute('data-ingestion-phase', 'materializing');
     act(() => vi.advanceTimersByTime(1));
     expect(currentMachine()).toHaveAttribute('data-ingestion-phase', 'ready');
+    expect(currentSpecimen()).toHaveAttribute('data-label-scan-active', 'false');
     expect(screen.queryByText('LOADING SPECIMEN')).not.toBeInTheDocument();
     expect(screen.queryByText('IDENTITY LOCKING')).not.toBeInTheDocument();
   });

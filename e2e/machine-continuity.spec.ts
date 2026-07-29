@@ -10,11 +10,8 @@ import { addCalendarDays } from '../src/domain/phaseB5';
 import { buildDemoFixtureState } from '../src/features/demo-lab/demoFixtureState';
 
 const evidenceDirectory = resolve('docs/verification/machine-continuity-2026-07-28');
-const firstTrialEvidenceDirectory = resolve(
-  'docs/verification/first-trial-specimen-ingestion-v1',
-);
-const captureFirstTrialEvidence =
-  process.env.CAPTURE_FIRST_TRIAL_EVIDENCE === 'true';
+const firstTrialEvidenceDirectory = resolve('docs/verification/first-trial-specimen-ingestion-v1');
+const captureFirstTrialEvidence = process.env.CAPTURE_FIRST_TRIAL_EVIDENCE === 'true';
 
 type RuntimeIssue = {
   kind: 'console' | 'page' | 'response';
@@ -323,8 +320,7 @@ async function hardwareMetrics(page: Page) {
       chassis: {
         ...relativeBounds(chassis),
         aspectRatio: rounded(
-          chassis.getBoundingClientRect().width /
-            chassis.getBoundingClientRect().height,
+          chassis.getBoundingClientRect().width / chassis.getBoundingClientRect().height,
         ),
       },
       displayBezel: partBounds(selectors.bezel),
@@ -417,10 +413,13 @@ test('Trial Pending renders live data, remains inert, and survives reload', asyn
   await openOrdinaryFixture(page, 'trial_pending');
 
   const pendingMachine = page.locator('[data-trial-machine-state="pending"]');
+  const specimen = pendingMachine.locator('[data-oracle-specimen]');
   await expect(page.locator('[data-fv-screen="trial-pending"]')).toBeVisible();
   await expect(pendingMachine).toHaveAttribute('data-machine-implementation', 'oracle');
-  await expect(pendingMachine).toContainText('Face Value Lab');
-  await expect(pendingMachine).toContainText('One Thing Redness Trial');
+  await expect(specimen).toHaveAttribute('data-specimen-brand', 'Face Value Lab');
+  await expect(specimen).toHaveAttribute('data-specimen-product', 'One Thing Redness Trial');
+  await expect(pendingMachine).toContainText('FACE VAL');
+  await expect(pendingMachine).toContainText('ONE THING');
   await expect(pendingMachine).toContainText('REDUCE VISIBLE REDNESS');
   await expect(pendingMachine).toContainText('DAY 01 OF 14');
   await expect(page.locator('[data-followup-action="pending"]')).toContainText('IN 14 DAYS');
@@ -455,9 +454,7 @@ test('Empty, registration preview, baseline ready, pending, and follow-up ready 
   await expect(page.locator('[data-trial-machine-state="registration-preview"]')).toBeVisible();
   metrics.registration_preview = await hardwareMetrics(page);
   await page.getByRole('textbox', { name: 'Brand' }).fill('Face Value Lab');
-  await page
-    .getByRole('textbox', { name: 'Product name' })
-    .fill('One Thing Redness Trial');
+  await page.getByRole('textbox', { name: 'Product name' }).fill('One Thing Redness Trial');
   await page.getByRole('button', { name: 'REGISTER & LOAD' }).click();
   await expect(page.locator('[data-oracle-machine]')).toHaveAttribute(
     'data-ingestion-phase',
@@ -471,9 +468,7 @@ test('Empty, registration preview, baseline ready, pending, and follow-up ready 
   }
 
   expect(metrics.empty.implementation).toBe('oracle');
-  expect(Object.values(metrics.empty.partCounts)).toEqual(
-    Object.values(machineParts).map(() => 1),
-  );
+  expect(Object.values(metrics.empty.partCounts)).toEqual(Object.values(machineParts).map(() => 1));
   expect(metrics.registration_preview).toEqual(metrics.empty);
   expect(metrics.baseline_ready).toEqual(metrics.empty);
   expect(metrics.trial_pending).toEqual(metrics.empty);

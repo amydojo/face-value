@@ -214,8 +214,16 @@ it('keeps active-trial data inside the canonical loaded machine with the real hi
     'data-machine-implementation',
     'oracle',
   );
-  expect(screen.getByText('Naturium')).toBeVisible();
-  expect(screen.getByText('Azelaic Topical Acid')).toBeVisible();
+  expect(document.querySelector('[data-oracle-specimen]')).toHaveAttribute(
+    'data-specimen-brand',
+    'Naturium',
+  );
+  expect(document.querySelector('[data-oracle-specimen]')).toHaveAttribute(
+    'data-specimen-product',
+    'Azelaic Topical Acid',
+  );
+  expect(screen.getByText('NATURIUM')).toBeVisible();
+  expect(screen.getByText('AZELAIC')).toBeVisible();
   expect(document.querySelector('[data-latest-verdict-cassette]')).toBeNull();
   expect(screen.queryByRole('button', { name: 'START A NEW TRIAL' })).not.toBeInTheDocument();
 
@@ -281,8 +289,16 @@ it('starts with real registration and ends session one at Baseline locked', asyn
   await user.click(screen.getByRole('button', { name: 'REGISTER & LOAD' }));
   await waitFor(() => expect(screen.getByText('READY TO SCAN')).toBeVisible());
   expect(screen.queryByRole('heading', { name: 'Your product is ready.' })).not.toBeInTheDocument();
-  expect(screen.getByText('Naturium')).toBeVisible();
-  expect(screen.getByText('Azelaic Topical Acid')).toBeVisible();
+  expect(document.querySelector('[data-oracle-specimen]')).toHaveAttribute(
+    'data-specimen-brand',
+    'Naturium',
+  );
+  expect(document.querySelector('[data-oracle-specimen]')).toHaveAttribute(
+    'data-specimen-product',
+    'Azelaic Topical Acid',
+  );
+  expect(screen.getByText('NATURIUM')).toBeVisible();
+  expect(screen.getByText('AZELAIC')).toBeVisible();
   expect(screen.getByText('REDUCE VISIBLE REDNESS')).toBeVisible();
 
   await user.click(screen.getByRole('button', { name: 'TAKE GUIDED BASELINE' }));

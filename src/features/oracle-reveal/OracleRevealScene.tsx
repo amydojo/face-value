@@ -28,8 +28,20 @@ import {
   verdictViewModelFromRecord,
   type VerdictViewModel,
 } from '../verdict/verdictViewModel';
+import {
+  IdentityLockSpecimen,
+  type OracleSpecimenIdentity,
+  type OracleTrialState,
+  type SpecimenIngestionPhase,
+} from './IdentityLockSpecimen';
 import { oracleMachineControlLabel } from './oraclePresentation';
 import styles from './OracleRevealScene.module.css';
+
+export type {
+  OracleSpecimenIdentity,
+  OracleTrialState,
+  SpecimenIngestionPhase,
+} from './IdentityLockSpecimen';
 
 const DRAG_INTENT_PX = 5;
 const DRAG_ACTIVATION_PX = 28;
@@ -389,20 +401,6 @@ function LatestVerdictPaper({
   );
 }
 
-export type SpecimenIngestionPhase =
-  'idle' | 'materializing' | 'loading' | 'locking' | 'confirming' | 'ready';
-
-export type OracleTrialState =
-  'empty' | 'registration-preview' | 'baseline-ready' | 'pending' | 'followup-ready';
-
-export interface OracleSpecimenIdentity {
-  brand: string;
-  productName: string;
-  strength: string | null;
-  volume: string | null;
-  assignedJob: 'Reduce visible redness';
-}
-
 export type OracleTrialStateMachineProps =
   | {
       state: 'empty';
@@ -463,49 +461,6 @@ function specimenIdentityFromRegisteredProduct(product: RegisteredProduct): Orac
     volume: product.volume,
     assignedJob: product.assignedJob,
   };
-}
-
-function OracleSpecimen({
-  identity,
-  specimenState,
-  phase,
-}: {
-  identity: OracleSpecimenIdentity | null;
-  specimenState: OracleTrialState | 'verdict';
-  phase: SpecimenIngestionPhase;
-}) {
-  const visibleIdentity = identity ?? {
-    brand: 'UNASSIGNED',
-    productName: 'FACE VALUE SPECIMEN',
-    strength: null,
-    volume: null,
-    assignedJob: 'Reduce visible redness' as const,
-  };
-  const ingestionActive = specimenState === 'baseline-ready' && !['idle', 'ready'].includes(phase);
-
-  return (
-    <div
-      className={styles.oracleSpecimen}
-      data-oracle-specimen
-      data-specimen-state={specimenState}
-      data-ingestion-phase={phase}
-      data-ingestion-active={ingestionActive}
-      data-specimen-brand={visibleIdentity.brand}
-      data-specimen-product={visibleIdentity.productName}
-      data-specimen-strength={visibleIdentity.strength ?? ''}
-      data-specimen-volume={visibleIdentity.volume ?? ''}
-      aria-hidden="true"
-    >
-      <i className={styles.specimenCap} />
-      <span className={styles.specimenBody} />
-      <div className={styles.specimenLabel}>
-        <small>FV / S01</small>
-        <b>{visibleIdentity.brand}</b>
-        <span>{visibleIdentity.productName}</span>
-        {visibleIdentity.strength && <em>{visibleIdentity.strength}</em>}
-      </div>
-    </div>
-  );
 }
 
 function TrialStateDisplay({
@@ -646,9 +601,7 @@ function OracleMachine(props: OracleMachineProps) {
   const registrationDraftDetails =
     trialMachine?.trialState === 'registration-preview' && trialMachine.identity
       ? [
-          trialMachine.identity.brand === 'UNNAMED BRAND'
-            ? null
-            : trialMachine.identity.brand,
+          trialMachine.identity.brand === 'UNNAMED BRAND' ? null : trialMachine.identity.brand,
           trialMachine.identity.productName === 'UNNAMED PRODUCT'
             ? null
             : trialMachine.identity.productName,
@@ -700,6 +653,7 @@ function OracleMachine(props: OracleMachineProps) {
       data-trial-machine-state={trialMachine?.trialState}
       data-ingestion-phase={trialMachine?.ingestionPhase}
       data-machine-material="carbon"
+      data-machine-finish="smoked-graphite"
       data-machine-instance="face-value-oracle"
       aria-label={machineLabel}
     >
@@ -707,7 +661,7 @@ function OracleMachine(props: OracleMachineProps) {
         <div className={styles.carbonTexture} data-oracle-carbon-texture aria-hidden="true" />
         <div className={styles.displayBezel} data-oracle-display-opening>
           <div className={styles.displayGlass} data-oracle-display-glass>
-            <OracleSpecimen
+            <IdentityLockSpecimen
               identity={specimenIdentity}
               specimenState={trialMachine?.trialState ?? 'verdict'}
               phase={ingestionPhase}
