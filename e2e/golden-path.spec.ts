@@ -141,7 +141,8 @@ for (const scenario of cases) {
     const specimen = page.locator('[data-oracle-specimen]');
     await expect(specimen).toHaveAttribute('data-specimen-brand', 'Naturium');
     await expect(specimen).toHaveAttribute('data-specimen-product', 'Azelaic Topical Acid');
-    await expect(page.getByText('NATURIUM', { exact: true })).toBeVisible();
+    await expect(specimen).toHaveAttribute('data-display-brand', 'NATURIUM');
+    await expect(specimen.getByText('NATURIUM', { exact: true })).toHaveCount(0);
     await expect(page.getByText('AZELAIC', { exact: true })).toBeVisible();
     await expect(page.getByText('FV / S01')).toBeVisible();
     await assertNoHorizontalOverflow(page);
@@ -175,7 +176,8 @@ for (const scenario of cases) {
     await expect(page.getByRole('heading', { name: 'Your trials' })).toBeVisible();
     await expect(specimen).toHaveAttribute('data-specimen-brand', 'Naturium');
     await expect(specimen).toHaveAttribute('data-specimen-product', 'Azelaic Topical Acid');
-    await expect(page.getByText('NATURIUM', { exact: true })).toBeVisible();
+    await expect(specimen).toHaveAttribute('data-display-brand', 'NATURIUM');
+    await expect(specimen.getByText('NATURIUM', { exact: true })).toHaveCount(0);
     await expect(page.getByText('AZELAIC', { exact: true })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Take follow-up scan' })).toHaveCount(0);
 
