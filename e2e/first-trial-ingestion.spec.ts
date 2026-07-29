@@ -282,6 +282,7 @@ test('one Oracle instrument accepts, loads, and releases one specimen to baselin
   await expectCurrentNode(specimen, '[data-oracle-specimen]');
   await expectNoHorizontalOverflow(page);
   await page.clock.resume();
+  await page.waitForTimeout(80);
   await captureCheckpoint(page, '07-baseline-ready.png');
 
   await page.evaluate(() => {
