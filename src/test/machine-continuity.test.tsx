@@ -179,7 +179,7 @@ describe('Machine Continuity production projections', () => {
     expect(specimen).toHaveAttribute('data-specimen-product', 'One Thing Redness Trial');
     expect(specimen).toHaveAttribute('data-display-brand', 'FACE VAL');
     expect(within(machine).queryByText('FACE VAL')).not.toBeInTheDocument();
-    expect(within(machine).getByText('ONE THING')).toBeVisible();
+    expect(machine.querySelector('[data-label-product]')).toHaveTextContent('ONE THING');
     expect(within(machine).getByText('REDUCE VISIBLE REDNESS')).toBeVisible();
     expect(within(machine).getByText('DAY 01 OF 14')).toBeVisible();
     expect(screen.getByText('IN 14 DAYS')).toBeVisible();

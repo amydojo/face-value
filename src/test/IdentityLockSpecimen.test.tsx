@@ -1,211 +1,180 @@
-import { render, screen, within } from '@testing-library/react';
+import { render, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
+import type {
+  SpecimenRegistrationPhase,
+  SpecimenRegistrationSnapshot,
+} from '../domain/specimenRegistration';
 import {
   IdentityLockSpecimen,
   type OracleSpecimenIdentity,
 } from '../features/oracle-reveal/IdentityLockSpecimen';
 
-const blankIdentity: OracleSpecimenIdentity = {
-  brand: 'UNNAMED BRAND',
-  productName: 'UNNAMED PRODUCT',
-  strength: null,
-  volume: null,
-  assignedJob: 'Reduce visible redness',
-};
-
-const longIdentity: OracleSpecimenIdentity = {
-  brand: 'Clinical Laboratory',
-  productName: 'Clinical Laboratory Azelaic Topical Acid Barrier Support Concentrate',
-  strength: '10%',
-  volume: '30 ml',
-  assignedJob: 'Reduce visible redness',
-};
-
-const identity = (productName: string, strength: string | null = null): OracleSpecimenIdentity => ({
+const identity = (
+  productName: string,
+  strength: string | null = null,
+  volume: string | null = '30 ml',
+): OracleSpecimenIdentity => ({
   brand: 'Test Brand',
   productName,
   strength,
-  volume: '30 ml',
+  volume,
   assignedJob: 'Reduce visible redness',
 });
 
-const renderIdentity = (productName: string, strength: string | null = null) => {
+function registration(
+  phase: SpecimenRegistrationPhase,
+  scanProgress = phase === 'ready' ? 1 : 0,
+  reducedMotion = false,
+): SpecimenRegistrationSnapshot {
+  const isReady = phase === 'ready';
+  return {
+    registrationId: phase === 'idle' ? null : 'registration-test-1',
+    phase,
+    scanProgress,
+    isRegistering: !['idle', 'ready'].includes(phase),
+    isVerified: phase === 'verified' || isReady,
+    isReady,
+    reducedMotion,
+  };
+}
+
+function renderIdentity(
+  productName: string,
+  strength: string | null = null,
+  phase: SpecimenRegistrationPhase = 'ready',
+) {
   const result = render(
     <IdentityLockSpecimen
       identity={identity(productName, strength)}
       specimenState="baseline-ready"
-      phase="ready"
+      registration={registration(phase)}
     />,
   );
   const specimen = document.querySelector<HTMLElement>('[data-oracle-specimen]');
+  const label = document.querySelector<HTMLElement>(
+    '[data-specimen-layer="thermal-evidence-label"]',
+  );
   const product = document.querySelector<HTMLElement>('[data-label-product]');
-  const labelContent = document.querySelector<HTMLElement>('[data-label-content]');
-  if (!specimen || !product || !labelContent) throw new Error('Expected the canonical specimen label.');
-  return { ...result, specimen, product, labelContent };
-};
+  if (!specimen || !label || !product) throw new Error('Expected the canonical specimen label.');
+  return { ...result, specimen, label, product };
+}
 
 describe('IdentityLockSpecimen', () => {
-  it('uses one bounded label layout and a concise blank preview', () => {
-    render(
-      <IdentityLockSpecimen
-        identity={blankIdentity}
-        specimenState="registration-preview"
-        phase="idle"
-      />,
-    );
+  it('renders only normalized identity and a literal percentage while preserving source data', () => {
+    const productName = 'Hyaluronic Acid 1% Serum';
+    const { specimen, label, product } = renderIdentity(productName, null);
 
-    const specimen = document.querySelector<HTMLElement>('[data-oracle-specimen]');
-    const label = document.querySelector<HTMLElement>(
-      '[data-specimen-layer="thermal-evidence-label"]',
-    );
-    if (!specimen || !label) throw new Error('Expected the canonical specimen label.');
+    expect(specimen).toHaveAttribute('aria-hidden', 'true');
+    expect(specimen).not.toHaveAttribute('aria-label');
+    expect(specimen).toHaveAttribute('data-specimen-brand', 'Test Brand');
+    expect(specimen).toHaveAttribute('data-specimen-product', productName);
+    expect(specimen).toHaveAttribute('data-specimen-strength', '');
+    expect(specimen).toHaveAttribute('data-specimen-volume', '30 ml');
+    expect(specimen).toHaveAttribute('data-display-product', 'HYALURONIC ACID');
+    expect(specimen).toHaveAttribute('data-display-strength', '1%');
 
-    expect(specimen).toHaveAttribute('data-label-layout', 'safe');
-    expect(label.querySelectorAll('[data-label-content]')).toHaveLength(1);
-    expect(within(label).getByText('FV / S01')).toBeVisible();
-    expect(within(label).getByText('SPECIMEN ID')).toBeVisible();
-    expect(within(label).getByText('UNNAMED')).toBeVisible();
-    expect(within(label).getByText('TOPICAL')).toBeVisible();
-    expect(within(label).getByText('PREVIEW')).toBeVisible();
-    expect(within(label).queryByText('UNNAMED BRAND')).not.toBeInTheDocument();
-    expect(within(label).queryByText('UNNAMED PRODUCT')).not.toBeInTheDocument();
-    expect(within(label).queryByText('LOCK')).not.toBeInTheDocument();
-    expect(label.querySelector('[data-label-status-marker]')).toHaveAttribute(
-      'data-label-status-state',
-      'hidden',
-    );
+    expect(product).toHaveTextContent('HYALURONIC ACID');
+    expect(product.querySelectorAll('[data-label-name-line]')).toHaveLength(2);
+    expect(within(product).getByText('HYALURONIC')).toBeVisible();
+    expect(within(product).getByText('ACID')).toBeVisible();
+    expect(within(label).getByText('1%')).toBeVisible();
+    expect(label).not.toHaveTextContent('TOPICAL');
+    expect(label).not.toHaveTextContent('BASE');
+    expect(label).not.toHaveTextContent('30 ML');
+    expect(label).not.toHaveTextContent('FV / S01');
+    expect(label).not.toHaveTextContent('SPECIMEN ID');
   });
 
-  it('keeps full source identity while resolving one scan and one tiny locked marker', () => {
+  it('uses the controller snapshot for scan, verification, and completion attributes', () => {
+    const sourceIdentity = identity(
+      'Clinical Laboratory Azelaic Topical Acid Barrier Support Concentrate',
+      '10%',
+    );
     const { rerender } = render(
       <IdentityLockSpecimen
-        identity={longIdentity}
-        specimenState="registration-preview"
-        phase="idle"
+        identity={sourceIdentity}
+        specimenState="baseline-ready"
+        registration={registration('scanning', 0.425)}
       />,
     );
+    const specimen = document.querySelector<HTMLElement>('[data-oracle-specimen]');
+    if (!specimen) throw new Error('Expected the canonical specimen.');
+    const beam = specimen.querySelector('[data-label-scan-beam]');
+    const marker = specimen.querySelector('[data-label-status-marker]');
 
-    const specimen = screen.getByText('AZELAIC').closest('[data-oracle-specimen]');
-    if (!(specimen instanceof HTMLElement)) throw new Error('Expected the canonical specimen.');
-
-    expect(specimen).toHaveAttribute('data-specimen-brand', longIdentity.brand);
-    expect(specimen).toHaveAttribute('data-specimen-product', longIdentity.productName);
-    expect(within(specimen).getByText('10')).toBeVisible();
-    expect(within(specimen).getByText('30 ML · BASE')).toBeVisible();
-    expect(specimen.querySelector('[data-label-scan-beam]')).toHaveAttribute(
-      'data-label-scan-state',
-      'inactive',
-    );
+    expect(specimen).toHaveAttribute('data-registration-phase', 'scanning');
+    expect(specimen).toHaveAttribute('data-registration-active', 'true');
+    expect(specimen).toHaveAttribute('data-registration-complete', 'false');
+    expect(specimen).toHaveAttribute('data-scan-state', 'active');
+    expect(specimen).toHaveAttribute('data-scan-progress', '0.425');
+    expect(beam).toHaveAttribute('data-label-scan-state', 'active');
+    expect(marker).toHaveAttribute('data-label-status-state', 'hidden');
 
     rerender(
       <IdentityLockSpecimen
-        identity={longIdentity}
+        identity={sourceIdentity}
         specimenState="baseline-ready"
-        phase="locking"
+        registration={registration('verified', 1)}
       />,
     );
-    expect(specimen.querySelector('[data-label-scan-beam]')).toHaveAttribute(
-      'data-label-scan-state',
-      'active',
-    );
-    expect(specimen.querySelector('[data-label-status-marker]')).toHaveAttribute(
-      'data-label-status-state',
-      'hidden',
-    );
+    expect(specimen).toHaveAttribute('data-registration-phase', 'verified');
+    expect(specimen).toHaveAttribute('data-registration-active', 'true');
+    expect(marker).toHaveAttribute('data-label-status-state', 'locked');
 
     rerender(
-      <IdentityLockSpecimen identity={longIdentity} specimenState="baseline-ready" phase="ready" />,
+      <IdentityLockSpecimen
+        identity={sourceIdentity}
+        specimenState="baseline-ready"
+        registration={registration('ready')}
+      />,
     );
-    expect(specimen.querySelector('[data-label-scan-beam]')).toHaveAttribute(
-      'data-label-scan-state',
-      'inactive',
-    );
-    expect(specimen.querySelector('[data-label-status-marker]')).toHaveAttribute(
-      'data-label-status-state',
-      'locked',
-    );
-    expect(within(specimen).queryByText('LOCK')).not.toBeInTheDocument();
+    expect(specimen).toHaveAttribute('data-registration-complete', 'true');
+    expect(specimen).toHaveAttribute('data-scan-state', 'inactive');
+    expect(beam).toHaveAttribute('data-label-scan-state', 'inactive');
+  });
 
-    rerender(
-      <IdentityLockSpecimen identity={longIdentity} specimenState="pending" phase="ready" />,
+  it('uses a soft wash instead of beam travel for reduced motion', () => {
+    render(
+      <IdentityLockSpecimen
+        identity={identity('Niacinamide 10% Serum')}
+        specimenState="baseline-ready"
+        registration={registration('scanning', 0.5, true)}
+      />,
     );
-    expect(specimen.querySelector('[data-label-scan-beam]')).toHaveAttribute(
+
+    expect(document.querySelector('[data-oracle-specimen]')).toHaveAttribute(
+      'data-scan-state',
+      'wash',
+    );
+    expect(document.querySelector('[data-label-scan-beam]')).toHaveAttribute(
       'data-label-scan-state',
-      'inactive',
-    );
-    expect(specimen.querySelector('[data-label-status-marker]')).toHaveAttribute(
-      'data-label-status-state',
-      'locked',
+      'wash',
     );
   });
 
   it.each([
-    ['Niacinamide 10% Serum', 'NIACINAMIDE'],
-    ['Hyaluronic Acid 2% Serum', 'HYALURONIC ACID'],
-    ['Glycolic Acid 7% Toner', 'GLYCOLIC ACID'],
-    ['Salicylic Acid 2% Solution', 'SALICYLIC ACID'],
-    ['Benzoyl Peroxide 5% Gel', 'BENZOYL PEROXIDE'],
-    ['Vitamin C Suspension 23%', 'VITAMIN C'],
-    ['Alpha Arbutin 2% Serum', 'ALPHA ARBUTIN'],
-    ['Ceramides Barrier Repair Cream', 'CERAMIDES'],
-  ])('normalizes %s to %s without changing fixed label rows', (productName, expected) => {
-    const { specimen, product, labelContent } = renderIdentity(productName);
-    expect(product).toHaveTextContent(expected);
-    expect(product.textContent?.split('\n')).toHaveLength(1);
-    expect(specimen).toHaveAttribute('data-specimen-product', productName);
-    expect(labelContent.querySelector('[data-label-group="strength"]')).toBeInTheDocument();
-    expect(within(labelContent).getByText('TOPICAL')).toBeVisible();
-    expect(within(labelContent).getByText('30 ML · BASE')).toBeVisible();
-  });
-
-  it.each([
-    ['10% Niacinamide + 1% Zinc PCA Serum', 'NIACINAMIDE + ZINC PCA'],
-    ['Hyaluronic Acid 2% + B5', 'HYALURONIC ACID + PANTHENOL'],
-    ['AHA 30% + BHA 2% Peeling Solution', 'AHA + BHA'],
-    ['Retinal 0.1% Emulsion', 'RETINAL'],
-  ])('uses compact multi-active evidence identity for %s', (productName, expected) => {
+    ['Niacinamide 10% Serum', 'NIACINAMIDE', '10%'],
+    ['Hyaluronic Acid 2% Serum', 'HYALURONIC ACID', '2%'],
+    ['Glycolic Acid 7% Toner', 'GLYCOLIC ACID', '7%'],
+    ['Salicylic Acid 2% Solution', 'SALICYLIC ACID', '2%'],
+    ['Benzoyl Peroxide 5% Gel', 'BENZOYL PEROXIDE', '5%'],
+    ['Vitamin C Suspension 23%', 'VITAMIN C', '23%'],
+    ['Alpha Arbutin 2% Serum', 'ALPHA ARBUTIN', '2%'],
+  ])('normalizes %s to %s and keeps percentage punctuation', (productName, expected, strength) => {
     const { specimen, product } = renderIdentity(productName);
     expect(product).toHaveTextContent(expected);
-    expect(specimen).toHaveAttribute('data-display-product', expected);
-    expect(specimen).toHaveAttribute('data-accessibility-product', expect.stringContaining('TEST BRAND'));
+    expect(product.querySelectorAll('[data-label-name-line]').length).toBeLessThanOrEqual(2);
+    expect(specimen).toHaveAttribute('data-display-strength', strength);
   });
 
-  it('keeps strength, support, and footer in the same grid rows for every identity', () => {
-    const cases = [
-      'NIACINAMIDE',
-      'HYALURONIC ACID',
-      'GLYCOLIC ACID',
-      'SALICYLIC ACID',
-      'BENZOYL PEROXIDE',
-      'NIACINAMIDE + ZINC PCA',
-      'HYALURONIC ACID + PANTHENOL',
-    ];
-
-    for (const productName of cases) {
-      const { unmount } = renderIdentity(productName, '10%');
-      const groups = Array.from(document.querySelectorAll('[data-label-group]')).map((node) =>
-        node.getAttribute('data-label-group'),
-      );
-      expect(groups).toEqual([
-        'metadata',
-        'product-identity',
-        'strength',
-        'supporting-metadata',
-        'footer',
-      ]);
-      expect(screen.getByText('10')).toBeVisible();
-      expect(screen.getByText('TOPICAL')).toBeVisible();
-      expect(screen.getByText('30 ML · BASE')).toBeVisible();
-      unmount();
-    }
-  });
-
-  it('uses a safe cleaned fallback for unknown products and stays within two hero lines', () => {
+  it('keeps unknown ingredient identity to at most two explicit name lines', () => {
     const productName = 'Test Brand Advanced Daily Moon Jelly Hydrating Treatment Serum 18%';
-    const { specimen, product } = renderIdentity(productName);
+    const { specimen, product, label } = renderIdentity(productName);
+
     expect(product).toHaveTextContent('MOON JELLY');
-    expect(product.textContent?.split('\n').length).toBeLessThanOrEqual(2);
+    expect(product.querySelectorAll('[data-label-name-line]')).toHaveLength(2);
     expect(specimen).toHaveAttribute('data-specimen-product', productName);
-    expect(specimen).toHaveAttribute('data-display-strength', '18');
+    expect(specimen).toHaveAttribute('data-display-strength', '18%');
+    expect(within(label).getByText('18%')).toBeVisible();
   });
 });

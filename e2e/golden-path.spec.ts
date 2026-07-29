@@ -144,7 +144,7 @@ for (const scenario of cases) {
     await expect(specimen).toHaveAttribute('data-display-brand', 'NATURIUM');
     await expect(specimen.getByText('NATURIUM', { exact: true })).toHaveCount(0);
     await expect(page.getByText('AZELAIC', { exact: true })).toBeVisible();
-    await expect(page.getByText('FV / S01')).toBeVisible();
+    await expect(specimen.getByText('10%', { exact: true })).toBeVisible();
     await assertNoHorizontalOverflow(page);
 
     await page.getByRole('button', { name: 'TAKE GUIDED BASELINE' }).click();

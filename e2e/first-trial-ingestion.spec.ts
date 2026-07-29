@@ -6,15 +6,17 @@ import { STORAGE_KEY } from '../src/adapters/persistence/localObservationStore';
 const captureEvidence = process.env.CAPTURE_FIRST_TRIAL_EVIDENCE === 'true';
 const evidenceDirectory = resolve('docs/verification/first-trial-identity-lock-v2');
 
-const ingestionTiming = {
-  materializingCheckpoint: 80,
-  loadingStart: 160,
-  loadingCheckpoint: 350,
-  lockingStart: 540,
-  lockingCheckpoint: 615,
-  confirmingStart: 720,
-  confirmingCheckpoint: 795,
-  readyStart: 900,
+const registrationTiming = {
+  preparingCheckpoint: 150,
+  aligningStart: 300,
+  aligningCheckpoint: 550,
+  scanningStart: 800,
+  scanningCheckpoint: 1_700,
+  processingStart: 2_600,
+  processingCheckpoint: 2_800,
+  verifiedStart: 3_200,
+  verifiedCheckpoint: 3_400,
+  readyStart: 3_800,
 } as const;
 
 const invariantSpecimenLayers = [
@@ -380,6 +382,8 @@ test('one Oracle instrument accepts, loads, and releases one specimen to baselin
 
   await page.getByRole('button', { name: 'LOAD A PRODUCT' }).click();
   await expect(page.locator('[data-fv-screen="product-registration"]')).toBeVisible();
+  await expect(page.getByLabel('Brand')).toHaveCount(1);
+  await expect(page.getByLabel('Brand')).toHaveAttribute('name', 'brand');
   await expect(page.getByRole('textbox', { name: 'Brand' })).not.toBeFocused();
   await expect(page.locator('[data-trial-machine-state="registration-preview"]')).toContainText(
     'NOT YET LOADED',
@@ -420,8 +424,12 @@ test('one Oracle instrument accepts, loads, and releases one specimen to baselin
   );
   await expect(page.locator('[data-oracle-specimen]')).toHaveAttribute(
     'data-display-strength',
-    '10',
+    '10%',
   );
+  await expect(page.locator('[data-label-content]')).toContainText('10%');
+  await expect(page.locator('[data-label-content]')).not.toContainText('TOPICAL');
+  await expect(page.locator('[data-label-content]')).not.toContainText('BASE');
+  await expect(page.locator('[data-label-content]')).not.toContainText('30 ML');
   const completeLabelMetrics = await labelMetrics(page);
   expect(completeLabelMetrics.scrollWidth).toBeLessThanOrEqual(completeLabelMetrics.clientWidth);
   expect(completeLabelMetrics.scrollHeight).toBeLessThanOrEqual(completeLabelMetrics.clientHeight);
@@ -436,8 +444,8 @@ test('one Oracle instrument accepts, loads, and releases one specimen to baselin
   await page.getByRole('button', { name: 'REGISTER & LOAD' }).click();
 
   await expect(page.locator('[data-fv-screen="baseline-ready"]')).toHaveAttribute(
-    'data-ingestion-phase',
-    'materializing',
+    'data-registration-phase',
+    'preparing',
   );
   await expect(page.locator('[data-baseline-action]')).toBeDisabled();
   await expect(page.locator('[data-registration-panel]')).toHaveAttribute(
@@ -456,32 +464,32 @@ test('one Oracle instrument accepts, loads, and releases one specimen to baselin
   await expectCurrentNode(specimen, '[data-oracle-specimen]');
   expect(await machineDocumentGeometry(page)).toEqual(workflowMachineGeometry);
 
-  await page.clock.runFor(ingestionTiming.materializingCheckpoint);
+  await page.clock.runFor(registrationTiming.preparingCheckpoint);
   await expect(page.locator('[data-oracle-machine]')).toHaveAttribute(
-    'data-ingestion-phase',
-    'materializing',
+    'data-registration-phase',
+    'preparing',
   );
   await expect(page.locator('[data-label-scan-beam]')).toHaveAttribute(
     'data-label-scan-state',
     'inactive',
   );
   expect(
-    await page.locator('[data-label-scan-beam]').evaluate((beam) => getComputedStyle(beam).display),
-  ).toBe('none');
+    await page.locator('[data-label-scan-beam]').evaluate((beam) => getComputedStyle(beam).opacity),
+  ).toBe('0');
   expect(
     await page
       .locator('[data-oracle-specimen]')
       .evaluate((specimen) => new DOMMatrixReadOnly(getComputedStyle(specimen).transform).m42),
-  ).toBeCloseTo(26, 1);
+  ).toBeCloseTo(0, 1);
   expect(await machineDocumentGeometry(page)).toEqual(workflowMachineGeometry);
-  await captureCheckpoint(page, '04-materializing.png', true);
+  await captureCheckpoint(page, '04-preparing.png', true);
 
   await page.clock.runFor(
-    ingestionTiming.loadingCheckpoint - ingestionTiming.materializingCheckpoint,
+    registrationTiming.aligningCheckpoint - registrationTiming.preparingCheckpoint,
   );
   await expect(page.locator('[data-oracle-machine]')).toHaveAttribute(
-    'data-ingestion-phase',
-    'loading',
+    'data-registration-phase',
+    'aligning',
   );
   await expect(page.locator('[data-registration-panel]')).toHaveCount(0);
   await expect(page.locator('[data-baseline-action]')).toBeDisabled();
@@ -493,14 +501,19 @@ test('one Oracle instrument accepts, loads, and releases one specimen to baselin
     'data-label-scan-state',
     'inactive',
   );
+  await expect(page.locator('[data-trial-machine-state="baseline-ready"]')).toContainText(
+    'ALIGNING SPECIMEN',
+  );
   expect(await machineDocumentGeometry(page)).toEqual(workflowMachineGeometry);
-  const loadingSpecimenGeometry = await specimenGeometry(page);
-  await captureCheckpoint(page, '05-loading.png', true);
+  const aligningSpecimenGeometry = await specimenGeometry(page);
+  await captureCheckpoint(page, '05-aligning.png', true);
 
-  await page.clock.runFor(ingestionTiming.lockingCheckpoint - ingestionTiming.loadingCheckpoint);
+  await page.clock.runFor(
+    registrationTiming.scanningCheckpoint - registrationTiming.aligningCheckpoint,
+  );
   await expect(page.locator('[data-oracle-machine]')).toHaveAttribute(
-    'data-ingestion-phase',
-    'locking',
+    'data-registration-phase',
+    'scanning',
   );
   await expect(page.locator('[data-oracle-specimen]')).toHaveAttribute(
     'data-identity-lock-state',
@@ -513,21 +526,28 @@ test('one Oracle instrument accepts, loads, and releases one specimen to baselin
   expect(
     await page
       .locator('[data-label-scan-beam]')
-      .evaluate((beam) => getComputedStyle(beam).animationName),
-  ).not.toBe('none');
+      .evaluate((beam) => new DOMMatrixReadOnly(getComputedStyle(beam).transform).m42),
+  ).toBeGreaterThan(-14);
+  const scanProgress = Number(
+    await page.locator('[data-oracle-specimen]').getAttribute('data-scan-progress'),
+  );
+  expect(scanProgress).toBeGreaterThan(0);
+  expect(scanProgress).toBeLessThan(1);
   await expect(page.locator('[data-baseline-action]')).toBeDisabled();
   expect(await machineDocumentGeometry(page)).toEqual(workflowMachineGeometry);
-  const lockingSpecimenGeometry = await specimenGeometry(page);
-  await captureCheckpoint(page, '06-identity-locking.png', true);
+  const scanningSpecimenGeometry = await specimenGeometry(page);
+  await captureCheckpoint(page, '06-scanning.png', true);
 
-  await page.clock.runFor(ingestionTiming.confirmingCheckpoint - ingestionTiming.lockingCheckpoint);
+  await page.clock.runFor(
+    registrationTiming.processingCheckpoint - registrationTiming.scanningCheckpoint,
+  );
   await expect(page.locator('[data-oracle-machine]')).toHaveAttribute(
-    'data-ingestion-phase',
-    'confirming',
+    'data-registration-phase',
+    'processing',
   );
   await expect(page.locator('[data-baseline-action]')).toBeDisabled();
   await expect(page.locator('[data-trial-machine-state="baseline-ready"]')).toContainText(
-    'CONFIRMING',
+    'VERIFYING SPECIMEN',
   );
   await expect(page.locator('[data-oracle-specimen]')).toHaveAttribute(
     'data-identity-lock-state',
@@ -538,35 +558,49 @@ test('one Oracle instrument accepts, loads, and releases one specimen to baselin
     'inactive',
   );
   expect(await machineDocumentGeometry(page)).toEqual(workflowMachineGeometry);
-  const confirmingSpecimenGeometry = await specimenGeometry(page);
-  await captureCheckpoint(page, '07-confirming.png', true);
+  const processingSpecimenGeometry = await specimenGeometry(page);
+  await captureCheckpoint(page, '07-processing.png', true);
 
-  await page.clock.runFor(ingestionTiming.readyStart - ingestionTiming.confirmingCheckpoint);
+  await page.clock.runFor(
+    registrationTiming.verifiedCheckpoint - registrationTiming.processingCheckpoint,
+  );
   await expect(page.locator('[data-oracle-machine]')).toHaveAttribute(
-    'data-ingestion-phase',
+    'data-registration-phase',
+    'verified',
+  );
+  await expect(page.locator('[data-trial-machine-state="baseline-ready"]')).toContainText(
+    'SPECIMEN VERIFIED',
+  );
+  await expect(page.getByRole('button', { name: 'TAKE GUIDED BASELINE' })).toBeDisabled();
+  const verifiedSpecimenGeometry = await specimenGeometry(page);
+  await captureCheckpoint(page, '08-verified.png', true);
+
+  await page.clock.runFor(registrationTiming.readyStart - registrationTiming.verifiedCheckpoint);
+  await expect(page.locator('[data-oracle-machine]')).toHaveAttribute(
+    'data-registration-phase',
     'ready',
   );
   await expect(page.locator('[data-trial-machine-state="baseline-ready"]')).toContainText(
     'READY TO SCAN',
   );
   await expect(page.getByRole('button', { name: 'TAKE GUIDED BASELINE' })).toBeEnabled();
-  await expect(page.locator('[aria-live="polite"]')).toContainText(
-    'Specimen loaded. Ready to take the baseline scan.',
-  );
+  await expect(page.getByRole('status')).toContainText('Ready to take guided baseline.');
   await expect(page.getByText('Your product is ready.')).toHaveCount(0);
   await expect(page.getByText('PRODUCT REGISTERED')).toHaveCount(0);
   await expectCurrentNode(machine, '[data-oracle-machine]');
   await expectCurrentNode(specimen, '[data-oracle-specimen]');
   expect(await machineDocumentGeometry(page)).toEqual(workflowMachineGeometry);
   const readySpecimenGeometry = await specimenGeometry(page);
-  expect(loadingSpecimenGeometry.root).toEqual(lockingSpecimenGeometry.root);
-  expect(lockingSpecimenGeometry.root).toEqual(confirmingSpecimenGeometry.root);
-  expect(confirmingSpecimenGeometry.root).toEqual(readySpecimenGeometry.root);
-  expect(loadingSpecimenGeometry.layers).toEqual(lockingSpecimenGeometry.layers);
-  expect(lockingSpecimenGeometry.layers).toEqual(confirmingSpecimenGeometry.layers);
-  expect(confirmingSpecimenGeometry.layers).toEqual(readySpecimenGeometry.layers);
-  expect(loadingSpecimenGeometry.lockStrip.width).toBe(readySpecimenGeometry.lockStrip.width);
-  expect(loadingSpecimenGeometry.lockStrip.height).toBe(readySpecimenGeometry.lockStrip.height);
+  expect(aligningSpecimenGeometry.root).toEqual(scanningSpecimenGeometry.root);
+  expect(scanningSpecimenGeometry.root).toEqual(processingSpecimenGeometry.root);
+  expect(processingSpecimenGeometry.root).toEqual(verifiedSpecimenGeometry.root);
+  expect(verifiedSpecimenGeometry.root).toEqual(readySpecimenGeometry.root);
+  expect(aligningSpecimenGeometry.layers).toEqual(scanningSpecimenGeometry.layers);
+  expect(scanningSpecimenGeometry.layers).toEqual(processingSpecimenGeometry.layers);
+  expect(processingSpecimenGeometry.layers).toEqual(verifiedSpecimenGeometry.layers);
+  expect(verifiedSpecimenGeometry.layers).toEqual(readySpecimenGeometry.layers);
+  expect(aligningSpecimenGeometry.lockStrip.width).toBe(readySpecimenGeometry.lockStrip.width);
+  expect(aligningSpecimenGeometry.lockStrip.height).toBe(readySpecimenGeometry.lockStrip.height);
   expect(registrationSpecimenGeometry.root).toEqual(readySpecimenGeometry.root);
   await expectNoHorizontalOverflow(page);
   await page.clock.resume();
@@ -585,18 +619,20 @@ test('one Oracle instrument accepts, loads, and releases one specimen to baselin
           workflowLayout: registrationLayout,
           stableMachinePhases: [
             'registration-preview',
-            'materializing',
-            'loading',
-            'locking',
-            'confirming',
+            'preparing',
+            'aligning',
+            'scanning',
+            'processing',
+            'verified',
             'ready',
           ],
           hardware: await hardwareGeometry(page),
           specimen: {
             registrationPreview: registrationSpecimenGeometry,
-            loading: loadingSpecimenGeometry,
-            locking: lockingSpecimenGeometry,
-            confirming: confirmingSpecimenGeometry,
+            aligning: aligningSpecimenGeometry,
+            scanning: scanningSpecimenGeometry,
+            processing: processingSpecimenGeometry,
+            verified: verifiedSpecimenGeometry,
             ready: readySpecimenGeometry,
           },
         },
@@ -644,38 +680,41 @@ test('captures real-time WebKit ingestion paint checkpoints', async ({ page }) =
 
   await page.getByRole('button', { name: 'REGISTER & LOAD' }).click();
   await expect(page.locator('[data-oracle-machine]')).toHaveAttribute(
-    'data-ingestion-phase',
-    'materializing',
+    'data-registration-phase',
+    'preparing',
   );
-  await page.waitForTimeout(45);
-  await captureCheckpoint(page, '04-materializing.png');
+  await page.waitForTimeout(100);
+  await captureCheckpoint(page, '04-preparing.png');
 
   const waitForPhase = async (phase: string) => {
     await page.waitForFunction(
       (expectedPhase) =>
-        document.querySelector('[data-oracle-machine]')?.getAttribute('data-ingestion-phase') ===
+        document.querySelector('[data-oracle-machine]')?.getAttribute('data-registration-phase') ===
         expectedPhase,
       phase,
-      { timeout: 1_500 },
+      { timeout: 5_000 },
     );
   };
 
-  await waitForPhase('loading');
-  await page.waitForTimeout(105);
-  await captureCheckpoint(page, '05-loading.png');
-  await waitForPhase('locking');
-  await page.waitForTimeout(55);
+  await waitForPhase('aligning');
+  await page.waitForTimeout(100);
+  await captureCheckpoint(page, '05-aligning.png');
+  await waitForPhase('scanning');
+  await page.waitForTimeout(700);
   await expect(page.locator('[data-label-scan-beam]')).toHaveAttribute(
     'data-label-scan-state',
     'active',
   );
-  await captureCheckpoint(page, '06-identity-locking.png');
-  await waitForPhase('confirming');
-  await page.waitForTimeout(45);
-  await captureCheckpoint(page, '07-confirming.png');
+  await captureCheckpoint(page, '06-scanning.png');
+  await waitForPhase('processing');
+  await page.waitForTimeout(100);
+  await captureCheckpoint(page, '07-processing.png');
+  await waitForPhase('verified');
+  await page.waitForTimeout(100);
+  await captureCheckpoint(page, '08-verified.png');
   await waitForPhase('ready');
   await page.waitForTimeout(160);
-  await captureCheckpoint(page, '08-baseline-ready.png');
+  await captureCheckpoint(page, '09-baseline-ready.png');
 
   await expectCurrentNode(machine, '[data-oracle-machine]');
   await expectCurrentNode(specimen, '[data-oracle-specimen]');
@@ -724,7 +763,9 @@ test('all supported widths keep registration usable and horizontally contained',
   expect(runtimeIssues).toEqual([]);
 });
 
-test('reduced motion commits once and resolves without travel or locking', async ({ page }) => {
+test('reduced motion preserves the shortened semantic ceremony without specimen travel', async ({
+  page,
+}) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await openFreshTrial(page);
@@ -732,21 +773,44 @@ test('reduced motion commits once and resolves without travel or locking', async
   await page.getByRole('textbox', { name: 'Brand' }).fill('Face Value Lab');
   await page.getByRole('textbox', { name: 'Product name' }).fill('Redness Trial');
 
+  await page.clock.install({ time: new Date('2026-07-28T18:00:00.000Z') });
+  await page.clock.pauseAt(new Date('2026-07-28T18:00:00.000Z'));
   await page.getByRole('button', { name: 'REGISTER & LOAD' }).click();
   await expect(page.locator('[data-oracle-machine]')).toHaveAttribute(
-    'data-ingestion-phase',
-    'materializing',
+    'data-registration-phase',
+    'preparing',
   );
-  await expect
-    .poll(() => page.locator('[data-oracle-machine]').getAttribute('data-ingestion-phase'))
-    .toBe('ready');
-  await expect(page.locator('[data-oracle-machine]')).not.toHaveAttribute(
-    'data-ingestion-phase',
-    'loading',
+  await page.clock.runFor(150);
+  await expect(page.locator('[data-oracle-machine]')).toHaveAttribute(
+    'data-registration-phase',
+    'aligning',
   );
-  await expect(page.locator('[data-oracle-machine]')).not.toHaveAttribute(
-    'data-ingestion-phase',
-    'locking',
+  expect(
+    await page
+      .locator('[data-oracle-specimen]')
+      .evaluate((specimen) => new DOMMatrixReadOnly(getComputedStyle(specimen).transform).m42),
+  ).toBeCloseTo(0, 1);
+  await page.clock.runFor(150);
+  await expect(page.locator('[data-oracle-machine]')).toHaveAttribute(
+    'data-registration-phase',
+    'scanning',
+  );
+  await expect(page.locator('[data-oracle-specimen]')).toHaveAttribute('data-scan-state', 'wash');
+  await page.clock.runFor(450);
+  await expect(page.locator('[data-oracle-machine]')).toHaveAttribute(
+    'data-registration-phase',
+    'processing',
+  );
+  await page.clock.runFor(250);
+  await expect(page.locator('[data-oracle-machine]')).toHaveAttribute(
+    'data-registration-phase',
+    'verified',
+  );
+  await expect(page.getByRole('button', { name: 'TAKE GUIDED BASELINE' })).toBeDisabled();
+  await page.clock.runFor(350);
+  await expect(page.locator('[data-oracle-machine]')).toHaveAttribute(
+    'data-registration-phase',
+    'ready',
   );
   await expect(page.getByRole('button', { name: 'TAKE GUIDED BASELINE' })).toBeEnabled();
   await expectNoRunningSpecimenAnimation(page);
