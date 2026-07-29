@@ -19,7 +19,9 @@ import {
   toPersistedDemoData,
 } from '../adapters/persistence/localObservationStore';
 import { FaceValueContext } from '../app/faceValueContext';
+import { faceValueReducer } from '../app/phaseBMachine';
 import { canonicalRednessFixtures, evaluateRedness } from '../domain/evidence/redness';
+import { oracleTrialIdentity } from '../domain/oracleTrialIdentity';
 import { followUpIsEligible } from '../domain/phaseB5';
 import { DemoLab } from '../features/demo-lab/DemoLab';
 import { buildDemoFixtureState } from '../features/demo-lab/demoFixtureState';
@@ -35,21 +37,31 @@ describe('Demo Lab access boundary', () => {
     expect(
       demoLabAccessEnabled({
         dev: true,
+        production: false,
         showDemoControls: 'true',
       }),
     ).toBe(true);
     expect(
       demoLabAccessEnabled({
         dev: true,
+        production: false,
         showDemoControls: undefined,
       }),
     ).toBe(false);
     expect(
       demoLabAccessEnabled({
         dev: false,
+        production: false,
         showDemoControls: 'true',
       }),
     ).toBe(false);
+    expect(
+      demoLabAccessEnabled({
+        dev: false,
+        production: true,
+        showDemoControls: undefined,
+      }),
+    ).toBe(true);
   });
 });
 
@@ -206,6 +218,47 @@ describe('Demo Lab persistence modes', () => {
     ).toBe(false);
   });
 
+  it('advances only isolated trial_pending state and preserves trial identity across reload', () => {
+    const ordinaryState = buildDemoFixtureState('home_saved_result', 'no_clear_change');
+    saveStructuredDemoData(ordinaryState);
+    const ordinaryBefore = localStorage.getItem(STORAGE_KEY);
+    const pending = buildDemoFixtureState('trial_pending', 'early_favorable_change');
+    const productBefore = structuredClone(pending.registeredProduct);
+    const identityBefore = oracleTrialIdentity({
+      accession: pending.registeredProduct?.accession,
+      baselineAt: pending.baselineLockedAt,
+      followUpAt: pending.followUpEligibleAt,
+    });
+    const advanced = faceValueReducer(pending, {
+      type: 'ADVANCE_DEMO_TIMELINE',
+      now: pending.baselineLockedAt ?? '2026-07-28T12:00:00.000Z',
+    });
+
+    expect(advanced.stage).toBe('followup_ready');
+    expect(advanced.demoTimelineAdvanced).toBe(true);
+    expect(advanced.registeredProduct).toEqual(productBefore);
+    expect(
+      oracleTrialIdentity({
+        accession: advanced.registeredProduct?.accession,
+        baselineAt: advanced.baselineLockedAt,
+        followUpAt: advanced.followUpEligibleAt,
+      }),
+    ).toEqual(identityBefore);
+
+    saveDemoJourney({
+      mode: 'journey',
+      startingPoint: 'trial_pending',
+      resultFixture: 'early_favorable_change',
+      state: advanced,
+    });
+    const reloaded = loadDemoJourney();
+
+    expect(reloaded?.state.stage).toBe('followup_ready');
+    expect(reloaded?.state.demoTimelineAdvanced).toBe(true);
+    expect(reloaded?.state.registeredProduct).toEqual(productBefore);
+    expect(localStorage.getItem(STORAGE_KEY)).toBe(ordinaryBefore);
+  });
+
   it('clears demo data without removing ordinary saved trials', () => {
     const ordinaryState = buildDemoFixtureState('home_saved_result', 'no_clear_change');
     saveStructuredDemoData(ordinaryState);
@@ -248,6 +301,52 @@ describe('Demo Lab persistence modes', () => {
 });
 
 describe('Demo Lab controls and production-screen reuse', () => {
+  it('shows the timeline control only inside an isolated demo runtime', async () => {
+    const user = userEvent.setup();
+    const state = buildDemoFixtureState('trial_pending', 'early_favorable_change');
+    const dispatch = vi.fn();
+    const { rerender } = render(
+      <FaceValueContext.Provider
+        value={{
+          state,
+          dispatch,
+          demoRuntime: {
+            mode: 'journey',
+            startingPoint: 'trial_pending',
+            resultFixture: 'early_favorable_change',
+            fixtureNow: state.baselineLockedAt,
+          },
+        }}
+      >
+        <FaceValueApplication />
+      </FaceValueContext.Provider>,
+    );
+
+    await user.click(screen.getByRole('button', { name: 'ADVANCE DEMO TIMELINE' }));
+    expect(dispatch).toHaveBeenCalledWith({
+      type: 'ADVANCE_DEMO_TIMELINE',
+      now: state.baselineLockedAt,
+    });
+
+    rerender(
+      <FaceValueContext.Provider
+        value={{
+          state,
+          dispatch,
+          demoRuntime: {
+            mode: 'ordinary',
+            startingPoint: null,
+            resultFixture: null,
+            fixtureNow: null,
+          },
+        }}
+      >
+        <FaceValueApplication />
+      </FaceValueContext.Provider>,
+    );
+    expect(screen.queryByRole('button', { name: 'ADVANCE DEMO TIMELINE' })).not.toBeInTheDocument();
+  });
+
   it('offers keyboard-accessible preview and confirmed journey controls', async () => {
     const user = userEvent.setup();
     const navigate = vi.fn();
