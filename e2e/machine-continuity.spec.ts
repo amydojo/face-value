@@ -26,6 +26,8 @@ type ViewportSelector = {
 type OrdinaryFixture =
   'trial_pending' | 'followup_ready' | 'verdict_ready' | 'cassette_revealed' | 'home_saved_result';
 
+let ordinaryFixtureLoad = 0;
+
 const machineParts = {
   chassis: '[data-oracle-chassis]',
   carbon: '[data-oracle-carbon-texture]',
@@ -86,17 +88,21 @@ function ordinaryFixture(startingPoint: OrdinaryFixture) {
 }
 
 async function openOrdinaryFixture(page: Page, startingPoint: OrdinaryFixture): Promise<void> {
-  await page.goto('/');
-  await page.evaluate(
-    ({ key, value }) => {
-      localStorage.setItem(key, JSON.stringify(value));
+  const token = `face-value-ordinary-fixture-${ordinaryFixtureLoad++}`;
+  await page.addInitScript(
+    ({ key, token: fixtureToken, value }) => {
+      if (sessionStorage.getItem(fixtureToken) !== 'applied') {
+        localStorage.setItem(key, JSON.stringify(value));
+        sessionStorage.setItem(fixtureToken, 'applied');
+      }
     },
     {
       key: STORAGE_KEY,
+      token,
       value: ordinaryFixture(startingPoint),
     },
   );
-  await page.reload();
+  await page.goto('/');
 }
 
 async function openOrdinaryFirstRun(page: Page): Promise<void> {

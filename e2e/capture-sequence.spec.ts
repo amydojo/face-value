@@ -242,6 +242,28 @@ async function captureGeometry(page: Page) {
   });
 }
 
+async function pinVisualViewportHeight(page: Page, height: number): Promise<void> {
+  await page.evaluate((visibleHeight) => {
+    if (!window.visualViewport) throw new Error('Visual Viewport API is unavailable');
+    Object.defineProperty(window.visualViewport, 'height', {
+      configurable: true,
+      get: () => visibleHeight,
+    });
+    window.visualViewport.dispatchEvent(new Event('resize'));
+  }, height);
+  await expect
+    .poll(() =>
+      page
+        .locator('section[data-preview-state]')
+        .evaluate((element) =>
+          Number.parseFloat(
+            getComputedStyle(element).getPropertyValue('--fv-visible-viewport-height'),
+          ),
+        ),
+    )
+    .toBe(height);
+}
+
 function expectCanonicalGeometry(geometry: Awaited<ReturnType<typeof captureGeometry>>) {
   const scale = geometry.chassis.width / 390;
   expect(geometry.chassis.width).toBeGreaterThan(0);
@@ -574,8 +596,9 @@ test('visual regression: all canonical phases, permission error, and reduced mot
   await page.clock.pauseAt(visualClock);
   await page.setViewportSize({ width: 390, height: 844 });
   await openCapture(page, { slowQuality: true });
+  await pinVisualViewportHeight(page, 844);
   const chassis = page.locator('[data-capture-sequence]');
-  await expect(chassis).toHaveScreenshot('capture-searching.png', {
+  await expect.soft(chassis).toHaveScreenshot('capture-searching.png', {
     animations: 'disabled',
   });
   await saveEvidence(chassis, 'searching.png');
@@ -585,7 +608,7 @@ test('visual regression: all canonical phases, permission error, and reduced mot
   await advanceVisualClock(page, 250);
   await advanceVisualClock(page, 150);
   await expect(chassis).toHaveAttribute('data-capture-phase', 'aligning');
-  await expect(chassis).toHaveScreenshot('capture-aligning.png', {
+  await expect.soft(chassis).toHaveScreenshot('capture-aligning.png', {
     animations: 'disabled',
   });
   await saveEvidence(chassis, 'aligning.png');
@@ -604,7 +627,7 @@ test('visual regression: all canonical phases, permission error, and reduced mot
   );
   await pauseAnimationAt(page.locator('[data-capture-guide-oval]'), 280);
   await pauseAnimationAt(page.locator('[data-capture-lock-trace]'), 350);
-  await expect(chassis).toHaveScreenshot('capture-locking.png', {
+  await expect.soft(chassis).toHaveScreenshot('capture-locking.png', {
     animations: 'allow',
     maxDiffPixels: 64,
   });
@@ -613,7 +636,7 @@ test('visual regression: all canonical phases, permission error, and reduced mot
   await advanceVisualClock(page, 730);
   await expect(chassis).toHaveAttribute('data-capture-phase', 'scanning');
   await pauseAnimationAt(page.locator('[data-capture-scan-optic]'), 450);
-  await expect(chassis).toHaveScreenshot('capture-scanning.png', {
+  await expect.soft(chassis).toHaveScreenshot('capture-scanning.png', {
     animations: 'allow',
     maxDiffPixels: 24,
   });
@@ -621,29 +644,31 @@ test('visual regression: all canonical phases, permission error, and reduced mot
 
   await advanceVisualClock(page, 900);
   await expect(chassis).toHaveAttribute('data-capture-phase', 'captured');
-  await expect(chassis).toHaveScreenshot('capture-captured.png', {
+  await expect.soft(chassis).toHaveScreenshot('capture-captured.png', {
     animations: 'disabled',
   });
   await saveEvidence(chassis, 'captured.png');
 
   await openCapture(page, { scenario: 'permission-denied' });
+  await pinVisualViewportHeight(page, 844);
   await page.getByRole('button', { name: 'START GUIDED CAPTURE' }).click();
   await advanceVisualClock(page, 50);
   await expect(chassis).toHaveAttribute('data-capture-phase', 'error');
-  await expect(chassis).toHaveScreenshot('capture-permission-error.png', {
+  await expect.soft(chassis).toHaveScreenshot('capture-permission-error.png', {
     animations: 'disabled',
   });
   await saveEvidence(chassis, 'permission-denied.png');
 
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await openCapture(page);
+  await pinVisualViewportHeight(page, 844);
   await page.getByRole('button', { name: 'START GUIDED CAPTURE' }).click();
   await advanceVisualClock(page, 225);
   await advanceVisualClock(page, 250);
   await advanceVisualClock(page, 500);
   await advanceVisualClock(page, 730);
   await expect(chassis).toHaveAttribute('data-capture-phase', 'scanning');
-  await expect(chassis).toHaveScreenshot('capture-reduced-motion.png', {
+  await expect.soft(chassis).toHaveScreenshot('capture-reduced-motion.png', {
     animations: 'disabled',
   });
   await saveEvidence(chassis, 'reduced-motion.png');

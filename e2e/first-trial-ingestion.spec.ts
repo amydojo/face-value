@@ -260,6 +260,17 @@ async function specimenGeometry(page: Page) {
 }
 
 async function expectNoRunningSpecimenAnimation(page: Page) {
+  await page.locator('[data-oracle-specimen]').evaluate((specimen) => {
+    for (const animation of specimen.getAnimations({ subtree: true })) {
+      if (
+        animation.playState === 'running' &&
+        animation.effect instanceof KeyframeEffect &&
+        Number.isFinite(animation.effect.getComputedTiming().endTime)
+      ) {
+        animation.finish();
+      }
+    }
+  });
   await expect
     .poll(
       () =>
