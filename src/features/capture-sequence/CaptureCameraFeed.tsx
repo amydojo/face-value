@@ -21,8 +21,8 @@ export function CaptureCameraFeed({
       data-frame-frozen={capturedImage ? 'true' : 'false'}
       aria-hidden="true"
     >
-      <div ref={mountRef} className={styles.cameraKitMount} />
-      <div className={styles.syntheticFeed} />
+      <div ref={mountRef} className={styles.cameraKitMount} data-camera-kit-mount />
+      <div className={styles.syntheticFeed} data-capture-synthetic-feed />
       {capturedImage && (
         <img
           className={styles.capturedFrame}
