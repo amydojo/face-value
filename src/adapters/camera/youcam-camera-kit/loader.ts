@@ -11,17 +11,52 @@ export const CAMERA_KIT_SCRIPT_MARKER = 'data-face-value-camera-kit';
 let sdkPromise: Promise<YouCamCameraKitSdk> | null = null;
 const hardenedSdks = new WeakSet<object>();
 
+const DIMENSION_DEBUG_ALERT = /^\s*width\s*:\s*\d+\s*,\s*height\s*:\s*\d+\s*$/i;
+
 /**
- * Camera Kit 2.5 showed a native debug alert and failed to expose a reliable
- * preview on physical iPhone Safari when experimental presentation fields were
- * supplied. Keep the adapter contract stable, but send only the previously
- * proven documented options to the external SDK until headless mode is
- * validated on hardware.
+ * Camera Kit 2.5 exposes a development-only resolution alert on physical
+ * iPhone Safari. Suppress only that exact message while the SDK opens. Every
+ * other alert continues through untouched.
+ */
+function suppressDimensionDebugAlert(openCameraKit: () => void): void {
+  if (typeof window === 'undefined' || typeof window.alert !== 'function') {
+    openCameraKit();
+    return;
+  }
+
+  const originalAlert = window.alert;
+  let restored = false;
+  const restore = () => {
+    if (restored) return;
+    restored = true;
+    if (window.alert === guardedAlert) window.alert = originalAlert;
+  };
+  const guardedAlert = (message?: unknown) => {
+    if (DIMENSION_DEBUG_ALERT.test(String(message ?? ''))) return;
+    originalAlert.call(window, String(message ?? ''));
+  };
+
+  window.alert = guardedAlert;
+  window.setTimeout(restore, 5_000);
+  try {
+    openCameraKit();
+  } catch (error) {
+    restore();
+    throw error;
+  }
+}
+
+/**
+ * Keep the adapter contract stable, but send only the previously proven SDK
+ * options and isolate the vendor's iPhone-only debug behavior at the external
+ * boundary.
  */
 function hardenCameraKitSdk(sdk: YouCamCameraKitSdk): YouCamCameraKitSdk {
   if (hardenedSdks.has(sdk as object)) return sdk;
 
   const originalInit = sdk.init.bind(sdk);
+  const originalOpenCameraKit = sdk.openCameraKit.bind(sdk);
+
   sdk.init = (options: CameraKitInitOptions) => {
     const documentedOptions = {
       ...options,
@@ -29,6 +64,10 @@ function hardenCameraKitSdk(sdk: YouCamCameraKitSdk): YouCamCameraKitSdk {
     delete documentedOptions.moduleMode;
     delete documentedOptions.qualityOverrides;
     originalInit(documentedOptions as CameraKitInitOptions);
+  };
+
+  sdk.openCameraKit = () => {
+    suppressDimensionDebugAlert(originalOpenCameraKit);
   };
 
   hardenedSdks.add(sdk as object);
