@@ -1,0 +1,819 @@
+.chassis {
+  --fv-capture-scan-ease: cubic-bezier(0.3, 0.06, 0.45, 1);
+  position: relative;
+  flex: 1 1 auto;
+  isolation: isolate;
+  width: 100%;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  border: 0;
+  border-radius: min(7.18cqw, 28px);
+  color: var(--fv-capture-text-primary);
+  background: var(--fv-capture-surface);
+  box-shadow:
+    0 24px 64px rgba(0, 0, 0, 0.46),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.025);
+  container-type: size;
+  font-family: var(--fv-font-sans);
+  transition:
+    border-radius 280ms var(--fv-ease-damped),
+    box-shadow 280ms var(--fv-ease-damped);
+}
+
+.chassis[data-capture-layout='active'] {
+  border-radius: min(5.13cqw, 20px);
+  box-shadow:
+    0 12px 34px rgba(0, 0, 0, 0.34),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.018);
+}
+
+.cameraFeed,
+.cameraKitMount,
+.nativePreview,
+.syntheticFeed,
+.cameraVignette,
+.capturedFrame {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.cameraFeed {
+  z-index: 0;
+  overflow: hidden;
+  background:
+    radial-gradient(ellipse at 50% 37%, #292725 0, #151514 44%, #080808 76%),
+    var(--fv-capture-surface);
+}
+
+.cameraKitMount {
+  z-index: 2;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.nativePreview {
+  z-index: 1;
+  display: block;
+  border: 0;
+  background: var(--fv-capture-surface);
+  object-fit: cover;
+  object-position: 50% 42%;
+  transform: scaleX(-1);
+}
+
+.cameraFeed[data-fixture='true'] .nativePreview {
+  display: none;
+}
+
+.syntheticFeed {
+  z-index: 0;
+  opacity: 1;
+  background:
+    radial-gradient(circle at 38% 28%, rgba(244, 243, 239, 0.08), transparent 22%),
+    radial-gradient(circle at 66% 63%, rgba(255, 106, 0, 0.06), transparent 29%),
+    linear-gradient(142deg, #2a2826 0%, #171615 43%, #080808 100%);
+}
+
+.capturedFrame {
+  z-index: 3;
+  display: block;
+  object-fit: cover;
+  object-position: 50% 42%;
+  transform: scaleX(-1);
+}
+
+.cameraVignette {
+  z-index: 4;
+  pointer-events: none;
+  background:
+    linear-gradient(
+      180deg,
+      rgba(0, 0, 0, 0.54) 0%,
+      rgba(0, 0, 0, 0.06) 22%,
+      rgba(0, 0, 0, 0.02) 65%,
+      rgba(0, 0, 0, 0.48) 100%
+    ),
+    radial-gradient(ellipse at center, transparent 42%, rgba(0, 0, 0, 0.2) 100%);
+}
+
+.contextBar {
+  position: absolute;
+  z-index: 10;
+  top: 4.1026cqw;
+  left: 5.1282cqw;
+  width: 89.7436cqw;
+  height: 9.2308cqw;
+  display: flex;
+  align-items: center;
+  column-gap: 10px;
+  padding: 5px 10px;
+  overflow: hidden;
+  border: 1px solid rgba(244, 243, 239, 0.09);
+  border-radius: 10px;
+  color: rgba(244, 243, 239, 0.65);
+  background: var(--fv-capture-glass);
+  backdrop-filter: blur(14px) saturate(0.72);
+  -webkit-backdrop-filter: blur(14px) saturate(0.72);
+  font: 500 clamp(6px, 2.05cqw, 8px) / 1 var(--fv-font-mono);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.contextBar > span:first-child {
+  flex: 0 0 auto;
+  color: var(--fv-capture-text-primary);
+  font-weight: 650;
+}
+
+.contextBar > span:nth-child(2),
+.contextBar > strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.contextBar > span:nth-child(2) {
+  flex: 1 1 auto;
+}
+
+.contextBar > strong {
+  flex: 0 1 42%;
+  margin-left: auto;
+  color: rgba(244, 243, 239, 0.78);
+  font-weight: 550;
+  text-align: right;
+}
+
+.instruction {
+  position: absolute;
+  z-index: 10;
+  top: 18.9744cqw;
+  right: 6%;
+  left: 6%;
+  display: grid;
+  gap: 4px;
+  pointer-events: none;
+  text-align: center;
+  text-shadow: 0 1px 18px rgba(0, 0, 0, 0.86);
+}
+
+.instruction h1,
+.instruction p {
+  margin: 0;
+}
+
+.instruction h1 {
+  color: var(--fv-capture-text-primary);
+  font: 520 clamp(17px, 5.13cqw, 20px) / 1.2 var(--fv-font-sans);
+  letter-spacing: -0.025em;
+}
+
+.instruction p {
+  color: var(--fv-capture-text-secondary);
+  font: 440 clamp(11px, 3.33cqw, 13px) / 1.38 var(--fv-font-sans);
+}
+
+.guideField,
+.scanField,
+.regionOverlay {
+  position: absolute;
+  z-index: 6;
+  top: 33.8462cqw;
+  left: 7.6923cqw;
+  width: 84.6154cqw;
+  height: 115.3846cqw;
+  pointer-events: none;
+  transition:
+    top 180ms var(--fv-ease-damped),
+    left 180ms var(--fv-ease-damped),
+    width 180ms var(--fv-ease-damped),
+    height 180ms var(--fv-ease-damped);
+}
+
+.guideField {
+  transform-origin: center;
+}
+
+.guideField::before {
+  position: absolute;
+  z-index: -1;
+  inset: -6%;
+  border-radius: 50%;
+  content: '';
+  opacity: 0;
+  background: radial-gradient(
+    ellipse at center,
+    rgba(255, 106, 0, 0.09) 0%,
+    rgba(255, 106, 0, 0.035) 42%,
+    transparent 72%
+  );
+  filter: blur(10px);
+  transition: opacity 220ms ease;
+}
+
+.guideField svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.guideSegments,
+.guideSegments path,
+.guideConnectors,
+.guideConnectors path {
+  fill: none;
+  vector-effect: non-scaling-stroke;
+}
+
+.guideSegments path,
+.guideConnectors path {
+  stroke: var(--fv-capture-guide);
+  stroke-linecap: round;
+  stroke-width: 1.7px;
+  vector-effect: non-scaling-stroke;
+}
+
+.guideSegments {
+  transform-origin: center;
+  opacity: 0.44;
+  transition:
+    opacity 180ms ease,
+    transform 260ms var(--fv-ease-damped);
+}
+
+.guideSegments path {
+  transition:
+    opacity 180ms ease,
+    stroke 180ms ease,
+    filter 180ms ease;
+}
+
+.guideConnectors {
+  transform-origin: center;
+  opacity: 0;
+  stroke-dashoffset: 100;
+}
+
+.guideConnectors path {
+  stroke: var(--fv-capture-accent);
+  stroke-dasharray: 100;
+  stroke-width: 1.8px;
+  filter: drop-shadow(0 0 3px rgba(255, 106, 0, 0.2));
+}
+
+.guideAnchors {
+  fill: var(--fv-capture-accent);
+  opacity: 0;
+  filter: drop-shadow(0 0 3px rgba(255, 106, 0, 0.42));
+  transition: opacity 140ms ease;
+}
+
+.guideField[data-guide-phase='searching'] .guideSegments {
+  animation: guideBreathing var(--fv-capture-breathing-duration, 2200ms) ease-in-out infinite;
+}
+
+.guideField[data-guide-phase='aligning'] .guideSegments {
+  opacity: 0.74;
+  transform: scale(0.992);
+}
+
+.guideField[data-guide-phase='aligning'][data-guide-issue='too-far'] .guideSegments {
+  transform: scale(0.984);
+}
+
+.guideField[data-guide-phase='aligning'][data-guide-issue='too-close'] .guideSegments {
+  transform: scale(1.008);
+}
+
+.guideField[data-guide-issue='too-far'] .guideSegments path,
+.guideField[data-guide-issue='too-close'] .guideSegments path,
+.guideField[data-guide-issue='position-face'] .guideSegments path,
+.guideField[data-guide-issue='face-camera'] .guideSegments path,
+.guideField[data-guide-issue='level-head'] .guideSegments path {
+  stroke: rgba(255, 145, 63, 0.92);
+}
+
+.guideField[data-guide-issue='move-left']
+  .guideSegments
+  path:is([data-guide-segment='upper-left'], [data-guide-segment='lower-left']),
+.guideField[data-guide-issue='move-right']
+  .guideSegments
+  path:is([data-guide-segment='upper-right'], [data-guide-segment='lower-right']),
+.guideField[data-guide-issue='raise-face']
+  .guideSegments
+  path:is([data-guide-segment='upper-left'], [data-guide-segment='upper-right']),
+.guideField[data-guide-issue='lower-face']
+  .guideSegments
+  path:is([data-guide-segment='lower-left'], [data-guide-segment='lower-right']) {
+  stroke: var(--fv-capture-accent);
+  filter: drop-shadow(0 0 3px rgba(255, 106, 0, 0.26));
+}
+
+.guideField:is(
+    [data-guide-issue='low-light'],
+    [data-guide-issue='backlight'],
+    [data-guide-issue='uneven-light']
+  )::before {
+  opacity: 1;
+}
+
+.guideField[data-guide-issue='movement'] .guideSegments {
+  opacity: 0.82;
+  animation: stillnessSettle 1600ms ease-in-out infinite;
+}
+
+.guideField[data-guide-stable='true'] .guideSegments {
+  opacity: 0.9;
+  transform: scale(0.992);
+}
+
+.guideField[data-guide-stable='true'] .guideAnchors {
+  opacity: 0.92;
+}
+
+.guideField[data-guide-phase='locking'] .guideSegments,
+.guideField[data-guide-phase='scanning'] .guideSegments {
+  opacity: 0.96;
+  transform: scale(0.992);
+}
+
+.guideField[data-guide-phase='locking'] .guideSegments path,
+.guideField[data-guide-phase='scanning'] .guideSegments path {
+  stroke: var(--fv-capture-accent);
+  filter: drop-shadow(0 0 3px rgba(255, 106, 0, 0.25));
+}
+
+.guideField[data-guide-phase='locking'] .guideAnchors {
+  opacity: 1;
+}
+
+.guideField[data-guide-phase='locking'] .guideConnectors {
+  opacity: 1;
+}
+
+.guideField[data-guide-phase='locking'] .guideConnectors {
+  animation: connectGuide var(--fv-capture-guide-connection-duration, 280ms)
+    var(--fv-ease-damped) both;
+}
+
+.guideField[data-guide-phase='scanning'] .guideConnectors {
+  opacity: 0.98;
+  stroke-dashoffset: 0;
+}
+
+.guideField[data-guide-phase='scanning'] .guideAnchors {
+  opacity: 0.56;
+}
+
+.guideField[data-guide-phase='captured'] {
+  animation: capturedGuideResolve var(--fv-capture-guide-resolve-duration, 360ms) ease-out
+    var(--fv-capture-guide-hold-duration, 150ms) both;
+}
+
+.guideField[data-guide-phase='captured'] .guideSegments {
+  opacity: 0.72;
+  transform: scale(0.996);
+}
+
+.guideField[data-guide-phase='captured'] .guideSegments path {
+  stroke: rgba(244, 243, 239, 0.74);
+}
+
+.guideField[data-guide-phase='captured'] .guideConnectors {
+  opacity: 0.58;
+  stroke-dashoffset: 0;
+}
+
+.guideField[data-guide-phase='captured'] .guideConnectors path {
+  stroke: rgba(255, 145, 63, 0.72);
+}
+
+.scanField {
+  z-index: 7;
+  overflow: hidden;
+  clip-path: ellipse(47.273% 48% at 50% 50%);
+}
+
+.scanAtmosphere {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  background:
+    radial-gradient(
+      ellipse at 50% 42%,
+      rgba(255, 106, 0, 0.105),
+      rgba(231, 118, 22, 0.045) 43%,
+      transparent 72%
+    ),
+    linear-gradient(90deg, transparent, rgba(255, 106, 0, 0.035) 50%, transparent);
+  filter: blur(7px);
+  mix-blend-mode: screen;
+  animation: scanAtmosphere var(--fv-capture-scan-duration, 900ms) var(--fv-ease-damped) both;
+}
+
+.scanBand {
+  position: absolute;
+  top: -34%;
+  right: -8%;
+  left: -8%;
+  height: 34%;
+  background:
+    linear-gradient(
+      180deg,
+      transparent 0%,
+      rgba(231, 118, 22, 0.015) 18%,
+      rgba(255, 106, 0, 0.065) 48%,
+      rgba(255, 199, 145, 0.14) 72%,
+      rgba(255, 224, 188, 0.2) 82%,
+      rgba(255, 106, 0, 0.045) 92%,
+      transparent 100%
+    );
+  filter: drop-shadow(0 4px 8px var(--fv-amber-bloom));
+  mix-blend-mode: screen;
+  will-change: transform, opacity;
+  animation: scanTravel var(--fv-capture-scan-duration, 900ms) var(--fv-capture-scan-ease) both;
+}
+
+.scanBand::before,
+.scanBand::after {
+  position: absolute;
+  right: 8%;
+  left: 8%;
+  content: '';
+}
+
+.scanBand::before {
+  bottom: 8%;
+  height: 2px;
+  background: linear-gradient(
+    90deg,
+    rgba(255, 235, 204, 0.02),
+    rgba(255, 227, 185, 0.9) 18%,
+    var(--fv-capture-accent) 66%,
+    rgba(231, 118, 22, 0.04)
+  );
+  box-shadow:
+    0 0 4px rgba(255, 212, 159, 0.62),
+    0 0 10px var(--fv-amber-bloom);
+}
+
+.scanBand::after {
+  bottom: 2%;
+  height: 12px;
+  opacity: 0.72;
+  background: linear-gradient(180deg, rgba(255, 220, 174, 0.14), transparent);
+  filter: blur(3px);
+}
+
+.regionOverlay {
+  z-index: 8;
+}
+
+.regionOverlay i {
+  position: absolute;
+  width: 18%;
+  height: 7%;
+  border-top: 1px solid rgba(244, 243, 239, 0.58);
+  border-right: 1px solid rgba(255, 106, 0, 0.4);
+  opacity: 0;
+  animation: registerRegion 220ms ease-out both;
+}
+
+.regionOverlay i[data-region='forehead'] {
+  top: 17%;
+  left: 41%;
+}
+
+.regionOverlay i[data-region='left-cheek'] {
+  top: 47%;
+  left: 17%;
+  animation-delay: 160ms;
+}
+
+.regionOverlay i[data-region='right-cheek'] {
+  top: 47%;
+  right: 17%;
+  animation-delay: 230ms;
+}
+
+.regionOverlay i[data-region='center'] {
+  top: 43%;
+  left: 41%;
+  animation-delay: 310ms;
+}
+
+.regionOverlay i[data-region='chin'] {
+  top: 72%;
+  left: 41%;
+  animation-delay: 500ms;
+}
+
+.qualityRail {
+  position: absolute;
+  z-index: 10;
+  right: 4.1026cqw;
+  bottom: 4.1026cqw;
+  left: 4.1026cqw;
+  height: 12.3077cqw;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  align-items: stretch;
+  overflow: hidden;
+  border: 1px solid rgba(244, 243, 239, 0.11);
+  border-radius: 13px;
+  background: var(--fv-capture-glass);
+  backdrop-filter: blur(16px) saturate(0.7);
+  -webkit-backdrop-filter: blur(16px) saturate(0.7);
+  box-shadow: inset 0 1px rgba(255, 255, 255, 0.025);
+}
+
+.qualityRail span {
+  position: relative;
+  display: grid;
+  place-items: center;
+  color: var(--fv-capture-guide-muted);
+  font: 560 clamp(8px, 2.56cqw, 10px) / 1.4 var(--fv-font-mono);
+  letter-spacing: 0.08em;
+}
+
+.qualityRail span::after {
+  position: absolute;
+  bottom: 8px;
+  left: 50%;
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  content: '';
+  background: currentColor;
+  opacity: 0.18;
+  transform: translateX(-50%);
+}
+
+.qualityRail span[data-quality-state='current'] {
+  color: var(--fv-capture-accent);
+  font-weight: 680;
+}
+
+.qualityRail span[data-quality-state='current']::after {
+  opacity: 0.92;
+}
+
+.qualityRail span[data-quality-state='passed'] {
+  color: rgba(244, 243, 239, 0.88);
+}
+
+.qualityRail span[data-quality-state='passed']::after {
+  opacity: 0.92;
+}
+
+.chassis[data-capture-phase='scanning'] .qualityRail span {
+  color: rgba(244, 243, 239, 0.44);
+}
+
+.chassis[data-capture-phase='scanning'] .qualityRail span::after {
+  opacity: 0.28;
+}
+
+.chassis[data-capture-phase='captured'] .qualityRail span {
+  color: rgba(244, 243, 239, 0.68);
+}
+
+.chassis[data-capture-phase='captured'] .qualityRail span::after {
+  opacity: 0.54;
+}
+
+.captureShutter,
+.capturedVeil {
+  position: absolute;
+  z-index: 8;
+  inset: 0;
+  pointer-events: none;
+}
+
+.captureShutter {
+  background: rgba(4, 4, 4, 0.72);
+  opacity: 0;
+  animation: darkGlassShutter var(--fv-capture-shutter-duration, 160ms) ease-out
+    var(--fv-capture-freeze-duration, 120ms) both;
+}
+
+.capturedVeil {
+  z-index: 5;
+  background: rgba(7, 7, 7, 0.14);
+  backdrop-filter: saturate(0.78) contrast(1.04);
+  -webkit-backdrop-filter: saturate(0.78) contrast(1.04);
+}
+
+@keyframes guideBreathing {
+  0%,
+  100% {
+    opacity: 0.38;
+  }
+  50% {
+    opacity: 0.52;
+  }
+}
+
+@keyframes connectGuide {
+  from {
+    stroke-dashoffset: 100;
+    opacity: 0.16;
+  }
+  to {
+    stroke-dashoffset: 0;
+    opacity: 1;
+  }
+}
+
+@keyframes stillnessSettle {
+  0%,
+  100% {
+    opacity: 0.62;
+  }
+  50% {
+    opacity: 0.84;
+  }
+}
+
+@keyframes scanTravel {
+  from {
+    transform: translate3d(0, 0, 0);
+    opacity: 0;
+  }
+  9% {
+    opacity: 1;
+  }
+  86% {
+    opacity: 1;
+  }
+  to {
+    transform: translate3d(0, 394%, 0);
+    opacity: 0;
+  }
+}
+
+@keyframes scanAtmosphere {
+  0%,
+  100% {
+    opacity: 0;
+  }
+  34%,
+  72% {
+    opacity: 1;
+  }
+}
+
+@keyframes capturedGuideResolve {
+  0% {
+    opacity: 0.84;
+  }
+  100% {
+    opacity: 0.08;
+  }
+}
+
+@keyframes registerRegion {
+  0% {
+    opacity: 0;
+    transform: translateY(-3px);
+  }
+  45% {
+    opacity: 0.64;
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(1px);
+  }
+}
+
+@keyframes darkGlassShutter {
+  0% {
+    opacity: 0;
+  }
+  45% {
+    opacity: 0.68;
+  }
+  100% {
+    opacity: 0.18;
+  }
+}
+
+.chassis[data-reduced-motion='true'] .guideSegments,
+.chassis[data-reduced-motion='true'] .guideConnectors,
+.chassis[data-reduced-motion='true'] .guideField,
+.chassis[data-reduced-motion='true'] .scanAtmosphere,
+.chassis[data-reduced-motion='true'] .regionOverlay i,
+.chassis[data-reduced-motion='true'] .captureShutter {
+  animation: none;
+}
+
+.chassis[data-reduced-motion='true'] .scanBand {
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  width: auto;
+  height: 100%;
+  background: rgba(244, 236, 225, 0.07);
+  filter: none;
+  -webkit-mask-image: none;
+  mask-image: none;
+  animation: reducedScan var(--fv-capture-reduced-scan-duration, 300ms) ease-out both;
+}
+
+.chassis[data-reduced-motion='true']
+  .guideField:is(
+    [data-guide-phase='locking'],
+    [data-guide-phase='scanning'],
+    [data-guide-phase='captured']
+  )
+  .guideConnectors {
+  stroke-dashoffset: 0;
+}
+
+.chassis[data-reduced-motion='true'] .guideField[data-guide-phase='captured'] {
+  opacity: 0.08;
+}
+
+@keyframes reducedScan {
+  from {
+    opacity: 0;
+  }
+  50% {
+    opacity: 1;
+  }
+  to {
+    opacity: 0.2;
+  }
+}
+
+@container (max-height: 620px) {
+  .guideField,
+  .scanField,
+  .regionOverlay {
+    top: 28.2051cqw;
+    left: 12.5cqw;
+    width: 75cqw;
+    height: 102.2727cqw;
+  }
+}
+
+@container (max-height: 520px) {
+  .guideField,
+  .scanField,
+  .regionOverlay {
+    top: 26.9231cqw;
+    left: 22cqw;
+    width: 56cqw;
+    height: 76.3636cqw;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .guideField,
+  .scanField,
+  .regionOverlay {
+    transition: none;
+  }
+
+  .guideSegments,
+  .guideConnectors,
+  .guideField,
+  .scanAtmosphere,
+  .regionOverlay i,
+  .captureShutter {
+    animation: none !important;
+  }
+
+  .scanBand {
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    width: auto;
+    height: 100%;
+    filter: none;
+    -webkit-mask-image: none;
+    mask-image: none;
+    transform: none !important;
+    animation: reducedScan var(--fv-capture-reduced-scan-duration, 300ms) ease-out both !important;
+  }
+
+  .guideField[data-guide-phase='captured'] {
+    opacity: 0.08;
+  }
+
+  .guideField:is(
+      [data-guide-phase='locking'],
+      [data-guide-phase='scanning'],
+      [data-guide-phase='captured']
+    )
+    .guideConnectors {
+    stroke-dashoffset: 0;
+  }
+}

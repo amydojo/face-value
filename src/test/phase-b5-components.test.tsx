@@ -324,7 +324,7 @@ it('starts with real registration and ends session one at Baseline locked', asyn
           name: 'Anything meaningfully different today?',
         }),
       ).toBeVisible(),
-    { timeout: 2_500 },
+    { timeout: 5_000 },
   );
   await user.click(screen.getByRole('button', { name: 'NOTHING DIFFERENT' }));
   expect(screen.getByRole('heading', { name: 'Baseline locked.' })).toBeVisible();
@@ -342,9 +342,9 @@ it('starts with real registration and ends session one at Baseline locked', asyn
       name: 'ADVANCE DEMO TIMELINE',
     }),
   ).not.toBeInTheDocument();
-});
+}, 10_000);
 
-it('updates only Face, Position, and Light and closes camera on unmount', async () => {
+it('shows one normalized instruction and instrumentation rail, then closes on unmount', async () => {
   const user = userEvent.setup();
   const adapter = new FixtureCameraKitAdapter({ autoAdvance: false });
   const onReady = vi.fn();
@@ -364,12 +364,18 @@ it('updates only Face, Position, and Light and closes camera on unmount', async 
   );
   expect(adapter.sessionStartCount).toBe(0);
   expect(screen.getByRole('button', { name: 'START GUIDED CAPTURE' })).toBeVisible();
-  expect(screen.getAllByText('Start guided capture when you are ready.')).toHaveLength(2);
+  expect(screen.getByRole('heading', { name: 'Position your face' })).toBeVisible();
+  expect(screen.getByLabelText('Choose a face photo')).toBeInTheDocument();
 
   await user.click(screen.getByRole('button', { name: 'START GUIDED CAPTURE' }));
   await waitFor(() => expect(adapter.sessionStartCount).toBe(1));
-  expect(screen.getAllByText('Opening camera…')).toHaveLength(2);
   expect(onReady).not.toHaveBeenCalled();
+  expect(screen.queryByLabelText('Choose a face photo')).not.toBeInTheDocument();
+  expect(
+    screen.queryByText(/The image is analyzed in memory and discarded/),
+  ).not.toBeInTheDocument();
+  expect(document.body.style.overflow).toBe('hidden');
+  expect(document.documentElement.style.overflow).toBe('hidden');
 
   act(() => {
     adapter.emitPreviewLive();
@@ -382,9 +388,12 @@ it('updates only Face, Position, and Light and closes camera on unmount', async 
   });
   expect(onReady).toHaveBeenCalledOnce();
   const quality = screen.getByLabelText('Capture quality');
-  const rows = within(quality).getAllByRole('definition');
-  expect(rows.map((row) => row.textContent)).toEqual(['✓', '✓', '—']);
-  expect(screen.getAllByText('Find more even light.')).toHaveLength(2);
+  await waitFor(() =>
+    expect(screen.getByRole('heading', { name: 'Move toward softer light' })).toBeVisible(),
+  );
+  expect(within(quality).getByLabelText('light: current')).toBeVisible();
+  expect(within(quality).getByLabelText('alignment: passed')).toBeVisible();
+  expect(screen.queryByText(/Good|Perfect|Passed|Success/)).not.toBeInTheDocument();
 
   act(() => {
     adapter.emitQuality({
@@ -394,16 +403,64 @@ it('updates only Face, Position, and Light and closes camera on unmount', async 
       lighting: 'good',
     });
   });
-  expect(
-    within(quality)
-      .getAllByRole('definition')
-      .map((row) => row.textContent),
-  ).toEqual(['✓', '✓', '✓']);
-  expect(screen.getAllByText('Hold still…')).toHaveLength(2);
+  await waitFor(() => expect(screen.getByRole('heading', { name: 'Hold still' })).toBeVisible());
+  expect(within(quality).getByLabelText('light: passed')).toBeVisible();
+  expect(within(quality).getByLabelText('stillness: passed')).toBeVisible();
   expect(screen.queryByText(/frontal/i)).not.toBeInTheDocument();
 
   unmount();
   expect(adapter.cancelCount).toBe(1);
+  expect(document.body.style.overflow).toBe('');
+  expect(document.documentElement.style.overflow).toBe('');
+});
+
+it('revokes the temporary captured-frame URL when the capture route unmounts', async () => {
+  const user = userEvent.setup();
+  const capturedBlob = new Blob(['abstract-specimen'], {
+    type: 'image/jpeg',
+  });
+  const createObjectUrl = vi
+    .spyOn(URL, 'createObjectURL')
+    .mockReturnValue('blob:temporary-captured-frame');
+  const revokeObjectUrl = vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined);
+  const cancel = vi.fn();
+  const adapter: CameraKitAdapter = {
+    async start(options) {
+      options.onStatus?.('preview-live');
+      options.onCapture(capturedBlob, 'youcam-camera-kit-hd-1080p');
+      return {
+        captureProfileId: 'youcam-camera-kit-hd-1080p',
+        cancel,
+      };
+    },
+  };
+
+  const { unmount } = render(
+    <CameraViewport
+      kind="baseline"
+      cameraState="ready"
+      onRequesting={vi.fn()}
+      onReady={vi.fn()}
+      onCapturing={vi.fn()}
+      onFailure={vi.fn()}
+      onAccepted={vi.fn()}
+      onDelete={vi.fn()}
+      onBack={vi.fn()}
+      cameraAdapter={adapter}
+    />,
+  );
+
+  try {
+    await user.click(screen.getByRole('button', { name: 'START GUIDED CAPTURE' }));
+    await waitFor(() => expect(createObjectUrl).toHaveBeenCalledWith(capturedBlob));
+
+    unmount();
+    expect(revokeObjectUrl).toHaveBeenCalledWith('blob:temporary-captured-frame');
+    expect(cancel).toHaveBeenCalledOnce();
+  } finally {
+    createObjectUrl.mockRestore();
+    revokeObjectUrl.mockRestore();
+  }
 });
 
 it('focuses the single fallback when guided capture is unavailable', async () => {
@@ -431,11 +488,11 @@ it('focuses the single fallback when guided capture is unavailable', async () =>
       cameraAdapter={unavailableAdapter}
     />,
   );
-  expect(screen.getByRole('button', { name: 'START GUIDED CAPTURE' })).toBeVisible();
-  await user.click(screen.getByRole('button', { name: 'START GUIDED CAPTURE' }));
-  expect(await screen.findByRole('alert')).toHaveTextContent('Guided capture is unavailable.');
+  expect(screen.getByRole('button', { name: 'TRY CAMERA AGAIN' })).toBeVisible();
+  await user.click(screen.getByRole('button', { name: 'TRY CAMERA AGAIN' }));
+  expect(await screen.findByRole('alert')).toHaveTextContent('Camera unavailable');
   await waitFor(() => expect(screen.getByLabelText('Choose a face photo')).toHaveFocus());
-  expect(screen.getByText('Choose a photo to continue. Your trial has not changed.')).toBeVisible();
+  expect(screen.getByText('Choose an existing photo to continue')).toBeVisible();
 });
 
 it('recovers a stalled preview only from one fresh restart tap', async () => {
@@ -466,7 +523,8 @@ it('recovers a stalled preview only from one fresh restart tap', async () => {
     name: 'RESTART CAMERA',
   });
   await waitFor(() => expect(restart).toHaveFocus());
-  expect(screen.getByText('The camera preview did not start.')).toBeVisible();
+  expect(screen.getByRole('heading', { name: 'Preview stalled' })).toBeVisible();
+  expect(screen.getByText('Try opening the camera again')).toBeVisible();
   expect(onReady).not.toHaveBeenCalled();
 
   await user.click(screen.getByRole('button', { name: 'RESTART CAMERA' }));

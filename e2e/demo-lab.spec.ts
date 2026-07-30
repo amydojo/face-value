@@ -256,7 +256,7 @@ test('pending and ready machine journeys preserve timing and chassis geometry ac
   await page.reload();
   await expect(page.locator('[data-trial-machine-state="followup-ready"]')).toBeVisible();
   await page.getByRole('button', { name: 'Take follow-up scan' }).click();
-  await expect(page.getByRole('heading', { name: 'Center your face' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Position your face' })).toBeVisible();
 });
 
 test('Evidence Record summary, reasoning, and full technical states use production disclosure controls', async ({
@@ -355,7 +355,7 @@ test('core synthetic starting points open real production screens', async ({ pag
   await expect(page.getByRole('button', { name: 'TAKE GUIDED BASELINE' })).toBeEnabled();
 
   await openPreview(page, 'baseline_ready');
-  await expect(page.getByRole('heading', { name: 'Center your face' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Position your face' })).toBeVisible();
   await expect(page.locator('[data-oracle-machine]')).toHaveCount(0);
 
   await openPreview(page, 'baseline_locked');

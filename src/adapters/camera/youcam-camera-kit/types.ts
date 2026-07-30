@@ -1,4 +1,5 @@
 import type { CameraCaptureProfileId } from '../../../domain/model';
+import type { CaptureSignalSample } from '../../../domain/captureAcquisition';
 
 export type CameraKitEventName =
   | 'loaded'
@@ -12,11 +13,11 @@ export type CameraKitEventName =
 export type CameraKitListenerIdentifier = unknown;
 
 export interface CameraKitInitOptions {
-  faceDetectionMode: 'hdskincare';
+  faceDetectionMode: 'skincare';
   imageFormat: 'blob';
   language: 'enu';
   qualityLevel: 'moderate';
-  videoQuality: '1080p' | '1920p';
+  videoQuality: '720p';
   countingDuration: number;
   hideFlipCameraButton: true;
   disableCameraResolutionCheck: false;
@@ -29,6 +30,8 @@ export interface CameraKitQualityPayload {
   position?: string;
   frontal?: string;
   lighting?: string;
+  pose?: string;
+  size?: string | number;
 }
 
 export interface CameraKitCapturedImage {
@@ -60,23 +63,8 @@ export interface CameraKitWindow extends Window {
   YMKAsyncInit?: () => void;
 }
 
-export type GuidedCaptureGuidance =
-  | 'center-face'
-  | 'move-closer'
-  | 'move-back'
-  | 'look-forward'
-  | 'more-light'
-  | 'hold-still'
-  | 'ready';
-
-export interface GuidedCaptureQuality {
-  hasFace: boolean;
-  positionAccepted: boolean;
-  frontalAccepted: boolean;
-  lightingAccepted: boolean;
-  resolutionAccepted: boolean;
+export interface GuidedCaptureQuality extends CaptureSignalSample {
   ready: boolean;
-  guidance: GuidedCaptureGuidance;
 }
 
 export type GuidedCaptureFailure =
@@ -90,12 +78,20 @@ export type GuidedCaptureFailure =
 
 export interface GuidedCaptureSession {
   readonly captureProfileId: CameraCaptureProfileId;
+  /**
+   * Native camera sessions expose an explicit capture boundary so the Face
+   * Value state machine owns lock/scan timing. Camera Kit sessions capture via
+   * their documented event and leave this undefined.
+   */
+  capture?(): void;
   cancel(): void;
 }
 
 export type GuidedCaptureStatus =
   | 'loading'
+  | 'requesting-permission'
   | 'camera-opening'
+  | 'waiting-first-frame'
   | 'preview-live'
   | 'preview-stalled'
   | 'captured'
@@ -103,7 +99,9 @@ export type GuidedCaptureStatus =
 
 export type CameraKitDiagnosticStage =
   | 'sdk-loaded'
+  | 'init-called'
   | 'camera-opened'
+  | 'render-surface-observed'
   | 'preview-live'
   | 'first-quality-frame'
   | 'capture-event'
@@ -113,10 +111,14 @@ export type CameraKitDiagnosticStage =
 export interface CameraKitDiagnostic {
   stage: CameraKitDiagnosticStage;
   captureProfileId: CameraCaptureProfileId;
+  surfaceType?: 'video' | 'canvas' | 'iframe' | 'none';
+  surfaceWidth?: number;
+  surfaceHeight?: number;
 }
 
 export interface GuidedCaptureStartOptions {
   mountElement: HTMLElement;
+  previewElement?: HTMLVideoElement | null;
   signal?: AbortSignal;
   stableForMs?: number;
   previewWatchdogMs?: number;

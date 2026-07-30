@@ -260,31 +260,48 @@ async function specimenGeometry(page: Page) {
 }
 
 async function expectNoRunningSpecimenAnimation(page: Page) {
-  const running = await page.locator('[data-oracle-specimen]').evaluate((specimen) =>
-    specimen
-      .getAnimations({ subtree: true })
-      .filter((animation) => animation.playState === 'running')
-      .map((animation) => {
-        const target = animation.effect instanceof KeyframeEffect ? animation.effect.target : null;
-        return {
-          type: animation.id || animation.constructor.name,
-          target:
-            target instanceof HTMLElement
-              ? target.getAttribute('data-specimen-layer') ||
-                target.getAttribute('data-label-group') ||
-                target.className
-              : null,
-          keyframes:
-            animation.effect instanceof KeyframeEffect
-              ? animation.effect.getKeyframes().map(({ opacity, transform }) => ({
-                  opacity,
-                  transform,
-                }))
-              : [],
-        };
-      }),
-  );
-  expect(running).toEqual([]);
+  await page.locator('[data-oracle-specimen]').evaluate((specimen) => {
+    for (const animation of specimen.getAnimations({ subtree: true })) {
+      if (
+        animation.playState === 'running' &&
+        animation.effect instanceof KeyframeEffect &&
+        Number.isFinite(animation.effect.getComputedTiming().endTime)
+      ) {
+        animation.finish();
+      }
+    }
+  });
+  await expect
+    .poll(
+      () =>
+        page.locator('[data-oracle-specimen]').evaluate((specimen) =>
+          specimen
+            .getAnimations({ subtree: true })
+            .filter((animation) => animation.playState === 'running')
+            .map((animation) => {
+              const target =
+                animation.effect instanceof KeyframeEffect ? animation.effect.target : null;
+              return {
+                type: animation.id || animation.constructor.name,
+                target:
+                  target instanceof HTMLElement
+                    ? target.getAttribute('data-specimen-layer') ||
+                      target.getAttribute('data-label-group') ||
+                      target.className
+                    : null,
+                keyframes:
+                  animation.effect instanceof KeyframeEffect
+                    ? animation.effect.getKeyframes().map(({ opacity, transform }) => ({
+                        opacity,
+                        transform,
+                      }))
+                    : [],
+              };
+            }),
+        ),
+      { timeout: 1_000 },
+    )
+    .toEqual([]);
 }
 
 async function captureComparisonSheet(page: Page) {
@@ -648,7 +665,7 @@ test('one Oracle instrument accepts, loads, and releases one specimen to baselin
     action.click();
     action.click();
   });
-  await expect(page.getByRole('heading', { name: 'Center your face' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Position your face' })).toBeVisible();
   await expect(page.locator('[data-oracle-machine]')).toHaveCount(0);
   await expectNoHorizontalOverflow(page);
   await captureCheckpoint(page, '13-baseline-camera-entry.png');

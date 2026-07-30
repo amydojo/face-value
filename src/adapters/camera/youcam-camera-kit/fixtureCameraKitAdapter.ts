@@ -1,40 +1,55 @@
 import type { CameraCaptureProfileId } from '../../../domain/model';
-import {
-  emptyGuidedCaptureQuality,
-  normalizeCameraKitQuality,
-} from './quality';
+import { emptyGuidedCaptureQuality, normalizeCameraKitQuality } from './quality';
 import { selectCameraKitCaptureProfile } from './captureProfile';
 import { logSafeCameraKitDiagnostic } from './diagnostics';
 import type {
   CameraKitAdapter,
   CameraKitDiagnosticStage,
   CameraKitQualityPayload,
+  GuidedCaptureFailure,
   GuidedCaptureQuality,
   GuidedCaptureSession,
   GuidedCaptureStartOptions,
 } from './types';
 
+export type FixtureCaptureScenario =
+  | 'success'
+  | 'signal-flicker'
+  | 'lose-lock'
+  | 'lose-scan'
+  | 'permission-denied'
+  | 'camera-unavailable';
+
+const abstractFixtureFrame = (): Blob => {
+  const binary = atob(
+    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNgYAAAAAMAASsJTYQAAAAASUVORK5CYII=',
+  );
+  return new Blob(
+    [Uint8Array.from(binary, (character) => character.charCodeAt(0))],
+    { type: 'image/png' },
+  );
+};
+
 export class FixtureCameraKitAdapter implements CameraKitAdapter {
   readonly autoAdvance: boolean;
   readonly stallFirstSession: boolean;
   readonly qualityStepMs: number;
+  readonly scenario: FixtureCaptureScenario;
   sessionStartCount = 0;
   cancelCount = 0;
   captureCount = 0;
 
   private generation = 0;
   private activeOptions: GuidedCaptureStartOptions | null = null;
-  private activeQuality: GuidedCaptureQuality =
-    emptyGuidedCaptureQuality();
+  private activeQuality: GuidedCaptureQuality = emptyGuidedCaptureQuality();
   private timers: number[] = [];
   private readySince: number | null = null;
-  private stableForMs = 800;
+  private stableForMs = 2_400;
   private activeCaptured = false;
   private previewLive = false;
   private firstQualityFrameSeen = false;
   private cameraClosedDiagnosticSent = false;
-  private activeProfileId: CameraCaptureProfileId =
-    'youcam-camera-kit-hd-1080p';
+  private activeProfileId: CameraCaptureProfileId = 'youcam-camera-kit-standard-720p';
   private activeMountElement: HTMLElement | null = null;
   private activeAbortSignal: AbortSignal | null = null;
   private activeAbortListener: (() => void) | null = null;
@@ -43,19 +58,20 @@ export class FixtureCameraKitAdapter implements CameraKitAdapter {
     autoAdvance = true,
     stallFirstSession = false,
     qualityStepMs = 60,
+    scenario = 'success',
   }: {
     autoAdvance?: boolean;
     stallFirstSession?: boolean;
     qualityStepMs?: number;
+    scenario?: FixtureCaptureScenario;
   } = {}) {
     this.autoAdvance = autoAdvance;
     this.stallFirstSession = stallFirstSession;
     this.qualityStepMs = qualityStepMs;
+    this.scenario = scenario;
   }
 
-  async start(
-    options: GuidedCaptureStartOptions,
-  ): Promise<GuidedCaptureSession> {
+  async start(options: GuidedCaptureStartOptions): Promise<GuidedCaptureSession> {
     this.cancelActive(false);
     const generation = ++this.generation;
     this.sessionStartCount += 1;
@@ -67,7 +83,7 @@ export class FixtureCameraKitAdapter implements CameraKitAdapter {
     this.previewLive = false;
     this.firstQualityFrameSeen = false;
     this.cameraClosedDiagnosticSent = false;
-    this.stableForMs = Math.max(20, options.stableForMs ?? 800);
+    this.stableForMs = Math.max(20, options.stableForMs ?? 2_400);
     this.activeProfileId = selectCameraKitCaptureProfile({
       frozenCaptureProfileId: options.frozenCaptureProfileId,
     }).id;
@@ -90,6 +106,14 @@ export class FixtureCameraKitAdapter implements CameraKitAdapter {
       }, 20);
       if (this.stallFirstSession && this.sessionStartCount === 1) {
         this.schedule(() => this.emitPreviewStalled(), 80);
+      } else if (this.scenario === 'permission-denied' || this.scenario === 'camera-unavailable') {
+        this.schedule(
+          () =>
+            this.emitFailure(
+              this.scenario === 'permission-denied' ? 'permission-denied' : 'camera-unavailable',
+            ),
+          40,
+        );
       } else {
         this.schedule(() => this.emitPreviewLive(), 40);
         this.schedule(
@@ -122,10 +146,8 @@ export class FixtureCameraKitAdapter implements CameraKitAdapter {
             }),
           100 + this.qualityStepMs * 2,
         );
-        this.schedule(
-          () => this.emitCapture(),
-          100 + this.qualityStepMs * 2 + this.stableForMs,
-        );
+        this.scheduleScenarioSignals(100 + this.qualityStepMs * 2);
+        this.schedule(() => this.emitCapture(), 100 + this.qualityStepMs * 2 + this.stableForMs);
       }
     }
 
@@ -133,6 +155,13 @@ export class FixtureCameraKitAdapter implements CameraKitAdapter {
       captureProfileId: this.activeProfileId,
       cancel,
     };
+  }
+
+  emitFailure(failure: GuidedCaptureFailure): void {
+    const options = this.activeOptions;
+    if (!options) return;
+    this.cancelActive(false);
+    options.onFailure(failure);
   }
 
   emitPreviewLive(): void {
@@ -172,22 +201,12 @@ export class FixtureCameraKitAdapter implements CameraKitAdapter {
     const options = this.activeOptions;
     if (!options) return;
     this.emitDiagnostic('capture-event');
-    if (
-      !this.previewLive ||
-      !this.activeQuality.ready ||
-      this.activeCaptured
-    ) {
+    if (!this.previewLive || !this.activeQuality.ready || this.activeCaptured) {
       return;
     }
-    const elapsed =
-      this.readySince === null
-        ? 0
-        : performance.now() - this.readySince;
+    const elapsed = this.readySince === null ? 0 : performance.now() - this.readySince;
     if (elapsed < this.stableForMs) {
-      this.schedule(
-        this.emitCapture.bind(this),
-        Math.ceil(this.stableForMs - elapsed),
-      );
+      this.schedule(this.emitCapture.bind(this), Math.ceil(this.stableForMs - elapsed));
       return;
     }
 
@@ -195,23 +214,43 @@ export class FixtureCameraKitAdapter implements CameraKitAdapter {
     this.captureCount += 1;
     const profileId = this.activeProfileId;
     options.onStatus?.('captured');
-    options.onCapture(
-      new Blob(['face-value-camera-kit-fixture'], {
-        type: 'image/jpeg',
-      }),
-      profileId,
-    );
+    options.onCapture(abstractFixtureFrame(), profileId);
     this.cancelActive(false);
   }
 
   private emitDiagnostic(stage: CameraKitDiagnosticStage): void {
     const options = this.activeOptions;
     if (!options) return;
-    const diagnostic = logSafeCameraKitDiagnostic(
-      stage,
-      this.activeProfileId,
-    );
+    const diagnostic = logSafeCameraKitDiagnostic(stage, this.activeProfileId);
     options.onDiagnostic?.(diagnostic);
+  }
+
+  private scheduleScenarioSignals(validAt: number): void {
+    const validPayload: CameraKitQualityPayload = {
+      hasFace: true,
+      position: 'good',
+      frontal: 'good',
+      lighting: 'good',
+    };
+    const missingPayload: CameraKitQualityPayload = {
+      hasFace: false,
+      position: 'notgood',
+      frontal: 'notgood',
+      lighting: 'notgood',
+    };
+
+    if (this.scenario === 'signal-flicker') {
+      this.schedule(() => this.emitQuality(missingPayload), validAt + 400);
+      this.schedule(() => this.emitQuality(validPayload), validAt + 500);
+    }
+    if (this.scenario === 'lose-lock') {
+      this.schedule(() => this.emitQuality(missingPayload), validAt + 900);
+      this.schedule(() => this.emitQuality(validPayload), validAt + 1_300);
+    }
+    if (this.scenario === 'lose-scan') {
+      this.schedule(() => this.emitQuality(missingPayload), validAt + 1_600);
+      this.schedule(() => this.emitQuality(validPayload), validAt + 2_100);
+    }
   }
 
   private schedule(callback: () => void, delay: number): void {
@@ -222,10 +261,7 @@ export class FixtureCameraKitAdapter implements CameraKitAdapter {
     if (!this.activeOptions && this.timers.length === 0) return;
     this.timers.splice(0).forEach(window.clearTimeout);
     if (this.activeAbortSignal && this.activeAbortListener) {
-      this.activeAbortSignal.removeEventListener(
-        'abort',
-        this.activeAbortListener,
-      );
+      this.activeAbortSignal.removeEventListener('abort', this.activeAbortListener);
     }
     if (this.activeMountElement) {
       delete this.activeMountElement.dataset.cameraKitFixture;

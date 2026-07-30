@@ -31,8 +31,11 @@ test('new specimen registration progresses once and releases the guided baseline
   await expect(label).not.toContainText('BASE');
   await expect(label).not.toContainText('30 ML');
 
-  await page.clock.install({ time: new Date('2026-07-29T18:00:00.000Z') });
-  await page.clock.pauseAt(new Date('2026-07-29T18:00:00.000Z'));
+  const registrationClock = new Date('2026-07-29T18:00:00.000Z');
+  await page.clock.install({ time: registrationClock });
+  // `install` starts the mocked clock. Pause at a deterministic future tick so
+  // a slow runner cannot make the requested pause instant fall into the past.
+  await page.clock.pauseAt(registrationClock.getTime() + 1_000);
   await page.getByRole('button', { name: 'REGISTER & LOAD' }).click();
 
   const machine = page.locator('[data-oracle-machine]');

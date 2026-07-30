@@ -94,6 +94,8 @@ it('captures an unmirrored JPEG frame and rejects null toBlob', async () => {
 
   await expect(captureFrame(video, () => canvas)).resolves.toBe(blob);
   expect(drawImage).toHaveBeenCalledWith(video, 0, 0, 640, 480);
+  expect(canvas.width).toBe(0);
+  expect(canvas.height).toBe(0);
 
   const nullCanvas = {
     width: 0,
@@ -104,6 +106,8 @@ it('captures an unmirrored JPEG frame and rejects null toBlob', async () => {
   await expect(captureFrame(video, () => nullCanvas)).rejects.toThrow(
     'toBlob returned null',
   );
+  expect(nullCanvas.width).toBe(0);
+  expect(nullCanvas.height).toBe(0);
 });
 
 it('revokes individual and remaining temporary object URLs', () => {

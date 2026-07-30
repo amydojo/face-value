@@ -1,7 +1,4 @@
-import type {
-  CameraKitWindow,
-  YouCamCameraKitSdk,
-} from './types';
+import type { CameraKitWindow, YouCamCameraKitSdk } from './types';
 
 export const CAMERA_KIT_SDK_SRC =
   'https://plugins-media.makeupar.com/v2.5-camera-kit/sdk.js';

@@ -150,6 +150,7 @@ describe('Phase B provider boundary', () => {
     const guidedMetadata = {
       ...metadata('baseline'),
       source: 'camera' as const,
+      cameraProfileId: 'youcam-camera-kit-standard-720p' as const,
     };
 
     await analyzeLongitudinalCapture({
@@ -165,6 +166,36 @@ describe('Phase B provider boundary', () => {
         protocol: HD_REDNESS_PROTOCOL,
         fromCameraKit: true,
       }),
+    );
+  });
+
+  it('does not label the native browser bitmap as a Camera Kit capture', async () => {
+    const analyzeCapture = vi.fn(async () => ({
+      provider: 'youcam' as const,
+      apiVersion: '2.1' as const,
+      mode: 'hd' as const,
+      concern: 'hd_redness' as const,
+      region: null,
+      rawScore: 93.3356,
+      capturedAt: metadata('baseline').createdAt,
+      captureQuality: 'accepted' as const,
+      ephemeralTaskReference: 'ephemeral-native-task',
+    }));
+
+    await analyzeLongitudinalCapture({
+      provider: { analyzeCapture },
+      role: 'baseline',
+      image: new Blob(['abstract'], { type: 'image/jpeg' }),
+      metadata: {
+        ...metadata('baseline'),
+        source: 'camera',
+        cameraProfileId: 'native-browser-camera-v1',
+      },
+      frozenProtocol: null,
+    });
+
+    expect(analyzeCapture).toHaveBeenCalledWith(
+      expect.objectContaining({ fromCameraKit: false }),
     );
   });
 

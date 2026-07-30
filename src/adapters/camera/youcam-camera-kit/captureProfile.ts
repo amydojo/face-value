@@ -2,35 +2,27 @@ import type { CameraCaptureProfileId } from '../../../domain/model';
 
 export interface CameraKitCaptureProfile {
   id: CameraCaptureProfileId;
-  faceDetectionMode: 'hdskincare';
-  videoQuality: '1080p' | '1920p';
+  faceDetectionMode: 'skincare';
+  videoQuality: '720p';
   imageFormat: 'blob';
   qualityLevel: 'moderate';
-  countingDuration: 800;
+  countingDuration: number;
   hideFlipCameraButton: true;
   disableCameraResolutionCheck: false;
 }
 
-export const CAMERA_KIT_HD_1080_PROFILE: CameraKitCaptureProfile = {
-  id: 'youcam-camera-kit-hd-1080p',
-  faceDetectionMode: 'hdskincare',
-  videoQuality: '1080p',
+export const CAMERA_KIT_STANDARD_720_PROFILE: CameraKitCaptureProfile = {
+  id: 'youcam-camera-kit-standard-720p',
+  faceDetectionMode: 'skincare',
+  videoQuality: '720p',
   imageFormat: 'blob',
   qualityLevel: 'moderate',
-  countingDuration: 800,
+  countingDuration: 2_400,
   hideFlipCameraButton: true,
   disableCameraResolutionCheck: false,
 };
 
-export const CAMERA_KIT_HD_1920_PROFILE: CameraKitCaptureProfile = {
-  ...CAMERA_KIT_HD_1080_PROFILE,
-  id: 'youcam-camera-kit-hd-1920p',
-  videoQuality: '1920p',
-};
-
-export function isIPhoneSafari(
-  navigatorObject: Pick<Navigator, 'userAgent' | 'vendor'>,
-): boolean {
+export function isIPhoneSafari(navigatorObject: Pick<Navigator, 'userAgent' | 'vendor'>): boolean {
   const userAgent = navigatorObject.userAgent;
   return (
     /iPhone|iPod/i.test(userAgent) &&
@@ -43,24 +35,20 @@ export function isIPhoneSafari(
 
 export function selectCameraKitCaptureProfile({
   frozenCaptureProfileId,
-  navigatorObject =
-    typeof navigator === 'undefined'
-      ? { userAgent: '', vendor: '' }
-      : navigator,
+  navigatorObject = typeof navigator === 'undefined' ? { userAgent: '', vendor: '' } : navigator,
   highResolutionProven = false,
 }: {
   frozenCaptureProfileId?: CameraCaptureProfileId | null;
   navigatorObject?: Pick<Navigator, 'userAgent' | 'vendor'>;
   highResolutionProven?: boolean;
 } = {}): CameraKitCaptureProfile {
-  if (frozenCaptureProfileId === CAMERA_KIT_HD_1920_PROFILE.id) {
-    return CAMERA_KIT_HD_1920_PROFILE;
-  }
-  if (frozenCaptureProfileId === CAMERA_KIT_HD_1080_PROFILE.id) {
-    return CAMERA_KIT_HD_1080_PROFILE;
-  }
-  if (!isIPhoneSafari(navigatorObject) && highResolutionProven) {
-    return CAMERA_KIT_HD_1920_PROFILE;
-  }
-  return CAMERA_KIT_HD_1080_PROFILE;
+  // Camera Kit's documented `hdskincare` contract requires a 2560px long
+  // edge. Physical iPhones in this PR supplied 960–986 × 1920 and triggered
+  // the vendor runtime's native resolution alert. The diagnostic harness uses
+  // the documented standard skincare profile on every browser; production
+  // capture is owned by NativeBrowserCameraAdapter.
+  void frozenCaptureProfileId;
+  void navigatorObject;
+  void highResolutionProven;
+  return CAMERA_KIT_STANDARD_720_PROFILE;
 }

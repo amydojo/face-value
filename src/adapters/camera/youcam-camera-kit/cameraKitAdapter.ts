@@ -1,23 +1,9 @@
 import { loadYouCamCameraKit } from './loader';
-import {
-  normalizeCameraKitCapture,
-  CameraKitCaptureError,
-} from './normalizeCapture';
-import {
-  emptyGuidedCaptureQuality,
-  normalizeCameraKitQuality,
-} from './quality';
-import {
-  selectCameraKitCaptureProfile,
-} from './captureProfile';
-import {
-  logSafeCameraKitDiagnostic,
-  type CameraKitDiagnosticSink,
-} from './diagnostics';
-import {
-  createSafariVideoBridge,
-  type SafariVideoBridge,
-} from './safariVideoBridge';
+import { normalizeCameraKitCapture, CameraKitCaptureError } from './normalizeCapture';
+import { emptyGuidedCaptureQuality, normalizeCameraKitQuality } from './quality';
+import { selectCameraKitCaptureProfile } from './captureProfile';
+import { logSafeCameraKitDiagnostic, type CameraKitDiagnosticSink } from './diagnostics';
+import { createSafariVideoBridge, type SafariVideoBridge } from './safariVideoBridge';
 import type {
   CameraKitAdapter,
   CameraKitCapturePayload,
@@ -40,8 +26,9 @@ interface CameraKitAdapterEnvironment {
   diagnosticSink?: CameraKitDiagnosticSink;
 }
 
-const PREVIEW_WATCHDOG_MS = 3_000;
+const PREVIEW_WATCHDOG_MS = 20_000;
 const PREVIEW_POLL_MS = 50;
+const CAPTURE_EVENT_GRACE_MS = 1_200;
 
 const failureCode = (payload: unknown): string => {
   if (typeof payload === 'string') return payload.toLowerCase();
@@ -57,9 +44,7 @@ const failureCode = (payload: unknown): string => {
     record.name,
     record.message,
     record.reason,
-    record.error instanceof Error
-      ? `${record.error.name} ${record.error.message}`
-      : record.error,
+    record.error instanceof Error ? `${record.error.name} ${record.error.message}` : record.error,
   ]
     .filter((value) => value !== null && value !== undefined)
     .map(String)
@@ -67,9 +52,7 @@ const failureCode = (payload: unknown): string => {
     .toLowerCase();
 };
 
-export function normalizeCameraKitFailure(
-  payload: unknown,
-): GuidedCaptureFailure {
+export function normalizeCameraKitFailure(payload: unknown): GuidedCaptureFailure {
   const code = failureCode(payload);
   if (
     code.includes('permission') ||
@@ -79,38 +62,11 @@ export function normalizeCameraKitFailure(
     return 'permission-denied';
   }
   if (code.includes('resolution')) return 'unsupported-resolution';
-  if (
-    code.includes('unsupported') ||
-    code.includes('browser') ||
-    code.includes('getusermedia')
-  ) {
+  if (code.includes('unsupported') || code.includes('browser') || code.includes('getusermedia')) {
     return 'unsupported-browser';
   }
   return 'camera-unavailable';
 }
-
-const knownCameraKitRuntimeFailure = (
-  payload: unknown,
-): GuidedCaptureFailure | null => {
-  const code = failureCode(payload);
-  if (
-    code.includes('error.no.camera') ||
-    code.includes('permission') ||
-    code.includes('notallowed') ||
-    code.includes('denied access')
-  ) {
-    return code.includes('error.no.camera')
-      ? 'camera-unavailable'
-      : 'permission-denied';
-  }
-  if (code.includes('unsupported_resolution')) {
-    return 'unsupported-resolution';
-  }
-  if (code.includes('getusermedia') || code.includes('unsupported browser')) {
-    return 'unsupported-browser';
-  }
-  return null;
-};
 
 const boundedDimension = (value: number, fallback: number): number =>
   Math.min(1920, Math.max(300, Math.round(value || fallback)));
@@ -129,25 +85,22 @@ export class YouCamCameraKitAdapter implements CameraKitAdapter {
     this.environment = environment;
   }
 
-  async start(
-    options: GuidedCaptureStartOptions,
-  ): Promise<GuidedCaptureSession> {
+  async start(options: GuidedCaptureStartOptions): Promise<GuidedCaptureSession> {
     this.activeCancel?.();
     this.activeCancel = null;
     const sessionId = ++this.activeSessionId;
     const profile = selectCameraKitCaptureProfile({
       frozenCaptureProfileId: options.frozenCaptureProfileId,
       navigatorObject: this.environment.navigatorObject,
-      highResolutionProven:
-        this.environment.highResolutionProven,
+      highResolutionProven: this.environment.highResolutionProven,
     });
-    const stableForMs = profile.countingDuration;
-    const previewWatchdogMs = Math.max(
-      100,
-      options.previewWatchdogMs ?? PREVIEW_WATCHDOG_MS,
-    );
-    const publishDiagnostic = (stage: CameraKitDiagnosticStage) => {
-      const diagnostic = logSafeCameraKitDiagnostic(stage, profile.id);
+    const stableForMs = Math.max(500, options.stableForMs ?? profile.countingDuration);
+    const previewWatchdogMs = Math.max(100, options.previewWatchdogMs ?? PREVIEW_WATCHDOG_MS);
+    const publishDiagnostic = (
+      stage: CameraKitDiagnosticStage,
+      surface?: ReturnType<SafariVideoBridge['getRenderSurface']>,
+    ) => {
+      const diagnostic = logSafeCameraKitDiagnostic(stage, profile.id, surface);
       this.environment.diagnosticSink?.(diagnostic);
       options.onDiagnostic?.(diagnostic);
     };
@@ -177,23 +130,24 @@ export class YouCamCameraKitAdapter implements CameraKitAdapter {
     let readySince: number | null = null;
     let pendingCapture: Blob | null = null;
     let stableTimer = 0;
+    let captureWatchdogTimer = 0;
     let previewPollTimer = 0;
     let previewWatchdogTimer = 0;
-    let runtimeGuardRemovalTimer = 0;
-    let runtimeGuardAttached = false;
     let videoBridge: SafariVideoBridge | null = null;
     const listenerIds: CameraKitListenerIdentifier[] = [];
-    const hostWindow =
-      options.mountElement.ownerDocument.defaultView ?? window;
+    const hostWindow = options.mountElement.ownerDocument.defaultView ?? window;
 
     const isActive = () =>
-      !closed &&
-      !options.signal?.aborted &&
-      this.activeSessionId === sessionId;
+      !closed && !options.signal?.aborted && this.activeSessionId === sessionId;
 
     const clearStableTimer = () => {
       hostWindow.clearTimeout(stableTimer);
       stableTimer = 0;
+    };
+
+    const clearCaptureWatchdog = () => {
+      hostWindow.clearTimeout(captureWatchdogTimer);
+      captureWatchdogTimer = 0;
     };
 
     const clearPreviewTimers = () => {
@@ -214,19 +168,6 @@ export class YouCamCameraKitAdapter implements CameraKitAdapter {
       });
     };
 
-    const removeRuntimeGuard = () => {
-      hostWindow.clearTimeout(runtimeGuardRemovalTimer);
-      runtimeGuardRemovalTimer = 0;
-      if (!runtimeGuardAttached) return;
-      runtimeGuardAttached = false;
-      hostWindow.removeEventListener('error', handleRuntimeError, true);
-      hostWindow.removeEventListener(
-        'unhandledrejection',
-        handleRuntimeRejection,
-        true,
-      );
-    };
-
     const closeOpenedCamera = () => {
       let sdkOwnsCamera = cameraOpened;
       try {
@@ -244,15 +185,15 @@ export class YouCamCameraKitAdapter implements CameraKitAdapter {
     };
 
     const releaseVideoBridge = () => {
-      videoBridge?.stopOwnedTracks();
       videoBridge?.disconnect();
       videoBridge = null;
     };
 
-    const teardown = (deferRuntimeGuardRemoval: boolean) => {
+    const teardown = () => {
       if (closed) return;
       closed = true;
       clearStableTimer();
+      clearCaptureWatchdog();
       clearPreviewTimers();
       pendingCapture = null;
       removeListeners();
@@ -263,95 +204,65 @@ export class YouCamCameraKitAdapter implements CameraKitAdapter {
         cameraClosedDiagnosticSent = true;
         publishDiagnostic('camera-closed');
       }
-      if (deferRuntimeGuardRemoval) {
-        runtimeGuardRemovalTimer = hostWindow.setTimeout(
-          removeRuntimeGuard,
-          0,
-        );
-      } else {
-        removeRuntimeGuard();
-      }
       if (this.activeCancel === close) this.activeCancel = null;
       if (this.activeSessionId === sessionId) this.activeSessionId += 1;
       options.onStatus?.('closed');
     };
 
-    const close = () => teardown(true);
+    const close = () => teardown();
 
     const fail = (failure: GuidedCaptureFailure) => {
       if (!isActive() || accepted) return;
       options.onFailure(failure);
-      teardown(true);
+      teardown();
     };
-
-    function handleRuntimeError(event: ErrorEvent) {
-      const failure = knownCameraKitRuntimeFailure(
-        event.error ?? event.message,
-      );
-      if (!failure) return;
-      event.preventDefault();
-      if (isActive()) fail(failure);
-    }
-
-    function handleRuntimeRejection(event: PromiseRejectionEvent) {
-      const failure = knownCameraKitRuntimeFailure(event.reason);
-      if (!failure) return;
-      event.preventDefault();
-      if (isActive()) fail(failure);
-    }
 
     const emitQuality = () => {
       if (!previewLive) return;
-      quality = normalizeCameraKitQuality(
-        latestPayload,
-        resolutionAccepted,
-      );
+      quality = normalizeCameraKitQuality(latestPayload, resolutionAccepted);
       if (quality.ready) {
-        readySince ??= hostWindow.performance.now();
+        if (readySince === null) {
+          readySince = hostWindow.performance.now();
+          clearCaptureWatchdog();
+          captureWatchdogTimer = hostWindow.setTimeout(() => {
+            if (isActive() && quality.ready && !accepted) {
+              fail('invalid-capture');
+            }
+          }, stableForMs + CAPTURE_EVENT_GRACE_MS);
+        }
       } else {
         readySince = null;
         pendingCapture = null;
         clearStableTimer();
+        clearCaptureWatchdog();
       }
       options.onQuality(quality);
       if (quality.ready && pendingCapture) acceptCapture();
     };
 
     const acceptCapture = () => {
-      if (
-        !isActive() ||
-        accepted ||
-        !previewLive ||
-        !pendingCapture ||
-        !quality.ready
-      ) {
+      if (!isActive() || accepted || !previewLive || !pendingCapture || !quality.ready) {
         return;
       }
-      const elapsed =
-        readySince === null
-          ? 0
-          : hostWindow.performance.now() - readySince;
+      const elapsed = readySince === null ? 0 : hostWindow.performance.now() - readySince;
       if (elapsed < stableForMs) {
         clearStableTimer();
-        stableTimer = hostWindow.setTimeout(
-          acceptCapture,
-          Math.ceil(stableForMs - elapsed),
-        );
+        stableTimer = hostWindow.setTimeout(acceptCapture, Math.ceil(stableForMs - elapsed));
         return;
       }
 
       const image = pendingCapture;
       pendingCapture = null;
       accepted = true;
-      teardown(true);
+      teardown();
       options.onStatus?.('captured');
       options.onCapture(image, profile.id);
     };
 
     const previewIsDrawn = (): boolean => {
       try {
-        if (!sdk.isLoaded() || !videoBridge) return false;
-        return !videoBridge.hasVideo() || videoBridge.hasLiveVideo();
+        if (!videoBridge) return false;
+        return videoBridge.hasLiveRenderSurface(sdk.isLoaded());
       } catch {
         return false;
       }
@@ -360,18 +271,17 @@ export class YouCamCameraKitAdapter implements CameraKitAdapter {
     const observePreviewReadiness = () => {
       if (!isActive() || previewLive || !cameraOpened) return;
       if (previewIsDrawn()) {
+        const surface = videoBridge?.getRenderSurface();
         previewLive = true;
         resolutionAccepted = true;
         clearPreviewTimers();
         emitQuality();
-        publishDiagnostic('preview-live');
+        if (surface) publishDiagnostic('render-surface-observed', surface);
+        publishDiagnostic('preview-live', surface);
         options.onStatus?.('preview-live');
         return;
       }
-      previewPollTimer = hostWindow.setTimeout(
-        observePreviewReadiness,
-        PREVIEW_POLL_MS,
-      );
+      previewPollTimer = hostWindow.setTimeout(observePreviewReadiness, PREVIEW_POLL_MS);
     };
 
     const beginPreviewReadiness = () => {
@@ -379,17 +289,13 @@ export class YouCamCameraKitAdapter implements CameraKitAdapter {
       previewWatchdogTimer = hostWindow.setTimeout(() => {
         if (!isActive() || previewLive || !cameraOpened) return;
         publishDiagnostic('preview-stalled');
-        teardown(true);
         options.onStatus?.('preview-stalled');
-        options.onFailure('preview-stalled');
+        fail('preview-stalled');
       }, previewWatchdogMs);
       observePreviewReadiness();
     };
 
-    const listen = (
-      eventName: CameraKitEventName,
-      listener: (payload: unknown) => void,
-    ) => {
+    const listen = (eventName: CameraKitEventName, listener: (payload: unknown) => void) => {
       listenerIds.push(
         sdk.addEventListener(eventName, (payload) => {
           if (isActive()) listener(payload);
@@ -406,6 +312,7 @@ export class YouCamCameraKitAdapter implements CameraKitAdapter {
         cameraOpened = true;
         publishDiagnostic('camera-opened');
         options.onStatus?.('camera-opening');
+        options.onStatus?.('waiting-first-frame');
         beginPreviewReadiness();
       });
       listen('cameraFailed', (payload) => {
@@ -430,16 +337,10 @@ export class YouCamCameraKitAdapter implements CameraKitAdapter {
         publishDiagnostic('capture-event');
         if (!previewLive) return;
         try {
-          pendingCapture = normalizeCameraKitCapture(
-            (payload ?? {}) as CameraKitCapturePayload,
-          );
+          pendingCapture = normalizeCameraKitCapture((payload ?? {}) as CameraKitCapturePayload);
           acceptCapture();
         } catch (error) {
-          fail(
-            error instanceof CameraKitCaptureError
-              ? 'invalid-capture'
-              : 'camera-unavailable',
-          );
+          fail(error instanceof CameraKitCaptureError ? 'invalid-capture' : 'camera-unavailable');
         }
       });
 
@@ -449,18 +350,11 @@ export class YouCamCameraKitAdapter implements CameraKitAdapter {
         return { captureProfileId: profile.id, cancel: close };
       }
 
-      hostWindow.addEventListener('error', handleRuntimeError, true);
-      hostWindow.addEventListener(
-        'unhandledrejection',
-        handleRuntimeRejection,
-        true,
-      );
-      runtimeGuardAttached = true;
-
       const rect = options.mountElement.getBoundingClientRect();
       options.mountElement.id = 'YMK-module';
       videoBridge = createSafariVideoBridge(options.mountElement);
       this.activeCancel = close;
+      publishDiagnostic('init-called');
       sdk.init({
         faceDetectionMode: profile.faceDetectionMode,
         imageFormat: profile.imageFormat,
@@ -469,11 +363,11 @@ export class YouCamCameraKitAdapter implements CameraKitAdapter {
         videoQuality: profile.videoQuality,
         countingDuration: stableForMs,
         hideFlipCameraButton: profile.hideFlipCameraButton,
-        disableCameraResolutionCheck:
-          profile.disableCameraResolutionCheck,
+        disableCameraResolutionCheck: profile.disableCameraResolutionCheck,
         width: boundedDimension(rect.width, 390),
         height: boundedDimension(rect.height, 520),
       });
+      options.onStatus?.('requesting-permission');
       sdk.openCameraKit();
     } catch (error) {
       fail('sdk-unavailable');

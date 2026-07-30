@@ -45,7 +45,8 @@ export async function analyzeLongitudinalCapture(input: {
     protocol,
     capturedAt: input.metadata.createdAt,
     role: input.role,
-    fromCameraKit: input.metadata.source === 'camera',
+    fromCameraKit:
+      input.metadata.cameraProfileId?.startsWith('youcam-camera-kit-') === true,
     signal: input.signal,
   });
 

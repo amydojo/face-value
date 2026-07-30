@@ -141,7 +141,12 @@ const captureMimeTypes = new Set<CaptureMetadata['mimeType']>([
   'image/heic',
   'image/unknown',
 ]);
-const cameraCaptureProfiles = new Set(['youcam-camera-kit-hd-1080p', 'youcam-camera-kit-hd-1920p']);
+const cameraCaptureProfiles = new Set([
+  'native-browser-camera-v1',
+  'youcam-camera-kit-standard-720p',
+  'youcam-camera-kit-hd-1080p',
+  'youcam-camera-kit-hd-1920p',
+]);
 const oracleRevealStates = new Set<OracleRevealState>([
   'sealed',
   'opening',

@@ -4,17 +4,22 @@ import styles from '../styles/FaceValue.module.css';
 
 export function EvidenceShell({
   tone = 'light',
+  captureActive = false,
   children,
   label,
 }: {
   tone?: 'light' | 'dark';
+  captureActive?: boolean;
   children: ReactNode;
   label: string;
 }) {
   return (
     <main
-      className={`${styles.appShell} ${tone === 'dark' ? styles.darkShell : ''}`}
+      className={`${styles.appShell} ${tone === 'dark' ? styles.darkShell : ''} ${
+        captureActive ? styles.captureShell : ''
+      }`}
       data-fv-tone={tone}
+      data-capture-active={captureActive || undefined}
       aria-label={label}
     >
       {children}

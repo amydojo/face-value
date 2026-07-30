@@ -4,7 +4,7 @@ import {
 } from '../../analysis/youcam/contracts';
 import type { CameraKitCapturePayload } from './types';
 
-export const YOUCAM_HD_MINIMUM_SHORT_SIDE = 1080;
+export const YOUCAM_STANDARD_MINIMUM_SHORT_SIDE = 720;
 
 export class CameraKitCaptureError extends Error {
   readonly code = 'invalid_camera_kit_capture';
@@ -28,10 +28,10 @@ export function normalizeCameraKitCapture(
   if (
     !Number.isFinite(width) ||
     !Number.isFinite(height) ||
-    Math.min(width, height) < YOUCAM_HD_MINIMUM_SHORT_SIDE
+    Math.min(width, height) < YOUCAM_STANDARD_MINIMUM_SHORT_SIDE
   ) {
     throw new CameraKitCaptureError(
-      'Camera Kit did not return an HD analysis-compatible resolution.',
+      'Camera Kit did not return an analysis-compatible resolution.',
     );
   }
 

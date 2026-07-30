@@ -13,6 +13,12 @@
   background: var(--fv-page-black);
 }
 
+.captureShell {
+  min-height: 100svh;
+  padding-bottom: 0;
+  background: var(--fv-capture-surface);
+}
+
 .liveRegion,
 .srOnly {
   position: absolute;
@@ -1313,6 +1319,126 @@ button.followUpActionRail:focus-visible {
   box-shadow:
     0 18px 34px rgba(0, 0, 0, 0.32),
     inset 0 1px rgba(255, 255, 255, 0.07);
+}
+
+.cameraScreen {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: calc(100% + 40px);
+  height: var(--fv-visible-viewport-height, 100dvh);
+  max-height: 100dvh;
+  min-height: 0;
+  margin-inline: -20px;
+  padding:
+    max(8px, env(safe-area-inset-top))
+    0
+    max(8px, env(safe-area-inset-bottom));
+  box-sizing: border-box;
+  overflow-x: clip;
+  overflow-y: hidden;
+  overscroll-behavior: none;
+  gap: 12px;
+  color: var(--fv-capture-text-primary);
+  background: var(--fv-capture-surface);
+}
+
+.cameraContractDiagnostics {
+  position: fixed;
+  z-index: 50;
+  top: max(48px, env(safe-area-inset-top));
+  right: 8px;
+  width: min(220px, calc(100vw - 16px));
+  display: grid;
+  gap: 4px;
+  padding: 9px;
+  border: 1px solid rgba(244, 243, 239, 0.2);
+  border-radius: 8px;
+  color: rgba(244, 243, 239, 0.76);
+  background: rgba(5, 5, 5, 0.92);
+  font: 560 8px/1.35 var(--fv-font-mono);
+  letter-spacing: 0.04em;
+  pointer-events: none;
+}
+
+.cameraContractDiagnostics strong {
+  color: var(--fv-capture-text-primary);
+}
+
+.captureRouteBar {
+  flex: 0 0 auto;
+  width: min(358px, calc(100% - 32px));
+  min-height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.captureRouteBar .textButton {
+  min-height: 28px;
+  padding: 0;
+  color: var(--fv-capture-text-secondary);
+  font: 560 9px/1 var(--fv-font-mono);
+  letter-spacing: 0.04em;
+}
+
+.captureRouteBar .eyebrow {
+  margin: 0;
+  color: var(--fv-capture-text-secondary);
+  font-size: 9px;
+}
+
+.captureStartAction {
+  flex: 0 0 auto;
+  width: min(358px, calc(100% - 32px));
+  min-height: 42px;
+  border: 1px solid rgba(244, 243, 239, 0.28);
+  border-radius: 11px;
+  color: var(--fv-capture-text-primary);
+  background: rgba(244, 243, 239, 0.055);
+  font: 620 10px/1 var(--fv-font-mono);
+  letter-spacing: 0.08em;
+}
+
+.captureStartAction:disabled {
+  color: var(--fv-capture-text-secondary);
+}
+
+.captureFileFallback {
+  position: relative;
+  flex: 0 0 auto;
+  min-height: 28px;
+  display: grid;
+  place-items: center;
+  color: var(--fv-capture-text-secondary);
+  font: 570 9px/1 var(--fv-font-mono);
+  letter-spacing: 0.08em;
+  text-decoration: underline;
+  text-decoration-color: rgba(244, 243, 239, 0.24);
+  text-underline-offset: 4px;
+}
+
+.captureFileFallback input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.captureFileFallback:focus-within {
+  outline: 2px solid var(--fv-capture-text-primary);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+.capturePrivacyLine {
+  flex: 0 0 auto;
+  width: min(358px, calc(100% - 32px));
+  margin: 0;
+  color: rgba(244, 243, 239, 0.44);
+  font: 500 8px/1.5 var(--fv-font-mono);
+  text-align: center;
 }
 
 .guidedCaptureFrame {
