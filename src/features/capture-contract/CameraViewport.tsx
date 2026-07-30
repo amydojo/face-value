@@ -667,6 +667,7 @@ export function CameraViewport({
         fixture={fixture}
         previewLive={previewLive}
         previewStatus={previewStatus}
+        activeCapture={captureStarted && !failed}
         reducedMotion={reducedMotion}
       />
 

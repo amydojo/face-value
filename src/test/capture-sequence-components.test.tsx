@@ -74,6 +74,9 @@ describe('canonical capture phase presentation', () => {
     expect(screen.getByText('Looking for a stable frame')).toBeVisible();
     expect(document.querySelectorAll('[data-face-acquisition-guide]')).toHaveLength(1);
     expect(document.querySelector('[data-guide-phase="searching"]')).toBeTruthy();
+    expect(document.querySelectorAll('[data-guide-segment]')).toHaveLength(4);
+    expect(document.querySelectorAll('[data-guide-connector]')).toHaveLength(4);
+    expect(document.querySelector('ellipse')).toBeNull();
     expect(document.querySelector('[data-capture-scan-band]')).toBeNull();
   });
 
@@ -110,6 +113,12 @@ describe('canonical capture phase presentation', () => {
     renderSequence(stateFor('locking'));
     expect(screen.getByRole('heading', { name: 'Frame locked' })).toBeVisible();
     expect(document.querySelectorAll('[data-face-acquisition-guide]')).toHaveLength(1);
+    expect(document.querySelectorAll('[data-guide-segment]')).toHaveLength(4);
+    expect(document.querySelectorAll('[data-guide-connector]')).toHaveLength(4);
+    expect(document.querySelectorAll('[data-capture-guide-anchor]')).toHaveLength(4);
+    expect(document.querySelector('ellipse')).toBeNull();
+    expect(screen.getAllByLabelText(/: passed$/)).toHaveLength(3);
+    expect(screen.queryByLabelText(/: current$/)).not.toBeInTheDocument();
     expect(screen.queryByText(/Good|Perfect|Passed|Success/)).not.toBeInTheDocument();
   });
 
@@ -121,6 +130,8 @@ describe('canonical capture phase presentation', () => {
       }),
     ).toBeVisible();
     expect(document.querySelector('[data-capture-scan-band]')).toBeTruthy();
+    expect(document.querySelector('[data-capture-scan-atmosphere]')).toBeTruthy();
+    expect(document.querySelector('[data-capture-scan-optic]')).toBeTruthy();
     expect(document.querySelector('[data-region-registration-overlay]')).toBeNull();
   });
 
@@ -153,6 +164,11 @@ describe('canonical capture phase presentation', () => {
     expect(
       document.querySelector('[data-capture-sequence][data-reduced-motion="true"]'),
     ).toBeTruthy();
+    expect(
+      document
+        .querySelector<HTMLElement>('[data-capture-sequence]')
+        ?.style.getPropertyValue('--fv-capture-reduced-scan-duration'),
+    ).toBe('300ms');
     expect(
       screen.getByRole('heading', {
         name: 'Reading capture conditions',
@@ -192,7 +208,7 @@ describe('canonical capture phase presentation', () => {
     expect(document.querySelector('[data-capture-quality-rail]')).toBeNull();
   });
 
-  it('keeps canonical guide geometry identical across all five phases', () => {
+  it('keeps one persistent authored guide path system across all five phases', () => {
     const { rerender } = render(
       <CaptureSequence
         state={stateFor('searching', { activeIssue: 'face-missing' })}
@@ -206,11 +222,14 @@ describe('canonical capture phase presentation', () => {
       />,
     );
     const guide = document.querySelector('[data-face-acquisition-guide]');
-    const oval = guide?.querySelector('ellipse');
-    expect(oval).toHaveAttribute('cx', '165');
-    expect(oval).toHaveAttribute('cy', '225');
-    expect(oval).toHaveAttribute('rx', '156');
-    expect(oval).toHaveAttribute('ry', '216');
+    const segmentGroup = guide?.querySelector('[data-capture-guide-segments]');
+    const connectorGroup = guide?.querySelector('[data-capture-guide-connectors]');
+    const segmentPaths = [...(segmentGroup?.querySelectorAll('path') ?? [])];
+    const connectorPaths = [...(connectorGroup?.querySelectorAll('path') ?? [])];
+    expect(segmentPaths).toHaveLength(4);
+    expect(connectorPaths).toHaveLength(4);
+    expect(guide?.querySelector('ellipse')).toBeNull();
+    expect(segmentPaths.every((path) => !path.hasAttribute('stroke-dasharray'))).toBe(true);
 
     for (const phase of ['aligning', 'locking', 'scanning', 'captured'] as const) {
       rerender(
@@ -228,8 +247,52 @@ describe('canonical capture phase presentation', () => {
         />,
       );
       expect(document.querySelector('[data-face-acquisition-guide]')).toBe(guide);
-      expect(guide?.querySelector('ellipse')).toHaveAttribute('rx', '156');
-      expect(guide?.querySelector('ellipse')).toHaveAttribute('ry', '216');
+      expect(guide?.querySelector('[data-capture-guide-segments]')).toBe(segmentGroup);
+      expect(guide?.querySelector('[data-capture-guide-connectors]')).toBe(connectorGroup);
+      expect([...(guide?.querySelectorAll('[data-guide-segment]') ?? [])]).toEqual(
+        segmentPaths,
+      );
+      expect([...(guide?.querySelectorAll('[data-guide-connector]') ?? [])]).toEqual(
+        connectorPaths,
+      );
     }
+  });
+
+  it('marks active and error compositions without changing the component family', () => {
+    const { rerender } = render(
+      <CaptureSequence
+        state={stateFor('aligning', { activeIssue: 'too-far' })}
+        accession="FV–014"
+        product="Specimen"
+        job="Observation"
+        mountRef={createRef<HTMLDivElement>()}
+        fixture
+        previewLive
+        activeCapture
+        reducedMotion={false}
+      />,
+    );
+    const sequence = document.querySelector('[data-capture-sequence]');
+    expect(sequence).toHaveAttribute('data-capture-layout', 'active');
+
+    rerender(
+      <CaptureSequence
+        state={reduceCaptureSequence(createCaptureSequenceState(0), {
+          type: 'FAILED',
+          failure: 'camera-unavailable',
+          at: 0,
+        })}
+        accession="FV–014"
+        product="Specimen"
+        job="Observation"
+        mountRef={createRef<HTMLDivElement>()}
+        fixture
+        previewLive={false}
+        activeCapture={false}
+        reducedMotion={false}
+      />,
+    );
+    expect(document.querySelector('[data-capture-sequence]')).toBe(sequence);
+    expect(sequence).toHaveAttribute('data-capture-layout', 'error');
   });
 });

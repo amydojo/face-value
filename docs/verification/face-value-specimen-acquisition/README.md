@@ -23,12 +23,23 @@ photographs or captured user data.
 | Reduced motion    | [reduced-motion.png](./reduced-motion.png)       |
 
 The Playwright geometry assertions cover `390 × 844`, `393 × 852`,
-`402 × 874`, and `430 × 932`. They verify that the canonical `390 × 780`
-instrument scales as one unit when the visible height is constrained: the
-`330 × 450` guide field, `312 × 432` implied oval, `358 × 48` rail, context
-bar, crop, and guide stay in the same proportions. A separate Visual Viewport
-test simulates Safari chrome contracting the usable height and proves the route
-bar and rail remain visible with no page or nested scrolling.
+`402 × 874`, and `430 × 932`. During active capture the acquisition chamber
+uses at least 92% of the application width rather than preserving a fixed 1:2
+poster. The canonical `330 × 450` guide field, `312 × 432` implied oval,
+`358 × 48` rail, context bar, and camera crop remain stable between Aligning,
+Locking, Scanning, and Captured. A separate Visual Viewport test contracts the
+Safari-visible height to `660px` and restores it. The chassis retains full
+width, the guide smoothly uses its short-viewport geometry before returning to
+canonical size, the route bar and rail remain visible, and neither the page nor
+the chamber scrolls.
+
+The four authored guide arcs remain mounted for the entire ritual. Locking
+draws four persistent connector paths from those arcs; no replacement ellipse
+is mounted. Scanning uses the same signal-amber core, bloom, bright leading
+edge, and restrained wash as the product specimen scanner. Captured holds the
+guide for 150 ms, then resolves it to low opacity over the same frozen frame.
+The normal scan is driven by the state machine's single 900 ms timing constant;
+reduced motion replaces travel with the existing 300 ms illumination state.
 
 The browser suite also exercises the production `NativeBrowserCameraAdapter`
 behind a development-only mock camera stream. That test proves a real visible

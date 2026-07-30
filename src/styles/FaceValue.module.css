@@ -1322,7 +1322,6 @@ button.followUpActionRail:focus-visible {
 }
 
 .cameraScreen {
-  --fv-capture-reserved-height: 190px;
   position: relative;
   display: flex;
   flex-direction: column;
@@ -1365,11 +1364,6 @@ button.followUpActionRail:focus-visible {
 
 .cameraContractDiagnostics strong {
   color: var(--fv-capture-text-primary);
-}
-
-.cameraScreen[data-preview-state='camera-opening'],
-.cameraScreen[data-preview-state='preview-live'] {
-  --fv-capture-reserved-height: 60px;
 }
 
 .captureRouteBar {

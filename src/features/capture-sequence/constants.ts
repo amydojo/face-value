@@ -9,6 +9,8 @@ export const CAPTURE_TIMING = {
   reducedMotionScanMs: 300,
   captureFreezeMs: 120,
   shutterMs: 160,
+  capturedGuideHoldMs: 150,
+  capturedGuideResolveMs: 360,
   capturedHoldMs: 600,
   persistentLowLightMs: 8_000,
   breathingMs: 2_200,

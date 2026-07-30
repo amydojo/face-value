@@ -153,9 +153,10 @@ async function pauseAnimationAt(locator: Locator, currentTime: number): Promise<
       throw new Error('Expected a CSS animation to verify');
     }
     for (const animation of animations) {
-      animation.currentTime = time;
       animation.pause();
+      animation.currentTime = time;
     }
+    void getComputedStyle(element).transform;
   }, currentTime);
 }
 
@@ -264,19 +265,32 @@ async function pinVisualViewportHeight(page: Page, height: number): Promise<void
     .toBe(height);
 }
 
-function expectCanonicalGeometry(geometry: Awaited<ReturnType<typeof captureGeometry>>) {
+function expectResponsiveCaptureGeometry(
+  geometry: Awaited<ReturnType<typeof captureGeometry>>,
+  viewportWidth: number,
+  { compactGuide = false }: { compactGuide?: boolean } = {},
+) {
   const scale = geometry.chassis.width / 390;
-  expect(geometry.chassis.width).toBeGreaterThan(0);
-  expect(geometry.chassis.width).toBeLessThanOrEqual(390.5);
-  expect(geometry.chassis.height).toBeCloseTo(geometry.chassis.width * 2, 0);
+  expect(geometry.chassis.width).toBeGreaterThanOrEqual(viewportWidth * 0.92);
+  expect(geometry.chassis.width).toBeLessThanOrEqual(viewportWidth + 1);
+  expect(geometry.chassis.height).toBeGreaterThan(0);
   expect(geometry.feed.left - geometry.chassis.left).toBeLessThanOrEqual(1);
   expect(geometry.feed.top - geometry.chassis.top).toBeLessThanOrEqual(1);
   expect(geometry.chassis.right - geometry.feed.right).toBeLessThanOrEqual(1);
   expect(geometry.chassis.bottom - geometry.feed.bottom).toBeLessThanOrEqual(1);
-  expect(geometry.guide.width).toBeCloseTo(330 * scale, 0);
-  expect(geometry.guide.height).toBeCloseTo(450 * scale, 0);
-  expect(geometry.guide.left - geometry.chassis.left).toBeCloseTo(30 * scale, 0);
-  expect(geometry.guide.top - geometry.chassis.top).toBeCloseTo(132 * scale, 0);
+  if (compactGuide) {
+    expect(geometry.guide.width).toBeLessThan(330 * scale);
+    expect(geometry.guide.height / geometry.guide.width).toBeCloseTo(450 / 330, 2);
+    expect(
+      geometry.guide.left - geometry.chassis.left + geometry.guide.width / 2,
+    ).toBeCloseTo(geometry.chassis.width / 2, 0);
+    expect(geometry.guide.bottom).toBeLessThan(geometry.rail.top - 8);
+  } else {
+    expect(geometry.guide.width).toBeCloseTo(330 * scale, 0);
+    expect(geometry.guide.height).toBeCloseTo(450 * scale, 0);
+    expect(geometry.guide.left - geometry.chassis.left).toBeCloseTo(30 * scale, 0);
+    expect(geometry.guide.top - geometry.chassis.top).toBeCloseTo(132 * scale, 0);
+  }
   expect(geometry.rail.width).toBeCloseTo(358 * scale, 0);
   expect(geometry.rail.height).toBeCloseTo(48 * scale, 0);
   expect(geometry.rail.left - geometry.chassis.left).toBeCloseTo(16 * scale, 0);
@@ -285,6 +299,15 @@ function expectCanonicalGeometry(geometry: Awaited<ReturnType<typeof captureGeom
   expect(geometry.context.height).toBeCloseTo(36 * scale, 0);
   expect(geometry.context.left - geometry.chassis.left).toBeCloseTo(20 * scale, 0);
   expect(geometry.context.top - geometry.chassis.top).toBeCloseTo(16 * scale, 0);
+}
+
+function guideGeometry(geometry: Awaited<ReturnType<typeof captureGeometry>>) {
+  return {
+    left: geometry.guide.left,
+    top: geometry.guide.top,
+    width: geometry.guide.width,
+    height: geometry.guide.height,
+  };
 }
 
 test.beforeAll(async () => {
@@ -300,13 +323,14 @@ test('successful acquisition preserves geometry and the selected frame into proc
   await openCapture(page);
   const chassis = page.locator('[data-capture-sequence]');
   const initialGeometry = await captureGeometry(page);
-  expectCanonicalGeometry(initialGeometry);
+  expectResponsiveCaptureGeometry(initialGeometry, 390);
   expect(await page.locator('[data-face-acquisition-guide]').count()).toBe(1);
 
   await startCapture(page);
   await expect(chassis).toHaveAttribute('data-capture-phase', 'aligning');
   const activeGeometry = await captureGeometry(page);
-  expectCanonicalGeometry(activeGeometry);
+  expectResponsiveCaptureGeometry(activeGeometry, 390);
+  expect(guideGeometry(activeGeometry)).toEqual(guideGeometry(initialGeometry));
   await expect(chassis).toHaveAttribute('data-capture-phase', 'locking');
   expect(await captureGeometry(page)).toEqual(activeGeometry);
   await expect(chassis).toHaveAttribute('data-capture-phase', 'scanning');
@@ -341,8 +365,10 @@ test('native browser camera contract renders the real preview surface and owns c
   await startCapture(page);
   await expect(page.getByRole('heading', { name: 'Opening camera' })).toBeVisible();
   await expect(page.locator('section[data-preview-status="preview-live"]')).toBeVisible();
+  expectResponsiveCaptureGeometry(await captureGeometry(page), 390);
   const preview = page.locator('[data-native-camera-preview]');
   await expect(preview).toBeVisible();
+  await expect(preview).toHaveCSS('object-position', '50% 42%');
   expect(
     await preview.evaluate((video: HTMLVideoElement) => {
       const rect = video.getBoundingClientRect();
@@ -362,6 +388,10 @@ test('native browser camera contract renders the real preview surface and owns c
     { timeout: 5_000 },
   );
   await expect(page.locator('[data-frame-frozen="true"] img')).toBeVisible();
+  await expect(page.locator('[data-frame-frozen="true"] img')).toHaveCSS(
+    'object-position',
+    '50% 42%',
+  );
   const contract = await page.evaluate(() => ({
     alerts:
       (
@@ -512,25 +542,28 @@ for (const viewport of [
   { width: 402, height: 874 },
   { width: 430, height: 932 },
 ]) {
-  test(`keeps canonical proportions in mobile WebKit at ${viewport.width} × ${viewport.height}`, async ({
+  test(`fills the active chamber in mobile WebKit at ${viewport.width} × ${viewport.height}`, async ({
     page,
   }) => {
     await page.setViewportSize(viewport);
     await openCapture(page);
-    expectCanonicalGeometry(await captureGeometry(page));
+    expectResponsiveCaptureGeometry(await captureGeometry(page), viewport.width);
     await startCapture(page);
     await expect(page.locator('[data-capture-sequence]')).toHaveAttribute(
       'data-capture-phase',
       'aligning',
     );
     const active = await captureGeometry(page);
-    expectCanonicalGeometry(active);
+    expectResponsiveCaptureGeometry(active, viewport.width);
     const visible = await page.evaluate(() => {
       const route = document.querySelector('[data-capture-route-bar]')!.getBoundingClientRect();
       const rail = document.querySelector('[data-capture-quality-rail]')!.getBoundingClientRect();
       const screen = document.querySelector<HTMLElement>('section[data-preview-state]')!;
       return {
         routeTop: route.top,
+        chassisTop: document
+          .querySelector<HTMLElement>('[data-capture-sequence]')!
+          .getBoundingClientRect().top,
         railBottom: rail.bottom,
         viewportHeight: window.visualViewport?.height ?? window.innerHeight,
         scrollY: window.scrollY,
@@ -539,6 +572,7 @@ for (const viewport of [
       };
     });
     expect(visible.routeTop).toBeGreaterThanOrEqual(0);
+    expect(visible.chassisTop).toBeGreaterThan(visible.routeTop);
     expect(visible.railBottom).toBeLessThanOrEqual(visible.viewportHeight + 1);
     expect(visible.scrollY).toBe(0);
     expect(visible.screenScrollTop).toBe(0);
@@ -550,7 +584,7 @@ for (const viewport of [
   });
 }
 
-test('visual viewport contraction scales the active instrument without clipping or scrolling', async ({
+test('visual viewport contraction preserves width and guide geometry without clipping or scrolling', async ({
   page,
 }) => {
   await page.setViewportSize({ width: 390, height: 844 });
@@ -560,30 +594,26 @@ test('visual viewport contraction scales the active instrument without clipping 
     'data-capture-phase',
     'aligning',
   );
-  await page.evaluate(() => {
-    if (!window.visualViewport) throw new Error('Visual Viewport API is unavailable');
-    Object.defineProperty(window.visualViewport, 'height', {
-      configurable: true,
-      get: () => 704,
-    });
-    window.visualViewport.dispatchEvent(new Event('resize'));
-  });
-  await expect
-    .poll(() =>
-      page
-        .locator('section[data-preview-state]')
-        .evaluate((element) =>
-          Number.parseFloat(
-            getComputedStyle(element).getPropertyValue('--fv-visible-viewport-height'),
-          ),
-        ),
-    )
-    .toBe(704);
+  const expanded = await captureGeometry(page);
+  await pinVisualViewportHeight(page, 660);
+  await page.waitForTimeout(220);
   const contracted = await captureGeometry(page);
-  expectCanonicalGeometry(contracted);
+  expectResponsiveCaptureGeometry(contracted, 390, { compactGuide: true });
+  expect(contracted.chassis.width).toBeCloseTo(expanded.chassis.width, 0);
+  expect(contracted.chassis.top).toBeCloseTo(expanded.chassis.top, 0);
+  expect(contracted.guide.width).toBeLessThan(expanded.guide.width);
   expect(contracted.route.top).toBeGreaterThanOrEqual(0);
-  expect(contracted.rail.bottom).toBeLessThanOrEqual(704);
+  expect(contracted.rail.bottom).toBeLessThanOrEqual(660);
   expect(await page.evaluate(() => window.scrollY)).toBe(0);
+  expect(
+    await page.locator('section[data-preview-state]').evaluate((element) => element.scrollTop),
+  ).toBe(0);
+
+  await pinVisualViewportHeight(page, 844);
+  await page.waitForTimeout(220);
+  const restored = await captureGeometry(page);
+  expect(restored.chassis).toEqual(expanded.chassis);
+  expect(guideGeometry(restored)).toEqual(guideGeometry(expanded));
 });
 
 test('visual regression: all canonical phases, permission error, and reduced motion', async ({
@@ -598,20 +628,21 @@ test('visual regression: all canonical phases, permission error, and reduced mot
   await openCapture(page, { slowQuality: true });
   await pinVisualViewportHeight(page, 844);
   const chassis = page.locator('[data-capture-sequence]');
-  await expect.soft(chassis).toHaveScreenshot('capture-searching.png', {
+  const captureScreen = page.locator('section[data-preview-state]');
+  await expect.soft(captureScreen).toHaveScreenshot('capture-searching.png', {
     animations: 'disabled',
   });
-  await saveEvidence(chassis, 'searching.png');
+  await saveEvidence(captureScreen, 'searching.png');
 
   await page.getByRole('button', { name: 'START GUIDED CAPTURE' }).click();
   await advanceVisualClock(page, 105);
   await advanceVisualClock(page, 250);
   await advanceVisualClock(page, 150);
   await expect(chassis).toHaveAttribute('data-capture-phase', 'aligning');
-  await expect.soft(chassis).toHaveScreenshot('capture-aligning.png', {
+  await expect.soft(captureScreen).toHaveScreenshot('capture-aligning.png', {
     animations: 'disabled',
   });
-  await saveEvidence(chassis, 'aligning.png');
+  await saveEvidence(captureScreen, 'aligning.png');
 
   await advanceVisualClock(page, 350);
   await advanceVisualClock(page, 250);
@@ -619,45 +650,50 @@ test('visual regression: all canonical phases, permission error, and reduced mot
   await advanceVisualClock(page, 250);
   await advanceVisualClock(page, 500);
   await expect(chassis).toHaveAttribute('data-capture-phase', 'locking');
-  await expect(page.locator('[data-capture-guide-oval]')).toHaveCount(1);
-  await expect(page.locator('[data-capture-guide-segments]')).toHaveCSS('opacity', '0');
-  await expect(page.locator('[data-capture-lock-trace]')).toHaveJSProperty(
-    'tagName',
-    'path',
-  );
-  await pauseAnimationAt(page.locator('[data-capture-guide-oval]'), 280);
-  await pauseAnimationAt(page.locator('[data-capture-lock-trace]'), 350);
-  await expect.soft(chassis).toHaveScreenshot('capture-locking.png', {
+  await expect(page.locator('[data-capture-guide-segments]')).toHaveCSS('opacity', '0.96');
+  await expect(page.locator('[data-capture-guide-connectors]')).toHaveCount(1);
+  await expect(page.locator('[data-guide-connector]')).toHaveCount(4);
+  await expect(page.locator('[data-capture-guide-anchor]')).toHaveCount(4);
+  await expect(page.locator('[data-face-acquisition-guide] ellipse')).toHaveCount(0);
+  await pauseAnimationAt(page.locator('[data-capture-guide-connectors]'), 180);
+  await expect.soft(captureScreen).toHaveScreenshot('capture-locking.png', {
     animations: 'allow',
     maxDiffPixels: 64,
   });
-  await saveEvidence(chassis, 'locking.png', 'allow');
+  await saveEvidence(captureScreen, 'locking.png', 'allow');
 
   await advanceVisualClock(page, 730);
   await expect(chassis).toHaveAttribute('data-capture-phase', 'scanning');
-  await pauseAnimationAt(page.locator('[data-capture-scan-optic]'), 450);
-  await expect.soft(chassis).toHaveScreenshot('capture-scanning.png', {
+  // The damped bottle-scanner easing reaches the visual midpoint before the
+  // temporal midpoint; pause where the amber leading edge crosses the face field.
+  await pauseAnimationAt(page.locator('[data-capture-scan-optic]'), 300);
+  await pauseAnimationAt(page.locator('[data-capture-scan-atmosphere]'), 300);
+  await expect.soft(captureScreen).toHaveScreenshot('capture-scanning.png', {
     animations: 'allow',
     maxDiffPixels: 24,
   });
-  await saveEvidence(chassis, 'scanning.png', 'allow');
+  await saveEvidence(captureScreen, 'scanning.png', 'allow');
 
   await advanceVisualClock(page, 900);
   await expect(chassis).toHaveAttribute('data-capture-phase', 'captured');
-  await expect.soft(chassis).toHaveScreenshot('capture-captured.png', {
+  await expect.soft(captureScreen).toHaveScreenshot('capture-captured.png', {
     animations: 'disabled',
   });
-  await saveEvidence(chassis, 'captured.png');
+  await saveEvidence(captureScreen, 'captured.png');
 
   await openCapture(page, { scenario: 'permission-denied' });
   await pinVisualViewportHeight(page, 844);
   await page.getByRole('button', { name: 'START GUIDED CAPTURE' }).click();
   await advanceVisualClock(page, 50);
   await expect(chassis).toHaveAttribute('data-capture-phase', 'error');
-  await expect.soft(chassis).toHaveScreenshot('capture-permission-error.png', {
+  await advanceVisualClock(page, 16);
+  await expect(page.locator('[data-face-acquisition-guide]')).toHaveCount(0);
+  await expect(page.locator('[data-capture-quality-rail]')).toHaveCount(0);
+  await expect(page.getByLabel('Choose a face photo')).toBeFocused();
+  await expect.soft(captureScreen).toHaveScreenshot('capture-permission-error.png', {
     animations: 'disabled',
   });
-  await saveEvidence(chassis, 'permission-denied.png');
+  await saveEvidence(captureScreen, 'permission-denied.png');
 
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await openCapture(page);
@@ -668,8 +704,8 @@ test('visual regression: all canonical phases, permission error, and reduced mot
   await advanceVisualClock(page, 500);
   await advanceVisualClock(page, 730);
   await expect(chassis).toHaveAttribute('data-capture-phase', 'scanning');
-  await expect.soft(chassis).toHaveScreenshot('capture-reduced-motion.png', {
+  await expect.soft(captureScreen).toHaveScreenshot('capture-reduced-motion.png', {
     animations: 'disabled',
   });
-  await saveEvidence(chassis, 'reduced-motion.png');
+  await saveEvidence(captureScreen, 'reduced-motion.png');
 });

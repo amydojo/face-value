@@ -1,4 +1,4 @@
-import type { RefObject } from 'react';
+import type { CSSProperties, RefObject } from 'react';
 import type { GuidedCaptureStatus } from '../../adapters/camera/youcam-camera-kit';
 import { CaptureCameraFeed } from './CaptureCameraFeed';
 import { CaptureInstruction } from './CaptureInstruction';
@@ -6,6 +6,7 @@ import { CaptureQualityRail } from './CaptureQualityRail';
 import { CaptureScanBand } from './CaptureScanBand';
 import { CaptureShutter } from './CaptureShutter';
 import { CapturedSpecimenTransition } from './CapturedSpecimenTransition';
+import { CAPTURE_TIMING } from './constants';
 import { FaceAcquisitionGuide } from './FaceAcquisitionGuide';
 import { getCaptureInstruction } from './guidance';
 import { RegionRegistrationOverlay } from './RegionRegistrationOverlay';
@@ -22,6 +23,7 @@ export function CaptureSequence({
   fixture,
   previewLive,
   previewStatus = 'preview-live',
+  activeCapture = true,
   reducedMotion,
 }: {
   state: CaptureSequenceState;
@@ -33,8 +35,19 @@ export function CaptureSequence({
   fixture: boolean;
   previewLive: boolean;
   previewStatus?: GuidedCaptureStatus | 'idle';
+  activeCapture?: boolean;
   reducedMotion: boolean;
 }) {
+  const timingStyle = {
+    '--fv-capture-breathing-duration': `${CAPTURE_TIMING.breathingMs}ms`,
+    '--fv-capture-guide-connection-duration': `${CAPTURE_TIMING.guideConnectionMs}ms`,
+    '--fv-capture-scan-duration': `${CAPTURE_TIMING.scanMs}ms`,
+    '--fv-capture-reduced-scan-duration': `${CAPTURE_TIMING.reducedMotionScanMs}ms`,
+    '--fv-capture-freeze-duration': `${CAPTURE_TIMING.captureFreezeMs}ms`,
+    '--fv-capture-shutter-duration': `${CAPTURE_TIMING.shutterMs}ms`,
+    '--fv-capture-guide-hold-duration': `${CAPTURE_TIMING.capturedGuideHoldMs}ms`,
+    '--fv-capture-guide-resolve-duration': `${CAPTURE_TIMING.capturedGuideResolveMs}ms`,
+  } as CSSProperties;
   const instruction =
     previewStatus === 'loading' ||
     previewStatus === 'requesting-permission' ||
@@ -48,7 +61,9 @@ export function CaptureSequence({
       className={styles.chassis}
       data-capture-sequence
       data-capture-phase={state.phase}
+      data-capture-layout={state.phase === 'error' ? 'error' : activeCapture ? 'active' : 'idle'}
       data-reduced-motion={reducedMotion}
+      style={timingStyle}
       aria-labelledby="camera-heading"
     >
       <CaptureCameraFeed
@@ -68,7 +83,9 @@ export function CaptureSequence({
         <strong>{job ?? 'JOB UNASSIGNED'}</strong>
       </div>
       <CaptureInstruction copy={instruction} phase={state.phase} />
-      {state.phase !== 'error' && <FaceAcquisitionGuide phase={state.phase} />}
+      {state.phase !== 'error' && (
+        <FaceAcquisitionGuide phase={state.phase} activeIssue={state.activeIssue} />
+      )}
       {state.phase === 'scanning' && <CaptureScanBand />}
       {state.phase === 'scanning' && (
         <RegionRegistrationOverlay regions={state.registeredRegions} />
