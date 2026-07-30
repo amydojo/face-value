@@ -57,11 +57,15 @@ jobs:
           if-no-files-found: error
       - run: npx playwright install --with-deps webkit
       - name: Regenerate corrupted Linux WebKit baselines
-        run: >-
-          npx playwright test e2e/capture-sequence.spec.ts
-          --project=mobile-webkit
-          --grep "visual regression: all canonical phases"
-          --update-snapshots=changed
+        shell: bash
+        run: |
+          rm \
+            e2e/capture-sequence.spec.ts-snapshots/capture-locking-mobile-webkit-linux.png \
+            e2e/capture-sequence.spec.ts-snapshots/capture-scanning-mobile-webkit-linux.png
+          npx playwright test e2e/capture-sequence.spec.ts \
+            --project=mobile-webkit \
+            --grep "visual regression: all canonical phases" \
+            --update-snapshots=missing
       - name: Verify only the intended baselines changed
         shell: bash
         run: |
