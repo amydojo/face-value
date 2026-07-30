@@ -395,8 +395,6 @@
 
 .scanField {
   z-index: 7;
-  isolation: isolate;
-  contain: paint;
   overflow: hidden;
   clip-path: ellipse(47.273% 48% at 50% 50%);
 }

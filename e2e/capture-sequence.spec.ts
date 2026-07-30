@@ -146,14 +146,30 @@ async function saveEvidence(
   });
 }
 
-async function setStaticVisualStyle(
-  locator: Locator,
-  style: Record<string, string>,
-): Promise<void> {
-  await locator.evaluate((element, frozenStyle) => {
-    Object.assign((element as SVGElement | HTMLElement).style, frozenStyle);
-    void element.getBoundingClientRect();
-  }, style);
+async function installStaticVisualMilestones(page: Page): Promise<void> {
+  await page.addStyleTag({
+    content: `
+      [data-capture-sequence][data-capture-phase='locking']
+        [data-capture-guide-connectors] {
+        animation: none !important;
+        opacity: 1 !important;
+        stroke-dashoffset: 12 !important;
+      }
+
+      [data-capture-sequence][data-capture-phase='scanning']
+        [data-capture-scan-optic] {
+        animation: none !important;
+        opacity: 1 !important;
+        transform: translate3d(0, 147%, 0) !important;
+      }
+
+      [data-capture-sequence][data-capture-phase='scanning']
+        [data-capture-scan-atmosphere] {
+        animation: none !important;
+        opacity: 1 !important;
+      }
+    `,
+  });
 }
 
 async function advanceVisualClock(page: Page, milliseconds: number) {
@@ -626,6 +642,10 @@ test('visual regression: all canonical phases, permission error, and reduced mot
   await page.setViewportSize({ width: 390, height: 844 });
   await openCapture(page, { slowQuality: true });
   await pinVisualViewportHeight(page, 844);
+  // Install deterministic visual milestones before their elements mount.
+  // Mutating promoted SVG/gradient layers after mount can make Linux WebKit's
+  // screenshot compositor omit otherwise stable surrounding layers.
+  await installStaticVisualMilestones(page);
   const chassis = page.locator('[data-capture-sequence]');
   const captureScreen = page.locator('section[data-preview-state]');
   await expect.soft(captureScreen).toHaveScreenshot('capture-searching.png', {
@@ -654,15 +674,6 @@ test('visual regression: all canonical phases, permission error, and reduced mot
   await expect(page.locator('[data-guide-connector]')).toHaveCount(4);
   await expect(page.locator('[data-capture-guide-anchor]')).toHaveCount(4);
   await expect(page.locator('[data-face-acquisition-guide] ellipse')).toHaveCount(0);
-  // Seeking a CSS animation timeline makes Linux WebKit's screenshot
-  // compositor intermittently omit unrelated layers. Freeze the authored
-  // milestone as ordinary styles so the snapshot measures the product, not
-  // the runner's animation compositor.
-  await setStaticVisualStyle(page.locator('[data-capture-guide-connectors]'), {
-    animation: 'none',
-    opacity: '1',
-    strokeDashoffset: '12',
-  });
   await expect.soft(captureScreen).toHaveScreenshot('capture-locking.png', {
     animations: 'disabled',
     maxDiffPixels: 64,
@@ -672,16 +683,7 @@ test('visual regression: all canonical phases, permission error, and reduced mot
   await advanceVisualClock(page, 730);
   await expect(chassis).toHaveAttribute('data-capture-phase', 'scanning');
   // The damped bottle-scanner easing reaches the visual midpoint before the
-  // temporal midpoint; pause where the amber leading edge crosses the face field.
-  await setStaticVisualStyle(page.locator('[data-capture-scan-optic]'), {
-    animation: 'none',
-    opacity: '1',
-    transform: 'translate3d(0, 147%, 0)',
-  });
-  await setStaticVisualStyle(page.locator('[data-capture-scan-atmosphere]'), {
-    animation: 'none',
-    opacity: '1',
-  });
+  // temporal midpoint; the preinstalled milestone holds that authored frame.
   await expect.soft(captureScreen).toHaveScreenshot('capture-scanning.png', {
     animations: 'disabled',
     maxDiffPixels: 24,
