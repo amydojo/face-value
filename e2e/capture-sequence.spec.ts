@@ -610,10 +610,13 @@ test('visual viewport contraction preserves width and guide geometry without cli
   ).toBe(0);
 
   await pinVisualViewportHeight(page, 844);
-  await page.waitForTimeout(220);
+  await expect
+    .poll(async () => guideGeometry(await captureGeometry(page)), {
+      message: 'guide returns to its exact expanded geometry after Safari chrome restores',
+    })
+    .toEqual(guideGeometry(expanded));
   const restored = await captureGeometry(page);
   expect(restored.chassis).toEqual(expanded.chassis);
-  expect(guideGeometry(restored)).toEqual(guideGeometry(expanded));
 });
 
 test('visual regression: all canonical phases, permission error, and reduced motion', async ({
