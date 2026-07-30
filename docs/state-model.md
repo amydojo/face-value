@@ -1,169 +1,339 @@
-# State model
+# Face Value state model
 
-Face Value uses one pure reducer. Events that do not satisfy their guard return the current state unchanged. Visual motion never advances scientific or durable state.
+**Status:** Current state authority  
+**Effective date:** July 30, 2026  
+**Implementation baseline:** `main` after PR #62 (`e0173ee`)
 
-## Compatibility note
+Face Value uses one reducer-owned application state machine for product, evidence, navigation, persistence, and recovery. The Oracle uses a separate pure reducer for temporary mechanical phases. Events that fail their guards return the current model unchanged.
 
-A small set of original MVP event keys and persisted field names remains internal to avoid an unnecessary storage migration. Those names are implementation details only. Default presentation vocabulary is Your trials, trial, note, follow-up scan, result, next step, saved result, and Past results.
+Visual motion never creates scientific evidence, chooses an action, or writes durable data.
 
-Canonical redness records add a versioned evaluation snapshot without changing
-the storage envelope. Current registered redness trials derive effect,
-measurement, attribution, evidence, safety, and action through
-`src/domain/evidence/redness`. Pre-engine records remain readable but are never
-reinterpreted as canonical evidence.
+## 1. Compatibility boundary
 
-## Application stages
+The state and persistence model contains older names retained to read existing local records and focused recovery fixtures. Compatibility names are not current product instructions.
 
-- `welcome`: private-by-default entry and dormant instrument.
-- `cabinet`: Your trials and the selected trial needing attention.
-- `browse`: finite trial selection.
-- `specimen`: selected product inspection and one-job question.
-- `job`: assigned job and baseline-scan consequence.
-- `capture_contract`: comparable-condition confirmation with trial identity retained.
-- `camera`: private baseline or follow-up scan.
-- `observation`: trial in progress.
-- `disturbance`: another product entered the trial.
-- `analysis`: automatic comparison and result-ready object.
-- `analysis_failure`: comparison failed without fabricating a result.
-- `comparison_refused`: scans are not fair to compare.
-- `progress`: V7 result reveal.
-- `placement`: recommended or overridden next step, reseal, and save boundary.
-- `record`: opened saved result.
-- `archive`: Past results.
+Current default vocabulary includes:
 
-The public router does not expose a separate result fixture stage. `/verdict` is not a production route. `progress` is reached only through a guarded reducer transition from a comparable analysis result or a persisted `review_due` state that already owns such a result.
+- Start a new trial
+- Register and load
+- Trial in progress
+- Follow-up ready
+- Result
+- Recommendation
+- Evidence Record
+- Previous Trials
 
-## Shared internal trial-object modes
+Historical terms such as `cabinet`, `browse`, `placement`, `SAVE_RESULT`, and Past Results may remain inside migration and legacy reducer paths only.
 
-The presentation contract uses `index`, `active`, `review-due`, `verdict`, and `classified`. These modes are projections of reducer state. They do not replace the reducer or introduce local navigation state.
+Canonical redness records own an immutable `RednessEvaluationSnapshot`. Pre-engine records remain readable but are never reinterpreted as though they contained canonical evidence.
 
-## V7 result hardware
+## 2. Application stages
 
-The result retains its independent mechanical reducer:
+The current `AppStage` union is:
 
-`sealed → pressing → released → tilting → settled → clearing → presented → closing → sealed`
+```ts
+| 'welcome'
+| 'product_registration'
+| 'cabinet'
+| 'browse'
+| 'specimen'
+| 'job'
+| 'capture_contract'
+| 'camera'
+| 'baseline_context'
+| 'baseline_locked'
+| 'waiting_for_followup'
+| 'followup_ready'
+| 'followup_context'
+| 'observation'
+| 'disturbance'
+| 'analysis'
+| 'analysis_failure'
+| 'comparison_refused'
+| 'progress'
+| 'placement'
+| 'record'
+| 'archive'
+```
 
-This reducer coordinates only presentation. It cannot create an analysis result, select a placement, generate a saved result, or insert a Past results entry.
+Not every stage is part of the current ordinary journey. Some remain for legacy restoration and deterministic fixture coverage.
 
-## Observation
+### Current ordinary journey stages
 
-- `none`: no product trial exists.
-- `baseline_pending`: a product job exists but the baseline scan is incomplete.
-- `baseline`: baseline evidence exists before a stable window is established.
-- `active_stable`: one product and one job are active.
-- `active_disturbed`: another product remains in the trial window.
-- `waiting`: structured context remains, but no result is available.
-- `review_due`: a follow-up scan or comparison is ready.
-- `complete`: the next step is committed and one saved result exists.
+- `welcome`: empty instrument for a person without an active trial; first-trial continuity begins here.
+- `product_registration`: reducer-owned product identity is being entered; the draft remains presentation state until commit.
+- `job`: registered specimen is loaded and the one supported job is confirmed before baseline capture.
+- `camera`: baseline or follow-up acquisition and private in-memory image handoff.
+- `baseline_context`: optional context after an accepted baseline analysis.
+- `baseline_locked`: stable transition acknowledging accepted baseline evidence.
+- `waiting_for_followup`: active trial before its eligible date.
+- `followup_ready`: active trial whose follow-up may begin.
+- `followup_context`: optional context after accepted follow-up analysis.
+- `analysis`: deterministic comparison and the mounted sealed Oracle.
+- `analysis_failure`: provider or comparison work failed without deleting accepted evidence or fabricating a result.
+- `comparison_refused`: saved evidence cannot support comparison under the frozen contract.
+- `record`: one opened immutable Evidence Record.
+- `archive`: Previous Trials.
 
-## Camera
+### Compatibility and internal stages
 
-- `idle`: no permission request or pending browser stream.
-- `unsupported`: `getUserMedia` is absent.
-- `requesting`: browser permission negotiation is active.
-- `ready`: a stream is attached and can be captured.
-- `capturing`: canvas extraction is in progress.
-- `captured`: the person accepted a pending scan.
-- `denied`: permission was refused.
-- `no_camera`: no video input was found.
-- `overconstrained`: preferred constraints could not be satisfied.
-- `error`: an unknown normalized failure occurred.
+- `cabinet`, `browse`, and `specimen` support older journeys, fixture projections, and restoration.
+- `capture_contract`, `observation`, and `disturbance` preserve earlier explicit contract/overlap paths and focused tests.
+- `progress` and `placement` remain typed compatibility stages; the current Oracle result journey stays mounted inside `analysis` and uses `oracleRevealState` rather than navigating through a mandatory separate next-step screen.
 
-## Comparison and confidence
+No public `/verdict` route exists. Demo fixtures do not create a second production state model.
 
-- `not_available`: no valid follow-up comparison exists.
-- `comparable`: confirmed conditions support comparison.
-- `partially_comparable`: changed conditions or product overlap reduce interpretability.
-- `not_comparable`: a result is refused.
+## 3. Registered product and trial identity
 
-The compatibility confidence field remains `insufficient`, `possible`,
-`likely`, or `confirmed`. Canonical redness uses its separate evidence-quality
-dimension (`insufficient`, `possible`, or `likely`). Active product overlap
-blocks attribution and deterministically maps to `retry_alone`; it is not
-averaged into a generic confidence value.
+`RegisteredProduct` is the current production identity. It preserves:
 
-## Result-to-next-step mapping
+- stable product and accession IDs
+- brand and product name
+- optional strength and volume
+- the supported job `Reduce visible redness`
+- protocol ID `youcam-redness-v1`
+- expected observation window
+- registration time
 
-The exhaustive mapping happens before the placement stage opens:
+Registration drafts, loading/locking animations, and transient specimen materialization are not durable until the reducer accepts `REGISTER_PRODUCT`.
 
-| Analysis or result condition | Placement |
+The same registered identity is projected into registration, baseline readiness, trial pending, follow-up readiness, result, Evidence Record, Home, and Previous Trials.
+
+## 4. Observation state
+
+The current `ObservationState` values are:
+
+- `none`: no active product trial
+- `baseline_pending`: product and job exist but accepted baseline evidence does not
+- `baseline`: accepted baseline exists before the active waiting state is established
+- `active_stable`: one active product and job under ordinary conditions
+- `active_disturbed`: another product or material trial change is present
+- `waiting`: active evidence exists but no follow-up/result is available
+- `review_due`: follow-up or result work can resume
+- `complete`: the active trial produced one collected durable record
+
+An active trial may render through the dedicated `waiting_for_followup` and `followup_ready` application stages while preserving this underlying observation state.
+
+## 5. Camera state
+
+`CameraState` remains:
+
+- `idle`
+- `unsupported`
+- `requesting`
+- `ready`
+- `capturing`
+- `captured`
+- `denied`
+- `no_camera`
+- `overconstrained`
+- `error`
+
+Production uses `NativeBrowserCameraAdapter`. Camera readiness requires a connected visible video surface with current frame dimensions. The adapter and acquisition reducer own one camera session, cancellation authority, stable-hold timing, scan timing, capture, teardown, and stale-callback rejection.
+
+The reducer receives face-free capture metadata. It never receives image bytes, streams, object URLs, signed upload URLs, or raw provider responses.
+
+The current ordinary path accepts one analyzed measurement per period. #63 will add a reducer-owned burst generation and atomic three-measurement period commit; that model is planned, not current.
+
+## 6. Longitudinal evidence state
+
+`LongitudinalSkinEvidence` currently preserves:
+
+- one frozen `AnalysisProtocol`
+- one accepted baseline `DurableSkinSignal`
+- one accepted follow-up `DurableSkinSignal`
+- one compatibility `RednessComparison`
+- one optional canonical `RednessEvaluationSnapshot`
+
+The compatibility single-signal fields remain current until #63 migrates the live path to burst-backed periods. A median must never masquerade as an original provider signal.
+
+Canonical evaluation owns:
+
+- baseline and endpoint period aggregation
+- raw-score delta
+- effect classification
+- measurement quality
+- attribution quality
+- evidence quality
+- safety status
+- recommended action
+- limitations, missing evidence, rules, and audit trace
+
+React renders these values. It does not derive them.
+
+## 7. Comparison and evidence states
+
+Compatibility comparison values remain:
+
+- `not_available`
+- `comparable`
+- `partially_comparable`
+- `not_comparable`
+
+Canonical redness uses separate fields instead of collapsing all meaning into one confidence value:
+
+- effect: worsened, no detectable change, directional improvement, meaningful candidate, or strong improvement
+- measurement: invalid, limited, adequate, or strong
+- attribution: blocked, weak, moderate, or strong
+- evidence: insufficient, possible, or likely
+- safety: clear, check required, or interrupted
+- action: keep, test longer, retry alone, not proving job, or safety interruption
+
+The compatibility confidence field remains available for old presentation and records. It cannot override canonical evidence fields.
+
+## 8. Current action mapping
+
+Canonical redness actions map into compatibility placement values through one typed adapter:
+
+| Redness action | Compatibility placement |
 | --- | --- |
 | `keep` | `established` |
-| `wait`, `pause`, `reassess`, `return_to_cooling`, or `seek_professional_guidance` | `paused` |
-| `continue_with_overlap` | `retry_alone` |
-| persisted `overlap_retained` | `retry_alone` |
+| `test_longer` | `paused` |
+| `retry_alone` | `retry_alone` |
+| `not_proving_job` | `useful_elsewhere` |
+| `safety_interruption` | `released` |
 
-Unknown recommendation values throw at the mapping boundary rather than silently choosing a default.
+Unknown values fail explicitly. UI components do not invent a fallback placement.
 
-For canonical redness, the authoritative mapping is:
+## 9. Current guarded journey transitions
 
-| Redness action        | Compatibility placement |
-| --------------------- | ----------------------- |
-| `keep`                | `established`           |
-| `test_longer`         | `paused`                |
-| `retry_alone`         | `retry_alone`           |
-| `not_proving_job`     | `useful_elsewhere`      |
-| `safety_interruption` | `released`              |
+The current high-level production sequence is reducer-authorized:
 
-React receives this mapping through the typed presentation adapter and does not
-infer it.
+```text
+START_PRODUCT_REGISTRATION
+→ REGISTER_PRODUCT
+→ BEGIN_CAPTURE(baseline)
+→ BASELINE_ANALYSIS_STARTED
+→ BASELINE_ANALYSIS_ACCEPTED
+→ CAPTURE_CONTEXT_RECORDED
+→ FINISH_BASELINE_SESSION
+→ CHECK_FOLLOWUP_ELIGIBILITY
+→ BEGIN_CAPTURE(followup)
+→ FOLLOWUP_ANALYSIS_STARTED
+→ FOLLOWUP_ANALYSIS_ACCEPTED
+→ CAPTURE_CONTEXT_RECORDED
+→ COMPARISON_CREATED
+→ Oracle mechanical events
+→ EVIDENCE_COLLECTED
+→ ORACLE_DONE
+```
 
-## Guarded production transitions
+Important guards:
 
-| Internal event | Valid source | Human product result | Rejected when |
-| --- | --- | --- | --- |
-| `OPEN_CABINET` | `welcome` | Your trials opens | any other stage |
-| `BROWSE_DRAWERS` | `cabinet` | finite trial selector | wrong stage |
-| `OPEN_REVIEW_DUE` | `cabinet + review_due` | saved follow-up resumes analysis; comparable result resumes result reveal | missing continuation data |
-| `PREVIOUS_DRAWER` | `browse` | selected trial index decreases by one | first trial or wrong stage |
-| `NEXT_DRAWER` | `browse` | selected trial index increases by one | final trial or wrong stage |
-| `OPEN_DRAWER` | `browse` | selected trial enters job assignment | wrong stage |
-| `OPEN_DRAWER` | `cabinet + active observation` | active trial reopens directly | no active trial |
-| `ASSIGN_JOB` | `specimen`, `job` | one job stored; baseline becomes pending | wrong stage |
-| `BEGIN_CAPTURE: baseline` | `job` | baseline scan conditions | no assigned-job stage |
-| `BEGIN_CAPTURE: followup` | active or recoverable observation stages | follow-up scan conditions | wrong stage |
-| `CONFIRM_CONTRACT` | `capture_contract` | camera stage, or refusal for `not_comparable` follow-up | wrong stage |
-| `CAPTURE_ACCEPTED: baseline` | matching `camera` | trial in progress | wrong stage or mismatched kind |
-| `CAPTURE_ACCEPTED: followup` | matching `camera` | analysis stage; adapter effect starts automatically | wrong stage or mismatched kind |
-| `ADD_TRACE` | active observation | note saved or replaced | wrong stage |
-| `INTRODUCE_SECOND_PRODUCT` | `observation` | another-product decision | wrong stage |
-| `RESOLVE_DISTURBANCE: cooling` | `disturbance` | second product removed; stable attribution restored | wrong stage |
-| `RESOLVE_DISTURBANCE: overlap` | `disturbance` | both retained; result will be less certain | wrong stage |
-| `ANALYSIS_STARTED` | `analysis` | comparison running | wrong stage, already running, or result exists |
-| `ANALYSIS_SUCCEEDED` | `analysis` | result stored; overlap confidence remains capped | wrong stage |
-| `ANALYSIS_FAILED` | `analysis` | trial remains saved; no result fabricated | wrong stage |
-| `RETAKE_FOLLOWUP` | `analysis_failure`, `comparison_refused` | fresh follow-up scan conditions | wrong stage |
-| `SAVE_CONTEXT_ONLY` | `comparison_refused` | context preserved without a result | wrong stage |
-| `ENTER_PROGRESS` | `analysis` with comparable result | V7 result screen | no result or not comparable |
-| `SELECT_PLACEMENT` | `progress`, unsealed `placement` | recommended or overridden next step selected | wrong stage or already sealed |
-| `SAVE_RESULT` | unsealed `placement` with analysis | classify, reseal, generate exactly one saved result | wrong stage, missing result, or already sealed |
-| `OPEN_SAVED_RESULT` | sealed `placement` with record | open the saved result | missing record or wrong stage |
-| `VIEW_ARCHIVE` | any active stage | Past results with return stage preserved | never rejected |
-| `VIEW_RECORD` | `archive` | selected saved result opens | wrong stage |
-| `BACK` | browse, result, placement, archive, record, capture states | exact semantic parent restored | otherwise unchanged |
+- product identity commits once per registration event
+- baseline must be accepted before the trial can wait or become follow-up eligible
+- follow-up work requires an accepted baseline and identical frozen protocol
+- provider failure preserves existing accepted evidence
+- duplicate request identities are rejected
+- stale completion cannot settle a newer retry or cancelled generation
+- comparison cannot exist without required accepted evidence
+- a saved evaluation snapshot cannot be replaced by a render-time recalculation
+- one deterministic record ID may enter Previous Trials once
 
-`SEAL_PLACEMENT` and `GENERATE_RECORD` remain guarded compatibility events for older persisted sessions and focused recovery tests. Production UI does not require them.
+The exact reducer includes additional recovery, demo, legacy, and migration events. Those paths must preserve these invariants.
 
-## Automatic-analysis invariant
+## 10. Oracle mechanical state
 
-The adapter effect is keyed by the accepted follow-up capture identifier. It dispatches analysis only when:
+The current Oracle reducer phases are:
 
-- stage is `analysis`
-- a follow-up capture exists
-- no analysis result exists
-- processing is `idle`
-- that capture identifier has not already been requested in the mounted session
+```text
+sealed
+→ opening
+→ transmitting
+→ verdict_revealed
+→ committing
+→ dispensing
+→ collected
+→ done
+```
 
-Reducer guards reject duplicate starts and late or invalid result events.
+Canonical events include:
 
-## Saved-result invariant
+- `REVEAL_STARTED`
+- `REVEAL_PULL_COMPLETED`
+- `TRANSMISSION_COMPLETED`
+- `RECOMMENDATION_ACCEPTED`
+- `DISPENSE_STARTED`
+- `EVIDENCE_DISPENSED`
+- `EVIDENCE_COLLECTION_STARTED`
+- `EVIDENCE_COLLECTED`
+- `ORACLE_DONE`
 
-`SAVE_RESULT` preserves specimen, accession, product, job, baseline and follow-up metadata, note, comparison, finding, non-finding, confidence, another-product state, final placement, recommendation, claim boundary, timestamp, and `includesFaceImage: false`.
+The Oracle reducer coordinates only authorized presentation and collection phases.
 
-Archive insertion is idempotent for the deterministic record identifier. Repeated save activation, automatic open, back, reload restoration, and Past results reopening cannot add a duplicate.
+- Reveal does not create a result.
+- Recommendation acceptance does not create a record.
+- Dispense animation does not create a record.
+- `EVIDENCE_COLLECTION_STARTED` locks the collection gesture.
+- `EVIDENCE_COLLECTED` is the current exactly-once durable record boundary.
+- `ORACLE_DONE` returns to Home after the record exists.
 
-## Another-product invariant
+Historical V7 door-state sequences remain design provenance, not the current production reducer.
 
-Removing the second product restores stable attribution before the follow-up. Keeping both writes `overlap_retained`. The adapter returns the reduced-confidence scenario, the reducer caps confidence at `possible`, the result maps to `retry_alone`, and the saved result preserves both confidence and overlap context.
+## 11. Persistence and restoration
 
-See `production-journey-integration.md` for the complete language, interaction, accessibility, and verification contract.
+Persistence stores structured, face-free application data. Restoration resolves interrupted work to a legal stable state:
+
+- interrupted registration returns to a safe first-trial state
+- interrupted baseline capture returns to registered baseline readiness
+- interrupted follow-up capture returns to follow-up readiness
+- accepted baseline resumes context, locked, waiting, or ready state
+- accepted baseline and follow-up evidence resume deterministic comparison
+- sealed and revealed Oracle states remain semantically sealed or revealed
+- interrupted mechanical phases resume from authorized stable state
+- dispensed evidence returns in its collection position
+- collected evidence returns with the same record ID
+- no image is restored
+
+Legacy records hydrate through explicit compatibility adapters. They are not assigned evidence they never contained.
+
+## 12. Automatic comparison invariant
+
+A guarded application effect requests comparison only when:
+
+- the application is in `analysis`
+- accepted baseline and follow-up evidence exist
+- no saved comparison or canonical result exists
+- the current evidence request has not already been handled
+- required protocol and schema guards pass
+
+The reducer rejects duplicate starts and stale success/failure events. Scientific classification remains in `src/domain/evidence/redness`.
+
+## 13. Exactly-once record invariant
+
+The record generator uses a deterministic identity derived from the trial. A valid `EVIDENCE_COLLECTED` transition:
+
+1. preserves the accepted action and commit time
+2. creates the face-free record from the existing immutable evaluation
+3. inserts it only when its ID is absent
+4. marks evidence collected and the trial complete
+5. keeps the Oracle mounted until Done
+
+Repeated clicks, animation callbacks, collection callbacks, reload, Home rendering, Previous Trials, and record disclosure cannot create a second record.
+
+## 14. Planned state amendments
+
+### #63
+
+Adds typed burst generations, accepted/rejected frame evidence, atomic baseline/follow-up period commits, and stale-generation protection. It must preserve legacy single-signal records without re-evaluation.
+
+### #64
+
+Adds reducer-owned committed adherence, tolerance, symptoms, and participant-observed direction before comparison readiness.
+
+### #65
+
+Adds isolated calibration observations and an exploratory internal registry. Calibration state must not merge with ordinary trial state or become a production threshold without a future approval path.
+
+## 15. Source files
+
+Current state truth is defined primarily by:
+
+- `src/domain/model.ts`
+- the application reducer under `src/app` and `src/domain`
+- `src/domain/oracleRevealMachine.ts`
+- `src/domain/evidence/redness/*`
+- `src/adapters/persistence/*`
+- reducer and restoration tests
+
+See `architecture.md`, `production-journey-integration.md`, and `oracle-reveal-v1.md` for the surrounding boundaries.
