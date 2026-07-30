@@ -97,7 +97,10 @@ export function createSafariVideoBridge(
   return {
     hasVideo: () => {
       refreshVideos();
-      return videos.size > 0;
+      // The adapter's legacy readiness predicate treats "no video" as ready.
+      // While the active mount is connected, report that a video pipeline is
+      // expected so readiness can only be satisfied by hasLiveVideo().
+      return videos.size > 0 || mountElement.isConnected;
     },
     hasLiveVideo: () => {
       refreshVideos();
