@@ -6,8 +6,6 @@
   width: 100%;
   min-width: 0;
   min-height: 0;
-  /* Keep WebKit's promoted camera and SVG layers inside this chamber. */
-  contain: paint;
   overflow: hidden;
   border: 0;
   border-radius: min(7.18cqw, 28px);
@@ -221,7 +219,7 @@
   display: block;
   width: 100%;
   height: 100%;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .guideSegments,
@@ -265,11 +263,13 @@
   stroke: var(--fv-capture-accent);
   stroke-dasharray: 100;
   stroke-width: 1.8px;
+  filter: drop-shadow(0 0 3px rgba(255, 106, 0, 0.2));
 }
 
 .guideAnchors {
   fill: var(--fv-capture-accent);
   opacity: 0;
+  filter: drop-shadow(0 0 3px rgba(255, 106, 0, 0.42));
   transition: opacity 140ms ease;
 }
 
@@ -311,6 +311,7 @@
   .guideSegments
   path:is([data-guide-segment='lower-left'], [data-guide-segment='lower-right']) {
   stroke: var(--fv-capture-accent);
+  filter: drop-shadow(0 0 3px rgba(255, 106, 0, 0.26));
 }
 
 .guideField:is(
@@ -344,6 +345,7 @@
 .guideField[data-guide-phase='locking'] .guideSegments path,
 .guideField[data-guide-phase='scanning'] .guideSegments path {
   stroke: var(--fv-capture-accent);
+  filter: drop-shadow(0 0 3px rgba(255, 106, 0, 0.25));
 }
 
 .guideField[data-guide-phase='locking'] .guideAnchors {

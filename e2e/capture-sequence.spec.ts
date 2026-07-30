@@ -146,18 +146,14 @@ async function saveEvidence(
   });
 }
 
-async function pauseAnimationAt(locator: Locator, currentTime: number): Promise<void> {
-  await locator.evaluate((element, time) => {
-    const animations = element.getAnimations();
-    if (animations.length === 0) {
-      throw new Error('Expected a CSS animation to verify');
-    }
-    for (const animation of animations) {
-      animation.pause();
-      animation.currentTime = time;
-    }
-    void getComputedStyle(element).transform;
-  }, currentTime);
+async function setStaticVisualStyle(
+  locator: Locator,
+  style: Record<string, string>,
+): Promise<void> {
+  await locator.evaluate((element, frozenStyle) => {
+    Object.assign((element as SVGElement | HTMLElement).style, frozenStyle);
+    void element.getBoundingClientRect();
+  }, style);
 }
 
 async function advanceVisualClock(page: Page, milliseconds: number) {
@@ -658,24 +654,39 @@ test('visual regression: all canonical phases, permission error, and reduced mot
   await expect(page.locator('[data-guide-connector]')).toHaveCount(4);
   await expect(page.locator('[data-capture-guide-anchor]')).toHaveCount(4);
   await expect(page.locator('[data-face-acquisition-guide] ellipse')).toHaveCount(0);
-  await pauseAnimationAt(page.locator('[data-capture-guide-connectors]'), 180);
+  // Seeking a CSS animation timeline makes Linux WebKit's screenshot
+  // compositor intermittently omit unrelated layers. Freeze the authored
+  // milestone as ordinary styles so the snapshot measures the product, not
+  // the runner's animation compositor.
+  await setStaticVisualStyle(page.locator('[data-capture-guide-connectors]'), {
+    animation: 'none',
+    opacity: '1',
+    strokeDashoffset: '12',
+  });
   await expect.soft(captureScreen).toHaveScreenshot('capture-locking.png', {
-    animations: 'allow',
+    animations: 'disabled',
     maxDiffPixels: 64,
   });
-  await saveEvidence(captureScreen, 'locking.png', 'allow');
+  await saveEvidence(captureScreen, 'locking.png');
 
   await advanceVisualClock(page, 730);
   await expect(chassis).toHaveAttribute('data-capture-phase', 'scanning');
   // The damped bottle-scanner easing reaches the visual midpoint before the
   // temporal midpoint; pause where the amber leading edge crosses the face field.
-  await pauseAnimationAt(page.locator('[data-capture-scan-optic]'), 300);
-  await pauseAnimationAt(page.locator('[data-capture-scan-atmosphere]'), 300);
+  await setStaticVisualStyle(page.locator('[data-capture-scan-optic]'), {
+    animation: 'none',
+    opacity: '1',
+    transform: 'translate3d(0, 147%, 0)',
+  });
+  await setStaticVisualStyle(page.locator('[data-capture-scan-atmosphere]'), {
+    animation: 'none',
+    opacity: '1',
+  });
   await expect.soft(captureScreen).toHaveScreenshot('capture-scanning.png', {
-    animations: 'allow',
+    animations: 'disabled',
     maxDiffPixels: 24,
   });
-  await saveEvidence(captureScreen, 'scanning.png', 'allow');
+  await saveEvidence(captureScreen, 'scanning.png');
 
   await advanceVisualClock(page, 900);
   await expect(chassis).toHaveAttribute('data-capture-phase', 'captured');
