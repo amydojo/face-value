@@ -10,6 +10,7 @@ import { getCaptureInstruction } from './guidance';
 import { RegionRegistrationOverlay } from './RegionRegistrationOverlay';
 import type { CaptureSequenceState } from './types';
 import styles from './CaptureSequence.module.css';
+import './CaptureSequence.hotfix.css';
 
 export function CaptureSequence({
   state,
