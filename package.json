@@ -15,7 +15,8 @@
     "test:e2e": "playwright test",
     "verify:privacy": "node scripts/verify-client-privacy.mjs",
     "verify:redness-architecture": "node scripts/verify-redness-architecture.mjs",
-    "check": "npm run lint && npm run typecheck && npm run test && npm run verify:redness-architecture && npm run build && npm run verify:privacy"
+    "verify:docs": "node scripts/verify-docs.mjs",
+    "check": "npm run lint && npm run typecheck && npm run test && npm run verify:redness-architecture && npm run verify:docs && npm run build && npm run verify:privacy"
   },
   "dependencies": {
     "react": "^19.1.1",

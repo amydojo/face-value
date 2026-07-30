@@ -1,158 +1,332 @@
-# Human Butter production journey integration
+# Face Value production journey integration
 
-## Canonical journey
+**Status:** Current journey authority  
+**Effective date:** July 30, 2026  
+**Implementation baseline:** `main` after PR #62 (`e0173ee`)
 
-The public application has one production route and one state-machine journey:
+Face Value exposes one reducer-owned product journey. Development fixtures, diagnostics, and Demo Lab starting points project typed state into the same production components; they do not create an alternate consumer product.
 
-`welcome → Your trials → trial selection → trial in progress → follow-up scan → automatic comparison → result → next step → confident reseal → saved result → Past results`
+## 1. First-trial continuity
 
-The standalone fixture route remains removed. Production result data always comes from the selected specimen, assigned job, analysis result, comparison, confidence, product-overlap state, note, and captures already owned by `FaceValueState`.
+The current first-time journey is:
 
-A persisted `review_due` trial re-enters the reducer through `OPEN_REVIEW_DUE`. When a follow-up scan exists it resumes automatic analysis. When a comparable analysis result exists it resumes the V7 result. React does not reconstruct either state locally.
-
-## Human Butter language boundary
-
-The domain remains precise while the primary journey uses direct product language.
-
-| Internal or detailed term | Primary journey |
-| --- | --- |
-| Evidence Index | Your trials |
-| Evidence cassette | Product trial or trial |
-| Active observation | Trial in progress |
-| Lightweight trace | Note |
-| Visible signal | What you noticed |
-| Comparable follow-up | Follow-up scan |
-| Review due | Ready to compare |
-| Disturbance | Another product was used |
-| Interference | Two products shared this trial |
-| Lower-confidence overlap | The result will be less certain |
-| Verdict | Result |
-| Disposition | Next step |
-| Commit disposition | Save result |
-| Evidence archive | Past results |
-| Evidence Record | Saved result or trial result |
-
-Code, types, reducer events, persisted structures, architecture documentation, and detailed saved-result fields may retain technical names where they improve correctness. Default copy and accessible names do not require the person to understand those names.
-
-## One-screen rule
-
-Every default screen contains:
-
-1. one human headline
-2. one meaningful trial object
-3. one useful piece of context
-4. one primary action
-5. at most one quiet alternative
-
-Notes, raw technical state, destructive actions, explanatory detail, and alternate next-step classifications use accessible progressive disclosure. Read-only information is not boxed merely to look official.
-
-## Shared trial-object modes
-
-The reusable internal interaction contract remains:
-
-```ts
-type CassetteMode =
-  | 'index'
-  | 'active'
-  | 'review-due'
-  | 'verdict'
-  | 'classified';
+```text
+empty instrument
+→ START A PRODUCT TRIAL
+→ product registration inside the persistent instrument
+→ live specimen identity preview
+→ REGISTER AND LOAD
+→ specimen materializes, loads, scans, and locks
+→ Reduce visible redness confirmed
+→ guided baseline capture
+→ optional baseline capture context
+→ baseline locked
+→ trial pending
 ```
 
-Mode changes content, status, accessible name, and destination. It does not change the physical grammar.
+`FaceValueApplication` keeps one `FirstTrialScene`, one machine root, and one specimen root mounted across welcome, registration, and job confirmation. Registration draft state is local presentation state. `REGISTER_PRODUCT` is the only durable identity-commit boundary.
 
-- `index`: view the selected trial.
-- `active`: open or close the current trial summary.
-- `review-due`: begin or restore result review through real reducer state.
-- `verdict`: reveal or close the V7 result.
-- `classified`: open the preserved saved result.
+The journey does not insert:
 
-A visible handle always means: **show me what this trial currently contains.** A handle-shaped affordance is omitted when no meaningful action exists.
+- an empty archive before registration
+- a generic product-success card
+- a second machine
+- a duplicate bottle
+- a separate identity confirmation route
 
-## Automatic comparison
+## 2. Returning Home
 
-A valid accepted follow-up scan enters `analysis`. `FaceValueApplication` observes that reducer state and invokes the existing `AnalysisAdapter` once for the accepted follow-up capture. The reducer receives `ANALYSIS_STARTED` and either `ANALYSIS_SUCCEEDED` or `ANALYSIS_FAILED`.
+Home is reducer-derived and has two broad forms.
 
-There is no production button for running comparison or entering result review. Development fixture controls remain development and test only.
+### Active trial
 
-## Result to next-step mapping
+Show:
 
-Result actions are mapped exhaustively by `placementForVerdict` before the next-step screen opens:
+- trial status
+- the same registered specimen
+- baseline/follow-up timeline
+- follow-up availability
+- one follow-up action when eligible
+- Previous Trials
 
-| Result action | Domain placement |
-| --- | --- |
-| `KEEP IT` | `established` |
-| `TEST LONGER` | `paused` |
-| `RETRY IT ALONE` | `retry_alone` |
+The active object remains continuous with registration and baseline capture. Home does not replace it with a generic trial card.
 
-A retained overlap always maps to `retry_alone`, even when an upstream adapter returns a stronger recommendation. Unknown recommendations throw an explicit error rather than silently defaulting.
+### No active trial
 
-The recommended next step is shown automatically. The full classification list remains hidden until the person chooses **Choose a different next step**.
+Show:
 
-## Save, reseal, and record boundary
+- no active-trial status
+- latest completed verdict when one exists
+- **START A NEW TRIAL**
+- **PREVIOUS TRIALS**
 
-One `SAVE_RESULT` activation performs one reducer-owned transaction:
+The archive term is **Previous Trials**.
 
-1. preserve the recommended or overridden placement
-2. mark the trial complete and classification sealed
-3. generate the deterministic durable result
-4. insert it into Past results only when its identifier is not already present
-5. leave the placement screen in the classified state for the confident reseal
-6. open that same saved result automatically
+## 3. Trial timing
 
-The saved result preserves product, specimen identifier, assigned job, finding, non-finding, confidence, comparison state, product-overlap context, note, baseline metadata, follow-up metadata, selected next step, claim boundary, timestamp, and `includesFaceImage: false`.
+The product registration freezes an expected observation window. Accepted baseline evidence stores its actual time and a reducer-owned follow-up eligibility time.
 
-Repeated activation, back navigation, reload restoration, and Past results reopening do not create another record. Reduced motion performs the same semantic sequence without the ceremonial delay.
+Production follow-up is rejected before eligibility. The protected demo may set an explicit `demoTimelineAdvanced` flag without rewriting the original baseline timestamp or claiming that real days elapsed.
 
-Legacy `SEAL_PLACEMENT` and `GENERATE_RECORD` events remain explicit compatibility paths for older persisted sessions and focused reducer recovery tests. Production UI does not expose them as separate mandatory actions.
+The current default interval may be fourteen days for the registered launch job, but evaluation uses the stored product window rather than assuming one universal clinical interval.
 
-## Gesture ownership
+## 4. Guided acquisition
 
-`CassetteHandle` is the only drag owner. It uses pointer capture on the explicit handle surface, rejects accidental movement below five pixels, activates only after a 28-pixel horizontal-dominant gesture, and cleans up on pointer up, cancellation, or lost capture.
+Both baseline and follow-up use the current production acquisition sequence:
 
-The handle uses `touch-action: none`; surrounding surfaces retain normal page scrolling. Tap, Enter, and Space activate the same semantic action. Escape closes expanded content or returns through the existing reducer parent. No whole-card click target substitutes for the handle.
+```text
+Searching
+→ Aligning
+→ Locking
+→ Scanning
+→ Captured
+→ YouCam processing
+```
 
-## Focus and disclosure
+Production capture uses `NativeBrowserCameraAdapter` and the exact visible first-party `<video>` surface. Camera access starts only from an explicit user gesture.
 
-The note editor asks **What did you notice?** Opening it moves focus to the input. Saving or cancelling collapses the editor and restores focus to the Add note or Edit note trigger.
+The current local signal model may observe:
 
-See why, Trial details, and Choose a different next step expose state with native disclosure semantics, contextual labels, and keyboard access. Nothing important relies on color alone.
+- preview availability
+- whole-frame exposure
+- frame-to-frame movement
+- stable hold
 
-## Smart-glass layering
+It does not claim native face detection, pose estimation, facial landmarks, skin-tone classification, or facial registration.
 
-The DOM order is:
+The external Camera Kit renderer is available only through the development diagnostics query. It is not an alternate production camera.
 
-`optical bay → live specimen and identity → dedicated smart-glass overlay → structural bezel`
+## 5. Capture context
 
-Blur, tint, reflection, and clearing belong only to the smart-glass layer. Product identity remains live HTML text, full resolution, and free from inherited filters. In `presented` and reduced-motion states, the glass backdrop filter resolves to `none` and specimen identity resolves to full opacity.
+After an accepted baseline or follow-up analysis, the current optional context surface asks only about conditions the camera cannot reliably know:
 
-## Safe-area and system chrome
+- makeup
+- recent heat or exercise
+- recent cleansing or skincare
+- routine or treatment change
+- one short user-authored note
 
-The application shell owns top safe-area spacing through `env(safe-area-inset-top)`. `ScreenHeader` renders only the Face Value brand and screen code. It does not simulate time, signal, battery, browser, or operating-system chrome.
+Capture context may create a limitation or confounder. It cannot increase confidence, change the deciding raw score, diagnose a condition, or manufacture attribution.
 
-## Fixture policy
+Adherence, tolerance, symptoms, and participant-observed longitudinal redness direction are separate trial-level concepts planned in #64. They must not be silently inferred from current capture context.
 
-Deterministic analysis scenarios remain available only through the development and test fixture control. There is no public fixture result route and no production-like hardcoded result outside the state machine.
+## 6. Evidence processing
 
-## Verification contract
+The current ordinary path uses:
 
-CI runs dependency installation, lint, strict typecheck, unit and component tests, production build, Playwright WebKit installation, the existing E2E suite, and one deterministic complete mobile Human Butter journey.
+```text
+accepted baseline capture
+→ YouCam HD redness raw score
+→ frozen durable baseline signal
+→ accepted eligible follow-up capture
+→ identical YouCam protocol
+→ durable follow-up signal
+→ canonical redness evidence adapter
+→ deterministic evaluator
+→ immutable RednessEvaluationSnapshot
+```
 
-The canonical test begins at `/` and proves:
+The current implementation stores one accepted provider score per period. #63 will replace the live single-frame assumption with one low-friction three-measurement burst per period.
 
-- Your trials and trial selection
-- handle-owned inspection and trial-summary disclosure
-- focused note editing and focus return
-- another-product consequence and both resolution paths
-- automatic comparison after an accepted follow-up scan
-- V7 closed and revealed result states
-- explicit result-to-next-step mapping
-- hidden-by-default classification override
-- one SAVE RESULT boundary
-- confident reseal and automatic saved-result opening
-- exactly one Past results entry after repeated activation and reload
-- tap, Enter, Space, pointer drag, cancellation, lost capture, Escape, and reduced motion
-- handle drag does not scroll the page while outside surfaces remain scrollable
-- no runtime or console errors
+A valid follow-up automatically requests comparison. There is no consumer action to author the verdict, choose a threshold, or call a language model.
 
-Playwright WebKit with a mobile Safari-like viewport is browser verification. It is not proof of testing on a physical iPhone.
+## 7. Comparison and failure behavior
+
+Comparison succeeds only through the canonical evaluator. Provider output cannot override:
+
+- protocol mismatch
+- invalid or limited measurement evidence
+- product overlap or confounders
+- insufficient observation time
+- safety evidence
+
+Failure behavior must preserve already accepted evidence.
+
+- baseline failure leaves registration and product identity safe
+- follow-up failure leaves the accepted baseline and active trial safe
+- protocol mismatch is rejected before an interpretive result
+- timeout and provider errors offer one recoverable action
+- cancellation and route teardown reject stale work and release resources
+- duplicate callbacks cannot create duplicate signals, comparisons, or records
+
+No failure path invents a result.
+
+## 8. Sealed result
+
+When comparison produces a canonical snapshot, the current Oracle remains mounted inside the analysis journey.
+
+Before reveal, finding, score, evidence status, limitations, and recommendation remain absent from the rendered and accessibility trees.
+
+The reveal sequence is authorized by the Oracle reducer:
+
+```text
+sealed
+→ opening
+→ transmitting
+→ verdict_revealed
+```
+
+The revealed surface presents:
+
+- the deterministic finding
+- a plain-language interpretation
+- evidence status
+- the recommended action
+- a restrained See why disclosure
+- the option to choose a different next step where allowed
+
+The Oracle does not create another result model. Firmware, paper, Home, Previous Trials, and Evidence Record detail derive from the same saved evaluation and presentation mapping.
+
+## 9. Recommendation and collection
+
+The current completion sequence is:
+
+```text
+verdict_revealed
+→ recommendation accepted or deliberately changed
+→ committing
+→ dispensing
+→ evidence presented
+→ collection started
+→ EVIDENCE_COLLECTED
+→ collected
+→ ORACLE_DONE
+→ Home
+```
+
+The durable Evidence Record is created only at `EVIDENCE_COLLECTED`.
+
+- recommendation acceptance does not yet create the record
+- animation completion does not create the record
+- paper registration does not create the record
+- collection callbacks are idempotent
+- `ORACLE_DONE` returns Home only after the durable record exists
+
+The former mandatory separate next-step screen and visible `SAVE RESULT` action are historical behavior. Legacy events may remain inside migration and recovery code only.
+
+## 10. Evidence Record continuity
+
+One record ID is preserved across:
+
+- Oracle paper
+- explicit collection
+- Evidence Record detail
+- Home latest verdict
+- Previous Trials
+- browser reload
+- progressive disclosure
+
+Canonical records render from the saved `RednessEvaluationSnapshot`. React must not re-run thresholds, classify direction, or calculate safety during render.
+
+Older records remain readable through legacy fields without being assigned new burst, trial-truth, mask, symptom, or calibration evidence.
+
+## 11. Previous Trials
+
+Previous Trials is a face-free history of completed Evidence Records.
+
+It must not:
+
+- contain active camera images
+- include demo-clearing controls in ordinary production
+- regenerate records on open
+- recalculate old results under a newer threshold
+- expose provider task IDs, signed URLs, or raw payloads
+
+Opening a record preserves the selected record and a deterministic Back destination.
+
+## 12. Demo Lab and protected tools
+
+Demo Lab is an internal instrument behind the existing engineering-session boundary.
+
+It may:
+
+- open canonical typed fixture states
+- load an isolated synthetic demo journey
+- run the ordinary real-camera journey
+- clear Demo Lab data without affecting ordinary trials
+
+It may not:
+
+- author arbitrary verdicts
+- merge synthetic data into ordinary storage
+- expose secrets in the client
+- imply that synthetic capture is physical evidence
+
+The planned calibration route in #65 must use the same protected boundary and an isolated calibration store.
+
+## 13. Accessibility
+
+The production journey preserves:
+
+- native semantic controls
+- meaningful heading focus after stage changes
+- visible focus
+- minimum 44 CSS-pixel controls
+- one-handed mobile reach where practical
+- VoiceOver names that identify object and destination
+- live-region guidance only at meaningful acquisition changes
+- no color-only state
+- tap, keyboard, and pointer parity for reveal and collection
+- deterministic Escape and Back behavior
+- reduced-motion parity without skipping semantic steps
+
+A sealed result must remain sealed for assistive technology as well as sighted presentation.
+
+## 14. Responsive behavior
+
+The application must support the committed mobile widths and dynamic Safari viewport changes without horizontal overflow.
+
+During active capture:
+
+- route bar, instruction, guide, and action rail remain reachable
+- the chamber uses the available width
+- visual-viewport contraction does not create false camera failure
+- the page does not compete with the camera for scroll
+- leaving the route stops camera activity
+
+Registration, Home, trial pending, follow-up ready, Oracle, record detail, and Previous Trials remain natively scrollable when content exceeds the visible height.
+
+## 15. Current verification story
+
+Automated proof includes:
+
+- reducer legality and idempotency
+- provider contract and failure fixtures
+- raw-score-only architecture guards
+- sealed-state DOM and accessibility checks
+- Oracle exactly-once collection
+- persistence and legacy hydration
+- first-trial machine/specimen continuity
+- Mobile WebKit acquisition sequence and visual viewport behavior
+- compiled-client privacy scan
+
+Synthetic WebKit evidence is not physical-device proof. A final exact-head physical-iPhone golden-path pass remains a release gate and must record the tested commit, device, browser, conditions, and result.
+
+## 16. Planned journey changes
+
+### #63
+
+The user still experiences one scan, while the system collects three genuine provider measurements and commits one burst-backed evidence period atomically.
+
+### #64
+
+After follow-up evidence is secured, the journey collects adherence, tolerance, and participant-observed redness direction before comparison becomes ready.
+
+### #65
+
+A separate protected route collects calibration observations. It does not enter consumer navigation or replace the provisional production threshold.
+
+## 17. Non-goals
+
+This journey does not add:
+
+- multiple active product trials
+- a multi-concern dashboard
+- automatic product or ingredient identification
+- diagnosis or treatment advice
+- cloud accounts
+- permanent face storage
+- an LLM verdict layer
+- another cassette or Oracle implementation
+
+See `product-contract.md`, `state-model.md`, `architecture.md`, `camera-contract.md`, `redness-evidence-engine-v1.md`, and `oracle-reveal-v1.md`.

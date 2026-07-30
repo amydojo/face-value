@@ -2,80 +2,145 @@
 
 > **Your shelf is full of claims. Put them on trial.**
 
-Face Value is a skincare product trial machine. A person gives one product one explicit job, completes repeat skin scans, and receives one honest result about whether that product is earning its place.
+Face Value is a longitudinal skincare product trial machine. A person registers one product, assigns it one explicit job, captures a baseline and an eligible follow-up under a frozen protocol, and receives one evidence-bounded result about whether that product is earning its place.
 
-The visible product loop is:
+The hackathon production slice is deliberately narrow:
 
-> **Trial → Follow-up scan → Result → Next step**
+> **One product. One job: reduce visible redness. One honest result.**
 
-The machine keeps the evidence precise. The interface makes the next move obvious.
+## Current repository truth
 
-## Product contract
+This README describes `main` after merged PR #62 (`e0173ee`). Planned work in issues #63–#65 is listed separately and is not represented as already implemented.
 
-`docs/product-contract.md` is the product authority for Face Value. The governing promise is:
+Current production behavior includes:
 
-> **One product. One job. One honest result.**
+- reducer-owned product registration and trial continuity
+- a first-party browser camera surface with the Face Value acquisition sequence
+- secure YouCam Skin Analysis v2.1 requests through server-only API routes
+- `hd_redness.raw_score` as the deciding optical signal
+- a frozen baseline/follow-up protocol
+- deterministic, versioned redness evaluation
+- provisional operating boundaries of 5 and 10 raw-score points
+- explicit measurement, attribution, evidence, safety, and action dimensions
+- a sealed Oracle result reveal and exactly-once Evidence Record collection
+- face-free local persistence, Previous Trials, Evidence Record detail, and reload continuity
+- protected Demo Lab and provider engineering-session boundaries
 
-Future design, implementation, API integration, demo, and submission work must follow that contract or amend it explicitly in the same pull request.
+Current limitations are equally important:
 
-## Human Butter production journey
+- one accepted baseline score and one accepted follow-up score are stored per ordinary trial period
+- measurement quality remains limited because repeated burst evidence and several cross-session comparability signals are not yet collected
+- adherence, tolerance, and participant-observed redness change are not yet collected in the ordinary path
+- the 5/10 boundaries are provisional Face Value operating thresholds, not clinical significance thresholds
+- the provider does not currently report an analysis-model version
+- Face Value does not diagnose skin disease or establish clinical product efficacy
 
-Face Value exposes one public state-machine journey:
+See [`docs/README.md`](docs/README.md) for the authority and supersession index.
 
-> **Welcome → Your trials → view trial → trial in progress → follow-up scan → automatic comparison → result → next step → save and release → collect → Past results**
+## Current product journeys
 
-Every default screen contains one human headline, one meaningful trial object, one useful piece of context, one primary action, and at most one quiet alternative. Notes, technical state, destructive controls, and alternate classifications use progressive disclosure.
+### First trial
 
-Primary user-facing language is:
+```text
+empty instrument
+→ register product identity
+→ assign Reduce visible redness
+→ specimen loads and identity locks
+→ guided baseline capture
+→ optional capture context
+→ baseline locked
+→ trial pending
+```
 
-- Your trials
-- Trial in progress
-- Note
-- Follow-up scan
-- Ready to compare
-- Another product was used
-- Result
-- Next step
-- Save result
-- Your evidence
-- Past results
+### Follow-up and result
 
-Internal reducer, type, persistence, and architecture names may remain more technical. Those names are not presentation or accessibility vocabulary.
+```text
+follow-up ready
+→ guided follow-up capture
+→ optional capture context
+→ deterministic comparison
+→ sealed Oracle
+→ reveal result and recommendation
+→ accept or deliberately change the next step
+→ collect one Evidence Record
+→ Home / Previous Trials
+```
 
-Result actions map explicitly to next steps:
+The current archive label is **Previous Trials**. Internal compatibility names such as `archive`, `placement`, and legacy reducer events may remain in code and saved-state migration paths; they are not alternate product journeys.
 
-- `KEEP IT` → `established`
-- `TEST LONGER` → `paused`
-- `RETRY IT ALONE` → `retry_alone`
+## Evidence model
 
-The next-step decision arms the Evidence Machine. One `SAVE_RESULT` reducer event commits the chosen next step and creates exactly one durable result. The machine then dispenses that same record, waits for explicit collection, and preserves the identical record ID through evidence detail and Past results. Repeated activation, back navigation, reload restoration, and reopening do not create duplicates.
+YouCam measures the skin. Face Value judges the trial.
 
-## Production hardware language
+```text
+in-memory capture
+→ YouCam Skin Analysis v2.1
+→ normalized hd_redness.raw_score
+→ frozen protocol and face-free capture metadata
+→ canonical redness evidence adapter
+→ deterministic evaluator
+→ immutable RednessEvaluationSnapshot
+→ verdict presentation
+→ exactly-once Evidence Record
+```
 
-Evidence Cassette V7 remains the internal component and physical grammar. In the primary journey the person interacts with a product trial, not a database object.
+The evaluator keeps these concepts separate:
 
-The fixed physical truth is:
+- effect classification
+- measurement quality
+- attribution quality
+- evidence quality
+- safety status
+- recommended action
 
-- one graphite enclosure
-- one shallow optical bay
-- one fixed specimen dock
-- one live specimen and identity layer
-- one dedicated persistent smart-glass overlay
-- one structural bezel
-- one rigid cassette transform group
-- one mechanically independent saved-result output slot
+The canonical action set is:
 
-The explicit handle always means: **show me what this trial currently contains.** A visible handle is always a semantic button with a real activation path. It owns tap, Enter, Space, Escape recovery, pointer and touch drag, thresholding, cancellation, and lost-capture recovery. Gesture ownership stays scoped to the handle, so page scrolling remains available everywhere else.
+- `keep`
+- `test_longer`
+- `retry_alone`
+- `not_proving_job`
+- `safety_interruption`
 
-The V7 result sequence remains restrained and causal. After the next-step decision, the amber actuator owns save and release: pressure acknowledgement, latch release, controlled record feed, partial presentation, explicit collection, and same-object continuity. Reduced motion reaches the same semantic states without ceremonial delay.
+No React component, animation callback, provider response, or language model may create or upgrade a scientific result.
 
-See `docs/evidence-cassette-v7.md`, `docs/design-contract.md`, `docs/production-journey-integration.md`, and `docs/human-butter-evidence-machine-integration.md`.
+## Privacy and security
 
-## MVP scope
+Raw face images remain memory-only. They are not written to reducer state, local storage, Evidence Records, analytics, logs, or committed verification artifacts.
 
-This repository implements one responsive, fixture-backed golden path. It includes finite trial selection, one job assignment, camera or file capture, a focused note editor, repeat comparison, both second-product branches, automatic analysis, confidence preservation, the V7 result reveal, recommended and overridden next steps, exactly-once saved-result generation, machine dispensing, explicit artifact collection, Past results browsing, deletion, restoration, and recovery.
+Durable evidence excludes:
 
-The underlying domain model remains more detailed than the visible journey. Capture quality, comparison confidence, product overlap, placement state, privacy cleanup, accessibility, and reduced-motion behavior are system responsibilities rather than separate product promises.
+- image bytes, `File`, and `Blob` values
+- base64 and data URLs
+- object URLs
+- signed upload URLs
+- provider task identifiers
+- API credentials and authorization headers
+- raw provider payloads
+
+`YOUCAM_API_KEY` remains server-only. The protected engineering token is exchanged for a signed `Secure`, `HttpOnly`, `SameSite=Strict` cookie. It is not a consumer authentication system.
+
+## Camera architecture
+
+Production uses `NativeBrowserCameraAdapter`: the visible first-party `<video>` surface is the frame Face Value captures. The app measures only whole-frame exposure and movement locally and does not claim native face detection, pose estimation, skin-tone classification, or facial registration.
+
+The external Perfect Corp Camera Kit renderer is retained as a development diagnostic harness only. It is not the production acquisition surface.
+
+See [`docs/camera-contract.md`](docs/camera-contract.md).
+
+## Planned Phase C work
+
+The remaining implementation is dependency ordered:
+
+1. **#63 — Evidence Burst**  
+   Three independently analyzed frames per baseline and follow-up, median aggregation, direction agreement, bounded rejection evidence, and face-free persistence.
+
+2. **#64 — Trial Truth**  
+   Explicit adherence, tolerance, and participant-observed redness direction mapped into the existing evaluator without UI-side verdict logic.
+
+3. **#65 — Preliminary Calibration Harness**  
+   A protected internal repeatability instrument and exploratory technical report. Production trials continue using the provisional 5/10 configuration unless a future separately reviewed graduation process approves otherwise.
+
+Planned work does not become repository truth until its pull request is merged and the authority docs are updated in the same change.
 
 ## Local setup
 
@@ -84,17 +149,7 @@ npm install
 npm run dev
 ```
 
-Scripts:
-
-- `npm run dev`: start the mobile web app.
-- `npm run lint`: run ESLint.
-- `npm run typecheck`: run strict TypeScript project checks.
-- `npm run test`: run unit and component tests.
-- `npm run build`: typecheck and create the production bundle.
-- `npm run test:e2e`: run the Playwright mobile WebKit journey matrix.
-- `npm run check`: run lint, typecheck, unit and component tests, and the production build.
-
-Full validation:
+Validation:
 
 ```bash
 npm run check
@@ -102,39 +157,35 @@ npx playwright install --with-deps webkit
 npm run test:e2e
 ```
 
+Key scripts:
+
+- `npm run lint`
+- `npm run typecheck`
+- `npm run test`
+- `npm run verify:redness-architecture`
+- `npm run verify:docs`
+- `npm run build`
+- `npm run verify:privacy`
+- `npm run check`
+- `npm run test:e2e`
+
 ## Architecture
 
-The application uses Vite, React, strict TypeScript, one pure reducer state machine, scoped CSS Modules, Vitest, React Testing Library, and Playwright. Domain state is independent from React. Browser capabilities are isolated behind adapters for camera, analysis, persistence, haptics, and clock behavior.
+The application uses Vite, React, strict TypeScript, one reducer-owned product state machine, a separate pure Oracle mechanical reducer, CSS Modules, Vitest, React Testing Library, Playwright WebKit, serverless YouCam routes, and local face-free persistence.
 
-The Human Butter reducer remains the single navigation, comparison, recovery, classification, persistence, and saved-result boundary. The Evidence Machine receives a controlled projection of that state and owns transient mechanical phases only. React does not invent scientific state, route around reducer transitions, duplicate result state, or create records from animation callbacks.
+Start with:
 
-See `docs/product-contract.md`, `docs/architecture.md`, `docs/state-model.md`, `docs/camera-contract.md`, `docs/design-contract.md`, `docs/evidence-cassette-v7.md`, `docs/production-journey-integration.md`, and `docs/human-butter-evidence-machine-integration.md`.
+- [`docs/README.md`](docs/README.md)
+- [`docs/product-contract.md`](docs/product-contract.md)
+- [`docs/architecture.md`](docs/architecture.md)
+- [`docs/state-model.md`](docs/state-model.md)
+- [`docs/camera-contract.md`](docs/camera-contract.md)
+- [`docs/redness-evidence-engine-v1.md`](docs/redness-evidence-engine-v1.md)
+- [`docs/oracle-reveal-v1.md`](docs/oracle-reveal-v1.md)
+- [`docs/source-of-truth-manifest.md`](docs/source-of-truth-manifest.md)
 
-## Mock analysis disclosure
+## Verification status
 
-`MockOpticalAnalysisAdapter` is the only analysis implementation in the current MVP. It returns deterministic fixture scenarios. No external analysis request runs, and no fixture result is represented as a production analysis API response.
+Automated CI and Vercel checks passed for the PR #62 merge head. WebKit fixture evidence and the physical-iPhone observations that motivated the native-camera correction are recorded in the repository.
 
-A real YouCam adapter can implement the typed `AnalysisAdapter` boundary without replacing the domain state machine. The product contract limits visible analysis to signals relevant to the one job assigned to the product.
-
-## Camera and privacy
-
-The browser camera adapter prefers the user-facing camera with ideal 1920×1080 constraints, retries with a general video request when preferred constraints are overconstrained, normalizes browser errors, captures an unmirrored JPEG frame at approximately 0.92 quality, and always stops tracks. The live preview is mirrored with CSS only. File input remains available when camera APIs are unsupported or denied.
-
-Raw face images remain in component memory only. They are not written to localStorage, sent to a server, included in saved results, or exposed in exported structured artifacts. Temporary object URLs are revoked after replacement, deletion, and unmount.
-
-## Design source of truth
-
-- Figma file: `https://www.figma.com/design/GKiVi4YJLm9WqozwAK3ThB`
-- Evidence Cassette V7 family: node `368:3295`
-- Final sealed result: node `342:2752`
-- Final presented result: node `343:2578`
-
-Production preserves the approved V7 graphite instrument, shallow bay, restrained geometry, mounted identity, persistent smart glass, one small orange evidence signal, and independent paper output. CSS perspective replaces Figma depth approximations where a real physical transition requires it.
-
-## Current limitations
-
-- Optical analysis is deterministic fixture data.
-- Context conditions are user-confirmed rather than automatically detected.
-- Mobile Safari behavior is covered by Playwright WebKit with a mobile Safari-like viewport, not claimed as verified on a physical iPhone.
-- Persistence is local structured demo data only.
-- There is no authentication, server processing, cloud storage, analytics, OCR, barcode scanning, ingredient database, ecommerce, medical assessment, or native packaging.
+A final exact-head physical-iPhone acceptance pass for the merged production journey remains a release gate and must be recorded explicitly rather than inferred from synthetic browser screenshots.

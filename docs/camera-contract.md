@@ -1,74 +1,185 @@
-# Camera contract
+# Face Value camera contract
 
-This adapter preserves the portable behavior of the Chaos Vault camera artifact while changing the preferred lens for Face Value.
+**Status:** Current camera authority  
+**Effective date:** July 30, 2026  
+**Implementation baseline:** `main` after PR #62 (`e0173ee`)
 
-1. Detect `navigator.mediaDevices.getUserMedia`.
-2. Request video only with `facingMode: { ideal: "user" }`, ideal width 1920, and ideal height 1080.
-3. If preferred constraints are overconstrained, retry with `{ video: true, audio: false }`.
-4. Normalize exceptions to `unsupported`, `denied`, `no_camera`, `overconstrained`, or `unknown`.
-5. Never expose raw DOMException text in product UI.
-6. Attach the stream to a muted, inline-playing video element.
-7. Stop every track after capture, navigation away, error, deletion, and unmount.
-8. Draw the current video frame to canvas and return `image/jpeg` at 0.92 quality.
-9. Mirror the preview with CSS only. The analysis capture is always unmirrored.
-10. Revoke every temporary object URL.
-11. Keep `<input accept="image/*" capture="user">` usable as the fallback.
+## 1. Production boundary
 
-The adapter and automated tests do not constitute physical-device verification. Device claims must be added only after real browser and hardware testing.
+Production acquisition is owned by `NativeBrowserCameraAdapter`.
 
-## Guided acquisition architecture
+It must:
 
-Production presentation and acquisition are owned by
-`NativeBrowserCameraAdapter`. It requests the front camera from the
-`START GUIDED CAPTURE` tap, attaches that stream to the exact Face Value
-`<video>` surface the person sees, and does not report `preview-live` until the
-surface is connected, visible, non-zero, and producing a current frame. Slow
-permission or startup remains in explicit opening/waiting states for up to 20
-seconds; it is not collapsed into a false `Camera unavailable` state.
+1. start only from an explicit user gesture
+2. detect `navigator.mediaDevices.getUserMedia`
+3. request a front-facing video stream with preferred high-resolution constraints
+4. retry with general video constraints when preferred constraints are overconstrained
+5. normalize errors to stable product categories
+6. attach the stream to the exact muted inline-playing `<video>` surface the person sees
+7. report preview readiness only when that surface is connected, visible, non-zero, and producing a current frame
+8. capture the exact current visible frame as an unmirrored JPEG
+9. mirror preview presentation with CSS only
+10. stop every track on success, failure, cancellation, navigation, retry, and unmount
+11. revoke every temporary object URL
+12. retain an existing-photo input as a recoverable fallback
 
-The native path downsamples frames in memory to assess whole-frame exposure and
-frame-to-frame movement. It deliberately does not claim face detection,
-distance, pose, alignment, skin condition, or facial-region registration.
-Face Value’s authored guide supplies positioning direction. The reducer owns
-the 500 ms stable hold, lock, pause, scan, and explicit bitmap capture
-boundary. Camera startup and capture timing therefore have one authority.
+Raw DOM exception text must not appear in product UI.
 
-The exact captured browser frame remains as the private specimen preview while
-the existing YouCam downstream redness analysis runs. Only metadata and the
-normalized durable signal enter application state. Frame bytes, luma samples,
-MediaStreams, and object URLs are cleared when they are no longer needed.
+## 2. Acquisition signal boundary
 
-## Camera Kit contract harness
+The native path downsamples current frames in memory to assess:
 
-The external Camera Kit 2.5 renderer is retained only in the development route
-`?camera-kit-diagnostics=1`. This harness uses the documented standard
-`skincare`/`720p` configuration and reports only lifecycle stages, generic
-surface type, and non-sensitive surface dimensions.
+- whole-frame exposure
+- frame-to-frame movement
+- current-frame availability
+- stable hold
 
-The previous production configuration selected `hdskincare`. Camera Kit’s
-runtime checks that mode after camera startup and calls:
+It deliberately does not claim:
+
+- face detection
+- face bounds
+- distance measurement
+- frontal-pose measurement
+- landmarks
+- facial registration
+- skin-tone classification
+- skin condition or diagnosis
+
+The authored four-arc guide supplies positioning direction. It is not a biometric overlay and must not be described as automated face geometry.
+
+## 3. Current acquisition sequence
+
+The reducer-owned sequence is:
 
 ```text
-alert("width:" + camera_width + ", height:" + camera_height)
+Searching
+→ Aligning
+→ Locking
+→ Scanning
+→ Captured
 ```
 
-when either camera dimension is below 1024. Physical iPhones supplied
-`986 × 1920` and `960 × 1920`, causing the native alerts attached to PR #62.
-The same implementation requested undocumented `moduleMode: "headless"`,
-searched only descendant video nodes, hid Camera Kit’s actual iframe/canvas,
-and treated a missing video as ready. A 3-second watchdog then closed the
-still-starting session. Those production assumptions and the global alert
-interceptor have been removed.
+Camera startup and capture timing have one authority.
 
-This was verified on 2026-07-29 against Camera Kit `2.5.1`, dynamic build
-`2605111753`, in
-`webenvcheckercontrollerv2-a8d7166d45e1322cfd54.bundle.js`. Perfect Corp’s
-published Camera Kit reference describes `skincare`, `hdskincare`, the
-resolution requirements, `YMK.isLoaded()`, and the documented init options:
-<https://docs.perfectcorp.com/reference/ai_nail_vto/section/overview>.
+- slow permission or startup remains in explicit opening/waiting state
+- the stable hold is reducer-owned
+- losing valid exposure or stillness cancels lock/scan calmly
+- one scan timing constant controls normal motion
+- reduced motion preserves the same state order with a short illumination state
+- the exact captured bitmap remains as the private preview into YouCam processing
 
-The diagnostic adapter does not mutate vendor-owned DOM or stop vendor-owned
-tracks directly. `sdk.close()` is its single teardown authority. Readiness
-requires both the documented `YMK.isLoaded()` frame signal and a connected,
-visible, non-zero video, canvas, or iframe renderer. Its watchdog is 20 seconds.
-No Camera Kit private node ID is referenced.
+Only capture metadata and the normalized durable signal enter application state.
+
+## 4. Image lifecycle
+
+Temporary resources may exist only inside the active capture/analysis boundary:
+
+- `MediaStream`
+- video frame
+- canvas or bitmap
+- captured `Blob`
+- private object URL
+- luma/movement samples
+
+They must be cleared when no longer needed. No raw face image enters reducer state, local storage, logs, analytics, snapshots, or committed verification artifacts.
+
+## 5. Existing-photo fallback
+
+`<input accept="image/*" capture="user">` remains available when camera APIs are unsupported, denied, or fail after recovery.
+
+The fallback must:
+
+- use a clear front-facing supported image
+- preserve the same frozen analysis protocol
+- disclose any evidence limitation
+- avoid duplicating one file to simulate a future multi-frame burst
+- release the selected image after analysis or cancellation
+
+#63 must define an explicit burst-compatible fallback policy rather than silently treating one uploaded image as three measurements.
+
+## 6. Camera Kit diagnostic harness
+
+The external Perfect Corp Camera Kit 2.5 renderer is retained only in development with:
+
+```text
+?camera-kit-diagnostics=1
+```
+
+The harness uses the documented Camera Kit surface and reports only privacy-safe lifecycle state and renderer dimensions.
+
+Current official AI Skin Analysis v2.1 documentation, including JavaScript Camera Kit 2.5, is:
+
+`https://docs.perfectcorp.com/reference/ai_skin_analysis/v2.1`
+
+The diagnostic adapter:
+
+- does not mutate vendor-owned DOM beyond documented integration needs
+- does not stop vendor-owned tracks directly
+- uses `sdk.close()` as teardown authority
+- requires documented `YMK.isLoaded()` plus a connected visible non-zero renderer
+- does not depend on private vendor node IDs
+- uses a bounded startup watchdog
+
+## 7. Why Camera Kit is not production capture
+
+The former production configuration selected `hdskincare` and depended on vendor renderer assumptions that failed on physical iPhone Safari.
+
+Observed during PR #62 investigation:
+
+- physical camera dimensions triggered vendor resolution alerts
+- the renderer could be an iframe/canvas rather than the expected descendant video
+- an empty mount could be mistaken for live preview
+- undocumented initialization fields were being passed
+- a short watchdog could close a still-starting session
+
+PR #62 removed those assumptions and moved production to the exact first-party video surface. Camera Kit remains useful as an engineering contract harness, not the current product camera.
+
+## 8. Verification boundary
+
+Automated adapter and Playwright tests prove only their simulated environment. They do not constitute physical-device verification.
+
+Current automated proof includes:
+
+- first-frame readiness
+- visible video binding
+- whole-frame exposure and movement handling
+- stable hold and state cancellation
+- same-bitmap freeze
+- track teardown
+- no vendor alert
+- dynamic visual viewport behavior
+- reduced motion
+- privacy-safe screenshots
+
+A physical-device claim must record:
+
+- exact commit SHA
+- exact deployment
+- device model
+- iOS and Safari version
+- permission recovery
+- ordinary, low, and backlit conditions
+- movement during lock and scan
+- Safari chrome expansion/contraction
+- route-exit camera shutdown
+- existing-photo fallback
+- unresolved limitations
+
+The physical observations that motivated PR #62 are recorded, but a final exact-head merged-production baseline and follow-up pass remains a release gate.
+
+## 9. Planned burst extension
+
+#63 may extend the active native session to capture three distinct current frames before teardown.
+
+It must preserve:
+
+- one user gesture and one continuous ritual
+- current-frame boundaries rather than score/image duplication
+- bounded attempts
+- reducer-owned generation identity
+- one abort authority
+- cleanup of every frame after analysis
+- no fabricated pose or registration evidence
+- unchanged production camera geometry
+
+See `production-journey-integration.md`, `architecture.md`, and `source-of-truth-manifest.md`.

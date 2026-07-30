@@ -1,101 +1,241 @@
-# YouCam Evidence Engine Implementation Roadmap
+# Face Value evidence engine roadmap
 
-This roadmap executes `docs/youcam-evidence-engine-contract.md` without expanding product scope.
+**Status:** Current execution roadmap  
+**Effective date:** July 30, 2026  
+**Implementation baseline:** `main` after PR #62 (`e0173ee`)
 
-## Phase A: live-score spike
+This roadmap distinguishes completed repository behavior from the remaining dependency-ordered hackathon work. Historical implementation detail remains available in merged PRs and `youcam-phase-b5-implementation.md`.
 
-- add server-only `YOUCAM_API_KEY`
-- add typed provider boundary
-- request a v2.1 upload slot
-- upload one JPEG or PNG to the signed URL
-- create one `hd_redness` task with JSON output
-- poll with bounded cancellation and timeout behavior
-- validate the response
-- normalize one `raw_score`
-- render the normalized signal only in protected development evidence
-- prove no credential or image bytes enter durable browser storage
+## Completed foundation
 
-### Exit gate
+### Phase A — secure live provider proof
 
-One production image returns one real normalized redness score on the deployed application without exposing credentials or persisting the image.
+Completed in PR #42.
 
-**Status:** complete in PR #42 and merge `cdb907f41f1eaa8d293cfef585c568a24eb477c5`.
+Delivered:
 
-## Phase B: matched longitudinal integration
+- server-only `YOUCAM_API_KEY`
+- protected upload-slot, task creation, and polling routes
+- typed provider boundary
+- `hd_redness.raw_score` normalization
+- bounded polling and error translation
+- privacy verification
+- physical iPhone provider proof through the protected spike route
 
-- freeze the complete HD redness protocol at accepted baseline
-- normalize the provider signal into reducer-owned durable evidence by construction
-- persist only the frozen protocol, normalized signals, capture metadata, comparison, result, and face-free record
-- reject every protocol mismatch locally before upload-slot creation
-- run the identical follow-up analysis
-- compare follow-up `raw_score` against baseline `raw_score` with a pure deterministic function
-- keep calibration `pending` and confidence at `Possible` until same-session noise evidence exists
-- map comparison and limitations into the existing `AnalysisResult`
-- preserve the Human Butter reducer as the single durable authority through result, next step, Evidence Machine, Evidence Record, detail, Past Results, and restoration
-- use request identity, cancellation, and legal reducer transitions to prevent duplicate or stale provider work
-- exchange the protected engineering token for a short-lived signed `Secure`, `HttpOnly`, `SameSite=Strict` cookie
-- verify the compiled client bundle contains no credentials, bearer strings, task IDs, image data URLs, blob URLs, signed provider URLs, or raw payload markers
-- collect same-session calibration evidence only in a memory-only protected utility
+### Phase B — matched longitudinal integration
 
-### Automated exit gate
+Completed through the merged Phase B work.
 
-Changing deterministic normalized fixture values changes the real Face Value result and survives the complete mobile WebKit evidence journey without creating a second trial, result, or record store.
+Delivered:
 
-### Live exit gate
+- frozen baseline protocol
+- accepted baseline and follow-up durable signals
+- local protocol mismatch rejection
+- Face Value-owned comparison
+- reducer-owned persistence and recovery
+- one genuine provider-backed longitudinal path
+- face-free Evidence Record continuity
 
-One genuine matched baseline and follow-up pair must run against the exact-head Vercel preview under the identical frozen protocol and reach Evidence Record detail and Past Results with no unhandled runtime errors.
+The retired sign-only comparison is no longer the production scientific engine.
 
-**Status:** implemented in draft PR #44. Fixture-backed automation and deployment verification are required before review. The genuine matched live-provider pair remains a manual acceptance gate and must not be substituted with the unrelated Phase A images.
+### Canonical redness engine
 
-## Phase B.5: show the car
+Completed in PR #52 and supporting PRs.
 
-- replace fixture-first onboarding with reducer-owned product registration
-- select YouCam eligibility from the registered protocol, not a fixture ID
-- integrate Camera Kit `hdskincare` with moderate quality validation
-- auto-capture one accepted Blob after a stable quality interval
-- retain file selection as the single recoverable capture fallback
-- replace the ten-item contract with lightweight optional context
-- end session one at `Baseline locked`
-- enforce the 14-day return rule in reducer transitions
-- provide explicit environment-gated demo advancement without rewriting time
-- keep verdict, limitation, recommendation, and scores out of the rendered and
-  accessible tree until reveal
-- show verdict, limitation, and `TEST LONGER` in one revealed scene
-- commit placement and reuse `SAVE_RESULT` through one atomic amber event
-- preserve one record ID through release, collection, detail, archive, and
-  restoration
-- verify the complete story in mobile WebKit and reduced motion
+Delivered:
 
-### Exit gate
+- versioned redness evidence types
+- deterministic evaluator
+- separate effect, measurement, attribution, evidence, safety, and action dimensions
+- provisional 5/10 operating thresholds
+- immutable `RednessEvaluationSnapshot`
+- audit trace and claim-safe interpretation
+- architecture guards against `ui_score`, UI-side verdict logic, and duplicate engines
 
-A person can complete the Face Value trial without understanding provider
-mechanics or doing manual capture homework. The record remains face-free and
-the result remains honest.
+### Evidence Record and Demo Lab
 
-**Status:** implemented on `feat/phase-b5-show-the-car`. Exact-head deployment
-and physical iPhone evidence remain release gates.
+Completed in PRs #54 and #58.
 
-## Phase C: provider hardening
+Delivered:
 
-- evaluate unsupported-HD handling without changing protocol after baseline
-- verify completed-task resource deletion from the current official OpenAPI
-  description
-- consider optional mask-based Evidence Aperture only in a separately reviewed
-  phase
-- complete ongoing physical-device regression coverage
+- progressive Evidence Record detail
+- immutable snapshot rendering
+- legacy record honesty
+- protected typed synthetic Demo Lab states
+- isolated demo journey persistence
 
-Phase C must not reopen Phase B.5 product scope.
+### Product and machine continuity
+
+Completed through PRs #47, #48, #50, #59, #61, and #62.
+
+Delivered:
+
+- persistent first-trial registration instrument
+- canonical specimen identity and material system
+- trial-pending and follow-up-ready continuity
+- one Oracle result/collection machine
+- exactly-once `EVIDENCE_COLLECTED` record creation
+- native first-party production camera
+- Searching → Aligning → Locking → Scanning → Captured acquisition sequence
+- Camera Kit retained as diagnostics only
+
+## Current implementation truth
+
+At the current baseline:
+
+- ordinary baseline uses one accepted YouCam raw score
+- ordinary follow-up uses one accepted YouCam raw score
+- the evaluator records one session and one accepted score per period
+- measurement quality remains limited by honest missing evidence
+- adherence, tolerance, and participant-observed change are not collected
+- production thresholds remain provisional 5/10 values
+- a final exact-head physical-iPhone golden-path pass remains a release gate
+
+## Remaining Phase C sequence
+
+The remaining product work is locked to three implementation issues.
+
+```text
+#63 Evidence Burst
+→ #64 Trial Truth
+→ #65 Preliminary Calibration Harness
+→ exact-head release hardening
+→ bug fixes only
+→ submission
+```
+
+## #63 — Evidence Burst
+
+Branch: `agent/redness-evidence-burst`
+
+Objective:
+
+- preserve one consumer scan
+- capture three distinct accepted current video frames
+- analyze every frame independently through the frozen YouCam protocol
+- commit one atomic burst-backed baseline or follow-up period
+- use the canonical evaluator for median and direction agreement
+- persist accepted/rejected face-free evidence only
+
+Must not:
+
+- duplicate one score three times
+- fabricate unavailable capture properties
+- change provisional thresholds
+- change action precedence
+- redesign the acquisition sequence
+
+Exit gate:
+
+A physical iPhone baseline and follow-up each produce three genuine provider measurements through one guided ritual, with no duplicate work or image persistence.
+
+## #64 — Trial Truth
+
+Branch: `agent/redness-trial-truth-lite`
+
+Objective:
+
+- collect product use as planned
+- collect tolerance and canonical symptoms
+- collect participant-observed redness direction
+- commit the inputs once through the reducer
+- pass them into the existing deterministic evaluator
+
+Must not:
+
+- infer answers from the camera
+- diagnose a reaction
+- let self-report reverse the deciding raw-score result
+- author safety or attribution logic in React
+
+Exit gate:
+
+Every new follow-up records the three required evidence groups, severe symptoms reach the existing safety precedence, and legacy records remain `Not collected` without fabricated defaults.
+
+## #65 — Preliminary Calibration Harness
+
+Branch: `agent/redness-calibration-lite`
+
+Objective:
+
+- create protected `/calibration/redness`
+- reuse the real burst primitive
+- collect standard, matched no-treatment, and degraded sessions
+- persist isolated face-free calibration observations
+- calculate preliminary repeatability and false-change evidence
+- export an exploratory versioned registry entry
+- enrich technical Evidence Record detail from saved burst/trial-truth evidence
+
+Minimum hackathon outputs:
+
+- Technical N95
+- Longitudinal N95
+- within-person SD
+- repeatability coefficient
+- rejection rate
+- false-change comparison
+- participant/session/frame counts
+- device and version breakdown where available
+- explicit `not_available` or `not_estimable` states
+- exploratory registry hash
+
+ICC and bootstrap intervals should be implemented where sample structure supports them and must fail honestly to `not_estimable` when it does not.
+
+Critical boundary:
+
+- production detectable boundary stays 5
+- production strong boundary stays 10
+- production source stays `provisional_fixture`
+- exported candidate status stays `exploratory`
+- no small pilot is promoted into a clinically meaningful or production-approved threshold
+
+Exit gate:
+
+The harness can reproduce its preliminary calculations entirely from exported face-free observations while production trials continue using the unchanged provisional configuration.
 
 ## Final release gate
 
-The integration is finished only when all three phase exit gates pass plus:
+After #65 merges, feature work stops.
 
-- lint
-- strict TypeScript
-- unit and component tests
-- compiled-client privacy scan
-- mobile WebKit end-to-end tests
-- production build
-- exact-head preview deployment
-- zero unhandled runtime errors
-- physical iPhone proof
+Required release proof:
+
+- exact-head CI success
+- exact-head Vercel deployment
+- physical iPhone baseline and follow-up golden path
+- real three-frame provider work
+- favorable, null, confounded, safety, retry, and provider-failure scenarios
+- no duplicate comparisons or records
+- privacy and architecture scans
+- Evidence Record immutability across Home, Previous Trials, detail, and reload
+- claim-language audit
+- runtime-log review
+- backup demo recording
+- submission video and write-up
+
+## Scope freeze
+
+The hackathon critical path excludes:
+
+- additional YouCam concerns
+- product recommendations
+- ingredient intelligence
+- barcode or OCR
+- cloud accounts
+- multi-product dashboards
+- machine, specimen, Home, or Oracle redesign
+- permanent face storage
+- LLM-generated scientific decisions
+- clinical-validation claims
+
+## Documentation rule
+
+Each implementation PR must update:
+
+- root `README.md`
+- `docs/README.md`
+- affected authority contracts
+- current limitations
+- roadmap status
+- exact verification evidence
+
+Planned behavior must never be described as merged before the corresponding PR lands.
