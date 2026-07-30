@@ -1,4 +1,5 @@
 import type {
+  CameraKitInitOptions,
   CameraKitWindow,
   YouCamCameraKitSdk,
 } from './types';
@@ -8,6 +9,31 @@ export const CAMERA_KIT_SDK_SRC =
 export const CAMERA_KIT_SCRIPT_MARKER = 'data-face-value-camera-kit';
 
 let sdkPromise: Promise<YouCamCameraKitSdk> | null = null;
+const hardenedSdks = new WeakSet<object>();
+
+/**
+ * Camera Kit 2.5 showed a native debug alert and failed to expose a reliable
+ * preview on physical iPhone Safari when experimental presentation fields were
+ * supplied. Keep the adapter contract stable, but send only the previously
+ * proven documented options to the external SDK until headless mode is
+ * validated on hardware.
+ */
+function hardenCameraKitSdk(sdk: YouCamCameraKitSdk): YouCamCameraKitSdk {
+  if (hardenedSdks.has(sdk as object)) return sdk;
+
+  const originalInit = sdk.init.bind(sdk);
+  sdk.init = (options: CameraKitInitOptions) => {
+    const documentedOptions = {
+      ...options,
+    } as Partial<CameraKitInitOptions> & Record<string, unknown>;
+    delete documentedOptions.moduleMode;
+    delete documentedOptions.qualityOverrides;
+    originalInit(documentedOptions as CameraKitInitOptions);
+  };
+
+  hardenedSdks.add(sdk as object);
+  return sdk;
+}
 
 export function loadYouCamCameraKit({
   windowObject = window as CameraKitWindow,
@@ -18,7 +44,7 @@ export function loadYouCamCameraKit({
   documentObject?: Document;
   timeoutMs?: number;
 } = {}): Promise<YouCamCameraKitSdk> {
-  if (windowObject.YMK) return Promise.resolve(windowObject.YMK);
+  if (windowObject.YMK) return Promise.resolve(hardenCameraKitSdk(windowObject.YMK));
   if (sdkPromise) return sdkPromise;
 
   sdkPromise = new Promise<YouCamCameraKitSdk>((resolve, reject) => {
@@ -40,7 +66,7 @@ export function loadYouCamCameraKit({
       }
       settled = true;
       cleanup();
-      resolve(windowObject.YMK);
+      resolve(hardenCameraKitSdk(windowObject.YMK));
     };
 
     windowObject.YMKAsyncInit = () => {
