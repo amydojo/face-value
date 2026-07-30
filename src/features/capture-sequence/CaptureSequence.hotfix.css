@@ -1,0 +1,91 @@
+/*
+ * Physical Safari compatibility layer.
+ *
+ * The canonical fixture geometry remains untouched for deterministic visual
+ * regression coverage. These overrides activate only while the real camera
+ * adapter is opening or presenting live frames on device.
+ */
+
+[data-camera-kit-mount] video {
+  position: absolute !important;
+  z-index: 1 !important;
+  inset: 0 !important;
+  display: block !important;
+  width: 100% !important;
+  height: 100% !important;
+  max-width: none !important;
+  max-height: none !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  object-fit: cover !important;
+  object-position: center !important;
+  transform: scaleX(-1);
+}
+
+@supports selector(section:has(video)) {
+  section[data-preview-state='camera-opening']:has(
+      [data-capture-camera-feed][data-fixture='false']
+    ) [data-capture-synthetic-feed],
+  section[data-preview-state='camera-stopped']:has(
+      [data-capture-camera-feed][data-fixture='false']
+    ) [data-capture-synthetic-feed] {
+    background:
+      radial-gradient(ellipse at 50% 42%, rgba(244, 243, 239, 0.055), transparent 38%),
+      radial-gradient(ellipse at center, #242321 0%, #151514 48%, #090909 78%),
+      #050505 !important;
+    filter: none !important;
+  }
+
+  section[data-preview-state='camera-opening']:has(
+      [data-capture-camera-feed][data-fixture='false']
+    ),
+  section[data-preview-state='preview-live']:has(
+      [data-capture-camera-feed][data-fixture='false']
+    ) {
+    gap: 10px !important;
+    overflow-y: hidden !important;
+  }
+
+  section[data-preview-state='camera-opening']:has(
+      [data-capture-camera-feed][data-fixture='false']
+    ) [data-capture-sequence],
+  section[data-preview-state='preview-live']:has(
+      [data-capture-camera-feed][data-fixture='false']
+    ) [data-capture-sequence] {
+    width: min(390px, 100vw, calc((100dvh - 76px) / 2)) !important;
+  }
+
+  section[data-preview-state='camera-opening']:has(
+      [data-capture-camera-feed][data-fixture='false']
+    ) > label,
+  section[data-preview-state='camera-opening']:has(
+      [data-capture-camera-feed][data-fixture='false']
+    ) > p:last-child,
+  section[data-preview-state='preview-live']:has(
+      [data-capture-camera-feed][data-fixture='false']
+    ) > label,
+  section[data-preview-state='preview-live']:has(
+      [data-capture-camera-feed][data-fixture='false']
+    ) > p:last-child {
+    display: none !important;
+  }
+
+  section[data-preview-state='preview-live']:has(
+      [data-capture-camera-feed][data-fixture='false']
+    ) [data-capture-guide-oval] {
+    stroke-dasharray: 17 8 !important;
+    stroke-dashoffset: 4;
+  }
+
+  section[data-preview-state='preview-live']:has(
+      [data-capture-camera-feed][data-fixture='false']
+    ) [data-capture-sequence][data-capture-phase='locking']
+    [data-capture-guide-oval],
+  section[data-preview-state='preview-live']:has(
+      [data-capture-camera-feed][data-fixture='false']
+    ) [data-capture-sequence][data-capture-phase='scanning']
+    [data-capture-guide-oval] {
+    stroke-dasharray: 21 4 !important;
+    stroke-dashoffset: 2;
+  }
+}
