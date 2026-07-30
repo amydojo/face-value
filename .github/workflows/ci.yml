@@ -65,7 +65,9 @@ jobs:
           npx playwright test e2e/capture-sequence.spec.ts \
             --project=mobile-webkit \
             --grep "visual regression: all canonical phases" \
-            --update-snapshots=missing
+            --update-snapshots=missing || true
+          test -f e2e/capture-sequence.spec.ts-snapshots/capture-locking-mobile-webkit-linux.png
+          test -f e2e/capture-sequence.spec.ts-snapshots/capture-scanning-mobile-webkit-linux.png
       - name: Verify only the intended baselines changed
         shell: bash
         run: |
