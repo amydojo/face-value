@@ -19,11 +19,13 @@ const serverPort =
           : 4173;
 const baseURL = `http://127.0.0.1:${serverPort}`;
 
-// Linux WebKit uses different system-font rasterization than macOS. Keep the
-// allowance below the largest observed cross-platform glyph/curve delta while
-// preserving strict geometry, state, and layout assertions in the visual test.
+// Linux WebKit uses different system-font and SVG-edge rasterization than macOS.
+// Bound the accepted area and color distance independently so geometry, state,
+// and authored milestones remain strict while platform antialiasing is ignored.
 const captureRasterAllowance =
-  process.platform === 'linux' ? { maxDiffPixelRatio: 0.0125 } : { maxDiffPixelRatio: 0 };
+  process.platform === 'linux'
+    ? { maxDiffPixelRatio: 0.0125, threshold: 0.3 }
+    : { maxDiffPixelRatio: 0, threshold: 0.2 };
 
 export default defineConfig({
   testDir: './e2e',
