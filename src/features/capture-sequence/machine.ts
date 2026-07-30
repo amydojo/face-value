@@ -66,6 +66,22 @@ export function createCaptureSequenceState(at = 0): CaptureSequenceState {
 
 const allValid = (quality: CaptureQuality): boolean => Object.values(quality).every(Boolean);
 
+const usesFrameQuality = (sample: CaptureSignalSample): boolean =>
+  sample.verificationMode === 'frame-quality';
+
+const hasAcquisitionFrame = (
+  quality: CaptureQuality,
+  sample: CaptureSignalSample,
+): boolean => (usesFrameQuality(sample) ? sample.frameReady === true : quality.facePresent);
+
+const captureConditionsValid = (
+  quality: CaptureQuality,
+  sample: CaptureSignalSample,
+): boolean =>
+  usesFrameQuality(sample)
+    ? sample.frameReady === true && quality.lightingValid && quality.stillnessValid
+    : allValid(quality);
+
 const stabilizeLatch = (latch: SignalLatch, nextValue: boolean, at: number): SignalLatch => {
   if (nextValue === latch.value) {
     return {
@@ -137,7 +153,7 @@ const enterPhase = (
 const updateLowLight = (state: CaptureSequenceState, at: number): CaptureSequenceState => {
   const isKnownLowLight =
     state.latestSample.lightingIssue === 'low-light' &&
-    state.latestSample.quality.facePresent &&
+    hasAcquisitionFrame(state.latestSample.quality, state.latestSample) &&
     !state.latestSample.quality.lightingValid;
   if (!isKnownLowLight) {
     return {
@@ -210,14 +226,14 @@ function advancePhase(
   }
 
   if (state.phase === 'searching') {
-    if (state.quality.facePresent) {
+    if (hasAcquisitionFrame(state.quality, state.latestSample)) {
       return enterPhase({ ...state, frameLost: false }, 'aligning', at);
     }
     return { ...state, validSince: null };
   }
 
   if (state.phase === 'aligning') {
-    if (!state.quality.facePresent) {
+    if (!hasAcquisitionFrame(state.quality, state.latestSample)) {
       if (state.frameLost) {
         return { ...state, validSince: null };
       }
@@ -225,7 +241,7 @@ function advancePhase(
     }
 
     if (state.frameLost) state = { ...state, frameLost: false };
-    if (!allValid(state.quality)) {
+    if (!captureConditionsValid(state.quality, state.latestSample)) {
       return { ...state, validSince: null };
     }
 
@@ -240,11 +256,17 @@ function advancePhase(
     return { ...state, validSince };
   }
 
-  const rawQualityValid = allValid(state.latestSample.quality);
+  const rawQualityValid = captureConditionsValid(
+    state.latestSample.quality,
+    state.latestSample,
+  );
   if (!rawQualityValid) {
     const invalidSince = state.invalidSince ?? at;
     if (at - invalidSince >= CAPTURE_TIMING.loseLockMs) {
-      const frameLost = !state.latestSample.quality.facePresent;
+      const frameLost = !hasAcquisitionFrame(
+        state.latestSample.quality,
+        state.latestSample,
+      );
       return enterPhase(
         {
           ...state,
@@ -272,6 +294,12 @@ function advancePhase(
   }
 
   const scanDuration = reducedMotion ? CAPTURE_TIMING.reducedMotionScanMs : CAPTURE_TIMING.scanMs;
+  // Never cross the capture boundary while a lock-loss guard is pending.
+  // A late bad frame must either recover or reach the 300 ms cancellation
+  // threshold before the selected bitmap can be committed.
+  if (state.phase === 'scanning' && state.invalidSince !== null) {
+    return state;
+  }
   if (
     state.phase === 'scanning' &&
     state.capturedImage &&

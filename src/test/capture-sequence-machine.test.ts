@@ -195,6 +195,20 @@ describe('Face Value capture acquisition machine', () => {
     expect(state.handoffReady).toBe(false);
   });
 
+  it('does not cross the capture boundary while a late scan-loss guard is pending', () => {
+    let state = reachLocking();
+    state = tick(state, CAPTURE_TIMING.guideConnectionMs + CAPTURE_TIMING.mechanicalPauseMs);
+    state = tick(state, CAPTURE_TIMING.scanMs - 100);
+    state = signal(state, sampleWith({ stillnessValid: false }));
+    state = tick(state, 100);
+    expect(state.phase).toBe('scanning');
+    expect(state.scanComplete).toBe(false);
+    state = tick(state, CAPTURE_TIMING.loseLockMs - 100);
+    expect(state.phase).toBe('aligning');
+    expect(state.scanComplete).toBe(false);
+    expect(state.capturedImage).toBeNull();
+  });
+
   it('uses a non-traveling 300ms scan in reduced motion', () => {
     let state = reachLocking();
     state = tick(state, CAPTURE_TIMING.guideConnectionMs + CAPTURE_TIMING.mechanicalPauseMs, true);
@@ -227,6 +241,58 @@ describe('Face Value capture acquisition machine', () => {
       primary: 'Lighting is still too low',
       secondary: 'Try facing a window or choose a photo instead',
     });
+  });
+
+  it('runs the ritual in native frame-quality mode without inventing face geometry', () => {
+    const frameSample: CaptureSignalSample = {
+      verificationMode: 'frame-quality',
+      frameReady: true,
+      quality: {
+        facePresent: false,
+        distanceValid: false,
+        alignmentValid: false,
+        angleValid: false,
+        lightingValid: true,
+        stillnessValid: true,
+      },
+      lightingIssue: null,
+      faceBounds: null,
+      registeredRegions: [],
+    };
+    let state = createCaptureSequenceState(clock());
+    state = signal(state, frameSample);
+    expect(state.phase).toBe('aligning');
+    state = tick(state, CAPTURE_TIMING.returnValidMs);
+    state = tick(state, CAPTURE_TIMING.validHoldMs);
+    expect(state.phase).toBe('locking');
+    expect(state.faceBounds).toBeNull();
+    expect(state.registeredRegions).toEqual([]);
+    expect(state.activeIssue).toBeNull();
+  });
+
+  it('cancels a native lock when the real preview frame is lost', () => {
+    const frameSample: CaptureSignalSample = {
+      verificationMode: 'frame-quality',
+      frameReady: true,
+      quality: {
+        facePresent: false,
+        distanceValid: false,
+        alignmentValid: false,
+        angleValid: false,
+        lightingValid: true,
+        stillnessValid: true,
+      },
+    };
+    let state = createCaptureSequenceState(clock());
+    state = signal(state, frameSample);
+    state = tick(state, CAPTURE_TIMING.returnValidMs);
+    state = tick(state, CAPTURE_TIMING.validHoldMs);
+    expect(state.phase).toBe('locking');
+    state = signal(state, { ...frameSample, frameReady: false });
+    state = tick(state, CAPTURE_TIMING.loseLockMs);
+    expect(state.phase).toBe('aligning');
+    expect(state.frameLost).toBe(true);
+    expect(getCaptureInstruction(state).primary).toBe('Frame lost');
   });
 });
 

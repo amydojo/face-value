@@ -11,8 +11,23 @@ export type CameraKitDiagnosticSink = (
 export function logSafeCameraKitDiagnostic(
   stage: CameraKitDiagnosticStage,
   captureProfileId: CameraCaptureProfileId,
+  surface?: {
+    type: CameraKitDiagnostic['surfaceType'];
+    width: number;
+    height: number;
+  },
 ): CameraKitDiagnostic {
-  const diagnostic = { stage, captureProfileId };
+  const diagnostic: CameraKitDiagnostic = {
+    stage,
+    captureProfileId,
+    ...(surface
+      ? {
+          surfaceType: surface.type,
+          surfaceWidth: Math.round(surface.width),
+          surfaceHeight: Math.round(surface.height),
+        }
+      : {}),
+  };
   if (typeof console !== 'undefined') {
     console.info('[face-value-camera-kit]', diagnostic);
   }

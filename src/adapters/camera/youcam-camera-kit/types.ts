@@ -13,20 +13,16 @@ export type CameraKitEventName =
 export type CameraKitListenerIdentifier = unknown;
 
 export interface CameraKitInitOptions {
-  faceDetectionMode: 'hdskincare';
-  moduleMode: 'headless';
+  faceDetectionMode: 'skincare';
   imageFormat: 'blob';
   language: 'enu';
   qualityLevel: 'moderate';
-  videoQuality: '1080p' | '1920p';
+  videoQuality: '720p';
   countingDuration: number;
   hideFlipCameraButton: true;
   disableCameraResolutionCheck: false;
   width: number;
   height: number;
-  qualityOverrides: {
-    face_ratio_lower_threshold: number;
-  };
 }
 
 export interface CameraKitQualityPayload {
@@ -82,15 +78,30 @@ export type GuidedCaptureFailure =
 
 export interface GuidedCaptureSession {
   readonly captureProfileId: CameraCaptureProfileId;
+  /**
+   * Native camera sessions expose an explicit capture boundary so the Face
+   * Value state machine owns lock/scan timing. Camera Kit sessions capture via
+   * their documented event and leave this undefined.
+   */
+  capture?(): void;
   cancel(): void;
 }
 
 export type GuidedCaptureStatus =
-  'loading' | 'camera-opening' | 'preview-live' | 'preview-stalled' | 'captured' | 'closed';
+  | 'loading'
+  | 'requesting-permission'
+  | 'camera-opening'
+  | 'waiting-first-frame'
+  | 'preview-live'
+  | 'preview-stalled'
+  | 'captured'
+  | 'closed';
 
 export type CameraKitDiagnosticStage =
   | 'sdk-loaded'
+  | 'init-called'
   | 'camera-opened'
+  | 'render-surface-observed'
   | 'preview-live'
   | 'first-quality-frame'
   | 'capture-event'
@@ -100,10 +111,14 @@ export type CameraKitDiagnosticStage =
 export interface CameraKitDiagnostic {
   stage: CameraKitDiagnosticStage;
   captureProfileId: CameraCaptureProfileId;
+  surfaceType?: 'video' | 'canvas' | 'iframe' | 'none';
+  surfaceWidth?: number;
+  surfaceHeight?: number;
 }
 
 export interface GuidedCaptureStartOptions {
   mountElement: HTMLElement;
+  previewElement?: HTMLVideoElement | null;
   signal?: AbortSignal;
   stableForMs?: number;
   previewWatchdogMs?: number;

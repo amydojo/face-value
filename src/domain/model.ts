@@ -105,7 +105,11 @@ export interface CaptureContext {
   note: string | null;
 }
 
-export type CameraCaptureProfileId = 'youcam-camera-kit-hd-1080p' | 'youcam-camera-kit-hd-1920p';
+export type CameraCaptureProfileId =
+  | 'native-browser-camera-v1'
+  | 'youcam-camera-kit-standard-720p'
+  | 'youcam-camera-kit-hd-1080p'
+  | 'youcam-camera-kit-hd-1920p';
 
 export interface TraceEntry {
   id: string;

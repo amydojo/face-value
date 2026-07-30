@@ -160,6 +160,38 @@ describe('canonical capture phase presentation', () => {
     ).toBeVisible();
   });
 
+  it('shows one stable opening instruction and no synthetic person in production', () => {
+    render(
+      <CaptureSequence
+        state={stateFor('searching', { activeIssue: 'face-missing' })}
+        accession="FV–014"
+        product="Specimen"
+        job="Observation"
+        mountRef={createRef<HTMLDivElement>()}
+        fixture={false}
+        previewLive={false}
+        previewStatus="waiting-first-frame"
+        reducedMotion={false}
+      />,
+    );
+    expect(screen.getAllByRole('heading')).toHaveLength(1);
+    expect(screen.getByRole('heading', { name: 'Preparing preview' })).toBeVisible();
+    expect(screen.getByText('This may take a moment')).toBeVisible();
+    expect(document.querySelector('[data-native-camera-preview]')).toBeTruthy();
+    expect(document.querySelector('[data-capture-synthetic-feed]')).toBeNull();
+  });
+
+  it('removes the guide and rail when the camera is unavailable', () => {
+    const failed = reduceCaptureSequence(createCaptureSequenceState(0), {
+      type: 'FAILED',
+      failure: 'camera-unavailable',
+      at: 0,
+    });
+    renderSequence(failed);
+    expect(document.querySelector('[data-face-acquisition-guide]')).toBeNull();
+    expect(document.querySelector('[data-capture-quality-rail]')).toBeNull();
+  });
+
   it('keeps canonical guide geometry identical across all five phases', () => {
     const { rerender } = render(
       <CaptureSequence

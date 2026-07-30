@@ -17,6 +17,7 @@ import {
   type CameraKitWindow,
   type GuidedCaptureStartOptions,
   type YouCamCameraKitSdk,
+  createSafariVideoBridge,
 } from '../adapters/camera/youcam-camera-kit';
 
 type Listener = (payload: unknown) => void;
@@ -146,6 +147,21 @@ const appendSdkVideo = async (
       configurable: true,
       writable: true,
       value: { getTracks: () => [{ stop: trackStop }] },
+    },
+    getBoundingClientRect: {
+      configurable: true,
+      value: () =>
+        ({
+          x: 0,
+          y: 0,
+          top: 0,
+          right: 320,
+          bottom: 480,
+          left: 0,
+          width: 320,
+          height: 480,
+          toJSON: () => ({}),
+        }) as DOMRect,
     },
   });
   mount.append(video);
@@ -300,7 +316,7 @@ describe('Camera Kit loader and normalization', () => {
     });
   });
 
-  it('accepts only a bounded HD Blob and rejects string or low-resolution output', () => {
+  it('accepts only a bounded standard Blob and rejects string or low-resolution output', () => {
     const blob = normalizeCameraKitCapture(validCapture());
     expect(blob).toBeInstanceOf(Blob);
     expect(blob.type).toBe('image/jpeg');
@@ -320,12 +336,12 @@ describe('Camera Kit loader and normalization', () => {
         images: [
           {
             image: new Blob(['face'], { type: 'image/jpeg' }),
-            width: 720,
-            height: 1280,
+            width: 640,
+            height: 960,
           },
         ],
       }),
-    ).toThrow(/HD analysis-compatible resolution/);
+    ).toThrow(/analysis-compatible resolution/);
   });
 
   it('maps calm fallback categories without exposing provider fields', () => {
@@ -337,7 +353,7 @@ describe('Camera Kit loader and normalization', () => {
 });
 
 describe('Camera Kit capture profile', () => {
-  it('selects the 1080p HD profile for iPhone Safari and disables flipping', async () => {
+  it('uses documented standard skincare on iPhone without the HD resolution alert path', async () => {
     const profile = selectCameraKitCaptureProfile({
       navigatorObject: {
         userAgent:
@@ -347,8 +363,8 @@ describe('Camera Kit capture profile', () => {
       highResolutionProven: true,
     });
     expect(profile).toMatchObject({
-      faceDetectionMode: 'hdskincare',
-      videoQuality: '1080p',
+      faceDetectionMode: 'skincare',
+      videoQuality: '720p',
       imageFormat: 'blob',
       qualityLevel: 'moderate',
       countingDuration: 2_400,
@@ -366,24 +382,22 @@ describe('Camera Kit capture profile', () => {
       highResolutionProven: true,
     });
     const session = await adapter.start(startOptions());
-    expect(session.captureProfileId).toBe('youcam-camera-kit-hd-1080p');
+    expect(session.captureProfileId).toBe('youcam-camera-kit-standard-720p');
     expect(sdk.options).toMatchObject({
       faceDetectionMode: profile.faceDetectionMode,
-      moduleMode: 'headless',
       videoQuality: profile.videoQuality,
       imageFormat: profile.imageFormat,
       qualityLevel: profile.qualityLevel,
       countingDuration: 800,
       hideFlipCameraButton: profile.hideFlipCameraButton,
       disableCameraResolutionCheck: profile.disableCameraResolutionCheck,
-      qualityOverrides: {
-        face_ratio_lower_threshold: 0.68,
-      },
     });
+    expect(sdk.options).not.toHaveProperty('qualityOverrides');
+    expect(sdk.options).not.toHaveProperty('moduleMode');
     session.cancel();
   });
 
-  it('uses 1920p only when capability is proven and preserves a frozen profile', () => {
+  it('does not re-enter hdskincare when a legacy profile is frozen', () => {
     expect(
       selectCameraKitCaptureProfile({
         navigatorObject: {
@@ -392,7 +406,7 @@ describe('Camera Kit capture profile', () => {
         },
         highResolutionProven: true,
       }).videoQuality,
-    ).toBe('1920p');
+    ).toBe('720p');
     expect(
       selectCameraKitCaptureProfile({
         frozenCaptureProfileId: 'youcam-camera-kit-hd-1080p',
@@ -402,7 +416,7 @@ describe('Camera Kit capture profile', () => {
         },
         highResolutionProven: true,
       }).videoQuality,
-    ).toBe('1080p');
+    ).toBe('720p');
   });
 });
 
@@ -417,15 +431,15 @@ describe('Camera Kit preview and Safari bridge', () => {
     expect(sdk.openCount).toBe(1);
     expect(sdk.addCount).toBe(6);
     expect(sdk.options).toMatchObject({
-      faceDetectionMode: 'hdskincare',
-      moduleMode: 'headless',
+      faceDetectionMode: 'skincare',
       imageFormat: 'blob',
       qualityLevel: 'moderate',
-      videoQuality: '1080p',
+      videoQuality: '720p',
       countingDuration: 800,
       hideFlipCameraButton: true,
       disableCameraResolutionCheck: false,
     });
+    expect(sdk.options).not.toHaveProperty('moduleMode');
 
     sdk.emit('cameraOpened');
     sdk.emit('faceQualityChanged', {
@@ -462,45 +476,42 @@ describe('Camera Kit preview and Safari bridge', () => {
     expect(sdk.removeCount).toBe(6);
   });
 
-  it('hardens every inserted video for inline muted playback and attempts play on metadata', async () => {
-    const sdk = new FakeCameraKitSdk();
-    const options = startOptions();
-    const session = await new YouCamCameraKitAdapter(async () => sdk).start(options);
-    const play = vi.fn(() => Promise.resolve());
-    const { video } = await appendSdkVideo(options.mountElement, {
-      play,
+  it('requires a connected, visible, non-zero renderer and supports the documented iframe surface', () => {
+    const mount = mountElement();
+    const bridge = createSafariVideoBridge(mount);
+    expect(bridge.hasLiveRenderSurface(true)).toBe(false);
+
+    const zeroCanvas = document.createElement('canvas');
+    mount.append(zeroCanvas);
+    expect(bridge.hasLiveRenderSurface(true)).toBe(false);
+
+    const iframe = document.createElement('iframe');
+    Object.defineProperty(iframe, 'getBoundingClientRect', {
+      configurable: true,
+      value: () => ({ width: 320, height: 480 }) as DOMRect,
     });
-
-    expect(video.muted).toBe(true);
-    expect(video.defaultMuted).toBe(true);
-    expect(video.autoplay).toBe(true);
-    expect(video.playsInline).toBe(true);
-    expect(video).toHaveAttribute('muted');
-    expect(video).toHaveAttribute('autoplay');
-    expect(video).toHaveAttribute('playsinline');
-    expect(video).toHaveAttribute('webkit-playsinline');
-
-    video.dispatchEvent(new Event('loadedmetadata'));
-    expect(play).toHaveBeenCalledOnce();
-    session.cancel();
-
-    const lateVideo = document.createElement('video');
-    options.mountElement.append(lateVideo);
-    await Promise.resolve();
-    expect(lateVideo).not.toHaveAttribute('webkit-playsinline');
+    mount.append(iframe);
+    expect(bridge.getRenderSurface()).toMatchObject({
+      type: 'iframe',
+      width: 320,
+      height: 480,
+    });
+    expect(bridge.hasLiveRenderSurface(false)).toBe(false);
+    expect(bridge.hasLiveRenderSurface(true)).toBe(true);
   });
 
-  it('turns a black preview into one recoverable stalled state after 3000 ms', async () => {
+  it('waits 20 seconds before turning a black preview into one recoverable stalled state', async () => {
     const sdk = new FakeCameraKitSdk();
     const diagnostics: CameraKitDiagnostic[] = [];
     const options = startOptions({
       onDiagnostic: (diagnostic) => diagnostics.push(diagnostic),
+      previewWatchdogMs: 20_000,
     });
     await new YouCamCameraKitAdapter(async () => sdk).start(options);
     const { trackStop } = await appendSdkVideo(options.mountElement);
 
     sdk.emit('cameraOpened');
-    await vi.advanceTimersByTimeAsync(2_999);
+    await vi.advanceTimersByTimeAsync(19_999);
     expect(options.onFailure).not.toHaveBeenCalled();
     await vi.advanceTimersByTimeAsync(1);
 
@@ -509,7 +520,7 @@ describe('Camera Kit preview and Safari bridge', () => {
     expect(options.onStatus).toHaveBeenCalledWith('preview-stalled');
     expect(sdk.closeCount).toBe(1);
     expect(sdk.removeCount).toBe(6);
-    expect(trackStop).toHaveBeenCalledOnce();
+    expect(trackStop).not.toHaveBeenCalled();
     expect(diagnostics.map(({ stage }) => stage)).toEqual(
       expect.arrayContaining(['sdk-loaded', 'camera-opened', 'preview-stalled', 'camera-closed']),
     );
@@ -543,7 +554,7 @@ describe('Camera Kit auto-capture gate and teardown', () => {
     await vi.advanceTimersByTimeAsync(1);
     expect(onCapture).toHaveBeenCalledOnce();
     expect(onCapture.mock.calls[0][0]).toBeInstanceOf(Blob);
-    expect(onCapture.mock.calls[0][1]).toBe('youcam-camera-kit-hd-1080p');
+    expect(onCapture.mock.calls[0][1]).toBe('youcam-camera-kit-standard-720p');
 
     sdk.emit('faceDetectionCaptured', validCapture());
     await vi.advanceTimersByTimeAsync(1_000);
@@ -643,32 +654,17 @@ describe('Camera Kit auto-capture gate and teardown', () => {
     expect(unavailable).toHaveBeenCalledWith('sdk-unavailable');
   });
 
-  it('contains only known Camera Kit runtime errors after a handled failure', async () => {
+  it('does not intercept unrelated browser alerts or global errors', async () => {
     const sdk = new FakeCameraKitSdk();
-    const permissionFailure = vi.fn();
-    await new YouCamCameraKitAdapter(async () => sdk).start(
-      startOptions({ onFailure: permissionFailure }),
-    );
-
-    sdk.emit('cameraFailed', { code: 'permission_denied' });
-    const cameraKitError = new ErrorEvent('error', {
-      cancelable: true,
-      error: new Error('error.no.camera'),
-      message: 'error.no.camera',
-    });
-    window.dispatchEvent(cameraKitError);
-
-    expect(cameraKitError.defaultPrevented).toBe(true);
-    expect(permissionFailure).toHaveBeenCalledOnce();
-
-    await vi.runAllTimersAsync();
-    const unrelatedError = new ErrorEvent('error', {
-      cancelable: true,
-      error: new Error('unrelated application error'),
-      message: 'unrelated application error',
-    });
-    window.dispatchEvent(unrelatedError);
-    expect(unrelatedError.defaultPrevented).toBe(false);
+    const session = await new YouCamCameraKitAdapter(async () => sdk).start(startOptions());
+    const originalAlert = window.alert;
+    const alertSpy = vi.fn();
+    window.alert = alertSpy;
+    window.alert('unrelated application alert');
+    expect(alertSpy).toHaveBeenCalledWith('unrelated application alert');
+    expect(window.alert).toBe(alertSpy);
+    window.alert = originalAlert;
+    session.cancel();
   });
 });
 

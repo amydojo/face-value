@@ -9,8 +9,10 @@ import { metadataForCapture, ObjectUrlRegistry } from '../../adapters/camera/bro
 import {
   createCameraKitAdapter,
   type CameraKitAdapter,
+  type CameraKitDiagnostic,
   type GuidedCaptureFailure,
   type GuidedCaptureSession,
+  type GuidedCaptureStatus,
 } from '../../adapters/camera/youcam-camera-kit';
 import type { CameraFailureReason } from '../../adapters/camera/browserCamera';
 import { systemClock } from '../../adapters/clock/clock';
@@ -128,8 +130,10 @@ export function CameraViewport({
   );
   const [sequence, sendSequence] = useReducer(reducer, cameraState, initialSequenceState);
   const mountRef = useRef<HTMLDivElement | null>(null);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
   const screenRef = useRef<HTMLElement | null>(null);
   const sessionRef = useRef<GuidedCaptureSession | null>(null);
+  const cameraAbortControllerRef = useRef<AbortController | null>(null);
   const adapterRef = useRef<CameraKitAdapter | null>(null);
   adapterRef.current ??= cameraAdapter ?? createCameraKitAdapter();
   const providerRef = useRef(createSkinAnalysisProvider());
@@ -143,6 +147,7 @@ export function CameraViewport({
   const startInFlightRef = useRef(false);
   const analysisStartedForCaptureRef = useRef(false);
   const hapticSentRef = useRef(false);
+  const captureRequestedRef = useRef(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const restartCameraRef = useRef<HTMLButtonElement | null>(null);
   const retryAnalysisRef = useRef<HTMLButtonElement | null>(null);
@@ -160,6 +165,12 @@ export function CameraViewport({
   const [previewLive, setPreviewLive] = useState(false);
   const [starting, setStarting] = useState(false);
   const [fixture, setFixture] = useState(false);
+  const [previewStatus, setPreviewStatus] = useState<GuidedCaptureStatus | 'idle'>('idle');
+  const diagnosticMode =
+    import.meta.env.DEV &&
+    typeof location !== 'undefined' &&
+    new URLSearchParams(location.search).get('camera-kit-diagnostics') === '1';
+  const [cameraDiagnostics, setCameraDiagnostics] = useState<CameraKitDiagnostic[]>([]);
 
   stateRef.current = state;
   callbacksRef.current = {
@@ -318,6 +329,9 @@ export function CameraViewport({
     const mountElement = mountRef.current;
     if (!mountElement) return;
     startInFlightRef.current = true;
+    cameraAbortControllerRef.current?.abort();
+    const cameraController = new AbortController();
+    cameraAbortControllerRef.current = cameraController;
     sessionRef.current?.cancel();
     sessionRef.current = null;
     objectUrlsRef.current.revokeAll();
@@ -325,16 +339,21 @@ export function CameraViewport({
     pendingCaptureRef.current = null;
     analysisStartedForCaptureRef.current = false;
     hapticSentRef.current = false;
+    captureRequestedRef.current = false;
     setCaptureStarted(true);
     setPreviewLive(false);
     setStarting(true);
     setFixture(false);
+    setPreviewStatus('loading');
+    setCameraDiagnostics([]);
     sendSequence({ type: 'RESET', at: now() });
     callbacksRef.current.onRequesting();
 
     try {
       const session = await adapterRef.current!.start({
         mountElement,
+        previewElement: videoRef.current,
+        signal: cameraController.signal,
         stableForMs: CAMERA_KIT_ACQUISITION_MS,
         frozenCaptureProfileId:
           kind === 'followup' ? (stateRef.current.baselineCapture?.cameraProfileId ?? null) : null,
@@ -351,7 +370,7 @@ export function CameraViewport({
           pendingCaptureRef.current = {
             image,
             source: 'camera',
-            fileName: `${kind}-camera-kit.jpg`,
+            fileName: `${kind}-browser-camera.jpg`,
             cameraProfileId,
           };
           callbacksRef.current.onCapturing();
@@ -362,8 +381,12 @@ export function CameraViewport({
           });
         },
         onFailure: (nextFailure) => {
+          if (cameraController.signal.aborted) return;
           setPreviewLive(false);
           setStarting(false);
+          setPreviewStatus(
+            nextFailure === 'preview-stalled' ? 'preview-stalled' : 'closed',
+          );
           sendSequence({
             type: 'FAILED',
             failure: nextFailure,
@@ -372,27 +395,66 @@ export function CameraViewport({
           callbacksRef.current.onFailure(legacyFailureReason(nextFailure));
         },
         onStatus: (status) => {
-          if (status === 'camera-opening') setStarting(true);
+          if (cameraController.signal.aborted) return;
+          setPreviewStatus(status);
+          if (
+            status === 'loading' ||
+            status === 'requesting-permission' ||
+            status === 'camera-opening' ||
+            status === 'waiting-first-frame'
+          ) {
+            setStarting(true);
+          }
           if (status === 'preview-live') {
             setPreviewLive(true);
             setStarting(false);
             callbacksRef.current.onReady();
           }
         },
+        onDiagnostic: (diagnostic) => {
+          if (!diagnosticMode) return;
+          setCameraDiagnostics((current) => [
+            ...current.filter(({ stage }) => stage !== diagnostic.stage),
+            diagnostic,
+          ]);
+        },
       });
-      sessionRef.current = session;
-      setFixture(mountElement.dataset.cameraKitFixture === 'active');
+      if (cameraController.signal.aborted || cameraAbortControllerRef.current !== cameraController) {
+        session.cancel();
+      } else {
+        sessionRef.current = session;
+        setFixture(mountElement.dataset.cameraKitFixture === 'active');
+      }
     } catch {
+      if (cameraController.signal.aborted) return;
       setStarting(false);
+      setPreviewStatus('closed');
       sendSequence({
         type: 'FAILED',
         failure: 'sdk-unavailable',
         at: now(),
       });
     } finally {
-      startInFlightRef.current = false;
+      if (cameraAbortControllerRef.current === cameraController) {
+        startInFlightRef.current = false;
+      }
     }
-  }, [kind]);
+  }, [diagnosticMode, kind]);
+
+  useEffect(() => {
+    if (
+      sequence.phase !== 'scanning' ||
+      !sequence.scanComplete ||
+      sequence.capturedImage ||
+      captureRequestedRef.current
+    ) {
+      return;
+    }
+    const capture = sessionRef.current?.capture;
+    if (!capture) return;
+    captureRequestedRef.current = true;
+    capture();
+  }, [sequence.capturedImage, sequence.phase, sequence.scanComplete]);
 
   useEffect(() => {
     const deadline = getNextCaptureSequenceDeadline(sequence, {
@@ -413,6 +475,7 @@ export function CameraViewport({
       (previousPhase === 'locking' || previousPhase === 'scanning') &&
       (sequence.phase === 'aligning' || sequence.phase === 'searching');
     if (!cancelledLock) return;
+    captureRequestedRef.current = false;
     const imageUrl = currentCaptureUrlRef.current;
     if (imageUrl) objectUrlsRef.current.revoke(imageUrl);
     currentCaptureUrlRef.current = null;
@@ -441,22 +504,45 @@ export function CameraViewport({
 
   useEffect(() => {
     if (!captureStarted) return;
-    if (typeof screenRef.current?.scrollTo === 'function') {
-      screenRef.current.scrollTo({ top: 0, behavior: 'auto' });
-    }
+    window.scrollTo({ top: 0, behavior: 'auto' });
     const priorOverflow = document.body.style.overflow;
     const priorOverscroll = document.body.style.overscrollBehavior;
+    const priorHtmlOverflow = document.documentElement.style.overflow;
     document.body.style.overflow = 'hidden';
     document.body.style.overscrollBehavior = 'none';
+    document.documentElement.style.overflow = 'hidden';
     return () => {
       document.body.style.overflow = priorOverflow;
       document.body.style.overscrollBehavior = priorOverscroll;
+      document.documentElement.style.overflow = priorHtmlOverflow;
     };
   }, [captureStarted]);
 
   useEffect(() => {
+    const screen = screenRef.current;
+    if (!screen) return;
+    const visualViewport = window.visualViewport;
+    const syncViewport = () => {
+      const height = visualViewport?.height ?? window.innerHeight;
+      screen.style.setProperty('--fv-visible-viewport-height', `${Math.round(height)}px`);
+    };
+    syncViewport();
+    visualViewport?.addEventListener('resize', syncViewport);
+    visualViewport?.addEventListener('scroll', syncViewport);
+    window.addEventListener('resize', syncViewport);
+    return () => {
+      visualViewport?.removeEventListener('resize', syncViewport);
+      visualViewport?.removeEventListener('scroll', syncViewport);
+      window.removeEventListener('resize', syncViewport);
+      screen.style.removeProperty('--fv-visible-viewport-height');
+    };
+  }, []);
+
+  useEffect(() => {
     const objectUrls = objectUrlsRef.current;
     return () => {
+      cameraAbortControllerRef.current?.abort();
+      cameraAbortControllerRef.current = null;
       sessionRef.current?.cancel();
       sessionRef.current = null;
       startInFlightRef.current = false;
@@ -471,8 +557,11 @@ export function CameraViewport({
     if (!file || runInFlightRef.current) return;
     sessionRef.current?.cancel();
     sessionRef.current = null;
+    cameraAbortControllerRef.current?.abort();
+    cameraAbortControllerRef.current = null;
     setPreviewLive(false);
     setStarting(false);
+    setPreviewStatus('closed');
     analysisStartedForCaptureRef.current = true;
     void analyzeCapture({
       image: file,
@@ -489,6 +578,8 @@ export function CameraViewport({
   };
 
   const leave = () => {
+    cameraAbortControllerRef.current?.abort();
+    cameraAbortControllerRef.current = null;
     sessionRef.current?.cancel();
     sessionRef.current = null;
     startInFlightRef.current = false;
@@ -533,8 +624,9 @@ export function CameraViewport({
               ? 'camera-stopped'
               : 'not-started'
       }
+      data-preview-status={previewStatus}
     >
-      <div className={styles.captureRouteBar}>
+      <div className={styles.captureRouteBar} data-capture-route-bar>
         <button type="button" className={styles.textButton} onClick={leave}>
           ← Back
         </button>
@@ -543,14 +635,38 @@ export function CameraViewport({
         </p>
       </div>
 
+      {diagnosticMode && (
+        <aside
+          className={styles.cameraContractDiagnostics}
+          aria-label="Camera Kit contract diagnostics"
+          data-camera-kit-contract-diagnostics
+        >
+          <strong>CAMERA KIT CONTRACT</strong>
+          {cameraDiagnostics.length === 0 ? (
+            <span>WAITING TO START</span>
+          ) : (
+            cameraDiagnostics.map((diagnostic) => (
+              <span key={diagnostic.stage}>
+                {diagnostic.stage.replaceAll('-', ' ').toUpperCase()}
+                {diagnostic.surfaceType
+                  ? ` · ${diagnostic.surfaceType.toUpperCase()} ${diagnostic.surfaceWidth}×${diagnostic.surfaceHeight}`
+                  : ''}
+              </span>
+            ))
+          )}
+        </aside>
+      )}
+
       <CaptureSequence
         state={sequence}
         accession={accession}
         product={product}
         job={job}
         mountRef={mountRef}
+        videoRef={videoRef}
         fixture={fixture}
         previewLive={previewLive}
+        previewStatus={previewStatus}
         reducedMotion={reducedMotion}
       />
 
@@ -593,22 +709,26 @@ export function CameraViewport({
         </div>
       )}
 
-      <label className={styles.captureFileFallback}>
-        USE AN EXISTING PHOTO
-        <input
-          ref={fileInputRef}
-          aria-label="Choose a face photo"
-          type="file"
-          accept="image/jpeg,image/png,.jpg,.jpeg,.png"
-          capture="user"
-          disabled={isAnalyzing}
-          onChange={(event) => chooseFile(event.target.files?.[0])}
-        />
-      </label>
-      <p className={styles.capturePrivacyLine}>
-        The image is analyzed in memory and discarded. Face images are never added to your trial or
-        Evidence Record.
-      </p>
+      {(!captureStarted || failed) && !isAnalyzing && (
+        <>
+          <label className={styles.captureFileFallback}>
+            USE AN EXISTING PHOTO
+            <input
+              ref={fileInputRef}
+              aria-label="Choose a face photo"
+              type="file"
+              accept="image/jpeg,image/png,.jpg,.jpeg,.png"
+              capture="user"
+              disabled={isAnalyzing}
+              onChange={(event) => chooseFile(event.target.files?.[0])}
+            />
+          </label>
+          <p className={styles.capturePrivacyLine}>
+            The image is analyzed in memory and discarded. Face images are never added to your trial
+            or Evidence Record.
+          </p>
+        </>
+      )}
     </section>
   );
 }

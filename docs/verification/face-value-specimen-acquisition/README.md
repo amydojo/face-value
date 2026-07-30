@@ -23,9 +23,18 @@ photographs or captured user data.
 | Reduced motion    | [reduced-motion.png](./reduced-motion.png)       |
 
 The Playwright geometry assertions cover `390 × 844`, `393 × 852`,
-`402 × 874`, and `430 × 932`. They verify one stable 390 × 780 chassis, a
-330 × 450 guide field at `(30, 132)`, a 312 × 432 oval, a 358 × 48 quality
-rail, and an unchanged crop and guide across all five phases.
+`402 × 874`, and `430 × 932`. They verify that the canonical `390 × 780`
+instrument scales as one unit when the visible height is constrained: the
+`330 × 450` guide field, `312 × 432` implied oval, `358 × 48` rail, context
+bar, crop, and guide stay in the same proportions. A separate Visual Viewport
+test simulates Safari chrome contracting the usable height and proves the route
+bar and rail remain visible with no page or nested scrolling.
+
+The browser suite also exercises the production `NativeBrowserCameraAdapter`
+behind a development-only mock camera stream. That test proves a real visible
+`<video>` surface, first-frame readiness, Face Value-owned scan/capture timing,
+same-bitmap freeze, one track stop, and no alert. The mock is not evidence of
+physical camera behavior.
 
 Run the complete browser suite:
 
@@ -50,11 +59,13 @@ iPhone, open the preview in portrait Safari and verify:
    settings.
 2. Exercise ordinary indoor light, low light for at least eight seconds, and
    strong backlight.
-3. Move too close, too far, and partially outside each side of the guide.
-4. Turn and tilt the head, then move once during Locking and once during
-   Scanning.
-5. Confirm the guide never moves, the invalid lock/scan cancels calmly, and an
-   invalid bitmap is not committed.
+3. Confirm the authored guide gives enough breathing room around forehead,
+   cheeks, chin, and side silhouette. Native production capture does not claim
+   automated distance, pose, or face-alignment detection.
+4. Move the phone during Locking and Scanning; confirm sustained movement
+   cancels calmly and an invalid bitmap is not committed.
+5. Confirm no width/height popup, black live state, false unavailable state, or
+   repeated restart loop appears.
 6. Complete capture and confirm the same frozen frame remains visible through
    “Baseline secured / Processing specimen.”
 7. Expand and collapse Safari chrome; confirm no horizontal overflow, clipped
@@ -63,5 +74,5 @@ iPhone, open the preview in portrait Safari and verify:
    traveling band.
 9. Leave the route during live preview and confirm the camera activity
    indicator turns off.
-10. Complete the existing-photo fallback with a synthetic/non-sensitive test
-    image.
+10. Retry after a real startup failure, then complete the existing-photo
+    fallback with a synthetic/non-sensitive test image.

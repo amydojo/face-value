@@ -36,6 +36,13 @@ export type CaptureRegion = 'forehead' | 'left-cheek' | 'right-cheek' | 'center'
 
 export interface CaptureSignalSample {
   quality: CaptureQuality;
+  /**
+   * Camera Kit can verify face geometry. The native Safari fallback deliberately
+   * verifies only the visible frame, lighting, and motion; it never represents
+   * an operator-positioned face as vendor-verified geometry.
+   */
+  verificationMode?: 'face-quality' | 'frame-quality';
+  frameReady?: boolean;
   distanceIssue?: Extract<CaptureIssue, 'too-close' | 'too-far'> | null;
   alignmentIssue?: Extract<
     CaptureIssue,

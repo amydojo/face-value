@@ -73,6 +73,12 @@ export function getCaptureInstruction(state: CaptureSequenceState): CaptureInstr
         secondary: 'Enable camera access or choose a photo instead',
       };
     }
+    if (state.failure === 'preview-stalled') {
+      return {
+        primary: 'Preview stalled',
+        secondary: 'Try opening the camera again',
+      };
+    }
     return {
       primary: 'Camera unavailable',
       secondary: 'Choose an existing photo to continue',
@@ -119,9 +125,23 @@ export function getHighestPriorityCaptureIssue(
   quality: CaptureQuality,
   specifics: Pick<
     CaptureSequenceState['latestSample'],
-    'distanceIssue' | 'alignmentIssue' | 'angleIssue' | 'lightingIssue'
+    | 'verificationMode'
+    | 'frameReady'
+    | 'distanceIssue'
+    | 'alignmentIssue'
+    | 'angleIssue'
+    | 'lightingIssue'
   >,
 ): CaptureIssue | null {
+  if (specifics.verificationMode === 'frame-quality') {
+    if (!specifics.frameReady) return 'face-missing';
+    if (!quality.lightingValid) {
+      return specifics.lightingIssue ?? 'uneven-light';
+    }
+    if (!quality.stillnessValid) return 'movement';
+    return null;
+  }
+
   if (!quality.facePresent) return 'face-missing';
   if (!quality.distanceValid) return specifics.distanceIssue ?? 'too-far';
   if (!quality.alignmentValid) {
@@ -159,9 +179,16 @@ export function getCaptureRailStates(
   state: CaptureSequenceState,
 ): Record<'light' | 'alignment' | 'stillness', CaptureRailState> {
   const current = issueCategory(state.activeIssue);
+  const frameQualityMode = state.latestSample.verificationMode === 'frame-quality';
   const rail: Record<'light' | 'alignment' | 'stillness', CaptureRailState> = {
     light: categoryPassed('light', state.quality) ? 'passed' : 'pending',
-    alignment: categoryPassed('alignment', state.quality) ? 'passed' : 'pending',
+    alignment: frameQualityMode
+      ? ['locking', 'scanning', 'captured'].includes(state.phase)
+        ? 'passed'
+        : 'current'
+      : categoryPassed('alignment', state.quality)
+        ? 'passed'
+        : 'pending',
     stillness: categoryPassed('stillness', state.quality) ? 'passed' : 'pending',
   };
 

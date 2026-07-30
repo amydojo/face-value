@@ -2,7 +2,11 @@
   position: relative;
   flex: 0 0 auto;
   isolation: isolate;
-  width: min(390px, 100vw);
+  width: min(
+    390px,
+    100%,
+    calc((var(--fv-visible-viewport-height, 100dvh) - var(--fv-capture-reserved-height, 52px)) / 2)
+  );
   max-width: 100%;
   aspect-ratio: 1 / 2;
   overflow: hidden;
@@ -19,6 +23,7 @@
 
 .cameraFeed,
 .cameraKitMount,
+.nativePreview,
 .syntheticFeed,
 .cameraVignette,
 .capturedFrame {
@@ -37,65 +42,32 @@
 }
 
 .cameraKitMount {
-  z-index: 1;
+  z-index: 2;
   overflow: hidden;
   pointer-events: none;
 }
 
-.cameraKitMount > * {
-  width: 100% !important;
-  height: 100% !important;
-}
-
-/* Camera Kit remains the detector. Face Value presents only its source video. */
-.cameraKitMount * {
-  visibility: hidden !important;
-  pointer-events: none !important;
-}
-
-.cameraKitMount iframe,
-.cameraKitMount canvas,
-.cameraKitMount video:not([id='YMK-video-input']) {
-  opacity: 0 !important;
-}
-
-.cameraKitMount video[id='YMK-video-input'] {
-  position: absolute !important;
-  z-index: 1 !important;
-  inset: 0 !important;
-  display: block !important;
-  width: 100% !important;
-  height: 100% !important;
-  max-width: none !important;
-  max-height: none !important;
-  visibility: visible !important;
-  opacity: 1 !important;
-  object-fit: cover !important;
-  object-position: center !important;
+.nativePreview {
+  z-index: 1;
+  display: block;
+  border: 0;
+  background: var(--fv-capture-surface);
+  object-fit: cover;
+  object-position: center;
   transform: scaleX(-1);
+}
+
+.cameraFeed[data-fixture='true'] .nativePreview {
+  display: none;
 }
 
 .syntheticFeed {
   z-index: 0;
-  opacity: 0;
-  background:
-    radial-gradient(ellipse 28% 10% at 50% 35%, rgba(237, 216, 198, 0.2) 0 45%, transparent 74%),
-    radial-gradient(
-      ellipse 30% 29% at 50% 38%,
-      rgba(201, 175, 154, 0.42) 0 62%,
-      rgba(95, 77, 67, 0.3) 67%,
-      transparent 70%
-    ),
-    radial-gradient(ellipse 39% 48% at 50% 53%, rgba(159, 128, 108, 0.28) 0 52%, transparent 54%),
-    radial-gradient(ellipse 78% 52% at 50% 62%, rgba(68, 58, 52, 0.36), transparent 68%),
-    linear-gradient(125deg, #161515 0, #26211e 47%, #0b0b0b 100%);
-  filter: saturate(0.72) contrast(0.92);
-  transition: opacity 240ms ease;
-}
-
-.cameraFeed[data-fixture='true'] .syntheticFeed,
-.cameraFeed[data-preview-live='false'] .syntheticFeed {
   opacity: 1;
+  background:
+    radial-gradient(circle at 38% 28%, rgba(244, 243, 239, 0.08), transparent 22%),
+    radial-gradient(circle at 66% 63%, rgba(255, 106, 0, 0.06), transparent 29%),
+    linear-gradient(142deg, #2a2826 0%, #171615 43%, #080808 100%);
 }
 
 .capturedFrame {
@@ -127,7 +99,6 @@
   left: 5.1282cqw;
   width: 89.7436cqw;
   height: 9.2308cqw;
-  min-height: 32px;
   display: flex;
   align-items: center;
   column-gap: 10px;
@@ -218,10 +189,24 @@
   overflow: visible;
 }
 
+.guideSegments,
+.guideSegments path,
 .guideOval,
 .lockTrace {
   fill: none;
   vector-effect: non-scaling-stroke;
+}
+
+.guideSegments path {
+  stroke: var(--fv-capture-guide);
+  stroke-linecap: round;
+  stroke-width: 1.7px;
+  vector-effect: non-scaling-stroke;
+}
+
+.guideSegments {
+  opacity: 0;
+  transition: opacity 180ms ease;
 }
 
 .guideOval {
@@ -229,45 +214,42 @@
   stroke-linecap: round;
   stroke-width: 1.7px;
   transform-origin: center;
+  opacity: 0;
 }
 
-.guideField[data-guide-phase='searching'] .guideOval {
+.guideField[data-guide-phase='searching'] .guideSegments {
   opacity: 0.44;
-  stroke-dasharray: 7 5 11 6 5 6 9 7;
   animation: guideBreathing 2200ms ease-in-out infinite;
 }
 
-.guideField[data-guide-phase='aligning'] .guideOval {
+.guideField[data-guide-phase='aligning'] .guideSegments {
   opacity: 0.74;
-  stroke-dasharray: 21 3 15 4 10 3;
+}
+
+.guideField[data-guide-phase='locking'] .guideSegments,
+.guideField[data-guide-phase='scanning'] .guideSegments,
+.guideField[data-guide-phase='captured'] .guideSegments {
+  opacity: 0;
+  transition: none;
 }
 
 .guideField[data-guide-phase='locking'] .guideOval {
   opacity: 1;
-  stroke-dasharray: 100 0;
   animation: connectGuide 280ms cubic-bezier(0.2, 0.78, 0.2, 1) both;
 }
 
 .guideField[data-guide-phase='scanning'] .guideOval {
   opacity: 0.96;
-  stroke-dasharray: 100 0;
 }
 
 .guideField[data-guide-phase='captured'] .guideOval {
   opacity: 0.7;
-  stroke-dasharray: 100 0;
   transform: scale(0.996);
-}
-
-.guideField[data-guide-phase='error'] .guideOval {
-  opacity: 0.28;
-  stroke-dasharray: 8 6 13 6;
 }
 
 .lockTrace {
   opacity: 0;
   stroke: var(--fv-capture-accent);
-  stroke-dasharray: 8 92;
   stroke-linecap: round;
   stroke-width: 2.4px;
 }
@@ -362,7 +344,6 @@
   bottom: 4.1026cqw;
   left: 4.1026cqw;
   height: 12.3077cqw;
-  min-height: 42px;
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   align-items: stretch;
@@ -447,11 +428,9 @@
 
 @keyframes connectGuide {
   from {
-    stroke-dashoffset: 12;
-    opacity: 0.76;
+    opacity: 0.38;
   }
   to {
-    stroke-dashoffset: 0;
     opacity: 1;
   }
 }
@@ -459,14 +438,12 @@
 @keyframes lockTrace {
   0% {
     opacity: 0;
-    stroke-dashoffset: 10;
   }
   35% {
     opacity: 1;
   }
   100% {
     opacity: 0;
-    stroke-dashoffset: 0;
   }
 }
 
@@ -518,6 +495,7 @@
 }
 
 .chassis[data-reduced-motion='true'] .guideOval,
+.chassis[data-reduced-motion='true'] .guideSegments,
 .chassis[data-reduced-motion='true'] .lockTrace,
 .chassis[data-reduced-motion='true'] .regionOverlay i,
 .chassis[data-reduced-motion='true'] .captureShutter {
@@ -552,6 +530,7 @@
 
 @media (prefers-reduced-motion: reduce) {
   .guideOval,
+  .guideSegments,
   .lockTrace,
   .regionOverlay i,
   .captureShutter {

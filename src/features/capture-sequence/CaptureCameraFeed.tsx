@@ -3,11 +3,13 @@ import styles from './CaptureSequence.module.css';
 
 export function CaptureCameraFeed({
   mountRef,
+  videoRef,
   capturedImage,
   fixture,
   previewLive,
 }: {
   mountRef: RefObject<HTMLDivElement | null>;
+  videoRef?: RefObject<HTMLVideoElement | null>;
   capturedImage: string | null;
   fixture: boolean;
   previewLive: boolean;
@@ -21,8 +23,16 @@ export function CaptureCameraFeed({
       data-frame-frozen={capturedImage ? 'true' : 'false'}
       aria-hidden="true"
     >
+      <video
+        ref={videoRef}
+        className={styles.nativePreview}
+        data-native-camera-preview
+        autoPlay
+        muted
+        playsInline
+      />
       <div ref={mountRef} className={styles.cameraKitMount} data-camera-kit-mount />
-      <div className={styles.syntheticFeed} data-capture-synthetic-feed />
+      {fixture && <div className={styles.syntheticFeed} data-capture-synthetic-feed />}
       {capturedImage && (
         <img
           className={styles.capturedFrame}

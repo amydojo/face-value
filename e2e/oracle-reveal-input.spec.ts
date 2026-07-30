@@ -183,8 +183,8 @@ test('a stalled preview restarts from a fresh tap and Back releases it', async (
 
   const restart = page.getByRole('button', { name: 'RESTART CAMERA' });
   await expect(restart).toBeFocused();
-  await expect(page.getByRole('heading', { name: 'Camera unavailable' })).toBeVisible();
-  await expect(page.getByText('Choose an existing photo to continue')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Preview stalled' })).toBeVisible();
+  await expect(page.getByText('Try opening the camera again')).toBeVisible();
   await expect(page.locator('[data-camera-kit-fixture="active"]')).toHaveCount(0);
 
   await restart.click();

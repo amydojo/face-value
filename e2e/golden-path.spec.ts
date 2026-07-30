@@ -161,7 +161,7 @@ for (const scenario of cases) {
     expect(baselineStorage).toContain('Naturium');
     expect(baselineStorage).toContain('93.3356');
     expect(baselineStorage).toContain('youcam-redness-v1');
-    expect(baselineStorage).toContain('"cameraProfileId":"youcam-camera-kit-hd-1080p"');
+    expect(baselineStorage).toContain('"cameraProfileId":"youcam-camera-kit-standard-720p"');
     assertFaceFreeStorage(baselineStorage);
 
     await page.getByRole('button', { name: 'DONE' }).click();

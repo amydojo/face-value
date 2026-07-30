@@ -20,6 +20,16 @@ export type FixtureCaptureScenario =
   | 'permission-denied'
   | 'camera-unavailable';
 
+const abstractFixtureFrame = (): Blob => {
+  const binary = atob(
+    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNgYAAAAAMAASsJTYQAAAAASUVORK5CYII=',
+  );
+  return new Blob(
+    [Uint8Array.from(binary, (character) => character.charCodeAt(0))],
+    { type: 'image/png' },
+  );
+};
+
 export class FixtureCameraKitAdapter implements CameraKitAdapter {
   readonly autoAdvance: boolean;
   readonly stallFirstSession: boolean;
@@ -39,7 +49,7 @@ export class FixtureCameraKitAdapter implements CameraKitAdapter {
   private previewLive = false;
   private firstQualityFrameSeen = false;
   private cameraClosedDiagnosticSent = false;
-  private activeProfileId: CameraCaptureProfileId = 'youcam-camera-kit-hd-1080p';
+  private activeProfileId: CameraCaptureProfileId = 'youcam-camera-kit-standard-720p';
   private activeMountElement: HTMLElement | null = null;
   private activeAbortSignal: AbortSignal | null = null;
   private activeAbortListener: (() => void) | null = null;
@@ -204,12 +214,7 @@ export class FixtureCameraKitAdapter implements CameraKitAdapter {
     this.captureCount += 1;
     const profileId = this.activeProfileId;
     options.onStatus?.('captured');
-    options.onCapture(
-      new Blob(['face-value-camera-kit-fixture'], {
-        type: 'image/jpeg',
-      }),
-      profileId,
-    );
+    options.onCapture(abstractFixtureFrame(), profileId);
     this.cancelActive(false);
   }
 

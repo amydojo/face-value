@@ -1,4 +1,5 @@
 import type { RefObject } from 'react';
+import type { GuidedCaptureStatus } from '../../adapters/camera/youcam-camera-kit';
 import { CaptureCameraFeed } from './CaptureCameraFeed';
 import { CaptureInstruction } from './CaptureInstruction';
 import { CaptureQualityRail } from './CaptureQualityRail';
@@ -10,7 +11,6 @@ import { getCaptureInstruction } from './guidance';
 import { RegionRegistrationOverlay } from './RegionRegistrationOverlay';
 import type { CaptureSequenceState } from './types';
 import styles from './CaptureSequence.module.css';
-import './CaptureSequence.hotfix.css';
 
 export function CaptureSequence({
   state,
@@ -18,8 +18,10 @@ export function CaptureSequence({
   product,
   job,
   mountRef,
+  videoRef,
   fixture,
   previewLive,
+  previewStatus = 'preview-live',
   reducedMotion,
 }: {
   state: CaptureSequenceState;
@@ -27,11 +29,20 @@ export function CaptureSequence({
   product: string;
   job: string | null;
   mountRef: RefObject<HTMLDivElement | null>;
+  videoRef?: RefObject<HTMLVideoElement | null>;
   fixture: boolean;
   previewLive: boolean;
+  previewStatus?: GuidedCaptureStatus | 'idle';
   reducedMotion: boolean;
 }) {
-  const instruction = getCaptureInstruction(state);
+  const instruction =
+    previewStatus === 'loading' ||
+    previewStatus === 'requesting-permission' ||
+    previewStatus === 'camera-opening'
+      ? { primary: 'Opening camera', secondary: 'Keep your phone steady' }
+      : previewStatus === 'waiting-first-frame'
+        ? { primary: 'Preparing preview', secondary: 'This may take a moment' }
+        : getCaptureInstruction(state);
   return (
     <div
       className={styles.chassis}
@@ -42,6 +53,7 @@ export function CaptureSequence({
     >
       <CaptureCameraFeed
         mountRef={mountRef}
+        videoRef={videoRef}
         capturedImage={state.capturedImage}
         fixture={fixture}
         previewLive={previewLive}
@@ -56,7 +68,7 @@ export function CaptureSequence({
         <strong>{job ?? 'JOB UNASSIGNED'}</strong>
       </div>
       <CaptureInstruction copy={instruction} phase={state.phase} />
-      <FaceAcquisitionGuide phase={state.phase} />
+      {state.phase !== 'error' && <FaceAcquisitionGuide phase={state.phase} />}
       {state.phase === 'scanning' && <CaptureScanBand />}
       {state.phase === 'scanning' && (
         <RegionRegistrationOverlay regions={state.registeredRegions} />
@@ -67,7 +79,7 @@ export function CaptureSequence({
           <CapturedSpecimenTransition />
         </>
       )}
-      <CaptureQualityRail state={state} />
+      {state.phase !== 'error' && <CaptureQualityRail state={state} />}
     </div>
   );
 }

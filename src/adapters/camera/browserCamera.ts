@@ -144,11 +144,24 @@ export async function captureFrame(
   context.drawImage(video, 0, 0, canvas.width, canvas.height);
 
   return new Promise<Blob>((resolve, reject) => {
-    canvas.toBlob(
-      (blob) => (blob ? resolve(blob) : reject(new Error('toBlob returned null'))),
-      'image/jpeg',
-      0.92,
-    );
+    const clearCanvas = () => {
+      canvas.width = 0;
+      canvas.height = 0;
+    };
+    try {
+      canvas.toBlob(
+        (blob) => {
+          clearCanvas();
+          if (blob) resolve(blob);
+          else reject(new Error('toBlob returned null'));
+        },
+        'image/jpeg',
+        0.92,
+      );
+    } catch (error) {
+      clearCanvas();
+      reject(error);
+    }
   });
 }
 

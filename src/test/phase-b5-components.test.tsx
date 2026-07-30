@@ -365,10 +365,17 @@ it('shows one normalized instruction and instrumentation rail, then closes on un
   expect(adapter.sessionStartCount).toBe(0);
   expect(screen.getByRole('button', { name: 'START GUIDED CAPTURE' })).toBeVisible();
   expect(screen.getByRole('heading', { name: 'Position your face' })).toBeVisible();
+  expect(screen.getByLabelText('Choose a face photo')).toBeInTheDocument();
 
   await user.click(screen.getByRole('button', { name: 'START GUIDED CAPTURE' }));
   await waitFor(() => expect(adapter.sessionStartCount).toBe(1));
   expect(onReady).not.toHaveBeenCalled();
+  expect(screen.queryByLabelText('Choose a face photo')).not.toBeInTheDocument();
+  expect(
+    screen.queryByText(/The image is analyzed in memory and discarded/),
+  ).not.toBeInTheDocument();
+  expect(document.body.style.overflow).toBe('hidden');
+  expect(document.documentElement.style.overflow).toBe('hidden');
 
   act(() => {
     adapter.emitPreviewLive();
@@ -403,6 +410,8 @@ it('shows one normalized instruction and instrumentation rail, then closes on un
 
   unmount();
   expect(adapter.cancelCount).toBe(1);
+  expect(document.body.style.overflow).toBe('');
+  expect(document.documentElement.style.overflow).toBe('');
 });
 
 it('revokes the temporary captured-frame URL when the capture route unmounts', async () => {
@@ -514,8 +523,8 @@ it('recovers a stalled preview only from one fresh restart tap', async () => {
     name: 'RESTART CAMERA',
   });
   await waitFor(() => expect(restart).toHaveFocus());
-  expect(screen.getByRole('heading', { name: 'Camera unavailable' })).toBeVisible();
-  expect(screen.getByText('Choose an existing photo to continue')).toBeVisible();
+  expect(screen.getByRole('heading', { name: 'Preview stalled' })).toBeVisible();
+  expect(screen.getByText('Try opening the camera again')).toBeVisible();
   expect(onReady).not.toHaveBeenCalled();
 
   await user.click(screen.getByRole('button', { name: 'RESTART CAMERA' }));
