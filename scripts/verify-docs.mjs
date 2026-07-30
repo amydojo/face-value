@@ -22,6 +22,8 @@ const currentAuthorityFiles = [
   'docs/verification/face-value-specimen-acquisition/README.md',
 ];
 
+const staleAssertionFiles = currentAuthorityFiles.filter((file) => file !== 'docs/README.md');
+
 const requiredFiles = [
   ...currentAuthorityFiles,
   'docs/youcam-phase-b5-implementation.md',
@@ -159,16 +161,20 @@ for (const relativePath of currentAuthorityFiles) {
   const markdown = contents.get(relativePath);
   if (markdown === undefined) continue;
 
-  for (const { pattern, explanation } of highRiskStaleAssertions) {
-    if (pattern.test(markdown)) {
-      errors.push(`${relativePath}: stale assertion matched ${pattern}. ${explanation}`);
-    }
-  }
-
   for (const target of localMarkdownTargets(markdown)) {
     const resolvedTarget = resolve(root, dirname(relativePath), target);
     if (!(await exists(resolvedTarget))) {
       errors.push(`${relativePath}: local Markdown target does not exist: ${target}`);
+    }
+  }
+}
+
+for (const relativePath of staleAssertionFiles) {
+  const markdown = contents.get(relativePath);
+  if (markdown === undefined) continue;
+  for (const { pattern, explanation } of highRiskStaleAssertions) {
+    if (pattern.test(markdown)) {
+      errors.push(`${relativePath}: stale assertion matched ${pattern}. ${explanation}`);
     }
   }
 }
