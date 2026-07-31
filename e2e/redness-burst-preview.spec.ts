@@ -9,7 +9,6 @@ import { buildDemoFixtureState } from '../src/features/demo-lab/demoFixtureState
 
 const previewVerification = Boolean(process.env.PLAYWRIGHT_BASE_URL);
 const captureEvidence = process.env.CAPTURE_REDNESS_BURST_EVIDENCE === 'true';
-const vercelShareToken = process.env.VERCEL_SHARE_BYPASS_TOKEN?.trim() || null;
 const evidenceDirectory = resolve('docs/verification/redness-evidence-burst-63');
 const baselineReady = toPersistedDemoData(
   buildDemoFixtureState('baseline_ready', 'clear_favorable_change'),
@@ -120,6 +119,8 @@ test.describe('exact-preview redness burst verification', () => {
 
 declare global {
   interface Window {
+    __faceValueCaptureHeadingObserver?: MutationObserver;
+    __faceValueCaptureHeadings?: string[];
     __faceValueUnhandledRejections?: string[];
   }
 }
@@ -142,11 +143,7 @@ async function saveEvidence(locator: Locator, name: string): Promise<void> {
 }
 
 async function seedBaselineReady(page: Page): Promise<void> {
-  const initialUrl = new URL('/?redness-burst-preview-verification=1', 'https://preview.invalid');
-  if (vercelShareToken) {
-    initialUrl.searchParams.set('_vercel_share', vercelShareToken);
-  }
-  await page.goto(`${initialUrl.pathname}${initialUrl.search}`);
+  await page.goto('/?redness-burst-preview-verification=1');
   await page.evaluate(({ key, value }) => localStorage.setItem(key, JSON.stringify(value)), {
     key: STORAGE_KEY,
     value: baselineReady,
@@ -157,6 +154,25 @@ async function seedBaselineReady(page: Page): Promise<void> {
 
 async function startGuidedCapture(page: Page): Promise<void> {
   await expect(page.getByRole('heading', { name: 'Position your face' })).toBeVisible();
+  await page.evaluate(() => {
+    window.__faceValueCaptureHeadingObserver?.disconnect();
+    window.__faceValueCaptureHeadings = [];
+    const recordHeadings = () => {
+      for (const heading of document.querySelectorAll('h1, h2, h3')) {
+        const text = heading.textContent?.trim();
+        if (text && !window.__faceValueCaptureHeadings!.includes(text)) {
+          window.__faceValueCaptureHeadings!.push(text);
+        }
+      }
+    };
+    recordHeadings();
+    window.__faceValueCaptureHeadingObserver = new MutationObserver(recordHeadings);
+    window.__faceValueCaptureHeadingObserver.observe(document.body, {
+      characterData: true,
+      childList: true,
+      subtree: true,
+    });
+  });
   await page.getByRole('button', { name: 'START GUIDED CAPTURE' }).click();
   await expect(page.locator('[data-preview-state="preview-live"]')).toBeVisible();
   await expect(
@@ -166,12 +182,21 @@ async function startGuidedCapture(page: Page): Promise<void> {
 }
 
 async function finishCaptureContext(page: Page, role: 'baseline' | 'followup'): Promise<void> {
-  await expect(page.getByRole('heading', { name: '3 measurements accepted' })).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Processing measurements' })).toBeVisible();
+  await expect
+    .poll(() =>
+      page.evaluate(() => window.__faceValueCaptureHeadings?.includes('3 measurements accepted')),
+    )
+    .toBe(true);
+  await expect
+    .poll(() =>
+      page.evaluate(() => window.__faceValueCaptureHeadings?.includes('Processing measurements')),
+    )
+    .toBe(true);
   await expect(
     page.getByRole('heading', { name: 'Anything meaningfully different today?' }),
   ).toBeVisible();
   await expect(page.locator(`[data-fv-screen="${role}-context"]`)).toBeVisible();
+  await page.evaluate(() => window.__faceValueCaptureHeadingObserver?.disconnect());
   await page.getByRole('button', { name: 'NOTHING DIFFERENT' }).click();
   if (role === 'baseline') {
     await expect(page.getByRole('heading', { name: 'Baseline locked.' })).toBeVisible();

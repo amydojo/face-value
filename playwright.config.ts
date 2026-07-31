@@ -4,6 +4,16 @@ const capturingHomeVerdictEvidence = process.env.CAPTURE_HOME_VERDICT_EVIDENCE =
 const capturingRednessEvidence = process.env.CAPTURE_REDNESS_EVIDENCE === 'true';
 const capturingEvidenceRecord = process.env.CAPTURE_EVIDENCE_RECORD === 'true';
 const externalBaseURL = process.env.PLAYWRIGHT_BASE_URL?.trim() || null;
+const vercelAutomationBypassSecret =
+  process.env.VERCEL_AUTOMATION_BYPASS_SECRET?.trim() || null;
+const externalPreviewHeaders = externalBaseURL
+  ? {
+      ...(vercelAutomationBypassSecret
+        ? { 'x-vercel-protection-bypass': vercelAutomationBypassSecret }
+        : {}),
+      'x-vercel-skip-toolbar': '1',
+    }
+  : undefined;
 const requestedPort = Number(process.env.PLAYWRIGHT_PORT);
 const serverPort =
   Number.isInteger(requestedPort) && requestedPort > 0
@@ -33,7 +43,11 @@ export default defineConfig({
   retries: 0,
   reporter: process.env.CI ? 'github' : 'list',
   expect: { toHaveScreenshot: captureRasterAllowance },
-  use: { baseURL, trace: 'retain-on-failure' },
+  use: {
+    baseURL,
+    trace: 'retain-on-failure',
+    extraHTTPHeaders: externalPreviewHeaders,
+  },
   webServer: externalBaseURL
     ? undefined
     : {
