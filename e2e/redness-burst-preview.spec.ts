@@ -41,7 +41,7 @@ test.describe('exact-preview redness burst verification', () => {
     await saveEvidence(captureScreen, 'recoverable-rejection.png');
     await expect(captureScreen).toHaveAttribute('data-burst-captured', '1');
     await expect(page.locator('[data-measurement-indicator]')).toHaveAttribute(
-      'data-measurements-accepted',
+      'data-measurements-real-confirmed',
       '1',
     );
     await saveEvidence(captureScreen, 'baseline-burst-progression.png');
