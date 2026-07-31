@@ -10,6 +10,12 @@ import {
   trialDaySummary,
 } from '../domain/phaseB5';
 import { oracleTrialIdentity, oracleTrialIdentityForRecord } from '../domain/oracleTrialIdentity';
+import {
+  baselineEvidenceCapturedAt,
+  followUpEvidenceCapturedAt,
+  hasBaselineEvidence,
+  hasFollowUpEvidence,
+} from '../domain/rednessEvidenceBurst';
 import styles from '../styles/FaceValue.module.css';
 import { Archive } from './archive/Archive';
 import { CaptureContextSurface } from './capture-context/CaptureContextSurface';
@@ -127,6 +133,10 @@ function FollowUpActionContents({
 
 export function FaceValueApplication() {
   const { state, dispatch, demoRuntime } = useFaceValue();
+  const hasBaseline = hasBaselineEvidence(state.longitudinalEvidence);
+  const hasFollowUp = hasFollowUpEvidence(state.longitudinalEvidence);
+  const baselineEvidenceAt = baselineEvidenceCapturedAt(state.longitudinalEvidence);
+  const followUpEvidenceAt = followUpEvidenceCapturedAt(state.longitudinalEvidence);
   const captureSpecimen = useMemo(
     () => (state.registeredProduct ? specimenFromRegisteredProduct(state.registeredProduct) : null),
     [state.registeredProduct],
@@ -162,12 +172,14 @@ export function FaceValueApplication() {
       demoRuntime.startingPoint === 'comparison_processing' ||
       state.analysis ||
       state.longitudinalEvidence.comparison ||
-      !state.longitudinalEvidence.baseline ||
-      !state.longitudinalEvidence.followUp
+      !hasBaseline ||
+      !hasFollowUp ||
+      !baselineEvidenceAt ||
+      !followUpEvidenceAt
     ) {
       return;
     }
-    const requestKey = `${state.longitudinalEvidence.baseline.capturedAt}:${state.longitudinalEvidence.followUp.capturedAt}`;
+    const requestKey = `${baselineEvidenceAt}:${followUpEvidenceAt}`;
     if (comparisonRequestRef.current === requestKey) return;
     const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     const timer = window.setTimeout(
@@ -181,20 +193,18 @@ export function FaceValueApplication() {
     return () => window.clearTimeout(timer);
   }, [
     dispatch,
+    baselineEvidenceAt,
+    followUpEvidenceAt,
+    hasBaseline,
+    hasFollowUp,
     state.analysis,
-    state.longitudinalEvidence.baseline,
     state.longitudinalEvidence.comparison,
-    state.longitudinalEvidence.followUp,
     state.stage,
     demoRuntime.startingPoint,
   ]);
 
   useEffect(() => {
-    if (
-      !['waiting_for_followup', 'cabinet'].includes(state.stage) ||
-      !state.longitudinalEvidence.baseline ||
-      state.longitudinalEvidence.followUp
-    ) {
+    if (!['waiting_for_followup', 'cabinet'].includes(state.stage) || !hasBaseline || hasFollowUp) {
       return;
     }
     const check = () =>
@@ -205,20 +215,14 @@ export function FaceValueApplication() {
     check();
     const interval = window.setInterval(check, 60_000);
     return () => window.clearInterval(interval);
-  }, [
-    dispatch,
-    demoRuntime.fixtureNow,
-    state.longitudinalEvidence.baseline,
-    state.longitudinalEvidence.followUp,
-    state.stage,
-  ]);
+  }, [dispatch, demoRuntime.fixtureNow, hasBaseline, hasFollowUp, state.stage]);
 
   const renderTrialIndex = () => {
     const latestEvidence = state.archive[0] ?? null;
     const latestIdentity = latestEvidence ? oracleTrialIdentityForRecord(latestEvidence) : null;
     const hasActiveTrial = Boolean(
       state.registeredProduct &&
-      state.longitudinalEvidence.baseline &&
+      hasBaseline &&
       ['active_stable', 'active_disturbed', 'waiting', 'review_due'].includes(state.observation) &&
       !state.placementSealed,
     );
@@ -241,7 +245,7 @@ export function FaceValueApplication() {
     const activeIdentity =
       hasActiveTrial && state.registeredProduct
         ? oracleTrialIdentity({
-            baselineAt: state.baselineLockedAt ?? state.longitudinalEvidence.baseline?.capturedAt,
+            baselineAt: state.baselineLockedAt ?? baselineEvidenceAt,
             followUpAt: state.followUpEligibleAt,
             accession: state.registeredProduct.accession,
           })

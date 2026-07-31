@@ -416,9 +416,13 @@ it('shows one normalized instruction and instrumentation rail, then closes on un
 
 it('revokes the temporary captured-frame URL when the capture route unmounts', async () => {
   const user = userEvent.setup();
-  const capturedBlob = new Blob(['abstract-specimen'], {
-    type: 'image/jpeg',
-  });
+  const capturedBlobs = Array.from(
+    { length: 3 },
+    (_, index) =>
+      new Blob([`abstract-specimen-${index + 1}`], {
+        type: 'image/jpeg',
+      }),
+  );
   const createObjectUrl = vi
     .spyOn(URL, 'createObjectURL')
     .mockReturnValue('blob:temporary-captured-frame');
@@ -427,7 +431,16 @@ it('revokes the temporary captured-frame URL when the capture route unmounts', a
   const adapter: CameraKitAdapter = {
     async start(options) {
       options.onStatus?.('preview-live');
-      options.onCapture(capturedBlob, 'youcam-camera-kit-hd-1080p');
+      capturedBlobs.forEach((capturedBlob, index) => {
+        options.onCapture(capturedBlob, 'youcam-camera-kit-hd-1080p', {
+          frameId: `resource-frame-${index + 1}`,
+          capturedAt: `2026-07-30T12:00:00.00${index + 1}Z`,
+        });
+      });
+      options.onBurstComplete?.({
+        attemptedFrameCount: 3,
+        acceptedFrameCount: 3,
+      });
       return {
         captureProfileId: 'youcam-camera-kit-hd-1080p',
         cancel,
@@ -452,7 +465,7 @@ it('revokes the temporary captured-frame URL when the capture route unmounts', a
 
   try {
     await user.click(screen.getByRole('button', { name: 'START GUIDED CAPTURE' }));
-    await waitFor(() => expect(createObjectUrl).toHaveBeenCalledWith(capturedBlob));
+    await waitFor(() => expect(createObjectUrl).toHaveBeenCalledWith(capturedBlobs[2]));
 
     unmount();
     expect(revokeObjectUrl).toHaveBeenCalledWith('blob:temporary-captured-frame');
@@ -492,7 +505,7 @@ it('focuses the single fallback when guided capture is unavailable', async () =>
   await user.click(screen.getByRole('button', { name: 'TRY CAMERA AGAIN' }));
   expect(await screen.findByRole('alert')).toHaveTextContent('Camera unavailable');
   await waitFor(() => expect(screen.getByLabelText('Choose a face photo')).toHaveFocus());
-  expect(screen.getByText('Choose an existing photo to continue')).toBeVisible();
+  expect(screen.getByText('A live camera is required for this scan')).toBeVisible();
 });
 
 it('recovers a stalled preview only from one fresh restart tap', async () => {

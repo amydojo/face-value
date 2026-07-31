@@ -37,11 +37,14 @@ it('keeps file fallback available when camera is denied', () => {
       onBack={vi.fn()}
     />,
   );
-  expect(screen.getByLabelText('Choose a face photo')).toHaveAttribute('accept', 'image/jpeg,image/png,.jpg,.jpeg,.png');
-  expect(screen.getByText(/Choose a photo instead/i)).toBeInTheDocument();
+  expect(screen.getByLabelText('Choose a face photo')).toHaveAttribute(
+    'accept',
+    'image/jpeg,image/png,.jpg,.jpeg,.png',
+  );
+  expect(screen.getByText(/single existing photo cannot complete/i)).toBeInTheDocument();
 });
 
-it('hands the file fallback off immediately without preview approval', async () => {
+it('keeps the file fallback explicitly single-image-limited', async () => {
   const user = userEvent.setup();
   const onAccepted = vi.fn();
   const onDelete = vi.fn();
@@ -63,13 +66,12 @@ it('hands the file fallback off immediately without preview approval', async () 
     screen.getByLabelText('Choose a face photo'),
     new File(['fixture'], 'capture.jpg', { type: 'image/jpeg' }),
   );
-  await waitFor(() => expect(onAccepted).toHaveBeenCalledOnce());
-  expect(
-    screen.queryByRole('button', { name: /use this capture/i }),
-  ).not.toBeInTheDocument();
-  expect(
-    screen.queryByRole('button', { name: /delete current capture/i }),
-  ).not.toBeInTheDocument();
+  expect(await screen.findByText('One photo is not enough for this scan.')).toBeVisible();
+  expect(screen.getByText(/nothing was added to your trial/i)).toBeVisible();
+  expect(onAccepted).not.toHaveBeenCalled();
+  expect(screen.getByLabelText('Choose a face photo')).toHaveValue('');
+  expect(screen.queryByRole('button', { name: /use this capture/i })).not.toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: /delete current capture/i })).not.toBeInTheDocument();
   expect(onDelete).not.toHaveBeenCalled();
 });
 

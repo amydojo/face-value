@@ -18,27 +18,60 @@ function acceptedScoresForSession(session: EvidenceSession): {
   invalidReasons: string[];
 } {
   const invalidReasons: string[] = [];
-  if (session.frameIds.length !== session.rawScores.length) {
-    invalidReasons.push(`${session.sessionId}: frame IDs and raw scores do not align.`);
+  if (session.acceptedFrameIds.length !== session.rawScores.length) {
+    invalidReasons.push(`${session.sessionId}: accepted frame IDs and raw scores do not align.`);
   }
 
   const scores: number[] = [];
+  const attemptedFrameIds = new Set<string>();
+  for (const frameId of session.frameIds) {
+    if (attemptedFrameIds.has(frameId)) {
+      invalidReasons.push(`${session.sessionId}: attempted frame ${frameId} is duplicated.`);
+    }
+    attemptedFrameIds.add(frameId);
+  }
+
   const seenFrameIds = new Set<string>();
-  for (const frameId of session.acceptedFrameIds) {
+  for (const [acceptedIndex, frameId] of session.acceptedFrameIds.entries()) {
     if (seenFrameIds.has(frameId)) {
       invalidReasons.push(`${session.sessionId}: accepted frame ${frameId} is duplicated.`);
       continue;
     }
     seenFrameIds.add(frameId);
-    const frameIndex = session.frameIds.indexOf(frameId);
-    const rawScore = session.rawScores[frameIndex];
-    if (frameIndex < 0 || !Number.isFinite(rawScore)) {
+    const rawScore = session.rawScores[acceptedIndex];
+    if (!attemptedFrameIds.has(frameId) || !Number.isFinite(rawScore)) {
       invalidReasons.push(
         `${session.sessionId}: accepted frame ${frameId} has no finite raw score.`,
       );
       continue;
     }
     scores.push(rawScore);
+  }
+
+  const rejectedFrameIds = new Set<string>();
+  for (const rejected of session.rejectedFrames) {
+    if (rejectedFrameIds.has(rejected.frameId)) {
+      invalidReasons.push(
+        `${session.sessionId}: rejected frame ${rejected.frameId} is duplicated.`,
+      );
+    }
+    rejectedFrameIds.add(rejected.frameId);
+    if (!attemptedFrameIds.has(rejected.frameId)) {
+      invalidReasons.push(
+        `${session.sessionId}: rejected frame ${rejected.frameId} was not an attempted frame.`,
+      );
+    }
+    if (seenFrameIds.has(rejected.frameId)) {
+      invalidReasons.push(
+        `${session.sessionId}: frame ${rejected.frameId} is both accepted and rejected.`,
+      );
+    }
+  }
+
+  for (const frameId of attemptedFrameIds) {
+    if (!seenFrameIds.has(frameId) && !rejectedFrameIds.has(frameId)) {
+      invalidReasons.push(`${session.sessionId}: attempted frame ${frameId} has no disposition.`);
+    }
   }
 
   return { scores, invalidReasons };

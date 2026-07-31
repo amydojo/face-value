@@ -10,12 +10,16 @@ The hackathon production slice is deliberately narrow:
 
 ## Current repository truth
 
-This README describes `main` after merged PR #62 (`e0173ee`). Planned work in issues #63–#65 is listed separately and is not represented as already implemented.
+This implementation is based on `main` at merged PR #67
+(`330f51975f162a2c15784114d7a448492973fcad`) and includes issue #63.
+Issues #64 and #65 remain planned work.
 
 Current production behavior includes:
 
 - reducer-owned product registration and trial continuity
 - a first-party browser camera surface with the Face Value acquisition sequence
+- one continuous three-measurement baseline and follow-up acquisition ritual
+- three distinct decoded frames and three independent YouCam analyses per period
 - secure YouCam Skin Analysis v2.1 requests through server-only API routes
 - `hd_redness.raw_score` as the deciding optical signal
 - a frozen baseline/follow-up protocol
@@ -28,8 +32,11 @@ Current production behavior includes:
 
 Current limitations are equally important:
 
-- one accepted baseline score and one accepted follow-up score are stored per ordinary trial period
-- measurement quality remains limited because repeated burst evidence and several cross-session comparability signals are not yet collected
+- each ordinary period requires three accepted provider observations but still
+  represents one short acquisition session
+- measurement quality remains limited because cross-session pose, facial
+  registration, segmentation, crop, face size, color cast, and skin-tone
+  properties are not measured
 - adherence, tolerance, and participant-observed redness change are not yet collected in the ordinary path
 - the 5/10 boundaries are provisional Face Value operating thresholds, not clinical significance thresholds
 - the provider does not currently report an analysis-model version
@@ -46,7 +53,7 @@ empty instrument
 → register product identity
 → assign Reduce visible redness
 → specimen loads and identity locks
-→ guided baseline capture
+→ guided baseline evidence burst
 → optional capture context
 → baseline locked
 → trial pending
@@ -56,7 +63,7 @@ empty instrument
 
 ```text
 follow-up ready
-→ guided follow-up capture
+→ guided follow-up evidence burst
 → optional capture context
 → deterministic comparison
 → sealed Oracle
@@ -73,12 +80,12 @@ The current archive label is **Previous Trials**. Internal compatibility names s
 YouCam measures the skin. Face Value judges the trial.
 
 ```text
-in-memory capture
-→ YouCam Skin Analysis v2.1
-→ normalized hd_redness.raw_score
+three distinct in-memory frames
+→ three independent YouCam Skin Analysis v2.1 requests
+→ three normalized hd_redness.raw_score observations
 → frozen protocol and face-free capture metadata
 → canonical redness evidence adapter
-→ deterministic evaluator
+→ deterministic median, direction agreement, and evaluation
 → immutable RednessEvaluationSnapshot
 → verdict presentation
 → exactly-once Evidence Record
@@ -127,20 +134,24 @@ The external Perfect Corp Camera Kit renderer is retained as a development diagn
 
 See [`docs/camera-contract.md`](docs/camera-contract.md).
 
-## Planned Phase C work
+## Phase C status
 
-The remaining implementation is dependency ordered:
+1. **#63 — Evidence Burst (implemented in this change)**
 
-1. **#63 — Evidence Burst**  
-   Three independently analyzed frames per baseline and follow-up, median aggregation, direction agreement, bounded rejection evidence, and face-free persistence.
+   Three independently analyzed current frames per baseline and follow-up,
+   reducer-owned atomic period commit, evaluator-owned aggregation, bounded
+   rejected-attempt evidence, and face-free persistence.
 
-2. **#64 — Trial Truth**  
+2. **#64 — Trial Truth (planned)**
+
    Explicit adherence, tolerance, and participant-observed redness direction mapped into the existing evaluator without UI-side verdict logic.
 
-3. **#65 — Preliminary Calibration Harness**  
+3. **#65 — Preliminary Calibration Harness (planned)**
+
    A protected internal repeatability instrument and exploratory technical report. Production trials continue using the provisional 5/10 configuration unless a future separately reviewed graduation process approves otherwise.
 
-Planned work does not become repository truth until its pull request is merged and the authority docs are updated in the same change.
+Planned work does not become repository truth until its pull request is merged
+and the authority docs are updated in the same change.
 
 ## Local setup
 
@@ -186,6 +197,10 @@ Start with:
 
 ## Verification status
 
-Automated CI and Vercel checks passed for the PR #62 merge head. WebKit fixture evidence and the physical-iPhone observations that motivated the native-camera correction are recorded in the repository.
+Issue #63 automated, preview, and browser verification is recorded in
+[`docs/verification/redness-evidence-burst-63/README.md`](docs/verification/redness-evidence-burst-63/README.md)
+and the draft pull request for the exact head.
 
-A final exact-head physical-iPhone acceptance pass for the merged production journey remains a release gate and must be recorded explicitly rather than inferred from synthetic browser screenshots.
+A final exact-head physical-iPhone acceptance pass remains a release gate and
+must be recorded explicitly rather than inferred from synthetic browser
+screenshots.

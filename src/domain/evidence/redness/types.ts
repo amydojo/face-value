@@ -50,6 +50,8 @@ export interface CaptureQuality {
 export interface RejectedFrame {
   frameId: string;
   reasons: string[];
+  attemptedAt?: string;
+  stage?: 'capture' | 'provider';
 }
 
 export interface EvidenceSession {
@@ -57,7 +59,9 @@ export interface EvidenceSession {
   capturedAt: string;
   deviceClass: string;
   cameraFacing: 'front';
+  /** Every attempted frame, accepted or rejected, in acquisition order. */
   frameIds: string[];
+  /** Positionally aligned with acceptedFrameIds; rejected attempts have no score. */
   rawScores: number[];
   acceptedFrameIds: string[];
   rejectedFrames: RejectedFrame[];

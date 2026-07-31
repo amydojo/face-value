@@ -2,7 +2,10 @@
 
 **Status:** Current architecture authority  
 **Effective date:** July 30, 2026  
-**Implementation baseline:** `main` after PR #62 (`e0173ee`)
+**Implementation base:** `main` at merged PR #67
+(`330f51975f162a2c15784114d7a448492973fcad`)
+
+**Current change:** issue #63
 
 ## 1. Authority model
 
@@ -13,8 +16,9 @@ The application reducer owns:
 - registered product and assigned job
 - trial timing and eligibility
 - capture role and face-free metadata
+- active burst generation, bounded attempts, and provider settlement
 - frozen YouCam protocol
-- accepted baseline and follow-up signals
+- atomic baseline and follow-up bursts
 - context and confounders
 - deterministic comparison readiness
 - immutable redness evaluation
@@ -93,17 +97,35 @@ The external Perfect Corp Camera Kit renderer remains a development diagnostic h
 Current data flow:
 
 ```text
-in-memory capture
-→ protected YouCam analysis
-→ normalized hd_redness.raw_score
-→ DurableSkinSignal
+one native camera session
+→ three distinct decoded in-memory frames
+→ three independent protected YouCam analyses
+→ three normalized hd_redness.raw_score DurableSkinSignals
+→ atomic RednessEvidenceBurst commit
 → canonical redness evidence adapter
-→ deterministic evaluator
+→ deterministic aggregation and evaluator
 → RednessEvaluationSnapshot
 → VerdictViewModel
 ```
 
-At the current baseline, the ordinary live adapter supplies one accepted raw score for baseline and one for follow-up. It does not manufacture repeated frames, patient anchors, adherence, tolerance, masks, registration, segmentation, or unavailable provider metadata.
+The native adapter accepts at most five capture attempts to obtain three
+current frames. Every accepted frame has a unique identifier, decoded-frame
+currentness proof, and fresh exposure and movement gate evidence. Provider
+orchestration is sequential and sends one independent request per frame. A
+failed provider request is retried exactly once on that same frame; a second
+failure rejects the generation.
+
+Image-bearing frames live only in the acquisition component's ephemeral
+registry. The reducer receives face-free frame and provider metadata, owns the
+active generation, ignores stale or duplicate settlement, and commits the
+complete period only after three valid analyzed measurements exist. Incomplete
+generations are never serialized.
+
+The ordinary live adapter supplies the actual three-score baseline and
+follow-up arrays plus truthful rejected-frame evidence to the canonical
+evaluator. It does not manufacture repeated frames, patient anchors, adherence,
+tolerance, masks, registration, segmentation, or unavailable provider
+metadata.
 
 `buildMvpRednessEvaluation` is the only live bridge from compatibility state into the canonical evaluator. Retired sign-only helpers may not return to the production path.
 
@@ -149,15 +171,27 @@ These are operating thresholds, not clinical-significance boundaries.
 
 Durable state includes structured trial and evaluation data only. It excludes image bytes, `File`, `Blob`, object URLs, base64, signed URLs, provider task IDs, API credentials, raw provider payloads, streams, and vendor SDK instances.
 
+Complete face-free bursts may be serialized. `activeRednessBurst` and all
+ephemeral image registries, abort controllers, luma samples, streams, and
+provider work are runtime-only and are omitted from persistence. Legacy
+single-signal records remain readable without synthesizing bursts or
+re-evaluating saved snapshots.
+
 Canonical records render from the saved snapshot and are never re-evaluated during hydration or display.
 
 ## 9. Automatic comparison boundary
 
-A guarded application effect requests `COMPARISON_CREATED` only when accepted baseline and follow-up evidence exist, the frozen protocol is compatible, and the comparison has not already settled.
+A guarded application effect requests `COMPARISON_CREATED` only when complete
+baseline and follow-up burst evidence exists, the frozen protocol is
+compatible, and the comparison has not already settled. Compatibility
+single-signal records remain readable through the same boundary.
 
 The reducer invokes the canonical evaluator exactly once for that evidence generation. Duplicate starts and stale completions are rejected.
 
-#63 will replace the current one-signal periods with atomic burst-backed periods while preserving this comparison boundary.
+The evaluator receives the accepted raw-score arrays and rejected-frame
+evidence. It alone calculates period medians, direction agreement, delta,
+quality, verdict, and action. React and provider adapters do not calculate or
+persist a synthetic median signal.
 
 ## 10. Oracle presentation boundary
 
@@ -239,9 +273,9 @@ Current verification must reject:
 
 Run `npm run verify:redness-architecture`, `npm run verify:privacy`, and `npm run verify:docs`.
 
-## 15. Planned changes
+## 15. Phase C status
 
-- #63 extends capture, analysis orchestration, state, persistence, and evidence adapters with three-frame bursts.
+- #63 extends capture, analysis orchestration, state, persistence, and evidence adapters with three-frame bursts in this change.
 - #64 adds reducer-owned trial-truth evidence before comparison readiness.
 - #65 adds isolated calibration data and pure internal analysis without changing the production threshold.
 

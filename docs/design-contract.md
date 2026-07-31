@@ -2,7 +2,10 @@
 
 **Status:** Current visual and interaction authority  
 **Effective date:** July 30, 2026  
-**Implementation baseline:** `main` after PR #62 (`e0173ee`)
+**Implementation base:** `main` at merged PR #67
+(`330f51975f162a2c15784114d7a448492973fcad`)
+
+**Current change:** issue #63
 
 ## 1. One persistent instrument
 
@@ -135,7 +138,8 @@ Searching
 → Aligning
 → Locking
 → Scanning
-→ Captured
+→ 3 Measurements Accepted
+→ Processing
 ```
 
 The current visual contract includes:
@@ -151,7 +155,16 @@ The current visual contract includes:
 
 The authored guide is positioning direction, not proof of automated face geometry. Copy and visuals must not imply landmark tracking, skin diagnosis, or biometric identity.
 
-During a future #63 burst, the user still experiences one continuous scan. Any three-position progress indicator must remain subordinate to the existing optic and must not turn the screen into a multi-photo checklist.
+During the current burst, the user still experiences one continuous scan. The
+restrained three-position accepted-frame indicator remains subordinate to the
+existing optic and does not turn the screen into a multi-photo checklist.
+Positions use the established amber instrument language rather than generic
+green success styling. The interface shows no raw redness scores, calibration
+terminology, deliberate repositioning prompt, or extra shutter controls.
+
+Recoverable capture rejection calmly acquires a replacement without adding a
+new ceremony. After three positions settle, the deterministic **3 MEASUREMENTS
+ACCEPTED** confirmation appears briefly before one transition to Processing.
 
 ## 9. Oracle result machine
 
@@ -316,9 +329,9 @@ Current visual nodes and verification evidence are listed in `source-of-truth-ma
 
 When Figma and merged implementation differ, use the manifest and exact PR verification record to determine whether Figma is geometry authority, visual direction, or historical lineage. Do not revive a superseded component from an old node solely because it is visually polished.
 
-## 18. Planned additions
+## 18. Phase C additions
 
-- #63 may add restrained burst progress without changing the camera’s physical grammar.
+- #63 adds restrained burst progress without changing the camera’s physical grammar.
 - #64 may add compact evidence-question controls using the shared page hierarchy.
 - #65 adds an internal instrument, not a consumer visual redesign.
 

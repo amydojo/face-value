@@ -1,4 +1,8 @@
 import type { CameraCaptureProfileId } from '../../../domain/model';
+import {
+  REDNESS_BURST_MAX_CAPTURE_ATTEMPTS,
+  REDNESS_BURST_REQUIRED_MEASUREMENTS,
+} from '../../../domain/rednessEvidenceBurst';
 import { emptyGuidedCaptureQuality, normalizeCameraKitQuality } from './quality';
 import { selectCameraKitCaptureProfile } from './captureProfile';
 import { logSafeCameraKitDiagnostic } from './diagnostics';
@@ -17,6 +21,7 @@ export type FixtureCaptureScenario =
   | 'signal-flicker'
   | 'lose-lock'
   | 'lose-scan'
+  | 'burst-rejection'
   | 'permission-denied'
   | 'camera-unavailable';
 
@@ -24,10 +29,9 @@ const abstractFixtureFrame = (): Blob => {
   const binary = atob(
     'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNgYAAAAAMAASsJTYQAAAAASUVORK5CYII=',
   );
-  return new Blob(
-    [Uint8Array.from(binary, (character) => character.charCodeAt(0))],
-    { type: 'image/png' },
-  );
+  return new Blob([Uint8Array.from(binary, (character) => character.charCodeAt(0))], {
+    type: 'image/png',
+  });
 };
 
 export class FixtureCameraKitAdapter implements CameraKitAdapter {
@@ -46,6 +50,8 @@ export class FixtureCameraKitAdapter implements CameraKitAdapter {
   private readySince: number | null = null;
   private stableForMs = 2_400;
   private activeCaptured = false;
+  private attemptedFrameCount = 0;
+  private acceptedFrameCount = 0;
   private previewLive = false;
   private firstQualityFrameSeen = false;
   private cameraClosedDiagnosticSent = false;
@@ -80,6 +86,8 @@ export class FixtureCameraKitAdapter implements CameraKitAdapter {
     this.activeQuality = emptyGuidedCaptureQuality();
     this.readySince = null;
     this.activeCaptured = false;
+    this.attemptedFrameCount = 0;
+    this.acceptedFrameCount = 0;
     this.previewLive = false;
     this.firstQualityFrameSeen = false;
     this.cameraClosedDiagnosticSent = false;
@@ -211,8 +219,45 @@ export class FixtureCameraKitAdapter implements CameraKitAdapter {
     }
 
     this.activeCaptured = true;
-    this.captureCount += 1;
     const profileId = this.activeProfileId;
+    const capturedAt = new Date().toISOString();
+
+    if (options.burstGenerationId) {
+      if (this.scenario === 'burst-rejection') {
+        this.attemptedFrameCount += 1;
+        options.onRejectedAttempt?.({
+          frameId: `fixture-${options.burstGenerationId}-${this.attemptedFrameCount}`,
+          attemptedAt: capturedAt,
+          reasons: ['movement above accepted range'],
+        });
+      }
+      while (
+        this.acceptedFrameCount < REDNESS_BURST_REQUIRED_MEASUREMENTS &&
+        this.attemptedFrameCount < REDNESS_BURST_MAX_CAPTURE_ATTEMPTS
+      ) {
+        this.attemptedFrameCount += 1;
+        this.acceptedFrameCount += 1;
+        this.captureCount += 1;
+        options.onCapture(abstractFixtureFrame(), profileId, {
+          frameId: `fixture-${options.burstGenerationId}-${this.attemptedFrameCount}`,
+          capturedAt: new Date(Date.now() + this.attemptedFrameCount).toISOString(),
+        });
+      }
+      if (this.acceptedFrameCount < REDNESS_BURST_REQUIRED_MEASUREMENTS) {
+        this.cancelActive(false);
+        options.onFailure('burst-exhausted');
+        return;
+      }
+      options.onStatus?.('captured');
+      options.onBurstComplete?.({
+        attemptedFrameCount: this.attemptedFrameCount,
+        acceptedFrameCount: this.acceptedFrameCount,
+      });
+      this.cancelActive(false);
+      return;
+    }
+
+    this.captureCount += 1;
     options.onStatus?.('captured');
     options.onCapture(abstractFixtureFrame(), profileId);
     this.cancelActive(false);

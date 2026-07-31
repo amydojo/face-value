@@ -41,7 +41,17 @@ const stateFor = (
   capturedImage,
 });
 
-const renderSequence = (state: CaptureSequenceState, reducedMotion = false) =>
+const renderSequence = (
+  state: CaptureSequenceState,
+  reducedMotion = false,
+  {
+    burstStatus,
+    captureKind,
+  }: {
+    burstStatus?: 'idle' | 'capturing' | 'analyzing' | 'ready' | 'failed';
+    captureKind?: 'baseline' | 'followup';
+  } = {},
+) =>
   render(
     <CaptureSequence
       state={state}
@@ -52,6 +62,8 @@ const renderSequence = (state: CaptureSequenceState, reducedMotion = false) =>
       fixture
       previewLive
       reducedMotion={reducedMotion}
+      burstStatus={burstStatus}
+      captureKind={captureKind}
     />,
   );
 
@@ -135,6 +147,27 @@ describe('canonical capture phase presentation', () => {
     expect(document.querySelector('[data-region-registration-overlay]')).toBeNull();
   });
 
+  it('does not mark unmeasured native-camera alignment as passing', () => {
+    const measuredFrameQuality = quality({
+      facePresent: false,
+      distanceValid: false,
+      alignmentValid: false,
+      angleValid: false,
+    });
+    const state = stateFor('scanning', { quality: measuredFrameQuality });
+    state.latestSample = {
+      ...state.latestSample,
+      verificationMode: 'frame-quality',
+      frameReady: true,
+      quality: measuredFrameQuality,
+    };
+    renderSequence(state);
+    expect(screen.getByLabelText('light: passed')).toBeVisible();
+    expect(screen.getByLabelText('stillness: passed')).toBeVisible();
+    expect(screen.getByLabelText('alignment: pending')).toBeVisible();
+    expect(screen.queryByLabelText('alignment: passed')).not.toBeInTheDocument();
+  });
+
   it('renders Captured over the same persistent bitmap and guide', () => {
     renderSequence(
       stateFor('captured', {
@@ -148,6 +181,19 @@ describe('canonical capture phase presentation', () => {
     expect(document.querySelector('[data-guide-phase="captured"]')).toBeTruthy();
   });
 
+  it('does not describe a failed provider burst as secured', () => {
+    renderSequence(stateFor('captured'), false, { burstStatus: 'failed' });
+    expect(screen.getByRole('heading', { name: 'Measurements not saved' })).toBeVisible();
+    expect(screen.getByText('Analysis stopped safely')).toBeVisible();
+    expect(screen.queryByText('Baseline secured')).not.toBeInTheDocument();
+  });
+
+  it('describes a follow-up scan as follow-up acquisition', () => {
+    renderSequence(stateFor('scanning'), false, { captureKind: 'followup' });
+    expect(screen.getByText('Securing follow-up')).toBeVisible();
+    expect(screen.queryByText('Securing baseline')).not.toBeInTheDocument();
+  });
+
   it('renders the exact permission error and keeps photo fallback outside the component', () => {
     const state = reduceCaptureSequence(createCaptureSequenceState(0), {
       type: 'FAILED',
@@ -156,7 +202,7 @@ describe('canonical capture phase presentation', () => {
     });
     renderSequence(state);
     expect(screen.getByRole('heading', { name: 'Camera access is needed' })).toBeVisible();
-    expect(screen.getByText('Enable camera access or choose a photo instead')).toBeVisible();
+    expect(screen.getByText('Enable camera access for three live measurements')).toBeVisible();
   });
 
   it('marks reduced motion while retaining state and copy', () => {
@@ -249,9 +295,7 @@ describe('canonical capture phase presentation', () => {
       expect(document.querySelector('[data-face-acquisition-guide]')).toBe(guide);
       expect(guide?.querySelector('[data-capture-guide-segments]')).toBe(segmentGroup);
       expect(guide?.querySelector('[data-capture-guide-connectors]')).toBe(connectorGroup);
-      expect([...(guide?.querySelectorAll('[data-guide-segment]') ?? [])]).toEqual(
-        segmentPaths,
-      );
+      expect([...(guide?.querySelectorAll('[data-guide-segment]') ?? [])]).toEqual(segmentPaths);
       expect([...(guide?.querySelectorAll('[data-guide-connector]') ?? [])]).toEqual(
         connectorPaths,
       );

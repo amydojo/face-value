@@ -74,7 +74,24 @@ export type GuidedCaptureFailure =
   | 'camera-unavailable'
   | 'preview-stalled'
   | 'unsupported-resolution'
-  | 'invalid-capture';
+  | 'invalid-capture'
+  | 'burst-exhausted';
+
+export interface GuidedCaptureFrame {
+  frameId: string;
+  capturedAt: string;
+}
+
+export interface GuidedCaptureRejectedAttempt {
+  frameId: string;
+  attemptedAt: string;
+  reasons: string[];
+}
+
+export interface GuidedCaptureBurstSummary {
+  attemptedFrameCount: number;
+  acceptedFrameCount: number;
+}
 
 export interface GuidedCaptureSession {
   readonly captureProfileId: CameraCaptureProfileId;
@@ -120,11 +137,18 @@ export interface GuidedCaptureStartOptions {
   mountElement: HTMLElement;
   previewElement?: HTMLVideoElement | null;
   signal?: AbortSignal;
+  burstGenerationId?: string;
   stableForMs?: number;
   previewWatchdogMs?: number;
   frozenCaptureProfileId?: CameraCaptureProfileId | null;
   onQuality(quality: GuidedCaptureQuality): void;
-  onCapture(image: Blob, captureProfileId: CameraCaptureProfileId): void;
+  onCapture(
+    image: Blob,
+    captureProfileId: CameraCaptureProfileId,
+    frame?: GuidedCaptureFrame,
+  ): void;
+  onRejectedAttempt?(attempt: GuidedCaptureRejectedAttempt): void;
+  onBurstComplete?(summary: GuidedCaptureBurstSummary): void;
   onFailure(failure: GuidedCaptureFailure): void;
   onStatus?(status: GuidedCaptureStatus): void;
   onDiagnostic?(diagnostic: CameraKitDiagnostic): void;

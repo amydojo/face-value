@@ -25,6 +25,12 @@ export function CaptureSequence({
   previewStatus = 'preview-live',
   activeCapture = true,
   reducedMotion,
+  captureKind = 'baseline',
+  acceptedMeasurementCount = 0,
+  analyzedMeasurementCount = 0,
+  rejectedMeasurementCount = 0,
+  providerProcessingStarted = false,
+  burstStatus = 'idle',
 }: {
   state: CaptureSequenceState;
   accession: string;
@@ -37,6 +43,12 @@ export function CaptureSequence({
   previewStatus?: GuidedCaptureStatus | 'idle';
   activeCapture?: boolean;
   reducedMotion: boolean;
+  captureKind?: 'baseline' | 'followup';
+  acceptedMeasurementCount?: number;
+  analyzedMeasurementCount?: number;
+  rejectedMeasurementCount?: number;
+  providerProcessingStarted?: boolean;
+  burstStatus?: 'idle' | 'capturing' | 'analyzing' | 'ready' | 'failed';
 }) {
   const timingStyle = {
     '--fv-capture-breathing-duration': `${CAPTURE_TIMING.breathingMs}ms`,
@@ -48,14 +60,39 @@ export function CaptureSequence({
     '--fv-capture-guide-hold-duration': `${CAPTURE_TIMING.capturedGuideHoldMs}ms`,
     '--fv-capture-guide-resolve-duration': `${CAPTURE_TIMING.capturedGuideResolveMs}ms`,
   } as CSSProperties;
-  const instruction =
+  const phaseInstruction = getCaptureInstruction(state);
+  const defaultInstruction =
     previewStatus === 'loading' ||
     previewStatus === 'requesting-permission' ||
     previewStatus === 'camera-opening'
       ? { primary: 'Opening camera', secondary: 'Keep your phone steady' }
       : previewStatus === 'waiting-first-frame'
         ? { primary: 'Preparing preview', secondary: 'This may take a moment' }
-        : getCaptureInstruction(state);
+        : state.phase === 'scanning' && captureKind === 'followup'
+          ? { ...phaseInstruction, secondary: 'Securing follow-up' }
+          : phaseInstruction;
+  const instruction =
+    burstStatus === 'failed' && state.phase === 'captured'
+      ? {
+          primary: 'Measurements not saved',
+          secondary: 'Analysis stopped safely',
+        }
+      : burstStatus === 'capturing' && state.phase === 'scanning' && rejectedMeasurementCount > 0
+        ? {
+            primary: 'Reading capture conditions',
+            secondary: 'Replacing one measurement automatically',
+          }
+        : burstStatus === 'analyzing' && state.phase === 'captured' && !providerProcessingStarted
+          ? {
+              primary: '3 measurements accepted',
+              secondary: 'Preparing analysis',
+            }
+          : (burstStatus === 'analyzing' || burstStatus === 'ready') && state.phase === 'captured'
+            ? {
+                primary: 'Processing measurements',
+                secondary: `${analyzedMeasurementCount} of 3 analyzed`,
+              }
+            : defaultInstruction;
   return (
     <div
       className={styles.chassis}
@@ -95,6 +132,24 @@ export function CaptureSequence({
           <CaptureShutter />
           <CapturedSpecimenTransition />
         </>
+      )}
+      {activeCapture && state.phase !== 'error' && (
+        <div
+          className={styles.measurementIndicator}
+          data-measurement-indicator
+          data-measurements-accepted={acceptedMeasurementCount}
+          role="status"
+          aria-label={`${acceptedMeasurementCount} of 3 measurements accepted`}
+        >
+          {[0, 1, 2].map((position) => (
+            <span
+              key={position}
+              data-measurement-position={position + 1}
+              data-measurement-state={position < acceptedMeasurementCount ? 'accepted' : 'pending'}
+              aria-hidden="true"
+            />
+          ))}
+        </div>
       )}
       {state.phase !== 'error' && <CaptureQualityRail state={state} />}
     </div>

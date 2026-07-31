@@ -72,16 +72,26 @@ calibration.”
 
 ## Current MVP evidence honesty
 
-The current capture flow collects one baseline image and one endpoint image. The
-adapter therefore records one session and one accepted raw score per period.
-It does not manufacture bursts, repeated sessions, masks, registration,
-patient-observed change, symptoms, adherence, or provider model metadata.
+The current capture flow collects one three-measurement baseline burst and one
+three-measurement endpoint burst. Each burst contains three genuinely distinct
+current frames, three independent provider observations, one short acquisition
+session, and truthful face-free accepted/rejected frame metadata. Rejected
+attempts are available to the evaluator but do not enter period medians.
+
+The adapter passes the actual accepted raw-score arrays to the canonical
+evaluator. The evaluator owns the baseline and endpoint medians, direction
+agreement, delta, precedence, and result. No adapter or React component creates
+a synthetic `DurableSkinSignal` for a median.
+
+The implementation does not manufacture repeated sessions, masks,
+registration, patient-observed change, symptoms, adherence, or provider model
+metadata.
 
 Missing inputs are named in the snapshot. Cross-session lighting, pose, crop,
-face-size, and color metrics are not persisted, so current MVP measurement
-quality remains limited even when the captures passed the existing guided
-capture gate. This permits a directional result but cannot silently become
-strong evidence.
+face-size, color-cast, and skin-tone metrics are not measured, so current MVP
+measurement quality remains limited even when each frame passed the existing
+guided exposure and movement gates. Repeated measurements strengthen evidence
+without silently converting unavailable properties into passing evidence.
 
 ## Persistence and migration
 

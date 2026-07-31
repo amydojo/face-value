@@ -1,11 +1,14 @@
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { YouCamProviderError } from '../../adapters/analysis/youcam/YouCamSkinAnalysisProvider';
-import {
-  analyzeLongitudinalCapture,
-  LocalProtocolMismatchError,
-} from '../../adapters/analysis/youcam/longitudinalAnalysis';
+import { LocalProtocolMismatchError } from '../../adapters/analysis/youcam/longitudinalAnalysis';
 import { createSkinAnalysisProvider } from '../../adapters/analysis/youcam/providerFactory';
+import {
+  analyzeRednessBurstFrames,
+  RednessBurstProviderFailure,
+  type EphemeralRednessFrame,
+} from '../../adapters/analysis/youcam/rednessBurstAnalysis';
 import { metadataForCapture, ObjectUrlRegistry } from '../../adapters/camera/browserCamera';
+import type { CameraFailureReason } from '../../adapters/camera/browserCamera';
 import {
   createCameraKitAdapter,
   type CameraKitAdapter,
@@ -14,16 +17,18 @@ import {
   type GuidedCaptureSession,
   type GuidedCaptureStatus,
 } from '../../adapters/camera/youcam-camera-kit';
-import type { CameraFailureReason } from '../../adapters/camera/browserCamera';
 import { systemClock } from '../../adapters/clock/clock';
 import { useFaceValue } from '../../app/faceValueContext';
 import type {
-  CameraCaptureProfileId,
+  AnalysisErrorState,
   CameraState,
   CaptureKind,
   CaptureMetadata,
 } from '../../domain/model';
-import { isYouCamProtocolEligible } from '../../domain/phaseB5';
+import {
+  REDNESS_BURST_FINALIZATION_MS,
+  REDNESS_BURST_REQUIRED_MEASUREMENTS,
+} from '../../domain/rednessEvidenceBurst';
 import { logSafeAnalysisDiagnostic, translateProviderError } from '../../domain/youcamEvidence';
 import {
   CAMERA_KIT_ACQUISITION_MS,
@@ -36,9 +41,9 @@ import {
 } from '../capture-sequence';
 import styles from '../../styles/FaceValue.module.css';
 
-const requestIdentity = (): string =>
+const identity = (prefix: string): string =>
   globalThis.crypto?.randomUUID?.() ??
-  `analysis-${systemClock.now().replace(/\D/g, '')}-${Math.random().toString(36).slice(2)}`;
+  `${prefix}-${systemClock.now().replace(/\D/g, '')}-${Math.random().toString(36).slice(2)}`;
 
 const legacyFailureReason = (failure: GuidedCaptureFailure): CameraFailureReason => {
   if (failure === 'permission-denied') return 'denied';
@@ -85,11 +90,47 @@ function useReducedMotion(): boolean {
   return reduced;
 }
 
-interface PendingCapture {
-  image: Blob;
-  source: 'camera' | 'file';
-  fileName: string;
-  cameraProfileId: CameraCaptureProfileId | null;
+class EphemeralBurstFrameRegistry {
+  private readonly frames = new Map<string, EphemeralRednessFrame>();
+
+  add(frame: EphemeralRednessFrame): boolean {
+    if (this.frames.has(frame.frameId)) return false;
+    this.frames.set(frame.frameId, frame);
+    return true;
+  }
+
+  values(): EphemeralRednessFrame[] {
+    return [...this.frames.values()];
+  }
+
+  get size(): number {
+    return this.frames.size;
+  }
+
+  release(frameId: string): void {
+    this.frames.delete(frameId);
+  }
+
+  releaseAll(): void {
+    this.frames.clear();
+  }
+}
+
+interface ActiveGeneration {
+  id: string;
+  controller: AbortController;
+}
+
+function analysisErrorFor(error: unknown, role: CaptureKind): AnalysisErrorState {
+  const code =
+    error instanceof LocalProtocolMismatchError
+      ? error.code
+      : error instanceof YouCamProviderError
+        ? error.code
+        : error instanceof TypeError
+          ? 'network_interrupted'
+          : 'unknown_provider_failure';
+  return translateProviderError(code, role);
 }
 
 export function CameraViewport({
@@ -133,24 +174,22 @@ export function CameraViewport({
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const screenRef = useRef<HTMLElement | null>(null);
   const sessionRef = useRef<GuidedCaptureSession | null>(null);
-  const cameraAbortControllerRef = useRef<AbortController | null>(null);
   const adapterRef = useRef<CameraKitAdapter | null>(null);
   adapterRef.current ??= cameraAdapter ?? createCameraKitAdapter();
   const providerRef = useRef(createSkinAnalysisProvider());
   const objectUrlsRef = useRef(new ObjectUrlRegistry());
-  const abortControllerRef = useRef<AbortController | null>(null);
-  const activeRequestIdRef = useRef<string | null>(null);
-  const pendingCaptureRef = useRef<PendingCapture | null>(null);
+  const frameRegistryRef = useRef(new EphemeralBurstFrameRegistry());
+  const activeGenerationRef = useRef<ActiveGeneration | null>(null);
   const currentCaptureUrlRef = useRef<string | null>(null);
+  const currentCaptureFrameIdRef = useRef<string | null>(null);
   const previousSequencePhaseRef = useRef(sequence.phase);
-  const runInFlightRef = useRef(false);
   const startInFlightRef = useRef(false);
-  const analysisStartedForCaptureRef = useRef(false);
+  const analysisStartedRef = useRef(false);
   const hapticSentRef = useRef(false);
   const captureRequestedRef = useRef(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const restartCameraRef = useRef<HTMLButtonElement | null>(null);
-  const retryAnalysisRef = useRef<HTMLButtonElement | null>(null);
+  const retryBurstRef = useRef<HTMLButtonElement | null>(null);
   const stateRef = useRef(state);
   const callbacksRef = useRef({
     onRequesting,
@@ -165,6 +204,7 @@ export function CameraViewport({
   const [previewLive, setPreviewLive] = useState(false);
   const [starting, setStarting] = useState(false);
   const [fixture, setFixture] = useState(false);
+  const [fileLimitation, setFileLimitation] = useState(false);
   const [previewStatus, setPreviewStatus] = useState<GuidedCaptureStatus | 'idle'>('idle');
   const diagnosticMode =
     import.meta.env.DEV &&
@@ -183,219 +223,355 @@ export function CameraViewport({
     onBack,
   };
 
-  const cancelAnalysis = useCallback(() => {
-    const requestId = activeRequestIdRef.current;
-    abortControllerRef.current?.abort();
-    abortControllerRef.current = null;
-    activeRequestIdRef.current = null;
-    runInFlightRef.current = false;
-    if (requestId) {
-      dispatch({ type: 'ANALYSIS_CANCELLED', requestId });
-      logSafeAnalysisDiagnostic({
-        stage: 'cancelled',
-        role: kind,
-        outcome: 'cancelled',
-      });
-    }
-  }, [dispatch, kind]);
+  const releaseCapturedResources = useCallback(() => {
+    frameRegistryRef.current.releaseAll();
+    currentCaptureFrameIdRef.current = null;
+    currentCaptureUrlRef.current = null;
+    objectUrlsRef.current.revokeAll();
+  }, []);
 
-  const analyzeCapture = useCallback(
-    async (pending: PendingCapture) => {
-      if (runInFlightRef.current) return;
-      pendingCaptureRef.current = pending;
-      const current = stateRef.current;
-      const metadata = metadataForCapture(
-        kind,
-        pending.source,
-        pending.image.type,
-        systemClock.now(),
-        pending.cameraProfileId,
-      );
-
-      if (!isYouCamProtocolEligible(current.registeredProduct)) {
-        callbacksRef.current.onAccepted(metadata);
-        pendingCaptureRef.current = null;
-        return;
-      }
-
-      if (kind === 'baseline' && current.processing === 'failed') {
-        dispatch({ type: 'BASELINE_RETRY_REQUESTED' });
-      }
-
-      const requestId = requestIdentity();
-      const controller = new AbortController();
-      runInFlightRef.current = true;
-      abortControllerRef.current = controller;
-      activeRequestIdRef.current = requestId;
-      dispatch({
-        type: kind === 'baseline' ? 'BASELINE_ANALYSIS_STARTED' : 'FOLLOWUP_ANALYSIS_STARTED',
-        requestId,
-        metadata,
-      });
-      logSafeAnalysisDiagnostic({
-        stage: 'started',
-        role: kind,
-        outcome: 'started',
-      });
-
-      try {
-        const analyzed = await analyzeLongitudinalCapture({
-          provider: providerRef.current,
-          role: kind,
-          image: pending.image,
-          fileName: pending.fileName,
-          metadata,
-          frozenProtocol: current.longitudinalEvidence.protocol,
-          signal: controller.signal,
-        });
-
-        if (activeRequestIdRef.current !== requestId) {
-          pendingCaptureRef.current = null;
-          logSafeAnalysisDiagnostic({
-            stage: 'completion',
-            role: kind,
-            outcome: 'stale-response-ignored',
-          });
-          return;
-        }
-
-        activeRequestIdRef.current = null;
-        abortControllerRef.current = null;
-        pendingCaptureRef.current = null;
-        if (kind === 'baseline') {
-          dispatch({
-            type: 'BASELINE_ANALYSIS_ACCEPTED',
-            requestId,
-            protocol: analyzed.protocol,
-            signal: analyzed.durableSignal,
-          });
-        } else {
-          dispatch({
-            type: 'FOLLOWUP_ANALYSIS_ACCEPTED',
-            requestId,
-            signal: analyzed.durableSignal,
-          });
-        }
+  const cancelActiveGeneration = useCallback(
+    (notifyReducer: boolean) => {
+      const active = activeGenerationRef.current;
+      activeGenerationRef.current = null;
+      active?.controller.abort();
+      sessionRef.current?.cancel();
+      sessionRef.current = null;
+      startInFlightRef.current = false;
+      analysisStartedRef.current = false;
+      captureRequestedRef.current = false;
+      releaseCapturedResources();
+      if (notifyReducer && active) {
+        dispatch({ type: 'REDNESS_BURST_CANCELLED', generationId: active.id });
         logSafeAnalysisDiagnostic({
-          stage: 'normalized',
+          stage: 'cancelled',
           role: kind,
-          outcome: 'accepted',
+          outcome: 'cancelled',
         });
-      } catch (caught) {
-        if (caught instanceof DOMException && caught.name === 'AbortError') {
-          dispatch({ type: 'ANALYSIS_CANCELLED', requestId });
-          return;
-        }
-
-        const code =
-          caught instanceof LocalProtocolMismatchError
-            ? caught.code
-            : caught instanceof YouCamProviderError
-              ? caught.code
-              : caught instanceof TypeError
-                ? 'network_interrupted'
-                : 'unknown_provider_failure';
-        const error = translateProviderError(code, kind);
-        logSafeAnalysisDiagnostic({
-          stage: caught instanceof LocalProtocolMismatchError ? 'protocol-preflight' : 'provider',
-          role: kind,
-          outcome: 'failed',
-          code,
-        });
-        if (caught instanceof LocalProtocolMismatchError) {
-          dispatch({ type: 'COMPARISON_REJECTED', error });
-        } else {
-          dispatch({
-            type: kind === 'baseline' ? 'BASELINE_ANALYSIS_FAILED' : 'FOLLOWUP_ANALYSIS_FAILED',
-            requestId,
-            error,
-          });
-        }
-      } finally {
-        if (activeRequestIdRef.current === requestId) {
-          activeRequestIdRef.current = null;
-        }
-        if (abortControllerRef.current === controller) {
-          abortControllerRef.current = null;
-        }
-        runInFlightRef.current = false;
       }
     },
-    [dispatch, kind],
+    [dispatch, kind, releaseCapturedResources],
+  );
+
+  const failBurst = useCallback(
+    (generationId: string, error: AnalysisErrorState) => {
+      dispatch({
+        type: 'REDNESS_BURST_FAILED',
+        generationId,
+        error,
+      });
+      const active = activeGenerationRef.current;
+      if (active?.id === generationId) {
+        active.controller.abort();
+        activeGenerationRef.current = null;
+      }
+      sessionRef.current?.cancel();
+      sessionRef.current = null;
+      releaseCapturedResources();
+    },
+    [dispatch, releaseCapturedResources],
+  );
+
+  const analyzeBurst = useCallback(
+    async (generation: ActiveGeneration) => {
+      const frames = frameRegistryRef.current.values();
+      try {
+        await analyzeRednessBurstFrames({
+          provider: providerRef.current,
+          role: kind,
+          frames,
+          frozenProtocol: stateRef.current.longitudinalEvidence.protocol,
+          generationId: generation.id,
+          signal: generation.controller.signal,
+          requestIdFactory: (frameId, attempt) =>
+            `${identity('analysis')}-${frameId}-attempt-${attempt}`,
+          releaseFrame: (frameId) => {
+            frameRegistryRef.current.release(frameId);
+            if (currentCaptureFrameIdRef.current === frameId) {
+              const url = currentCaptureUrlRef.current;
+              if (url) objectUrlsRef.current.revoke(url);
+              currentCaptureUrlRef.current = null;
+              currentCaptureFrameIdRef.current = null;
+            }
+          },
+          onRequestStarted: ({ generationId, frameId, requestId, attempt }) => {
+            if (activeGenerationRef.current?.id !== generationId) return;
+            dispatch({
+              type: 'REDNESS_BURST_ANALYSIS_STARTED',
+              generationId,
+              frameId,
+              requestId,
+              attempt,
+            });
+            logSafeAnalysisDiagnostic({
+              stage: 'started',
+              role: kind,
+              outcome: 'started',
+            });
+          },
+          onRequestFailed: ({ generationId, frameId, requestId, attempt, terminal, error }) => {
+            if (activeGenerationRef.current?.id !== generationId) return;
+            const translated = analysisErrorFor(error, kind);
+            dispatch({
+              type: 'REDNESS_BURST_ANALYSIS_FAILED',
+              generationId,
+              frameId,
+              requestId,
+              attempt,
+              terminal,
+              error: translated,
+            });
+            logSafeAnalysisDiagnostic({
+              stage:
+                error instanceof LocalProtocolMismatchError ? 'protocol-preflight' : 'provider',
+              role: kind,
+              outcome: terminal ? 'failed' : 'retrying',
+              code: translated.code,
+            });
+          },
+          onRequestAccepted: ({ generationId, frameId, requestId, attempt, protocol, signal }) => {
+            if (activeGenerationRef.current?.id !== generationId) {
+              logSafeAnalysisDiagnostic({
+                stage: 'completion',
+                role: kind,
+                outcome: 'stale-response-ignored',
+              });
+              return;
+            }
+            dispatch({
+              type: 'REDNESS_BURST_ANALYSIS_ACCEPTED',
+              generationId,
+              frameId,
+              requestId,
+              attempt,
+              protocol,
+              signal,
+            });
+            logSafeAnalysisDiagnostic({
+              stage: 'normalized',
+              role: kind,
+              outcome: 'accepted',
+            });
+          },
+        });
+      } catch (error) {
+        if (error instanceof DOMException && error.name === 'AbortError') return;
+        if (activeGenerationRef.current?.id !== generation.id) return;
+        if (error instanceof LocalProtocolMismatchError) {
+          dispatch({
+            type: 'COMPARISON_REJECTED',
+            error: analysisErrorFor(error, kind),
+          });
+          activeGenerationRef.current = null;
+          return;
+        }
+        if (!(error instanceof RednessBurstProviderFailure)) {
+          failBurst(generation.id, analysisErrorFor(error, kind));
+        }
+      }
+    },
+    [dispatch, failBurst, kind],
   );
 
   const startGuidedCapture = useCallback(async () => {
-    if (startInFlightRef.current || runInFlightRef.current) return;
+    if (startInFlightRef.current || stateRef.current.processing === 'running') return;
     const mountElement = mountRef.current;
     if (!mountElement) return;
+
+    const previous = activeGenerationRef.current;
+    if (previous) cancelActiveGeneration(true);
+    const generationId = identity('burst-generation');
+    const generation: ActiveGeneration = {
+      id: generationId,
+      controller: new AbortController(),
+    };
+    activeGenerationRef.current = generation;
     startInFlightRef.current = true;
-    cameraAbortControllerRef.current?.abort();
-    const cameraController = new AbortController();
-    cameraAbortControllerRef.current = cameraController;
     sessionRef.current?.cancel();
     sessionRef.current = null;
-    objectUrlsRef.current.revokeAll();
-    currentCaptureUrlRef.current = null;
-    pendingCaptureRef.current = null;
-    analysisStartedForCaptureRef.current = false;
+    releaseCapturedResources();
+    analysisStartedRef.current = false;
     hapticSentRef.current = false;
     captureRequestedRef.current = false;
     setCaptureStarted(true);
     setPreviewLive(false);
     setStarting(true);
     setFixture(false);
+    setFileLimitation(false);
     setPreviewStatus('loading');
     setCameraDiagnostics([]);
     sendSequence({ type: 'RESET', at: now() });
     callbacksRef.current.onRequesting();
 
+    const startedAt = systemClock.now();
+    dispatch({
+      type: 'REDNESS_BURST_STARTED',
+      generationId,
+      burstId: identity(`${kind}-burst`),
+      sessionId: identity(`${kind}-session`),
+      role: kind,
+      startedAt,
+    });
+
     try {
       const session = await adapterRef.current!.start({
         mountElement,
         previewElement: videoRef.current,
-        signal: cameraController.signal,
+        signal: generation.controller.signal,
+        burstGenerationId: generationId,
         stableForMs: CAMERA_KIT_ACQUISITION_MS,
         frozenCaptureProfileId:
           kind === 'followup' ? (stateRef.current.baselineCapture?.cameraProfileId ?? null) : null,
         onQuality: (nextQuality) => {
+          if (activeGenerationRef.current?.id !== generationId) return;
           sendSequence({
             type: 'SIGNALS_RECEIVED',
             sample: nextQuality,
             at: now(),
           });
         },
-        onCapture: (image, cameraProfileId) => {
-          const imageUrl = objectUrlsRef.current.create(image);
-          currentCaptureUrlRef.current = imageUrl;
-          pendingCaptureRef.current = {
-            image,
-            source: 'camera',
-            fileName: `${kind}-browser-camera.jpg`,
+        onCapture: (image, cameraProfileId, frame) => {
+          if (
+            activeGenerationRef.current?.id !== generationId ||
+            generation.controller.signal.aborted
+          ) {
+            return;
+          }
+          if (!frame) {
+            failBurst(generationId, {
+              role: kind,
+              code: 'current_frame_unavailable',
+              message:
+                'This camera path could not prove three current frames. Try the live camera.',
+              retryable: true,
+            });
+            return;
+          }
+          const frozenCaptureProfile =
+            kind === 'followup'
+              ? (stateRef.current.longitudinalEvidence.baselineBurst?.captureProfileId ??
+                stateRef.current.baselineCapture?.cameraProfileId ??
+                null)
+              : null;
+          if (frozenCaptureProfile && cameraProfileId !== frozenCaptureProfile) {
+            failBurst(generationId, {
+              role: kind,
+              code: 'capture_profile_mismatch',
+              message:
+                'This camera profile does not match the saved baseline. Existing evidence is unchanged.',
+              retryable: true,
+            });
+            return;
+          }
+          const metadata = metadataForCapture(
+            kind,
+            'camera',
+            image.type,
+            frame.capturedAt,
             cameraProfileId,
-          };
-          callbacksRef.current.onCapturing();
-          sendSequence({
-            type: 'CAPTURE_AVAILABLE',
-            image: imageUrl,
-            at: now(),
+            frame.frameId,
+          );
+          const position = frameRegistryRef.current.size + 1;
+          const added = frameRegistryRef.current.add({
+            frameId: frame.frameId,
+            image,
+            fileName: `${kind}-measurement-${position}-${frame.frameId}.jpg`,
+            metadata,
+          });
+          if (!added) {
+            failBurst(generationId, {
+              role: kind,
+              code: 'duplicate_frame_identifier',
+              message: 'A camera frame repeated unexpectedly. Try the scan again.',
+              retryable: true,
+            });
+            return;
+          }
+          dispatch({
+            type: 'REDNESS_BURST_FRAME_CAPTURED',
+            generationId,
+            frame: {
+              frameId: frame.frameId,
+              capture: metadata,
+              quality: {
+                currentFrame: 'accepted',
+                exposure: 'accepted',
+                movement: 'accepted',
+              },
+            },
+          });
+          if (frameRegistryRef.current.size === REDNESS_BURST_REQUIRED_MEASUREMENTS) {
+            const imageUrl = objectUrlsRef.current.create(image);
+            currentCaptureUrlRef.current = imageUrl;
+            currentCaptureFrameIdRef.current = frame.frameId;
+            callbacksRef.current.onCapturing();
+            sendSequence({
+              type: 'CAPTURE_AVAILABLE',
+              image: imageUrl,
+              at: now(),
+            });
+          }
+        },
+        onRejectedAttempt: (attempt) => {
+          if (activeGenerationRef.current?.id !== generationId) return;
+          dispatch({
+            type: 'REDNESS_BURST_CAPTURE_REJECTED',
+            generationId,
+            frame: {
+              ...attempt,
+              stage: 'capture',
+            },
+          });
+        },
+        onBurstComplete: (summary) => {
+          if (
+            activeGenerationRef.current?.id !== generationId ||
+            summary.acceptedFrameCount !== REDNESS_BURST_REQUIRED_MEASUREMENTS ||
+            frameRegistryRef.current.size !== REDNESS_BURST_REQUIRED_MEASUREMENTS
+          ) {
+            return;
+          }
+          dispatch({
+            type: 'REDNESS_BURST_CAPTURE_COMPLETED',
+            generationId,
           });
         },
         onFailure: (nextFailure) => {
-          if (cameraController.signal.aborted) return;
+          if (
+            generation.controller.signal.aborted ||
+            activeGenerationRef.current?.id !== generationId
+          ) {
+            return;
+          }
           setPreviewLive(false);
           setStarting(false);
-          setPreviewStatus(
-            nextFailure === 'preview-stalled' ? 'preview-stalled' : 'closed',
-          );
+          setPreviewStatus(nextFailure === 'preview-stalled' ? 'preview-stalled' : 'closed');
           sendSequence({
             type: 'FAILED',
             failure: nextFailure,
             at: now(),
           });
           callbacksRef.current.onFailure(legacyFailureReason(nextFailure));
+          failBurst(generationId, {
+            role: kind,
+            code:
+              nextFailure === 'burst-exhausted'
+                ? 'burst_attempts_exhausted'
+                : `capture_${nextFailure.replaceAll('-', '_')}`,
+            message:
+              nextFailure === 'burst-exhausted'
+                ? 'Three valid measurements could not be secured within five attempts. Try the scan again.'
+                : 'The camera could not finish this evidence burst. Existing evidence is unchanged.',
+            retryable: true,
+          });
         },
         onStatus: (status) => {
-          if (cameraController.signal.aborted) return;
+          if (
+            generation.controller.signal.aborted ||
+            activeGenerationRef.current?.id !== generationId
+          ) {
+            return;
+          }
           setPreviewStatus(status);
           if (
             status === 'loading' ||
@@ -410,6 +586,10 @@ export function CameraViewport({
             setStarting(false);
             callbacksRef.current.onReady();
           }
+          if (status === 'captured' || status === 'closed') {
+            setPreviewLive(false);
+            setStarting(false);
+          }
         },
         onDiagnostic: (diagnostic) => {
           if (!diagnosticMode) return;
@@ -419,14 +599,22 @@ export function CameraViewport({
           ]);
         },
       });
-      if (cameraController.signal.aborted || cameraAbortControllerRef.current !== cameraController) {
+      if (
+        generation.controller.signal.aborted ||
+        activeGenerationRef.current?.id !== generationId
+      ) {
         session.cancel();
       } else {
         sessionRef.current = session;
         setFixture(mountElement.dataset.cameraKitFixture === 'active');
       }
     } catch {
-      if (cameraController.signal.aborted) return;
+      if (
+        generation.controller.signal.aborted ||
+        activeGenerationRef.current?.id !== generationId
+      ) {
+        return;
+      }
       setStarting(false);
       setPreviewStatus('closed');
       sendSequence({
@@ -434,12 +622,16 @@ export function CameraViewport({
         failure: 'sdk-unavailable',
         at: now(),
       });
+      failBurst(generationId, {
+        role: kind,
+        code: 'capture_sdk_unavailable',
+        message: 'The camera could not start. Existing evidence is unchanged.',
+        retryable: true,
+      });
     } finally {
-      if (cameraAbortControllerRef.current === cameraController) {
-        startInFlightRef.current = false;
-      }
+      startInFlightRef.current = false;
     }
-  }, [diagnosticMode, kind]);
+  }, [cancelActiveGeneration, diagnosticMode, dispatch, failBurst, kind, releaseCapturedResources]);
 
   useEffect(() => {
     if (
@@ -474,13 +666,7 @@ export function CameraViewport({
     const cancelledLock =
       (previousPhase === 'locking' || previousPhase === 'scanning') &&
       (sequence.phase === 'aligning' || sequence.phase === 'searching');
-    if (!cancelledLock) return;
-    captureRequestedRef.current = false;
-    const imageUrl = currentCaptureUrlRef.current;
-    if (imageUrl) objectUrlsRef.current.revoke(imageUrl);
-    currentCaptureUrlRef.current = null;
-    pendingCaptureRef.current = null;
-    analysisStartedForCaptureRef.current = false;
+    if (cancelledLock) captureRequestedRef.current = false;
   }, [sequence.phase]);
 
   useEffect(() => {
@@ -494,13 +680,37 @@ export function CameraViewport({
   }, [sequence.phase]);
 
   useEffect(() => {
-    const pending = pendingCaptureRef.current;
-    if (!sequence.handoffReady || !pending || analysisStartedForCaptureRef.current) {
+    const generation = activeGenerationRef.current;
+    if (
+      !sequence.handoffReady ||
+      !generation ||
+      analysisStartedRef.current ||
+      state.activeRednessBurst?.generationId !== generation.id ||
+      state.activeRednessBurst.status !== 'analyzing' ||
+      frameRegistryRef.current.size !== REDNESS_BURST_REQUIRED_MEASUREMENTS
+    ) {
       return;
     }
-    analysisStartedForCaptureRef.current = true;
-    void analyzeCapture(pending);
-  }, [analyzeCapture, sequence.handoffReady]);
+    analysisStartedRef.current = true;
+    void analyzeBurst(generation);
+  }, [analyzeBurst, sequence.handoffReady, state.activeRednessBurst]);
+
+  useEffect(() => {
+    const burst = state.activeRednessBurst;
+    if (burst?.status !== 'ready' || activeGenerationRef.current?.id !== burst.generationId) {
+      return;
+    }
+    const timer = window.setTimeout(
+      () =>
+        dispatch({
+          type: 'REDNESS_BURST_COMMIT_REQUESTED',
+          generationId: burst.generationId,
+          completedAt: systemClock.now(),
+        }),
+      REDNESS_BURST_FINALIZATION_MS,
+    );
+    return () => window.clearTimeout(timer);
+  }, [dispatch, state.activeRednessBurst]);
 
   useEffect(() => {
     if (!captureStarted) return;
@@ -538,65 +748,40 @@ export function CameraViewport({
     };
   }, []);
 
-  useEffect(() => {
-    const objectUrls = objectUrlsRef.current;
-    return () => {
-      cameraAbortControllerRef.current?.abort();
-      cameraAbortControllerRef.current = null;
-      sessionRef.current?.cancel();
-      sessionRef.current = null;
-      startInFlightRef.current = false;
-      cancelAnalysis();
-      pendingCaptureRef.current = null;
-      currentCaptureUrlRef.current = null;
-      objectUrls.revokeAll();
-    };
-  }, [cancelAnalysis]);
+  useEffect(
+    () => () => {
+      cancelActiveGeneration(true);
+    },
+    [cancelActiveGeneration],
+  );
 
   const chooseFile = (file: File | undefined) => {
-    if (!file || runInFlightRef.current) return;
-    sessionRef.current?.cancel();
-    sessionRef.current = null;
-    cameraAbortControllerRef.current?.abort();
-    cameraAbortControllerRef.current = null;
-    setPreviewLive(false);
-    setStarting(false);
-    setPreviewStatus('closed');
-    analysisStartedForCaptureRef.current = true;
-    void analyzeCapture({
-      image: file,
-      source: 'file',
-      fileName: file.name,
-      cameraProfileId: null,
-    });
-  };
-
-  const retryAnalysis = () => {
-    const pending = pendingCaptureRef.current;
-    if (!pending || runInFlightRef.current) return;
-    void analyzeCapture(pending);
+    if (!file) return;
+    setFileLimitation(true);
+    if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
   const leave = () => {
-    cameraAbortControllerRef.current?.abort();
-    cameraAbortControllerRef.current = null;
-    sessionRef.current?.cancel();
-    sessionRef.current = null;
-    startInFlightRef.current = false;
-    cancelAnalysis();
-    pendingCaptureRef.current = null;
-    currentCaptureUrlRef.current = null;
-    objectUrlsRef.current.revokeAll();
+    cancelActiveGeneration(true);
     callbacksRef.current.onBack();
   };
 
+  const activeBurst = state.activeRednessBurst?.role === kind ? state.activeRednessBurst : null;
+  const capturedMeasurementCount = activeBurst?.capturedFrames.length ?? 0;
+  const analyzedMeasurementCount = activeBurst?.acceptedFrames.length ?? 0;
+  const rejectedMeasurementCount =
+    activeBurst?.rejectedFrames.filter((frame) => frame.stage === 'capture').length ?? 0;
+  const providerProcessingStarted = (activeBurst?.providerRequests.length ?? 0) > 0;
+  const attemptedFrameCount = activeBurst?.attemptedFrameCount ?? 0;
   const analysisError = state.analysisError?.role === kind ? state.analysisError : null;
-  const isAnalyzing = state.processing === 'running' && state.analysisRole === kind;
+  const isAnalyzing = activeBurst?.status === 'analyzing' || state.processing === 'running';
+  const burstFailed = activeBurst?.status === 'failed';
   const failed = sequence.phase === 'error';
+  const presentedAnalysisError = failed ? null : analysisError;
 
   useEffect(() => {
-    const target = analysisError
-      ? retryAnalysisRef.current
+    const target = presentedAnalysisError
+      ? retryBurstRef.current
       : sequence.failure === 'preview-stalled'
         ? restartCameraRef.current
         : failed
@@ -607,7 +792,7 @@ export function CameraViewport({
       target.focus({ preventScroll: true });
     });
     return () => window.cancelAnimationFrame(frame);
-  }, [analysisError, failed, sequence.failure]);
+  }, [failed, presentedAnalysisError, sequence.failure]);
 
   return (
     <section
@@ -615,6 +800,10 @@ export function CameraViewport({
       className={styles.cameraScreen}
       aria-labelledby="camera-heading"
       data-camera-state={cameraState}
+      data-burst-status={activeBurst?.status ?? 'idle'}
+      data-burst-attempts={attemptedFrameCount}
+      data-burst-captured={capturedMeasurementCount}
+      data-burst-accepted={analyzedMeasurementCount}
       data-preview-state={
         previewLive
           ? 'preview-live'
@@ -669,9 +858,15 @@ export function CameraViewport({
         previewStatus={previewStatus}
         activeCapture={captureStarted && !failed}
         reducedMotion={reducedMotion}
+        captureKind={kind}
+        acceptedMeasurementCount={capturedMeasurementCount}
+        analyzedMeasurementCount={analyzedMeasurementCount}
+        rejectedMeasurementCount={rejectedMeasurementCount}
+        providerProcessingStarted={providerProcessingStarted}
+        burstStatus={activeBurst?.status ?? 'idle'}
       />
 
-      {!isAnalyzing && (!captureStarted || failed) && (
+      {!presentedAnalysisError && !isAnalyzing && (!captureStarted || failed) && (
         <button
           ref={sequence.failure === 'preview-stalled' ? restartCameraRef : null}
           type="button"
@@ -685,35 +880,43 @@ export function CameraViewport({
               ? 'RESTART CAMERA'
               : failed
                 ? 'TRY CAMERA AGAIN'
-                : captureStarted
-                  ? 'TRY CAMERA AGAIN'
-                  : 'START GUIDED CAPTURE'}
+                : 'START GUIDED CAPTURE'}
         </button>
       )}
 
-      {analysisError && (
+      {presentedAnalysisError && (
         <div className={styles.notice} role="alert">
-          <strong>We couldn’t read this scan.</strong>
-          <p>{analysisError.message}</p>
-          <p>Your image was not saved. Your existing trial is safe.</p>
-          {pendingCaptureRef.current && (
+          <strong>We couldn’t finish this scan.</strong>
+          <p>{presentedAnalysisError.message}</p>
+          <p>No partial measurements were saved. Your existing trial is safe.</p>
+          {presentedAnalysisError.retryable && (
             <button
-              ref={retryAnalysisRef}
+              ref={retryBurstRef}
               type="button"
               className={styles.secondaryAction}
               disabled={isAnalyzing}
-              onClick={retryAnalysis}
+              onClick={startGuidedCapture}
             >
-              TRY AGAIN
+              TRY BURST AGAIN
             </button>
           )}
         </div>
       )}
 
-      {(!captureStarted || failed) && !isAnalyzing && (
+      {fileLimitation && (
+        <div className={styles.notice} role="status">
+          <strong>One photo is not enough for this scan.</strong>
+          <p>
+            Evidence bursts require three distinct current frames. The selected photo was released
+            and nothing was added to your trial.
+          </p>
+        </div>
+      )}
+
+      {(!captureStarted || failed || burstFailed) && !isAnalyzing && (
         <>
           <label className={styles.captureFileFallback}>
-            USE AN EXISTING PHOTO
+            USE AN EXISTING PHOTO · SINGLE IMAGE ONLY
             <input
               ref={fileInputRef}
               aria-label="Choose a face photo"
@@ -725,8 +928,8 @@ export function CameraViewport({
             />
           </label>
           <p className={styles.capturePrivacyLine}>
-            The image is analyzed in memory and discarded. Face images are never added to your trial
-            or Evidence Record.
+            A single existing photo cannot complete the three-measurement burst. Selected files are
+            released immediately and are never added to your trial.
           </p>
         </>
       )}

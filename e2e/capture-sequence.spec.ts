@@ -18,6 +18,7 @@ type FixtureScenario =
   | 'signal-flicker'
   | 'lose-lock'
   | 'lose-scan'
+  | 'burst-rejection'
   | 'permission-denied'
   | 'camera-unavailable';
 
@@ -27,16 +28,24 @@ async function openCapture(
     scenario = 'success',
     slowQuality = false,
     nativeCamera = false,
+    providerFailureFrame,
+    providerTerminalFailureFrame,
   }: {
     scenario?: FixtureScenario;
     slowQuality?: boolean;
     nativeCamera?: boolean;
+    providerFailureFrame?: 2 | 3;
+    providerTerminalFailureFrame?: 2 | 3;
   } = {},
 ): Promise<void> {
   const query = new URLSearchParams({
     'camera-scenario': scenario,
     ...(slowQuality ? { 'camera-quality-proof': '1' } : {}),
     ...(nativeCamera ? { 'native-camera-contract': '1' } : {}),
+    ...(providerFailureFrame ? { 'provider-failure-frame': String(providerFailureFrame) } : {}),
+    ...(providerTerminalFailureFrame
+      ? { 'provider-terminal-failure-frame': String(providerTerminalFailureFrame) }
+      : {}),
   });
   await page.goto(`/?${query}`);
   await page.evaluate(({ key, value }) => localStorage.setItem(key, JSON.stringify(value)), {
@@ -53,17 +62,20 @@ async function installNativeCameraMock(page: Page): Promise<void> {
     const contractWindow = window as Window & {
       __faceValueAlertMessages?: string[];
       __faceValueTrackStops?: number;
+      __faceValueDecodedFrameEvents?: number;
+      __faceValueCapturedFrames?: number;
     };
     contractWindow.__faceValueAlertMessages = [];
     contractWindow.__faceValueTrackStops = 0;
+    contractWindow.__faceValueDecodedFrameEvents = 0;
+    contractWindow.__faceValueCapturedFrames = 0;
     window.alert = (message?: unknown) => {
       contractWindow.__faceValueAlertMessages?.push(String(message ?? ''));
     };
 
     const track = {
       stop: () => {
-        contractWindow.__faceValueTrackStops =
-          (contractWindow.__faceValueTrackStops ?? 0) + 1;
+        contractWindow.__faceValueTrackStops = (contractWindow.__faceValueTrackStops ?? 0) + 1;
       },
       addEventListener: () => undefined,
       removeEventListener: () => undefined,
@@ -98,6 +110,24 @@ async function installNativeCameraMock(page: Page): Promise<void> {
     Object.defineProperties(HTMLVideoElement.prototype, {
       videoWidth: { configurable: true, get: () => 1280 },
       videoHeight: { configurable: true, get: () => 720 },
+      requestVideoFrameCallback: {
+        configurable: true,
+        value(callback: VideoFrameRequestCallback) {
+          const callbackId = (contractWindow.__faceValueDecodedFrameEvents ?? 0) + 1;
+          window.setTimeout(() => {
+            contractWindow.__faceValueDecodedFrameEvents = callbackId;
+            callback(window.performance.now(), {
+              mediaTime: callbackId / 30,
+              presentedFrames: callbackId,
+            } as VideoFrameCallbackMetadata);
+          }, 0);
+          return callbackId;
+        },
+      },
+      cancelVideoFrameCallback: {
+        configurable: true,
+        value: () => undefined,
+      },
     });
 
     const pixels = new Uint8ClampedArray(40 * 52 * 4);
@@ -120,6 +150,8 @@ async function installNativeCameraMock(page: Page): Promise<void> {
     Object.defineProperty(HTMLCanvasElement.prototype, 'toBlob', {
       configurable: true,
       value: (callback: BlobCallback) => {
+        contractWindow.__faceValueCapturedFrames =
+          (contractWindow.__faceValueCapturedFrames ?? 0) + 1;
         const binary = atob(
           'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=',
         );
@@ -293,9 +325,10 @@ function expectResponsiveCaptureGeometry(
   if (compactGuide) {
     expect(geometry.guide.width).toBeLessThan(330 * scale);
     expect(geometry.guide.height / geometry.guide.width).toBeCloseTo(450 / 330, 2);
-    expect(
-      geometry.guide.left - geometry.chassis.left + geometry.guide.width / 2,
-    ).toBeCloseTo(geometry.chassis.width / 2, 0);
+    expect(geometry.guide.left - geometry.chassis.left + geometry.guide.width / 2).toBeCloseTo(
+      geometry.chassis.width / 2,
+      0,
+    );
     expect(geometry.guide.bottom).toBeLessThan(geometry.rail.top - 8);
   } else {
     expect(geometry.guide.width).toBeCloseTo(330 * scale, 0);
@@ -351,12 +384,16 @@ test('successful acquisition preserves geometry and the selected frame into proc
   await expect(chassis).toHaveAttribute('data-capture-phase', 'captured', {
     timeout: 4_000,
   });
-  await expect(page.getByRole('heading', { name: 'Baseline secured' })).toBeVisible();
-  await expect(page.getByText('Processing specimen')).toBeVisible();
+  await expect(page.getByRole('heading', { name: '3 measurements accepted' })).toBeVisible();
+  await expect(page.locator('[data-measurement-indicator]')).toHaveAttribute(
+    'data-measurements-accepted',
+    '3',
+  );
   await expect(page.locator('[data-frame-frozen="true"]')).toBeVisible();
   expect(await captureGeometry(page)).toEqual(activeGeometry);
   await expect(page.locator('[data-face-acquisition-guide]')).toHaveCount(1);
   await expect(page.getByText(/Good|Perfect|Passed|Success/)).toHaveCount(0);
+  await expect(page.getByRole('heading', { name: 'Processing measurements' })).toBeVisible();
 
   const persisted = await page.evaluate((key) => localStorage.getItem(key), STORAGE_KEY);
   expect(persisted).not.toMatch(/blob:|data:image|base64|MediaStream/);
@@ -399,6 +436,7 @@ test('native browser camera contract renders the real preview surface and owns c
     'captured',
     { timeout: 5_000 },
   );
+  await expect(page.locator('section[data-burst-captured="3"]')).toBeVisible();
   await expect(page.locator('[data-frame-frozen="true"] img')).toBeVisible();
   await expect(page.locator('[data-frame-frozen="true"] img')).toHaveCSS(
     'object-position',
@@ -417,9 +455,23 @@ test('native browser camera contract renders the real preview surface and owns c
           __faceValueTrackStops?: number;
         }
       ).__faceValueTrackStops ?? 0,
+    decodedFrameEvents:
+      (
+        window as Window & {
+          __faceValueDecodedFrameEvents?: number;
+        }
+      ).__faceValueDecodedFrameEvents ?? 0,
+    capturedFrames:
+      (
+        window as Window & {
+          __faceValueCapturedFrames?: number;
+        }
+      ).__faceValueCapturedFrames ?? 0,
   }));
   expect(contract.alerts).toEqual([]);
   expect(contract.trackStops).toBe(1);
+  expect(contract.decodedFrameEvents).toBe(3);
+  expect(contract.capturedFrames).toBe(3);
 });
 
 test('one invalid frame does not destabilize the ritual', async ({ page }) => {
@@ -470,9 +522,7 @@ test('face loss during Locking returns calmly to Aligning', async ({ page }) => 
   expect(
     observations.some(
       ({ phase, primary, secondary }) =>
-        phase === 'aligning' &&
-        primary === 'Frame lost' &&
-        secondary === 'Return to the guide',
+        phase === 'aligning' && primary === 'Frame lost' && secondary === 'Return to the guide',
     ),
   ).toBe(true);
 });
@@ -509,19 +559,91 @@ test('face loss during Scanning cancels the first scan and does not commit it', 
   ).toBe(true);
 });
 
-test('photo fallback retains the existing validation and analysis route', async ({ page }) => {
+test('photo fallback remains explicitly single-image-limited', async ({ page }) => {
   await openCapture(page);
   await page.getByLabel('Choose a face photo').setInputFiles({
     name: 'abstract-fixture.jpg',
     mimeType: 'image/jpeg',
     buffer: Buffer.from('synthetic capture fixture'),
   });
-  await expect(
-    page.getByRole('heading', {
-      name: 'Anything meaningfully different today?',
-    }),
-  ).toBeVisible();
+  await expect(page.getByText('One photo is not enough for this scan.')).toBeVisible();
+  await expect(page.getByText(/nothing was added to your trial/i)).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Position your face' })).toBeVisible();
   await expect(page.locator('[data-camera-kit-fixture="active"]')).toHaveCount(0);
+});
+
+test('a recoverable capture rejection is replaced inside the same ritual', async ({ page }) => {
+  await openCapture(page, { scenario: 'burst-rejection' });
+  await startCapture(page);
+
+  const captureScreen = page.locator('section[data-preview-state]');
+  await expect(page.getByRole('heading', { name: '3 measurements accepted' })).toBeVisible({
+    timeout: 5_000,
+  });
+  await expect(captureScreen).toHaveAttribute('data-burst-attempts', '4');
+  await expect(captureScreen).toHaveAttribute('data-burst-captured', '3');
+  await expect(page.getByRole('alert')).toHaveCount(0);
+  await expect(
+    page.getByRole('heading', { name: 'Anything meaningfully different today?' }),
+  ).toBeVisible();
+
+  const persisted = await page.evaluate((key) => localStorage.getItem(key), STORAGE_KEY);
+  const evidence = JSON.parse(persisted!).longitudinalEvidence.baselineBurst;
+  expect(evidence).toMatchObject({
+    attemptedFrameCount: 4,
+    rejectedFrames: [
+      {
+        stage: 'capture',
+        reasons: ['movement above accepted range'],
+      },
+    ],
+  });
+  expect(evidence.acceptedFrames).toHaveLength(3);
+});
+
+test('provider frame two retries once on the same capture and then completes', async ({ page }) => {
+  await openCapture(page, { providerFailureFrame: 2 });
+  await startCapture(page);
+  await expect(page.getByRole('heading', { name: '3 measurements accepted' })).toBeVisible({
+    timeout: 5_000,
+  });
+  await expect(
+    page.getByRole('heading', { name: 'Anything meaningfully different today?' }),
+  ).toBeVisible();
+
+  const persisted = await page.evaluate((key) => localStorage.getItem(key), STORAGE_KEY);
+  const evidence = JSON.parse(persisted!).longitudinalEvidence.baselineBurst;
+  expect(
+    evidence.acceptedFrames.map(
+      (frame: { providerAttemptCount: number }) => frame.providerAttemptCount,
+    ),
+  ).toEqual([1, 2, 1]);
+  expect(
+    new Set(evidence.acceptedFrames.map((frame: { frameId: string }) => frame.frameId)).size,
+  ).toBe(3);
+  expect(
+    evidence.acceptedFrames.map((frame: { signal: { rawScore: number } }) => frame.signal.rawScore),
+  ).toEqual([93.3356, 92.5, 94.25]);
+  expect(evidence.rejectedFrames).toEqual([]);
+});
+
+test('provider frame three terminal failure fails the burst without durable partial evidence', async ({
+  page,
+}) => {
+  await openCapture(page, { providerTerminalFailureFrame: 3 });
+  await startCapture(page);
+
+  await expect(page.getByRole('alert')).toContainText('We couldn’t finish this scan.', {
+    timeout: 5_000,
+  });
+  await expect(page.getByRole('button', { name: 'TRY BURST AGAIN' })).toBeVisible();
+  await expect(page.locator('section[data-burst-status="failed"]')).toHaveAttribute(
+    'data-burst-accepted',
+    '2',
+  );
+  const persisted = await page.evaluate((key) => localStorage.getItem(key), STORAGE_KEY);
+  expect(JSON.parse(persisted!).longitudinalEvidence.baselineBurst ?? null).toBeNull();
+  expect(persisted).not.toMatch(/Blob|blob:|data:image|base64|providerTaskId|MediaStream/);
 });
 
 test('permission denial is calm, recoverable, and keeps photo fallback available', async ({
@@ -530,7 +652,7 @@ test('permission denial is calm, recoverable, and keeps photo fallback available
   await openCapture(page, { scenario: 'permission-denied' });
   await page.getByRole('button', { name: 'START GUIDED CAPTURE' }).click();
   await expect(page.getByRole('heading', { name: 'Camera access is needed' })).toBeVisible();
-  await expect(page.getByText('Enable camera access or choose a photo instead')).toBeVisible();
+  await expect(page.getByText('Enable camera access for three live measurements')).toBeVisible();
   await expect(page.getByRole('button', { name: 'TRY CAMERA AGAIN' })).toBeVisible();
   await expect(page.getByLabel('Choose a face photo')).toBeAttached();
 });

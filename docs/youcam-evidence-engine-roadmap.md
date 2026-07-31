@@ -2,7 +2,10 @@
 
 **Status:** Current execution roadmap  
 **Effective date:** July 30, 2026  
-**Implementation baseline:** `main` after PR #62 (`e0173ee`)
+**Implementation base:** `main` at merged PR #67
+(`330f51975f162a2c15784114d7a448492973fcad`)
+
+**Current change:** issue #63
 
 This roadmap distinguishes completed repository behavior from the remaining dependency-ordered hackathon work. Historical implementation detail remains available in merged PRs and `youcam-phase-b5-implementation.md`.
 
@@ -83,28 +86,29 @@ Delivered:
 
 At the current baseline:
 
-- ordinary baseline uses one accepted YouCam raw score
-- ordinary follow-up uses one accepted YouCam raw score
-- the evaluator records one session and one accepted score per period
+- ordinary baseline uses three independently accepted YouCam raw scores
+- ordinary follow-up uses three independently accepted YouCam raw scores
+- the evaluator receives the actual score arrays, rejected evidence, and one session per period
 - measurement quality remains limited by honest missing evidence
 - adherence, tolerance, and participant-observed change are not collected
 - production thresholds remain provisional 5/10 values
 - a final exact-head physical-iPhone golden-path pass remains a release gate
 
-## Remaining Phase C sequence
+## Phase C sequence
 
-The remaining product work is locked to three implementation issues.
+Issue #63 is implemented in this change. Remaining product work stays locked to
+issues #64 and #65.
 
 ```text
-#63 Evidence Burst
-→ #64 Trial Truth
+#63 Evidence Burst (implemented)
+→ #64 Trial Truth (planned)
 → #65 Preliminary Calibration Harness
 → exact-head release hardening
 → bug fixes only
 → submission
 ```
 
-## #63 — Evidence Burst
+## #63 — Evidence Burst (implemented in this change)
 
 Branch: `agent/redness-evidence-burst`
 
@@ -117,6 +121,16 @@ Objective:
 - use the canonical evaluator for median and direction agreement
 - persist accepted/rejected face-free evidence only
 
+Implemented policy:
+
+- `requestVideoFrameCallback` proves decoded-frame currentness when supported
+- advancing `video.currentTime` is the non-time-based fallback proof
+- three accepted measurements are required within five capture attempts
+- provider requests run sequentially
+- one failed request is retried once on the same captured frame
+- a second provider failure terminates the generation
+- incomplete active generations are omitted from persistence
+
 Must not:
 
 - duplicate one score three times
@@ -127,7 +141,10 @@ Must not:
 
 Exit gate:
 
-A physical iPhone baseline and follow-up each produce three genuine provider measurements through one guided ritual, with no duplicate work or image persistence.
+Automated and desktop-browser acceptance is part of this implementation. A
+physical iPhone baseline and follow-up must still prove three genuine provider
+measurements through one guided ritual, with no duplicate work or image
+persistence. That hardware gate remains explicitly pending.
 
 ## #64 — Trial Truth
 

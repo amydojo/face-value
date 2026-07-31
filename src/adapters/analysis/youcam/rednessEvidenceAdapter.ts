@@ -20,16 +20,24 @@ import type {
   DurableSkinSignal,
   ProductPlacement,
   RecommendedAction,
+  RednessEvidenceBurst,
   RednessComparison,
   RegisteredProduct,
 } from '../../../domain/model';
+import { isCompleteRednessEvidenceBurst } from '../../../domain/rednessEvidenceBurst';
 
 const APP_BUILD_VERSION = 'face-value-web-0.1.0';
 const PROVIDER_MODEL_VERSION_NOT_REPORTED = 'youcam-hd-redness-model-version-not-reported';
 const PREPROCESSING_VERSION = 'face-value-unmodified-upload-v1';
 
-const hasForbiddenUiScore = (signal: DurableSkinSignal): boolean =>
-  'ui_score' in signal || 'uiScore' in signal;
+const hasForbiddenUiScore = (value: unknown, visited = new WeakSet<object>()): boolean => {
+  if (typeof value !== 'object' || value === null) return false;
+  if (visited.has(value)) return false;
+  visited.add(value);
+  const record = value as Record<string, unknown>;
+  if ('ui_score' in record || 'uiScore' in record) return true;
+  return Object.values(record).some((item) => hasForbiddenUiScore(item, visited));
+};
 
 function versionsFor(signal: DurableSkinSignal): RednessVersionMetadata {
   return {
@@ -42,7 +50,10 @@ function versionsFor(signal: DurableSkinSignal): RednessVersionMetadata {
   };
 }
 
-function captureQualityFor(context: CaptureContext | null): CaptureQuality {
+function captureQualityFor(
+  context: CaptureContext | null,
+  evidenceVolume: 'single' | 'burst',
+): CaptureQuality {
   const makeupPresent = context?.makeup === true;
   return {
     accepted: !makeupPresent,
@@ -54,8 +65,15 @@ function captureQualityFor(context: CaptureContext | null): CaptureQuality {
     obstructionPresent: makeupPresent,
     enhancementDetected: false,
     reasons: [
-      'The current MVP stores one accepted image per capture session.',
-      'Cross-session lighting, pose, crop, face-size, and color-cast metrics were not persisted.',
+      ...(evidenceVolume === 'burst'
+        ? [
+            'Three distinct current frames passed the available exposure and movement gates.',
+            'Cross-session exposure, pose, crop, face-size, and color-cast comparability were not measured.',
+          ]
+        : [
+            'The current MVP stores one accepted image per capture session.',
+            'Cross-session lighting, pose, crop, face-size, and color-cast metrics were not persisted.',
+          ]),
       ...(makeupPresent
         ? ['Makeup was reported, so the visible-redness comparison is not readable.']
         : []),
@@ -63,7 +81,7 @@ function captureQualityFor(context: CaptureContext | null): CaptureQuality {
   };
 }
 
-function sessionFor(input: {
+function sessionForSignal(input: {
   signal: DurableSkinSignal;
   capture: CaptureMetadata | null;
   context: CaptureContext | null;
@@ -83,8 +101,51 @@ function sessionFor(input: {
     rawScores: [input.signal.rawScore],
     acceptedFrameIds: [frameId],
     rejectedFrames: [],
-    captureQuality: captureQualityFor(input.context),
+    captureQuality: captureQualityFor(input.context, 'single'),
     versions: versionsFor(input.signal),
+  };
+}
+
+function sessionForBurst(input: {
+  burst: RednessEvidenceBurst;
+  context: CaptureContext | null;
+}): EvidenceSession {
+  if (!isCompleteRednessEvidenceBurst(input.burst)) {
+    throw new Error('Canonical redness evaluation requires a complete three-measurement burst.');
+  }
+  const firstSignal = input.burst.acceptedFrames[0].signal;
+  const attemptedFrames = [
+    ...input.burst.acceptedFrames.map((frame, index) => ({
+      frameId: frame.frameId,
+      attemptedAt: frame.capture.createdAt,
+      index,
+    })),
+    ...input.burst.rejectedFrames.map((frame, index) => ({
+      frameId: frame.frameId,
+      attemptedAt: frame.attemptedAt,
+      index: input.burst.acceptedFrames.length + index,
+    })),
+  ].sort((left, right) => {
+    const time = left.attemptedAt.localeCompare(right.attemptedAt);
+    return time === 0 ? left.index - right.index : time;
+  });
+
+  return {
+    sessionId: input.burst.sessionId,
+    capturedAt: input.burst.completedAt,
+    deviceClass: input.burst.captureProfileId ?? 'capture-profile-not-recorded',
+    cameraFacing: 'front',
+    frameIds: attemptedFrames.map((frame) => frame.frameId),
+    rawScores: input.burst.acceptedFrames.map((frame) => frame.signal.rawScore),
+    acceptedFrameIds: input.burst.acceptedFrames.map((frame) => frame.frameId),
+    rejectedFrames: input.burst.rejectedFrames.map((frame) => ({
+      frameId: frame.frameId,
+      attemptedAt: frame.attemptedAt,
+      stage: frame.stage,
+      reasons: [...frame.reasons],
+    })),
+    captureQuality: captureQualityFor(input.context, 'burst'),
+    versions: versionsFor(firstSignal),
   };
 }
 
@@ -153,11 +214,18 @@ function elapsedDays(start: string, end: string): number {
   return Math.max(0, Math.round(((endTime - startTime) / 86_400_000) * 100) / 100);
 }
 
+const isRednessBurst = (
+  value: DurableSkinSignal | RednessEvidenceBurst,
+): value is RednessEvidenceBurst => 'acceptedFrames' in value;
+
+const firstSignalFor = (value: DurableSkinSignal | RednessEvidenceBurst): DurableSkinSignal =>
+  isRednessBurst(value) ? value.acceptedFrames[0].signal : value;
+
 export function buildMvpRednessEvaluation(input: {
   trialId: string;
   product: RegisteredProduct;
-  baseline: DurableSkinSignal;
-  endpoint: DurableSkinSignal;
+  baseline: DurableSkinSignal | RednessEvidenceBurst;
+  endpoint: DurableSkinSignal | RednessEvidenceBurst;
   baselineCapture: CaptureMetadata | null;
   endpointCapture: CaptureMetadata | null;
   baselineContext: CaptureContext | null;
@@ -165,6 +233,16 @@ export function buildMvpRednessEvaluation(input: {
   disturbance: DisturbanceState;
 }): RednessEvaluationSnapshot {
   const uiScorePresent = hasForbiddenUiScore(input.baseline) || hasForbiddenUiScore(input.endpoint);
+  const baselineBurst = isRednessBurst(input.baseline) ? input.baseline : null;
+  const endpointBurst = isRednessBurst(input.endpoint) ? input.endpoint : null;
+  if (
+    (baselineBurst && !isCompleteRednessEvidenceBurst(baselineBurst)) ||
+    (endpointBurst && !isCompleteRednessEvidenceBurst(endpointBurst))
+  ) {
+    throw new Error('Canonical redness evaluation requires complete burst evidence.');
+  }
+  const baselineSignal = firstSignalFor(input.baseline);
+  const endpointSignal = firstSignalFor(input.endpoint);
   const activeOverlap =
     input.disturbance === 'detected' || input.disturbance === 'overlap_retained';
   const confounders = confoundersFor({
@@ -182,28 +260,38 @@ export function buildMvpRednessEvaluation(input: {
       ...(input.product.expectedObservationWindowDays ?? REDNESS_MVP_OBSERVATION_WINDOW),
     },
     actualObservationIntervalDays: elapsedDays(
-      input.baseline.capturedAt,
-      input.endpoint.capturedAt,
+      baselineBurst?.completedAt ?? baselineSignal.capturedAt,
+      endpointBurst?.completedAt ?? endpointSignal.capturedAt,
     ),
-    evaluatedAt: input.endpoint.capturedAt,
+    evaluatedAt: endpointBurst?.completedAt ?? endpointSignal.capturedAt,
     baseline: {
       sessions: [
-        sessionFor({
-          signal: input.baseline,
-          capture: input.baselineCapture,
-          context: input.baselineContext,
-          fallbackId: `${input.trialId}-baseline`,
-        }),
+        baselineBurst
+          ? sessionForBurst({
+              burst: baselineBurst,
+              context: input.baselineContext,
+            })
+          : sessionForSignal({
+              signal: baselineSignal,
+              capture: input.baselineCapture,
+              context: input.baselineContext,
+              fallbackId: `${input.trialId}-baseline`,
+            }),
       ],
     },
     endpoint: {
       sessions: [
-        sessionFor({
-          signal: input.endpoint,
-          capture: input.endpointCapture,
-          context: input.endpointContext,
-          fallbackId: `${input.trialId}-endpoint`,
-        }),
+        endpointBurst
+          ? sessionForBurst({
+              burst: endpointBurst,
+              context: input.endpointContext,
+            })
+          : sessionForSignal({
+              signal: endpointSignal,
+              capture: input.endpointCapture,
+              context: input.endpointContext,
+              fallbackId: `${input.trialId}-endpoint`,
+            }),
       ],
     },
     maskEvidence: {},

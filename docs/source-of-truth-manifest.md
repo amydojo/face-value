@@ -2,7 +2,10 @@
 
 **Status:** Current visual-source and verification index  
 **Effective date:** July 30, 2026  
-**Implementation baseline:** `main` after PR #62 (`e0173ee`)
+**Implementation base:** `main` at merged PR #67
+(`330f51975f162a2c15784114d7a448492973fcad`)
+
+**Current change:** issue #63
 
 This manifest identifies the current visual authorities, their intended role, and the checked-in evidence that proves implementation. A polished older Figma node or screenshot does not automatically override a newer merged system.
 
@@ -27,17 +30,18 @@ Current Face Value design file:
 
 ## 3. Current subsystem sources
 
-| Subsystem | Figma source | Role | Implementation evidence |
-| --- | --- | --- | --- |
-| Canonical specimen identity | `FV / Specimen / Identity Lock` — node `512:162` | Canonical specimen geometry, thermal label, evidence strip, and material layering | `verification/first-trial-identity-lock-v2/` and merged PR #59 |
-| Specimen ingestion states | Loading `511:105`; Locking `512:102`; Locked `512:132` | Visual sequence and allowed alignment changes while preserving one specimen root | `verification/first-trial-identity-lock-v2/` |
-| Trial-pending machine continuity | `04 · Machine Continuity / Trial Pending · Specimen Loaded` — node `483:5` | Shared machine/specimen truth for pending and follow-up-ready continuity | `verification/machine-continuity-2026-07-28/` and merged PR #59 |
-| Acquisition sequence | Capture Sequence — node `542:99` | Searching, Aligning, Locking, Scanning, and Captured composition and visual rhythm | [`verification/face-value-specimen-acquisition/README.md`](verification/face-value-specimen-acquisition/README.md) and merged PR #62 |
-| Acquisition guide | Face Guide — node `536:24` | Four-arc guide geometry and authored positioning direction | [`verification/face-value-specimen-acquisition/README.md`](verification/face-value-specimen-acquisition/README.md) |
-| Acquisition engineering contract | Engineering Contract V2 — node `556:135`; Capture Sequence page `534:2` | State labels, layout relationships, guidance hierarchy, and responsive intent | [`verification/face-value-specimen-acquisition/README.md`](verification/face-value-specimen-acquisition/README.md) |
-| Evidence Cassette lineage | component family node `368:3295` | Historical chassis and physical grammar lineage only; not a second current component implementation | current Oracle machine and `oracle-reveal-v1.md` |
-| Historical sealed result | node `342:2752` | Visual lineage for sealed evidence restraint | current Oracle sealed state tests |
-| Historical presented result | node `343:2578` | Visual lineage for reveal clarity and specimen presentation | current Oracle verdict state tests |
+| Subsystem                              | Figma source                                                               | Role                                                                                                | Implementation evidence                                                                                                              |
+| -------------------------------------- | -------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| Canonical specimen identity            | `FV / Specimen / Identity Lock` — node `512:162`                           | Canonical specimen geometry, thermal label, evidence strip, and material layering                   | `verification/first-trial-identity-lock-v2/` and merged PR #59                                                                       |
+| Specimen ingestion states              | Loading `511:105`; Locking `512:102`; Locked `512:132`                     | Visual sequence and allowed alignment changes while preserving one specimen root                    | `verification/first-trial-identity-lock-v2/`                                                                                         |
+| Trial-pending machine continuity       | `04 · Machine Continuity / Trial Pending · Specimen Loaded` — node `483:5` | Shared machine/specimen truth for pending and follow-up-ready continuity                            | `verification/machine-continuity-2026-07-28/` and merged PR #59                                                                      |
+| Acquisition sequence                   | Capture Sequence — node `542:99`                                           | Searching, Aligning, Locking, Scanning, and Captured composition and visual rhythm                  | [`verification/face-value-specimen-acquisition/README.md`](verification/face-value-specimen-acquisition/README.md) and merged PR #62 |
+| Three-measurement acquisition feedback | Existing Capture Sequence node `542:99` plus current implementation        | Restrained burst progress within the existing guide; no new camera or consumer ceremony             | [`verification/redness-evidence-burst-63/README.md`](verification/redness-evidence-burst-63/README.md)                               |
+| Acquisition guide                      | Face Guide — node `536:24`                                                 | Four-arc guide geometry and authored positioning direction                                          | [`verification/face-value-specimen-acquisition/README.md`](verification/face-value-specimen-acquisition/README.md)                   |
+| Acquisition engineering contract       | Engineering Contract V2 — node `556:135`; Capture Sequence page `534:2`    | State labels, layout relationships, guidance hierarchy, and responsive intent                       | [`verification/face-value-specimen-acquisition/README.md`](verification/face-value-specimen-acquisition/README.md)                   |
+| Evidence Cassette lineage              | component family node `368:3295`                                           | Historical chassis and physical grammar lineage only; not a second current component implementation | current Oracle machine and `oracle-reveal-v1.md`                                                                                     |
+| Historical sealed result               | node `342:2752`                                                            | Visual lineage for sealed evidence restraint                                                        | current Oracle sealed state tests                                                                                                    |
+| Historical presented result            | node `343:2578`                                                            | Visual lineage for reveal clarity and specimen presentation                                         | current Oracle verdict state tests                                                                                                   |
 
 ## 4. Current implementation authority by surface
 
@@ -131,19 +135,22 @@ Physical source images that contain a real face remain local-only and must not b
 - camera teardown behavior
 - unresolved limitations
 
-The final exact-head physical-iPhone acceptance pass after PR #62 remains a release gate until such a record is checked in.
+The final exact-head physical-iPhone acceptance pass for issue #63 remains a
+release gate until such a record is checked in.
 
-## 6. Planned source additions
+## 6. Phase C source status
 
-### #63
+### #63 (current)
 
-May add acquisition-state evidence for restrained three-measurement progress and burst retry states. It must preserve the current Capture Sequence and Face Guide sources.
+Adds privacy-safe acquisition-state evidence for restrained three-measurement
+progress and burst recovery. The current Capture Sequence and Face Guide remain
+the visual source; no second camera composition was introduced.
 
-### #64
+### #64 (planned)
 
 Should add a focused Figma or in-browser source for the three compact trial-truth groups only when visual decisions exceed the shared control system. It must not redesign the machine.
 
-### #65
+### #65 (planned)
 
 Internal calibration UI may use an engineering-instrument layout. It is not a consumer visual source and must remain clearly labeled preliminary/internal.
 

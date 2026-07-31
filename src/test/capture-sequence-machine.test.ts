@@ -138,10 +138,7 @@ describe('Face Value capture acquisition machine', () => {
     let state = createCaptureSequenceState(clock());
     state = signal(
       state,
-      sampleWith(
-        { alignmentValid: false, stillnessValid: false },
-        { alignmentIssue: 'move-left' },
-      ),
+      sampleWith({ alignmentValid: false, stillnessValid: false }, { alignmentIssue: 'move-left' }),
     );
     state = tick(state, CAPTURE_TIMING.returnValidMs);
     state = tick(state, CAPTURE_TIMING.enterInvalidMs);
@@ -239,7 +236,7 @@ describe('Face Value capture acquisition machine', () => {
     expect(state.persistentLowLight).toBe(true);
     expect(getCaptureInstruction(state)).toEqual({
       primary: 'Lighting is still too low',
-      secondary: 'Try facing a window or choose a photo instead',
+      secondary: 'Try facing a window and keep the camera open',
     });
   });
 

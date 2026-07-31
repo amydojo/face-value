@@ -2,7 +2,10 @@
 
 **Status:** Current state authority  
 **Effective date:** July 30, 2026  
-**Implementation baseline:** `main` after PR #62 (`e0173ee`)
+**Implementation base:** `main` at merged PR #67
+(`330f51975f162a2c15784114d7a448492973fcad`)
+
+**Current change:** issue #63
 
 Face Value uses one reducer-owned application state machine for product, evidence, navigation, persistence, and recovery. The Oracle uses a separate pure reducer for temporary mechanical phases. Events that fail their guards return the current model unchanged.
 
@@ -133,19 +136,39 @@ Production uses `NativeBrowserCameraAdapter`. Camera readiness requires a connec
 
 The reducer receives face-free capture metadata. It never receives image bytes, streams, object URLs, signed upload URLs, or raw provider responses.
 
-The current ordinary path accepts one analyzed measurement per period. #63 will add a reducer-owned burst generation and atomic three-measurement period commit; that model is planned, not current.
+The current ordinary path starts one reducer-owned `ActiveRednessBurst` per
+baseline or follow-up generation. It tracks face-free captured/rejected frame
+evidence, sequential provider requests, accepted durable signals, and terminal
+failure. The capture boundary is five attempts and the acceptance boundary is
+three independently analyzed measurements.
+
+The active generation is runtime recovery state only. It is omitted from local
+persistence, and all image-bearing values remain in an ephemeral component
+registry. One abort controller is authoritative for cancellation, route exit,
+retry, and unmount. Events for obsolete generation identifiers are no-ops.
 
 ## 6. Longitudinal evidence state
 
 `LongitudinalSkinEvidence` currently preserves:
 
 - one frozen `AnalysisProtocol`
-- one accepted baseline `DurableSkinSignal`
-- one accepted follow-up `DurableSkinSignal`
+- one optional complete baseline `RednessEvidenceBurst`
+- one optional complete follow-up `RednessEvidenceBurst`
+- exactly three accepted `DurableSkinSignal` observations per complete burst
+- face-free accepted and rejected frame metadata
 - one compatibility `RednessComparison`
 - one optional canonical `RednessEvaluationSnapshot`
 
-The compatibility single-signal fields remain current until #63 migrates the live path to burst-backed periods. A median must never masquerade as an original provider signal.
+Legacy baseline/follow-up single-signal fields remain optional compatibility
+data. Hydration does not reinterpret them as a burst and does not recalculate
+their saved record. A median must never masquerade as an original provider
+signal.
+
+`REDNESS_BURST_COMMIT_REQUESTED` is the atomic period boundary. The reducer
+accepts it only when one current generation contains three unique captured
+frame identifiers, three independently settled compatible provider signals,
+and no unresolved request. It writes either the whole baseline/follow-up burst
+or nothing.
 
 Canonical evaluation owns:
 
@@ -185,13 +208,13 @@ The compatibility confidence field remains available for old presentation and re
 
 Canonical redness actions map into compatibility placement values through one typed adapter:
 
-| Redness action | Compatibility placement |
-| --- | --- |
-| `keep` | `established` |
-| `test_longer` | `paused` |
-| `retry_alone` | `retry_alone` |
-| `not_proving_job` | `useful_elsewhere` |
-| `safety_interruption` | `released` |
+| Redness action        | Compatibility placement |
+| --------------------- | ----------------------- |
+| `keep`                | `established`           |
+| `test_longer`         | `paused`                |
+| `retry_alone`         | `retry_alone`           |
+| `not_proving_job`     | `useful_elsewhere`      |
+| `safety_interruption` | `released`              |
 
 Unknown values fail explicitly. UI components do not invent a fallback placement.
 
@@ -292,7 +315,7 @@ Legacy records hydrate through explicit compatibility adapters. They are not ass
 A guarded application effect requests comparison only when:
 
 - the application is in `analysis`
-- accepted baseline and follow-up evidence exist
+- complete baseline and follow-up bursts exist, or a readable legacy pair exists
 - no saved comparison or canonical result exists
 - the current evidence request has not already been handled
 - required protocol and schema guards pass
@@ -311,17 +334,20 @@ The record generator uses a deterministic identity derived from the trial. A val
 
 Repeated clicks, animation callbacks, collection callbacks, reload, Home rendering, Previous Trials, and record disclosure cannot create a second record.
 
-## 14. Planned state amendments
+## 14. Phase C state status
 
-### #63
+### #63 (current)
 
-Adds typed burst generations, accepted/rejected frame evidence, atomic baseline/follow-up period commits, and stale-generation protection. It must preserve legacy single-signal records without re-evaluation.
+Typed burst generations, accepted/rejected frame evidence, atomic
+baseline/follow-up period commits, provider settlement guards, and
+stale-generation protection are implemented. Legacy single-signal records
+remain readable without re-evaluation.
 
-### #64
+### #64 (planned)
 
 Adds reducer-owned committed adherence, tolerance, symptoms, and participant-observed direction before comparison readiness.
 
-### #65
+### #65 (planned)
 
 Adds isolated calibration observations and an exploratory internal registry. Calibration state must not merge with ordinary trial state or become a production threshold without a future approval path.
 

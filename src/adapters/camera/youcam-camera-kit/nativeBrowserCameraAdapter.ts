@@ -6,6 +6,10 @@ import {
   type CameraFailureReason,
   type CameraRequestResult,
 } from '../browserCamera';
+import {
+  REDNESS_BURST_MAX_CAPTURE_ATTEMPTS,
+  REDNESS_BURST_REQUIRED_MEASUREMENTS,
+} from '../../../domain/rednessEvidenceBurst';
 import type {
   CameraKitAdapter,
   GuidedCaptureFailure,
@@ -16,6 +20,7 @@ import type {
 
 const NATIVE_CAPTURE_PROFILE = 'native-browser-camera-v1' as const;
 const FIRST_FRAME_TIMEOUT_MS = 20_000;
+const CURRENT_FRAME_TIMEOUT_MS = 2_500;
 const FRAME_SAMPLE_INTERVAL_MS = 160;
 const SAMPLE_WIDTH = 40;
 const SAMPLE_HEIGHT = 52;
@@ -62,11 +67,7 @@ export function assessNativeFramePixels(
       ? difference / pixelCount
       : Number.POSITIVE_INFINITY;
   const lightingIssue =
-    meanLuma < LOW_LIGHT_LUMA
-      ? 'low-light'
-      : meanLuma > HIGH_LIGHT_LUMA
-        ? 'backlight'
-        : null;
+    meanLuma < LOW_LIGHT_LUMA ? 'low-light' : meanLuma > HIGH_LIGHT_LUMA ? 'backlight' : null;
 
   return {
     lightingValid: lightingIssue === null,
@@ -125,10 +126,7 @@ export function waitForVisibleVideoFrame(
       video.removeEventListener('resize', check);
       video.removeEventListener('error', fail);
       signal?.removeEventListener('abort', abort);
-      if (
-        frameCallbackId !== null &&
-        typeof video.cancelVideoFrameCallback === 'function'
-      ) {
+      if (frameCallbackId !== null && typeof video.cancelVideoFrameCallback === 'function') {
         video.cancelVideoFrameCallback(frameCallbackId);
       }
     };
@@ -170,6 +168,122 @@ export function waitForVisibleVideoFrame(
     if (typeof video.requestVideoFrameCallback === 'function') {
       frameCallbackId = video.requestVideoFrameCallback(check);
     }
+  });
+}
+
+export interface DecodedVideoFrameProof {
+  mediaTime: number;
+  presentedFrames: number | null;
+  currentTime: number;
+}
+
+const frameProofAdvanced = (
+  current: DecodedVideoFrameProof,
+  previous: DecodedVideoFrameProof | null,
+): boolean => {
+  if (!previous) return true;
+  if (
+    current.presentedFrames !== null &&
+    previous.presentedFrames !== null &&
+    current.presentedFrames > previous.presentedFrames
+  ) {
+    return true;
+  }
+  return current.mediaTime > previous.mediaTime || current.currentTime > previous.currentTime;
+};
+
+/**
+ * Resolves only after the video element presents a decoded frame that is newer
+ * than the prior accepted boundary. The timeout is a failure bound, never
+ * evidence that a frame is current.
+ */
+export function waitForDistinctVideoFrame(
+  video: HTMLVideoElement,
+  previous: DecodedVideoFrameProof | null,
+  {
+    timeoutMs = CURRENT_FRAME_TIMEOUT_MS,
+    hostWindow = video.ownerDocument.defaultView ?? window,
+    signal,
+  }: {
+    timeoutMs?: number;
+    hostWindow?: Window;
+    signal?: AbortSignal;
+  } = {},
+): Promise<DecodedVideoFrameProof> {
+  if (signal?.aborted) return Promise.reject(new DOMException('Aborted', 'AbortError'));
+
+  return new Promise<DecodedVideoFrameProof>((resolve, reject) => {
+    let settled = false;
+    let timeoutId = 0;
+    let animationFrameId = 0;
+    let videoFrameId: number | null = null;
+    const fallbackStartTime = previous?.currentTime ?? video.currentTime;
+
+    const cleanup = () => {
+      hostWindow.clearTimeout(timeoutId);
+      if (animationFrameId) hostWindow.cancelAnimationFrame(animationFrameId);
+      if (videoFrameId !== null && typeof video.cancelVideoFrameCallback === 'function') {
+        video.cancelVideoFrameCallback(videoFrameId);
+      }
+      signal?.removeEventListener('abort', abort);
+    };
+
+    const finish = (proof: DecodedVideoFrameProof) => {
+      if (settled || !frameProofAdvanced(proof, previous)) return false;
+      settled = true;
+      cleanup();
+      resolve(proof);
+      return true;
+    };
+
+    const fail = () => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      reject(new Error('A distinct decoded video frame was not presented.'));
+    };
+
+    function abort() {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      reject(new DOMException('Aborted', 'AbortError'));
+    }
+
+    if (typeof video.requestVideoFrameCallback === 'function') {
+      const requestNext = () => {
+        videoFrameId = video.requestVideoFrameCallback((_now, metadata) => {
+          const proof: DecodedVideoFrameProof = {
+            mediaTime: Number(metadata.mediaTime),
+            presentedFrames: Number.isFinite(metadata.presentedFrames)
+              ? metadata.presentedFrames
+              : null,
+            currentTime: video.currentTime,
+          };
+          if (!finish(proof) && !settled) requestNext();
+        });
+      };
+      requestNext();
+    } else {
+      const checkCurrentTime = () => {
+        const currentTime = video.currentTime;
+        if (
+          currentTime > fallbackStartTime &&
+          finish({
+            mediaTime: currentTime,
+            presentedFrames: null,
+            currentTime,
+          })
+        ) {
+          return;
+        }
+        animationFrameId = hostWindow.requestAnimationFrame(checkCurrentTime);
+      };
+      animationFrameId = hostWindow.requestAnimationFrame(checkCurrentTime);
+    }
+
+    signal?.addEventListener('abort', abort, { once: true });
+    timeoutId = hostWindow.setTimeout(fail, timeoutMs);
   });
 }
 
@@ -220,6 +334,12 @@ export interface NativeCameraEnvironment {
   requestCamera(): Promise<CameraRequestResult>;
   captureFrame(video: HTMLVideoElement): Promise<Blob>;
   createFrameReader(): FrameReader;
+  waitForDistinctFrame(
+    video: HTMLVideoElement,
+    previous: DecodedVideoFrameProof | null,
+    signal: AbortSignal,
+  ): Promise<DecodedVideoFrameProof>;
+  now(): string;
   firstFrameTimeoutMs: number;
   sampleIntervalMs: number;
 }
@@ -228,6 +348,9 @@ const defaultEnvironment: NativeCameraEnvironment = {
   requestCamera: () => requestCamera(),
   captureFrame: (video) => captureFrame(video),
   createFrameReader,
+  waitForDistinctFrame: (video, previous, signal) =>
+    waitForDistinctVideoFrame(video, previous, { signal }),
+  now: () => new Date().toISOString(),
   firstFrameTimeoutMs: FIRST_FRAME_TIMEOUT_MS,
   sampleIntervalMs: FRAME_SAMPLE_INTERVAL_MS,
 };
@@ -250,6 +373,9 @@ export class NativeBrowserCameraAdapter implements CameraKitAdapter {
     let closed = false;
     let previewLive = false;
     let captureStarted = false;
+    let acceptedFrameCount = 0;
+    let attemptedFrameCount = 0;
+    let lastFrameProof: DecodedVideoFrameProof | null = null;
     let endedTrack: MediaStreamTrack | null = null;
     const sessionAbort = new AbortController();
     const readFrame = this.environment.createFrameReader();
@@ -295,7 +421,9 @@ export class NativeBrowserCameraAdapter implements CameraKitAdapter {
     };
 
     function handleTrackEnded() {
-      if (previewLive && !captureStarted) fail('preview-stalled');
+      if (previewLive && acceptedFrameCount < REDNESS_BURST_REQUIRED_MEASUREMENTS) {
+        fail('preview-stalled');
+      }
     }
 
     const capture = () => {
@@ -303,18 +431,86 @@ export class NativeBrowserCameraAdapter implements CameraKitAdapter {
       captureStarted = true;
       hostWindow.clearInterval(sampleTimer);
       sampleTimer = 0;
-      void this.environment
-        .captureFrame(video)
-        .then((image) => {
+      const burstEnabled = Boolean(options.burstGenerationId);
+      const requiredMeasurements = burstEnabled ? REDNESS_BURST_REQUIRED_MEASUREMENTS : 1;
+      const maximumAttempts = burstEnabled ? REDNESS_BURST_MAX_CAPTURE_ATTEMPTS : 1;
+
+      const rejectedAttempt = (frameId: string, attemptedAt: string, reasons: string[]) => {
+        options.onRejectedAttempt?.({ frameId, attemptedAt, reasons });
+      };
+
+      void (async () => {
+        while (
+          isActive() &&
+          acceptedFrameCount < requiredMeasurements &&
+          attemptedFrameCount < maximumAttempts
+        ) {
+          attemptedFrameCount += 1;
+          const attemptedAt = this.environment.now();
+          let proof: DecodedVideoFrameProof;
+
+          try {
+            proof = await this.environment.waitForDistinctFrame(
+              video,
+              lastFrameProof,
+              sessionAbort.signal,
+            );
+          } catch (error) {
+            if (!isActive() || (error instanceof DOMException && error.name === 'AbortError')) {
+              return;
+            }
+            const frameId = `native-${generation}-${attemptedFrameCount}-not-current`;
+            rejectedAttempt(frameId, attemptedAt, ['preview not current']);
+            continue;
+          }
+
+          lastFrameProof = proof;
+          const proofToken =
+            proof.presentedFrames ?? Math.max(0, Math.round(proof.mediaTime * 1_000_000));
+          const frameId = `native-${generation}-${attemptedFrameCount}-${proofToken}`;
+          const assessment = readFrame(video);
+          if (!assessment) {
+            rejectedAttempt(frameId, attemptedAt, ['preview not current']);
+            continue;
+          }
+
+          const qualityReasons = [
+            ...(assessment.lightingValid ? [] : ['lighting outside accepted range']),
+            ...(assessment.stillnessValid ? [] : ['movement above accepted range']),
+          ];
+          if (qualityReasons.length > 0) {
+            rejectedAttempt(frameId, attemptedAt, qualityReasons);
+            continue;
+          }
+
+          let image: Blob;
+          try {
+            image = await this.environment.captureFrame(video);
+          } catch {
+            rejectedAttempt(frameId, attemptedAt, ['capture failed']);
+            continue;
+          }
           if (!isActive()) return;
+
+          acceptedFrameCount += 1;
+          options.onCapture(image, NATIVE_CAPTURE_PROFILE, {
+            frameId,
+            capturedAt: attemptedAt,
+          });
+        }
+
+        if (!isActive()) return;
+        if (acceptedFrameCount === requiredMeasurements) {
           options.onStatus?.('captured');
-          options.onCapture(image, NATIVE_CAPTURE_PROFILE);
+          options.onBurstComplete?.({
+            attemptedFrameCount,
+            acceptedFrameCount,
+          });
           close();
-        })
-        .catch(() => {
-          captureStarted = false;
-          fail('invalid-capture');
-        });
+          return;
+        }
+        fail(burstEnabled ? 'burst-exhausted' : 'invalid-capture');
+      })();
     };
 
     const session: GuidedCaptureSession = {
@@ -398,10 +594,7 @@ export class NativeBrowserCameraAdapter implements CameraKitAdapter {
       });
     };
     publishFrameQuality();
-    sampleTimer = hostWindow.setInterval(
-      publishFrameQuality,
-      this.environment.sampleIntervalMs,
-    );
+    sampleTimer = hostWindow.setInterval(publishFrameQuality, this.environment.sampleIntervalMs);
 
     return session;
   }

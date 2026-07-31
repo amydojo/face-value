@@ -1,9 +1,14 @@
 # Face Value YouCam provider and security contract
 
 **Status:** Current provider authority  
-**Version:** 2.0  
-**Effective date:** July 30, 2026  
-**Implementation baseline:** `main` after PR #62 (`e0173ee`)
+**Version:** 2.1
+
+**Effective date:** July 30, 2026
+
+**Implementation base:** `main` at merged PR #67
+(`330f51975f162a2c15784114d7a448492973fcad`)
+
+**Current change:** issue #63
 
 This document governs the secure YouCam Skin Analysis integration, durable normalization, engineering-session authorization, provider failures, and image lifecycle.
 
@@ -39,17 +44,17 @@ The provider may not:
 
 The supported production protocol is:
 
-| Field | Value |
-| --- | --- |
-| Provider | YouCam Skin Analysis |
-| API version | `2.1` |
-| Mode | `hd` |
-| Concern | `hd_redness` |
-| Region | `null` |
-| Score type | `raw_score` |
-| Capture protocol version | `face-value-youcam-1` |
-| Product protocol ID | `youcam-redness-v1` |
-| Result owner | Face Value canonical evaluator |
+| Field                    | Value                          |
+| ------------------------ | ------------------------------ |
+| Provider                 | YouCam Skin Analysis           |
+| API version              | `2.1`                          |
+| Mode                     | `hd`                           |
+| Concern                  | `hd_redness`                   |
+| Region                   | `null`                         |
+| Score type               | `raw_score`                    |
+| Capture protocol version | `face-value-youcam-1`          |
+| Product protocol ID      | `youcam-redness-v1`            |
+| Result owner             | Face Value canonical evaluator |
 
 Once baseline is accepted, the protocol fields are immutable for that trial.
 
@@ -193,19 +198,32 @@ The canonical evaluator applies the current provisional 5/10 operating boundarie
 
 ## 8. Current evidence volume
 
-At the current baseline, one provider analysis settles the ordinary baseline period and one settles the ordinary follow-up period.
+One consumer scan now produces three independently analyzed frames. A baseline
+or follow-up period settles only after all three valid normalized signals exist.
+Every accepted frame has its own provider request identity and normalized
+`hd_redness.raw_score` observation.
 
-#63 will change orchestration so one consumer scan produces three independently analyzed frames. That PR must preserve:
+Current orchestration preserves:
 
 - one frozen protocol
 - one abort authority per burst
-- bounded provider concurrency
+- provider concurrency of exactly one
+- three independent successful provider analyses per complete period
 - no score duplication
 - no median disguised as a provider signal
 - face-free accepted/rejected frame evidence
 - release of each image after its request settles
 
-The provider endpoints and durable signal contract remain unchanged unless the PR explicitly updates this authority.
+Provider failure follows exactly one policy: retry the failed provider request
+once on the same captured frame. A second failure terminates the burst. The
+orchestrator does not capture a replacement frame for provider failure and
+never combines replacement and retry semantics.
+
+Provider attempt identity and active settlement state remain runtime-only.
+Durable accepted-frame metadata records whether one or two provider attempts
+were required, but never stores a provider task identifier or raw payload.
+
+The provider endpoints and durable signal contract remain unchanged.
 
 ## 9. Provider polling and cancellation
 
@@ -232,16 +250,16 @@ Stale provider completion must be a no-op. A late success cannot overwrite a new
 
 Provider codes belong in protected engineering evidence and safe logs only. Consumer copy must be deterministic and action-oriented.
 
-| Provider or local condition | Consumer guidance |
-| --- | --- |
-| face too small | Move closer so your face fills more of the guide. |
-| lighting rejection | Find more even light and try again. |
-| face outside bounds | Center your full face inside the guide. |
-| invalid image | Use a clear front-facing JPEG or PNG. |
-| timeout | Analysis took too long. Retry without losing this trial. |
-| unauthorized session | Analysis access expired. Reopen the protected session. |
-| protocol mismatch | This scan cannot be compared with the saved baseline protocol. |
-| unknown provider failure | This scan could not be analyzed. Existing evidence is unchanged. |
+| Provider or local condition | Consumer guidance                                                |
+| --------------------------- | ---------------------------------------------------------------- |
+| face too small              | Move closer so your face fills more of the guide.                |
+| lighting rejection          | Find more even light and try again.                              |
+| face outside bounds         | Center your full face inside the guide.                          |
+| invalid image               | Use a clear front-facing JPEG or PNG.                            |
+| timeout                     | Analysis took too long. Retry without losing this trial.         |
+| unauthorized session        | Analysis access expired. Reopen the protected session.           |
+| protocol mismatch           | This scan cannot be compared with the saved baseline protocol.   |
+| unknown provider failure    | This scan could not be analyzed. Existing evidence is unchanged. |
 
 Provider failure must never delete previously accepted evidence or create a fallback result.
 
@@ -369,6 +387,9 @@ Current or future provider changes require:
 - typed contract tests using official-shaped fixtures
 - protocol preflight and immutability tests
 - success, rejection, timeout, cancellation, and stale-response tests
+- three independent analyses and sequential-concurrency tests
+- same-frame retry tests for failures during measurement two or three
+- duplicate completion settlement and image-release tests
 - signed-cookie tests
 - raw-score-only architecture tests
 - reducer idempotency tests

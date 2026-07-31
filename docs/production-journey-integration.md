@@ -2,7 +2,10 @@
 
 **Status:** Current journey authority  
 **Effective date:** July 30, 2026  
-**Implementation baseline:** `main` after PR #62 (`e0173ee`)
+**Implementation base:** `main` at merged PR #67
+(`330f51975f162a2c15784114d7a448492973fcad`)
+
+**Current change:** issue #63
 
 Face Value exposes one reducer-owned product journey. Development fixtures, diagnostics, and Demo Lab starting points project typed state into the same production components; they do not create an alternate consumer product.
 
@@ -18,7 +21,7 @@ empty instrument
 → REGISTER AND LOAD
 → specimen materializes, loads, scans, and locks
 → Reduce visible redness confirmed
-→ guided baseline capture
+→ guided baseline evidence burst
 → optional baseline capture context
 → baseline locked
 → trial pending
@@ -79,7 +82,7 @@ Searching
 → Aligning
 → Locking
 → Scanning
-→ Captured
+→ 3 Measurements Accepted
 → YouCam processing
 ```
 
@@ -95,6 +98,12 @@ The current local signal model may observe:
 It does not claim native face detection, pose estimation, facial landmarks, skin-tone classification, or facial registration.
 
 The external Camera Kit renderer is available only through the development diagnostics query. It is not an alternate production camera.
+
+The person sees one continuous acquisition ritual. A restrained three-position
+indicator reports accepted current frames without exposing raw scores or
+creating three shutter actions. Recoverable exposure or movement rejection
+automatically captures a replacement within the same session. There are at
+most five capture attempts.
 
 ## 5. Capture context
 
@@ -115,18 +124,21 @@ Adherence, tolerance, symptoms, and participant-observed longitudinal redness di
 The current ordinary path uses:
 
 ```text
-accepted baseline capture
-→ YouCam HD redness raw score
-→ frozen durable baseline signal
-→ accepted eligible follow-up capture
-→ identical YouCam protocol
-→ durable follow-up signal
+three accepted distinct baseline frames
+→ three independent YouCam HD redness raw scores
+→ atomic frozen baseline burst
+→ three accepted distinct eligible follow-up frames
+→ three independent requests under the identical YouCam protocol
+→ atomic frozen follow-up burst
 → canonical redness evidence adapter
-→ deterministic evaluator
+→ evaluator-owned medians, direction agreement, and result
 → immutable RednessEvaluationSnapshot
 ```
 
-The current implementation stores one accepted provider score per period. #63 will replace the live single-frame assumption with one low-friction three-measurement burst per period.
+Rejected capture attempts remain face-free evidence and never enter the
+accepted score arrays or period medians. Fewer than three valid analyzed
+measurements cannot lock baseline, complete follow-up, request comparison,
+create a result, or create an Evidence Record.
 
 A valid follow-up automatically requests comparison. There is no consumer action to author the verdict, choose a threshold, or call a language model.
 
@@ -148,6 +160,11 @@ Failure behavior must preserve already accepted evidence.
 - timeout and provider errors offer one recoverable action
 - cancellation and route teardown reject stale work and release resources
 - duplicate callbacks cannot create duplicate signals, comparisons, or records
+
+Provider failure uses one policy: a failed request is retried exactly once on
+the same captured frame. Work remains sequential. If that retry fails, the
+whole burst fails and the person may start a new generation; Face Value does
+not silently capture a replacement for a provider failure.
 
 No failure path invents a result.
 
@@ -292,6 +309,9 @@ Automated proof includes:
 
 - reducer legality and idempotency
 - provider contract and failure fixtures
+- distinct decoded-frame, five-attempt, duplicate, and stale-generation guards
+- sequential three-request orchestration and same-frame provider retry
+- atomic baseline/follow-up burst persistence and legacy readability
 - raw-score-only architecture guards
 - sealed-state DOM and accessibility checks
 - Oracle exactly-once collection
@@ -302,17 +322,17 @@ Automated proof includes:
 
 Synthetic WebKit evidence is not physical-device proof. A final exact-head physical-iPhone golden-path pass remains a release gate and must record the tested commit, device, browser, conditions, and result.
 
-## 16. Planned journey changes
+## 16. Phase C journey status
 
-### #63
+### #63 (current)
 
 The user still experiences one scan, while the system collects three genuine provider measurements and commits one burst-backed evidence period atomically.
 
-### #64
+### #64 (planned)
 
 After follow-up evidence is secured, the journey collects adherence, tolerance, and participant-observed redness direction before comparison becomes ready.
 
-### #65
+### #65 (planned)
 
 A separate protected route collects calibration observations. It does not enter consumer navigation or replace the provisional production threshold.
 

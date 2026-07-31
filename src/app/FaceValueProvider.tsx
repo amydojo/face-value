@@ -15,6 +15,7 @@ import {
   type DemoEnvelope,
 } from '../adapters/persistence/demoJourneyStore';
 import type { AppStage } from '../domain/model';
+import { hasBaselineEvidence, hasFollowUpEvidence } from '../domain/rednessEvidenceBurst';
 import { DEMO_LAB_ENABLED } from '../features/demo-lab/demoLabAccess';
 import {
   fixtureNowForDemoStartingPoint,
@@ -30,8 +31,8 @@ import {
 } from './phaseBMachine';
 
 function restoredStageFor(persisted: PersistedDemoData): AppStage {
-  const hasBaseline = Boolean(persisted.longitudinalEvidence.baseline);
-  const hasFollowUp = Boolean(persisted.longitudinalEvidence.followUp);
+  const hasBaseline = hasBaselineEvidence(persisted.longitudinalEvidence);
+  const hasFollowUp = hasFollowUpEvidence(persisted.longitudinalEvidence);
   const hasComparison = Boolean(persisted.longitudinalEvidence.comparison && persisted.analysis);
   const hasRegisteredTrial = Boolean(persisted.registeredProduct && hasBaseline);
 
@@ -85,8 +86,8 @@ function hydratePersistedState(
   },
 ): PhaseBFaceValueState {
   const completeSignalsAwaitingComparison = Boolean(
-    persisted.longitudinalEvidence.baseline &&
-    persisted.longitudinalEvidence.followUp &&
+    hasBaselineEvidence(persisted.longitudinalEvidence) &&
+    hasFollowUpEvidence(persisted.longitudinalEvidence) &&
     !persisted.longitudinalEvidence.comparison &&
     !persisted.analysis,
   );
@@ -117,6 +118,7 @@ function hydratePersistedState(
     activeAnalysisRequestId: null,
     pendingAnalysisCapture: null,
     analysisError: null,
+    activeRednessBurst: null,
     announcement: options.synthetic
       ? 'Synthetic demo data restored. No physical capture was used.'
       : hasCollectedEvidence
@@ -154,10 +156,7 @@ function hydrationFromDemoEnvelope(envelope: DemoEnvelope): ProviderHydration {
       mode: envelope.mode,
       startingPoint: envelope.startingPoint,
       resultFixture: envelope.resultFixture,
-      fixtureNow: fixtureNowForDemoStartingPoint(
-        envelope.startingPoint,
-        state.baselineLockedAt,
-      ),
+      fixtureNow: fixtureNowForDemoStartingPoint(envelope.startingPoint, state.baselineLockedAt),
     },
   };
 }

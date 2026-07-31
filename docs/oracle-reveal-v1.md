@@ -2,7 +2,10 @@
 
 **Status:** Current result-machine and collection authority  
 **Effective date:** July 30, 2026  
-**Implementation baseline:** `main` after PR #62 (`e0173ee`)
+**Implementation base:** `main` at merged PR #67
+(`330f51975f162a2c15784114d7a448492973fcad`)
+
+**Current change:** issue #63
 
 The Oracle is the one current machine mounted from sealed result through explicit Evidence Record collection. It presents an already-authorized canonical result. It does not measure skin, evaluate redness, select thresholds, or create a second result model.
 
@@ -170,7 +173,13 @@ The same record identity must exist across:
 
 The artifact front remains concise. Full technical evidence, raw values, threshold provenance, rule IDs, and audit trace belong in progressive disclosure.
 
-#63 and #64 may add burst and trial-truth details to the saved snapshot and full Evidence Record. They must not create a new paper or Oracle state machine.
+Issue #63 adds the accepted baseline and follow-up measurement arrays, rejected
+attempt summaries, and direction agreement to the saved immutable snapshot and
+full Evidence Record disclosure. Home, Previous Trials, Evidence Record detail,
+and reload render that same snapshot; none re-evaluates a burst.
+
+Issue #64 may later add trial-truth details. Neither issue creates a new paper
+or Oracle state machine.
 
 ## 11. Accessibility
 

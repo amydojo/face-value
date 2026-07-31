@@ -141,6 +141,65 @@ export interface DurableSkinSignal {
   captureQuality: 'accepted';
 }
 
+export interface RednessCaptureGateEvidence {
+  currentFrame: 'accepted';
+  exposure: 'accepted';
+  movement: 'accepted';
+}
+
+export interface CapturedRednessFrame {
+  frameId: string;
+  capture: CaptureMetadata;
+  quality: RednessCaptureGateEvidence;
+}
+
+export interface AcceptedRednessFrame extends CapturedRednessFrame {
+  signal: DurableSkinSignal;
+  providerAttemptCount: 1 | 2;
+}
+
+export interface RejectedRednessFrame {
+  frameId: string;
+  attemptedAt: string;
+  stage: 'capture' | 'provider';
+  reasons: string[];
+}
+
+export interface RednessEvidenceBurst {
+  burstId: string;
+  role: CaptureKind;
+  sessionId: string;
+  captureProfileId: CameraCaptureProfileId | null;
+  startedAt: string;
+  completedAt: string;
+  attemptedFrameCount: number;
+  acceptedFrames: AcceptedRednessFrame[];
+  rejectedFrames: RejectedRednessFrame[];
+}
+
+export interface RednessProviderRequest {
+  requestId: string;
+  frameId: string;
+  attempt: 1 | 2;
+  status: 'running' | 'failed' | 'accepted';
+}
+
+export interface ActiveRednessBurst {
+  generationId: string;
+  burstId: string;
+  role: CaptureKind;
+  sessionId: string;
+  captureProfileId: CameraCaptureProfileId | null;
+  startedAt: string;
+  attemptedFrameCount: number;
+  capturedFrames: CapturedRednessFrame[];
+  acceptedFrames: AcceptedRednessFrame[];
+  rejectedFrames: RejectedRednessFrame[];
+  providerRequests: RednessProviderRequest[];
+  protocol: AnalysisProtocol | null;
+  status: 'capturing' | 'analyzing' | 'ready' | 'failed';
+}
+
 export interface RednessComparison {
   baselineRawScore: number;
   followUpRawScore: number;
@@ -153,8 +212,14 @@ export interface RednessComparison {
 
 export interface LongitudinalSkinEvidence {
   protocol: AnalysisProtocol | null;
+  /**
+   * Compatibility-only single observations retained for pre-burst saved
+   * trials. New ordinary captures commit the burst fields below instead.
+   */
   baseline: DurableSkinSignal | null;
   followUp: DurableSkinSignal | null;
+  baselineBurst?: RednessEvidenceBurst | null;
+  followUpBurst?: RednessEvidenceBurst | null;
   comparison: RednessComparison | null;
   evaluation?: RednessEvaluationSnapshot | null;
 }
@@ -261,6 +326,11 @@ export interface FaceValueState {
   oracleEvidenceDispensed?: boolean;
   oracleCollectionStarted?: boolean;
   oracleCommittedAt?: string | null;
+  /**
+   * Face-free, bounded runtime state. Persistence deliberately omits partial
+   * generations; only completed bursts enter longitudinalEvidence.
+   */
+  activeRednessBurst?: ActiveRednessBurst | null;
 }
 
 export type AnalysisScenario =
