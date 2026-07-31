@@ -1,7 +1,7 @@
 # Face Value camera contract
 
 **Status:** Current camera authority  
-**Effective date:** July 30, 2026  
+**Effective date:** July 31, 2026  
 **Implementation base:** `main` at merged PR #67
 (`330f51975f162a2c15784114d7a448492973fcad`)
 
@@ -167,6 +167,10 @@ Current automated proof includes:
 - explicit live-to-still settle with a soft dark captured-image veil
 - truthful scan-complete, per-measurement analysis, and confirmation states
 - solid, active, and waiting indicator semantics without zero or fake progress
+- a minimum 1.8-second scan-complete dwell while provider work continues
+- stable analysis copy, six-second tertiary delay status, and state-bound recheck copy
+- a decorative `aria-hidden` activity field clipped to the existing guide
+- an approximately 800-millisecond confirmed presentation after durable commit
 - track teardown
 - no vendor alert
 - dynamic visual viewport behavior
@@ -206,8 +210,22 @@ It preserves:
 - unchanged production camera geometry
 
 After teardown, the selected third-frame still remains visible through analysis
-and the brief confirmation state. Reduced motion removes its settle transition
-and the active measurement pulse without removing or reordering any state.
+and the brief confirmation state. The presentation holds **Scan complete / You
+can relax.** for at least 1.8 seconds while provider work may continue. It then
+uses a 200–250 millisecond crossfade to the latest truthful analysis state,
+holds each visible progress position for at least 700 milliseconds, and holds
+the all-confirmed presentation for approximately 800 milliseconds. These
+runtime-only timings can trail provider and reducer truth but cannot lead it or
+delay requests, atomic period commit, persistence, or evaluation.
+
+The sparse amber activity field is authored SVG/CSS clipped to the existing
+guide. It is `aria-hidden`, reads no image pixels, makes no landmark, redness,
+segmentation, depth, or measured-region claim, and creates no durable geometry.
+
+Reduced motion preserves the 1.8-second dwell, stable copy, and truthful state
+order while removing still settle, active-measurement pulse, and traveling
+point activity. The field becomes static low-opacity points or may be omitted
+when static presentation would be confusing.
 
 Automated and desktop-browser proof does not establish physical-iPhone
 acceptance. The exact-head hardware checklist additionally requires proof of

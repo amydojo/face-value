@@ -1,7 +1,7 @@
 # Face Value architecture
 
 **Status:** Current architecture authority  
-**Effective date:** July 30, 2026  
+**Effective date:** July 31, 2026  
 **Implementation base:** `main` at merged PR #67
 (`330f51975f162a2c15784114d7a448492973fcad`)
 
@@ -121,6 +121,15 @@ active generation, ignores stale or duplicate settlement, and commits the
 complete period only after three valid analyzed measurements exist. Incomplete
 generations are never serialized.
 
+Post-capture legibility is a runtime projection over those reducer facts. The
+capture machine owns the minimum 1.8-second scan-complete dwell; provider
+orchestration starts as soon as all three accepted frames are available. A
+runtime presentation hook may trail genuine active/completed measurements for
+a 700-millisecond minimum display and may hold the confirmed state for about
+800 milliseconds. It cannot start provider work, fabricate completion, affect
+the atomic period commit, enter evaluator input, or persist timing state. The
+decorative activity field is authored SVG/CSS with no image-reading path.
+
 The ordinary live adapter supplies the actual three-score baseline and
 follow-up arrays plus truthful rejected-frame evidence to the canonical
 evaluator. It does not manufacture repeated frames, patient anchors, adherence,
@@ -210,7 +219,20 @@ sealed
 → done
 ```
 
-The sealed DOM contains no finding, score, limitation, evidence status, or recommendation. The result becomes presentationally available only after an authorized reveal transition.
+The sealed DOM contains no finding, score, delta, confidence, limitation,
+evidence status, next step, or recommendation. The result becomes
+presentationally available only after an authorized reveal transition. The
+already-known registered product identity is not secret result content, so the
+locked labeled specimen remains visible in the chamber while the verdict stays
+sealed.
+
+The active Oracle receives one complete `OracleSpecimenIdentity` adapted from
+`state.registeredProduct`; it does not reconstruct the product from a partial
+verdict view model. Once collected, latest verdict, Previous Trials, and record
+detail adapt the immutable saved-record product snapshot instead. Both paths
+reuse `IdentityLockSpecimen`; neither creates a parallel product store or
+renderer. Demo fixtures may supply their own canonical registered product only
+when that fixture owns the loaded journey.
 
 Animation callbacks may advance authorized mechanical phases. They cannot persist evidence.
 

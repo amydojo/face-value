@@ -9,7 +9,12 @@ import {
   type RefObject,
 } from 'react';
 import { browserHaptics, type HapticsAdapter } from '../../adapters/haptics/haptics';
-import { specimenFromRegisteredProduct } from '../../adapters/product/specimenFromRegisteredProduct';
+import {
+  oracleSpecimenIdentityFromEvidenceRecord,
+  oracleSpecimenIdentityFromRegisteredProduct,
+  oracleSpecimenIdentityLabel,
+  specimenFromRegisteredProduct,
+} from '../../adapters/product/specimenFromRegisteredProduct';
 import { systemClock } from '../../adapters/clock/clock';
 import { useFaceValue } from '../../app/faceValueContext';
 import { createOracleEvidenceRecord } from '../../app/phaseBMachine';
@@ -220,11 +225,13 @@ function OraclePullHandle({
 function FirmwareDisplay({
   phase,
   trialIdentity,
+  specimenIdentity,
   viewModel,
   onTransmissionComplete,
 }: {
   phase: OracleRevealState;
   trialIdentity: OracleTrialIdentity;
+  specimenIdentity: OracleSpecimenIdentity;
   viewModel: VerdictViewModel;
   onTransmissionComplete: () => void;
 }) {
@@ -239,6 +246,10 @@ function FirmwareDisplay({
         phase === 'transmitting' ? 'transmitting' : resolved ? 'resolved' : 'off'
       }
       data-oracle-motion={phase === 'transmitting' ? 'transmission' : undefined}
+      data-firmware-product-context={oracleSpecimenIdentityLabel(specimenIdentity)}
+      data-firmware-specimen-id={specimenIdentity.productId ?? ''}
+      data-firmware-specimen-accession={specimenIdentity.accession ?? ''}
+      aria-label={`Result firmware for ${oracleSpecimenIdentityLabel(specimenIdentity)}`}
       onAnimationEnd={(event) => {
         if (phase === 'transmitting' && event.target === event.currentTarget) {
           onTransmissionComplete();
@@ -266,12 +277,18 @@ function FirmwareDisplay({
   );
 }
 
-function LatestVerdictDisplay({ viewModel }: { viewModel: VerdictViewModel }) {
+function LatestVerdictDisplay({
+  viewModel,
+  specimenIdentity,
+}: {
+  viewModel: VerdictViewModel;
+  specimenIdentity: OracleSpecimenIdentity;
+}) {
   return (
     <div
       className={styles.latestDisplay}
       data-verdict-code={viewModel.verdictCode}
-      aria-label={`Latest verdict for ${verdictProduct(viewModel)}`}
+      aria-label={`Latest verdict for ${oracleSpecimenIdentityLabel(specimenIdentity)}`}
     >
       <header>
         <span>LATEST VERDICT</span>
@@ -291,13 +308,23 @@ function LatestVerdictDisplay({ viewModel }: { viewModel: VerdictViewModel }) {
 
 function EvidencePaperContent({
   viewModel,
+  specimenIdentity,
   latest = false,
 }: {
   viewModel: VerdictViewModel;
+  specimenIdentity: OracleSpecimenIdentity;
   latest?: boolean;
 }) {
   return (
-    <article aria-label={`${viewModel.headline} Next: ${viewModel.nextStepLabel}.`}>
+    <article
+      data-paper-specimen-id={specimenIdentity.productId ?? ''}
+      data-paper-specimen-accession={specimenIdentity.accession ?? ''}
+      data-paper-specimen-brand={specimenIdentity.brand}
+      data-paper-specimen-product={specimenIdentity.productName}
+      data-paper-specimen-strength={specimenIdentity.strength ?? ''}
+      data-paper-specimen-volume={specimenIdentity.volume ?? ''}
+      aria-label={`${oracleSpecimenIdentityLabel(specimenIdentity)}. ${viewModel.headline} Next: ${viewModel.nextStepLabel}.`}
+    >
       <header>
         <span>{latest ? 'LATEST VERDICT' : 'FACE VALUE'}</span>
         <span data-oracle-trial-identity>{viewModel.trialId}</span>
@@ -330,6 +357,7 @@ function EvidencePaperContent({
 function OracleEvidencePaper({
   record,
   viewModel,
+  specimenIdentity,
   dispensed,
   collecting,
   onDispensed,
@@ -338,6 +366,7 @@ function OracleEvidencePaper({
 }: {
   record: EvidenceRecordData;
   viewModel: VerdictViewModel;
+  specimenIdentity: OracleSpecimenIdentity;
   dispensed: boolean;
   collecting: boolean;
   onDispensed: () => void;
@@ -375,7 +404,7 @@ function OracleEvidencePaper({
         else if (!dispensed) onDispensed();
       }}
     >
-      <EvidencePaperContent viewModel={viewModel} />
+      <EvidencePaperContent viewModel={viewModel} specimenIdentity={specimenIdentity} />
     </button>
   );
 }
@@ -383,10 +412,12 @@ function OracleEvidencePaper({
 function LatestVerdictPaper({
   record,
   viewModel,
+  specimenIdentity,
   onViewTrial,
 }: {
   record: EvidenceRecordData;
   viewModel: VerdictViewModel;
+  specimenIdentity: OracleSpecimenIdentity;
   onViewTrial: () => void;
 }) {
   return (
@@ -399,7 +430,7 @@ function LatestVerdictPaper({
       aria-label={`View trial ${viewModel.trialId} for ${verdictProduct(viewModel)}`}
       onClick={onViewTrial}
     >
-      <EvidencePaperContent viewModel={viewModel} latest />
+      <EvidencePaperContent viewModel={viewModel} specimenIdentity={specimenIdentity} latest />
     </button>
   );
 }
@@ -430,6 +461,7 @@ type OracleVerdictMachineProps = {
   trialIdentity: OracleTrialIdentity;
   viewModel: VerdictViewModel;
   record: EvidenceRecordData | null;
+  specimenIdentity: OracleSpecimenIdentity;
   evidenceDispensed?: boolean;
   collectionStarted?: boolean;
   onReveal?: () => void;
@@ -474,17 +506,6 @@ const completedRegistrationSnapshot: SpecimenRegistrationSnapshot = {
   isReady: true,
   reducedMotion: false,
 };
-
-function specimenIdentityFromRegisteredProduct(product: RegisteredProduct): OracleSpecimenIdentity {
-  const specimen = specimenFromRegisteredProduct(product);
-  return {
-    brand: specimen.brand,
-    productName: specimen.product,
-    strength: product.strength,
-    volume: product.volume,
-    assignedJob: product.assignedJob,
-  };
-}
 
 function TrialStateDisplay({
   state,
@@ -589,19 +610,12 @@ function OracleMachine(props: OracleMachineProps) {
   const record = verdictMachine?.record ?? null;
   const displayOn =
     trialMachine !== null || latestVerdict || !['sealed', 'opening'].includes(phase);
-  const registration = trialMachine?.registration ?? completedRegistrationSnapshot;
+  const registration = trialMachine?.registration ?? {
+    ...completedRegistrationSnapshot,
+    registrationId: verdictMachine?.specimenIdentity.productId ?? null,
+  };
   const ingestionPhase = registration.phase;
-  const specimenIdentity =
-    trialMachine?.identity ??
-    (viewModel
-      ? {
-          brand: viewModel.productBrand ?? 'FACE VALUE',
-          productName: viewModel.productName,
-          strength: null,
-          volume: null,
-          assignedJob: 'Reduce visible redness' as const,
-        }
-      : null);
+  const specimenIdentity = trialMachine?.identity ?? verdictMachine?.specimenIdentity ?? null;
   const amberState = trialMachine
     ? trialMachine.trialState === 'followup-ready'
       ? 'followup-ready'
@@ -667,12 +681,12 @@ function OracleMachine(props: OracleMachineProps) {
             ? `Baseline-ready Face Value instrument. Specimen loaded: ${trialMachine.product?.brand ?? ''}, ${trialMachine.product?.productName ?? ''}. Assigned job: Reduce visible redness. Ready to take the baseline scan.`
             : `Face Value instrument registering specimen: ${trialMachine.product?.brand ?? ''}, ${trialMachine.product?.productName ?? ''}. Assigned job: Reduce visible redness.`
           : `${trialMachine.trialState === 'followup-ready' ? 'Follow-up ready' : 'Trial pending'} for ${trialMachine.product?.brand ?? ''} ${trialMachine.product?.productName ?? ''}. Specimen loaded.`
-    : latestVerdict && viewModel
-      ? `Latest verdict cassette for ${verdictProduct(viewModel)}. ${viewModel.headline}`
-      : viewModel && (phase === 'sealed' || phase === 'opening')
-        ? 'Sealed Face Value result cassette. Result content is unavailable until reveal.'
-        : viewModel
-          ? `Face Value result cassette. ${viewModel.headline}`
+    : latestVerdict && viewModel && specimenIdentity
+      ? `Latest verdict cassette for ${oracleSpecimenIdentityLabel(specimenIdentity)}. ${viewModel.headline}`
+      : viewModel && specimenIdentity && (phase === 'sealed' || phase === 'opening')
+        ? `Sealed Face Value result cassette. Registered specimen remains loaded: ${oracleSpecimenIdentityLabel(specimenIdentity)}. Result content is unavailable until reveal.`
+        : viewModel && specimenIdentity
+          ? `Face Value result cassette for ${oracleSpecimenIdentityLabel(specimenIdentity)}. ${viewModel.headline}`
           : 'Face Value result cassette.';
   const onReveal = verdictMachine?.onReveal ?? (() => undefined);
   const onOpeningComplete = verdictMachine?.onOpeningComplete ?? (() => undefined);
@@ -717,11 +731,6 @@ function OracleMachine(props: OracleMachineProps) {
         <div className={styles.carbonTexture} data-oracle-carbon-texture aria-hidden="true" />
         <div className={styles.displayBezel} data-oracle-display-opening>
           <div className={styles.displayGlass} data-oracle-display-glass>
-            <IdentityLockSpecimen
-              identity={specimenIdentity}
-              specimenState={trialMachine?.trialState ?? 'verdict'}
-              registration={registration}
-            />
             {trialMachine && (
               <TrialStateDisplay
                 state={trialMachine.trialState}
@@ -734,16 +743,24 @@ function OracleMachine(props: OracleMachineProps) {
               <FirmwareDisplay
                 phase={phase}
                 trialIdentity={trialIdentity}
+                specimenIdentity={specimenIdentity!}
                 viewModel={viewModel}
                 onTransmissionComplete={onTransmissionComplete}
               />
             )}
-            {latestVerdict && viewModel && <LatestVerdictDisplay viewModel={viewModel} />}
+            {latestVerdict && viewModel && specimenIdentity && (
+              <LatestVerdictDisplay viewModel={viewModel} specimenIdentity={specimenIdentity} />
+            )}
             {!trialMachine && !displayOn && !latestVerdict && (
               <div className={styles.sealedOptics} aria-hidden="true">
                 <span />
               </div>
             )}
+            <IdentityLockSpecimen
+              identity={specimenIdentity}
+              specimenState={trialMachine?.trialState ?? 'verdict'}
+              registration={registration}
+            />
             <div
               className={styles.glassReflection}
               data-oracle-glass-reflection
@@ -782,7 +799,9 @@ function OracleMachine(props: OracleMachineProps) {
             active={!trialMachine && !latestVerdict && phase === 'sealed'}
             phase={phase}
             product={
-              trialMachine?.product?.productName ?? viewModel?.productName ?? 'Face Value product'
+              trialMachine?.product?.productName ??
+              specimenIdentity?.productName ??
+              'Face Value product'
             }
             onReveal={onReveal}
           />
@@ -822,7 +841,12 @@ function OracleMachine(props: OracleMachineProps) {
         data-paper-coordinate-system="oracle-machine"
       >
         {!trialMachine && latestVerdict && record && viewModel && (
-          <LatestVerdictPaper record={record} viewModel={viewModel} onViewTrial={onViewTrial} />
+          <LatestVerdictPaper
+            record={record}
+            viewModel={viewModel}
+            specimenIdentity={specimenIdentity!}
+            onViewTrial={onViewTrial}
+          />
         )}
         {!trialMachine &&
           !latestVerdict &&
@@ -832,6 +856,7 @@ function OracleMachine(props: OracleMachineProps) {
             <OracleEvidencePaper
               record={record}
               viewModel={viewModel}
+              specimenIdentity={specimenIdentity!}
               dispensed={evidenceDispensed}
               collecting={collectionStarted}
               onDispensed={onDispensed}
@@ -856,7 +881,7 @@ export function OracleTrialStateMachine(props: OracleTrialStateMachineProps) {
     props.state === 'registration-preview'
       ? props.identity
       : product
-        ? specimenIdentityFromRegisteredProduct(product)
+        ? oracleSpecimenIdentityFromRegisteredProduct(product)
         : null;
   const registration =
     props.state === 'baseline-ready'
@@ -892,6 +917,7 @@ export function LatestVerdictCassette({
 }) {
   const viewModel = verdictViewModelFromRecord(record);
   const trialIdentity = oracleTrialIdentityForRecord(record);
+  const specimenIdentity = oracleSpecimenIdentityFromEvidenceRecord(record);
 
   return (
     <div className={styles.latestCassetteFrame} data-latest-verdict-cassette>
@@ -905,6 +931,7 @@ export function LatestVerdictCassette({
         trialIdentity={trialIdentity}
         viewModel={viewModel}
         record={record}
+        specimenIdentity={specimenIdentity}
         onViewTrial={onViewTrial}
       />
     </div>
@@ -961,6 +988,13 @@ export function OracleRevealScene({ haptics = browserHaptics }: { haptics?: Hapt
 
   const specimen = useMemo(
     () => (state.registeredProduct ? specimenFromRegisteredProduct(state.registeredProduct) : null),
+    [state.registeredProduct],
+  );
+  const specimenIdentity = useMemo(
+    () =>
+      state.registeredProduct
+        ? oracleSpecimenIdentityFromRegisteredProduct(state.registeredProduct)
+        : null,
     [state.registeredProduct],
   );
   const trialIdentity = useMemo(
@@ -1074,7 +1108,7 @@ export function OracleRevealScene({ haptics = browserHaptics }: { haptics?: Hapt
             ? { eyebrow: 'SAVING RESULT', headline: 'Saving your result.' }
             : null;
 
-  if (!state.analysis || !specimen || !viewModel) return null;
+  if (!state.analysis || !specimen || !specimenIdentity || !viewModel) return null;
 
   return (
     <>
@@ -1098,6 +1132,7 @@ export function OracleRevealScene({ haptics = browserHaptics }: { haptics?: Hapt
           trialIdentity={trialIdentity}
           viewModel={viewModel}
           record={pendingRecord}
+          specimenIdentity={specimenIdentity}
           evidenceDispensed={state.oracleEvidenceDispensed}
           collectionStarted={state.oracleCollectionStarted}
           onReveal={reveal}
@@ -1213,7 +1248,16 @@ export function OracleRevealScene({ haptics = browserHaptics }: { haptics?: Hapt
 
         {phase === 'collected' && collectedRecord && (
           <section className={styles.completion} aria-labelledby="evidence-recorded-heading">
-            <div className={styles.completionResult} data-result-summary>
+            <div
+              className={styles.completionResult}
+              data-result-summary
+              data-specimen-id={specimenIdentity.productId ?? ''}
+              data-specimen-accession={specimenIdentity.accession ?? ''}
+              data-specimen-brand={specimenIdentity.brand}
+              data-specimen-product={specimenIdentity.productName}
+              data-specimen-strength={specimenIdentity.strength ?? ''}
+              data-specimen-volume={specimenIdentity.volume ?? ''}
+            >
               <h1 id="evidence-recorded-heading" data-stage-focus tabIndex={-1}>
                 EVIDENCE RECORDED
               </h1>
@@ -1222,6 +1266,13 @@ export function OracleRevealScene({ haptics = browserHaptics }: { haptics?: Hapt
                 {viewModel.trialId}
               </small>
               <h2>{verdictProduct(viewModel)}</h2>
+              {(specimenIdentity.strength || specimenIdentity.volume) && (
+                <small className={styles.completionIdentity} data-result-specimen-details>
+                  {[specimenIdentity.strength, specimenIdentity.volume]
+                    .filter((value): value is string => Boolean(value))
+                    .join(' · ')}
+                </small>
+              )}
               <strong>{viewModel.headline}</strong>
               <span>{viewModel.nextStepLabel}</span>
             </div>

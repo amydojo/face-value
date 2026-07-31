@@ -1,7 +1,7 @@
 # Face Value source-of-truth manifest
 
 **Status:** Current visual-source and verification index  
-**Effective date:** July 30, 2026  
+**Effective date:** July 31, 2026  
 **Implementation base:** `main` at merged PR #67
 (`330f51975f162a2c15784114d7a448492973fcad`)
 
@@ -30,18 +30,18 @@ Current Face Value design file:
 
 ## 3. Current subsystem sources
 
-| Subsystem                              | Figma source                                                               | Role                                                                                                | Implementation evidence                                                                                                              |
-| -------------------------------------- | -------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
-| Canonical specimen identity            | `FV / Specimen / Identity Lock` — node `512:162`                           | Canonical specimen geometry, thermal label, evidence strip, and material layering                   | `verification/first-trial-identity-lock-v2/` and merged PR #59                                                                       |
-| Specimen ingestion states              | Loading `511:105`; Locking `512:102`; Locked `512:132`                     | Visual sequence and allowed alignment changes while preserving one specimen root                    | `verification/first-trial-identity-lock-v2/`                                                                                         |
-| Trial-pending machine continuity       | `04 · Machine Continuity / Trial Pending · Specimen Loaded` — node `483:5` | Shared machine/specimen truth for pending and follow-up-ready continuity                            | `verification/machine-continuity-2026-07-28/` and merged PR #59                                                                      |
-| Acquisition sequence                   | Capture Sequence — node `542:99`                                           | Searching, Aligning, Locking, Scanning, and Captured composition and visual rhythm                  | [`verification/face-value-specimen-acquisition/README.md`](verification/face-value-specimen-acquisition/README.md) and merged PR #62 |
-| Three-measurement acquisition feedback | Existing Capture Sequence node `542:99` plus current implementation        | Restrained burst progress within the existing guide; no new camera or consumer ceremony             | [`verification/redness-evidence-burst-63/README.md`](verification/redness-evidence-burst-63/README.md)                               |
-| Acquisition guide                      | Face Guide — node `536:24`                                                 | Four-arc guide geometry and authored positioning direction                                          | [`verification/face-value-specimen-acquisition/README.md`](verification/face-value-specimen-acquisition/README.md)                   |
-| Acquisition engineering contract       | Engineering Contract V2 — node `556:135`; Capture Sequence page `534:2`    | State labels, layout relationships, guidance hierarchy, and responsive intent                       | [`verification/face-value-specimen-acquisition/README.md`](verification/face-value-specimen-acquisition/README.md)                   |
-| Evidence Cassette lineage              | component family node `368:3295`                                           | Historical chassis and physical grammar lineage only; not a second current component implementation | current Oracle machine and `oracle-reveal-v1.md`                                                                                     |
-| Historical sealed result               | node `342:2752`                                                            | Visual lineage for sealed evidence restraint                                                        | current Oracle sealed state tests                                                                                                    |
-| Historical presented result            | node `343:2578`                                                            | Visual lineage for reveal clarity and specimen presentation                                         | current Oracle verdict state tests                                                                                                   |
+| Subsystem                              | Figma source                                                               | Role                                                                                                                            | Implementation evidence                                                                                                              |
+| -------------------------------------- | -------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| Canonical specimen identity            | `FV / Specimen / Identity Lock` — node `512:162`                           | One labeled, locked specimen across registration, active trial, Oracle, and saved-result presentation                           | `verification/first-trial-identity-lock-v2/`, current Oracle snapshots, and merged PR #59                                            |
+| Specimen ingestion states              | Loading `511:105`; Locking `512:102`; Locked `512:132`                     | Visual sequence and allowed alignment changes while preserving one specimen root                                                | `verification/first-trial-identity-lock-v2/`                                                                                         |
+| Trial-pending machine continuity       | `04 · Machine Continuity / Trial Pending · Specimen Loaded` — node `483:5` | Shared machine/specimen truth for pending and follow-up-ready continuity                                                        | `verification/machine-continuity-2026-07-28/` and merged PR #59                                                                      |
+| Acquisition sequence                   | Capture Sequence — node `542:99`                                           | Searching, Aligning, Locking, Scanning, and Captured composition and visual rhythm                                              | [`verification/face-value-specimen-acquisition/README.md`](verification/face-value-specimen-acquisition/README.md) and merged PR #62 |
+| Three-measurement acquisition feedback | Existing Capture Sequence node `542:99` plus current implementation        | Readable scan-complete dwell, primary truthful progress, and decorative non-scientific activity field within the existing guide | [`verification/redness-evidence-burst-63/README.md`](verification/redness-evidence-burst-63/README.md)                               |
+| Acquisition guide                      | Face Guide — node `536:24`                                                 | Four-arc guide geometry and authored positioning direction                                                                      | [`verification/face-value-specimen-acquisition/README.md`](verification/face-value-specimen-acquisition/README.md)                   |
+| Acquisition engineering contract       | Engineering Contract V2 — node `556:135`; Capture Sequence page `534:2`    | State labels, layout relationships, guidance hierarchy, and responsive intent                                                   | [`verification/face-value-specimen-acquisition/README.md`](verification/face-value-specimen-acquisition/README.md)                   |
+| Evidence Cassette lineage              | component family node `368:3295`                                           | Historical chassis and physical grammar lineage only; not a second current component implementation                             | current Oracle machine and `oracle-reveal-v1.md`                                                                                     |
+| Historical sealed result               | node `342:2752`                                                            | Visual lineage for sealed evidence restraint                                                                                    | current Oracle sealed state tests                                                                                                    |
+| Historical presented result            | node `343:2578`                                                            | Visual lineage for reveal clarity and specimen presentation                                                                     | current Oracle verdict state tests                                                                                                   |
 
 ## 4. Current implementation authority by surface
 
@@ -55,7 +55,12 @@ Current production components:
 - `src/features/oracle-reveal/OracleRevealScene.tsx`
 - `src/features/product-registration/ProductRegistration.tsx`
 
-The machine and specimen roots must remain continuous across registration and job confirmation. No route-specific duplicate specimen is allowed.
+The machine and specimen roots must remain continuous across registration and
+job confirmation. The same `IdentityLockSpecimen` must remain labeled, locked,
+and seated through follow-up, sealed result, reveal, saving, dispensing,
+collection, and latest-verdict presentation. Active identity comes from the
+canonical registered product; saved presentation comes from the immutable
+record snapshot. No route-specific duplicate specimen is allowed.
 
 ### Trial pending and Home
 
@@ -86,6 +91,10 @@ Current production components:
 
 Current mechanical phases and durable collection semantics are defined in `oracle-reveal-v1.md`. Historical V7 door-state diagrams do not override the Oracle reducer.
 
+The registered product label remains visible in sealed Oracle snapshots; this
+known identity does not weaken the result-privacy boundary. Verdict copy is not
+an authority for reconstructing the active specimen.
+
 ### Evidence Record
 
 Current production components:
@@ -101,7 +110,11 @@ Evidence Record detail renders the saved immutable snapshot. It does not re-run 
 
 [`verification/face-value-specimen-acquisition/README.md`](verification/face-value-specimen-acquisition/README.md) contains privacy-safe synthetic WebKit renders and the physical-iPhone release checklist.
 
-The checked-in screenshots prove fixture rendering, responsive layout, guide continuity, state timing, and browser behavior only. They do not prove physical camera framing or real provider behavior.
+The checked-in screenshots prove fixture rendering, responsive layout, guide
+continuity, the 1.8-second scan-complete timing contract, truthful progress
+hierarchy, decorative activity-field presentation, confirmation hold, and
+browser behavior only. They do not prove physical camera framing, real provider
+behavior, or physical-device acceptance.
 
 ### First-trial identity lock
 

@@ -3,7 +3,7 @@
 **Status:** Current product authority  
 **Version:** 2.1
 
-**Effective date:** July 30, 2026
+**Effective date:** July 31, 2026
 
 **Implementation base:** `main` at merged PR #67
 (`330f51975f162a2c15784114d7a448492973fcad`)
@@ -110,10 +110,18 @@ Searching
 → Aligning
 → Locking
 → Scanning
-→ Captured
+→ Scan complete
+→ active three-measurement analysis
+→ Measurements confirmed
 ```
 
 Face Value currently evaluates whole-frame exposure and movement locally. It does not claim native facial landmark detection, pose measurement, skin-tone classification, disease detection, or facial-region registration.
+
+**Scan complete / You can relax.** remains readable for at least 1.8 seconds
+even when analysis advances in the background. Ordinary analysis keeps
+**Analyzing your scan / Checking three measurements for consistency.** stable,
+and every visible position is bounded by genuine accepted work. The sparse
+amber activity field is a decorative system cue, not a measured facial map.
 
 The external Perfect Corp Camera Kit renderer is a development diagnostic harness only. It is not the production acquisition surface.
 
@@ -193,7 +201,11 @@ The deciding raw-score result cannot be rescued by unrelated skin metrics. A fav
 
 ## 8. Oracle completion contract
 
-The result remains sealed until the person activates the reveal.
+The result remains sealed until the person activates the reveal. Finding,
+score, delta, confidence, evidence status, recommendation, next step, and
+limitations remain unavailable before reveal. The registered product identity
+was already known and stays visibly loaded, labeled, and locked without
+exposing any result field.
 
 The Oracle uses one mounted machine and one pure mechanical reducer:
 
@@ -208,7 +220,10 @@ sealed
 → done
 ```
 
-Reveal and motion do not create scientific state.
+Reveal and motion do not create scientific state. The active Oracle specimen
+uses the complete canonical registered product identity, including strength
+and volume when present, and remains the same `IdentityLockSpecimen` through
+sealed, reveal, saving, dispensing, and collection.
 
 A recommendation is accepted or deliberately changed before collection. The durable Evidence Record is created exactly once at the reducer-owned collection boundary. Only `ORACLE_DONE` returns to Home.
 
@@ -218,7 +233,7 @@ The retired product description of a separate mandatory next-step screen followe
 
 A completed Evidence Record preserves, where available:
 
-- registered product identity and accession
+- registered product ID, accession, brand, product name, strength, and volume
 - assigned job
 - baseline and follow-up timestamps and face-free metadata
 - normalized raw scores and delta
@@ -229,7 +244,10 @@ A completed Evidence Record preserves, where available:
 - selected next step
 - `includesFaceImage: false`
 
-Canonical records render from their saved immutable snapshot. They are not re-evaluated during Home, Previous Trials, detail, reload, or future engine upgrades.
+Canonical records render product and result from their saved immutable
+snapshot. Home, Previous Trials, detail, and reload do not substitute active,
+demo, verdict-copy, or generic product identity and do not re-evaluate the
+result under future engine upgrades.
 
 Legacy records remain readable without being upgraded as though they contained evidence that was never collected.
 

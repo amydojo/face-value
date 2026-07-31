@@ -25,10 +25,7 @@ import type {
   CaptureKind,
   CaptureMetadata,
 } from '../../domain/model';
-import {
-  REDNESS_BURST_FINALIZATION_MS,
-  REDNESS_BURST_REQUIRED_MEASUREMENTS,
-} from '../../domain/rednessEvidenceBurst';
+import { REDNESS_BURST_REQUIRED_MEASUREMENTS } from '../../domain/rednessEvidenceBurst';
 import { logSafeAnalysisDiagnostic, translateProviderError } from '../../domain/youcamEvidence';
 import {
   CAMERA_KIT_ACQUISITION_MS,
@@ -37,6 +34,7 @@ import {
   createCaptureSequenceState,
   getNextCaptureSequenceDeadline,
   reduceCaptureSequence,
+  useAnalysisWaitPresentation,
   type CaptureSequenceEvent,
   type CaptureSequenceState,
 } from '../capture-sequence';
@@ -687,7 +685,6 @@ export function CameraViewport({
   useEffect(() => {
     const generation = activeGenerationRef.current;
     if (
-      !sequence.handoffReady ||
       !generation ||
       analysisStartedRef.current ||
       state.activeRednessBurst?.generationId !== generation.id ||
@@ -698,23 +695,18 @@ export function CameraViewport({
     }
     analysisStartedRef.current = true;
     void analyzeBurst(generation);
-  }, [analyzeBurst, sequence.handoffReady, state.activeRednessBurst]);
+  }, [analyzeBurst, state.activeRednessBurst]);
 
   useEffect(() => {
     const burst = state.activeRednessBurst;
     if (burst?.status !== 'ready' || activeGenerationRef.current?.id !== burst.generationId) {
       return;
     }
-    const timer = window.setTimeout(
-      () =>
-        dispatch({
-          type: 'REDNESS_BURST_COMMIT_REQUESTED',
-          generationId: burst.generationId,
-          completedAt: systemClock.now(),
-        }),
-      REDNESS_BURST_FINALIZATION_MS,
-    );
-    return () => window.clearTimeout(timer);
+    dispatch({
+      type: 'REDNESS_BURST_COMMIT_REQUESTED',
+      generationId: burst.generationId,
+      completedAt: systemClock.now(),
+    });
   }, [dispatch, state.activeRednessBurst]);
 
   useEffect(() => {
@@ -767,6 +759,7 @@ export function CameraViewport({
   };
 
   const leave = () => {
+    if (stateRef.current.activeRednessBurst?.status === 'committed') return;
     cancelActiveGeneration(true);
     callbacksRef.current.onBack();
   };
@@ -783,8 +776,16 @@ export function CameraViewport({
   );
   const analysisTimerActive = activeBurst?.status === 'analyzing' && providerProcessingStarted;
   const analysisGenerationId = activeBurst?.generationId ?? null;
-  const activeAnalysisMeasurement = analysisTimerActive
-    ? Math.min(REDNESS_BURST_REQUIRED_MEASUREMENTS, analyzedMeasurementCount + 1)
+  const activeAnalysisMeasurement = activeProviderRequest
+    ? Math.min(
+        REDNESS_BURST_REQUIRED_MEASUREMENTS,
+        Math.max(
+          0,
+          activeBurst?.capturedFrames.findIndex(
+            (frame) => frame.frameId === activeProviderRequest.frameId,
+          ) ?? -1,
+        ) + 1,
+      )
     : null;
   const analysisRetrying = activeProviderRequest?.attempt === 2;
   const attemptedFrameCount = activeBurst?.attemptedFrameCount ?? 0;
@@ -793,6 +794,25 @@ export function CameraViewport({
   const burstFailed = activeBurst?.status === 'failed';
   const failed = sequence.phase === 'error';
   const presentedAnalysisError = failed ? null : analysisError;
+  const finishAnalysisPresentation = useCallback(
+    (generationId: string) => {
+      dispatch({ type: 'REDNESS_BURST_PRESENTATION_COMPLETED', generationId });
+    },
+    [dispatch],
+  );
+  const analysisPresentation = useAnalysisWaitPresentation({
+    active:
+      sequence.phase === 'captured' &&
+      (activeBurst?.status === 'analyzing' ||
+        activeBurst?.status === 'ready' ||
+        activeBurst?.status === 'committed'),
+    generationId: analysisGenerationId,
+    scanCompleteDwellFinished: sequence.handoffReady,
+    activeMeasurement: activeAnalysisMeasurement,
+    allMeasurementsComplete: activeBurst?.status === 'ready' || activeBurst?.status === 'committed',
+    evidenceCommitted: activeBurst?.status === 'committed',
+    onPresentationComplete: finishAnalysisPresentation,
+  });
 
   useEffect(() => {
     if (!analysisTimerActive || !analysisGenerationId) return;
@@ -847,7 +867,12 @@ export function CameraViewport({
       data-preview-status={previewStatus}
     >
       <div className={styles.captureRouteBar} data-capture-route-bar>
-        <button type="button" className={styles.textButton} onClick={leave}>
+        <button
+          type="button"
+          className={styles.textButton}
+          disabled={activeBurst?.status === 'committed'}
+          onClick={leave}
+        >
           ← Back
         </button>
         <p className={styles.eyebrow}>
@@ -893,9 +918,11 @@ export function CameraViewport({
         acceptedMeasurementCount={capturedMeasurementCount}
         analyzedMeasurementCount={analyzedMeasurementCount}
         rejectedMeasurementCount={rejectedMeasurementCount}
-        activeAnalysisMeasurement={activeAnalysisMeasurement}
         analysisRetrying={analysisRetrying}
         analysisSlow={analysisSlow}
+        analysisPresentationPhase={analysisPresentation.phase}
+        presentedAnalysisMeasurement={analysisPresentation.measurement}
+        presentedAnalysisCompletedCount={analysisPresentation.completedCount}
         burstStatus={activeBurst?.status ?? 'idle'}
       />
 

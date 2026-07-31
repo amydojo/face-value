@@ -44,7 +44,10 @@ function restoredStageFor(persisted: PersistedDemoData): AppStage {
   }
   if (hasComparison) return 'analysis';
   if (hasBaseline && hasFollowUp) {
-    return persisted.stage === 'followup_context' ? 'followup_context' : 'analysis';
+    return persisted.stage === 'followup_context' ||
+      (persisted.stage === 'camera' && Boolean(persisted.registeredProduct))
+      ? 'followup_context'
+      : 'analysis';
   }
 
   if (hasRegisteredTrial) {
@@ -56,7 +59,7 @@ function restoredStageFor(persisted: PersistedDemoData): AppStage {
       return 'comparison_refused';
     }
     if (persisted.stage === 'camera') {
-      return persisted.captureKind === 'followup' ? 'followup_ready' : 'baseline_locked';
+      return persisted.captureKind === 'followup' ? 'followup_ready' : 'baseline_context';
     }
     return 'waiting_for_followup';
   }
@@ -89,7 +92,8 @@ function hydratePersistedState(
     hasBaselineEvidence(persisted.longitudinalEvidence) &&
     hasFollowUpEvidence(persisted.longitudinalEvidence) &&
     !persisted.longitudinalEvidence.comparison &&
-    !persisted.analysis,
+    !persisted.analysis &&
+    !(persisted.stage === 'camera' && persisted.registeredProduct),
   );
   const restoredStage =
     options.preserveStage && persisted.stage ? persisted.stage : restoredStageFor(persisted);

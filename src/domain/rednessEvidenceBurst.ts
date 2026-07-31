@@ -4,7 +4,6 @@ export const REDNESS_BURST_REQUIRED_MEASUREMENTS = 3 as const;
 export const REDNESS_BURST_MAX_CAPTURE_ATTEMPTS = 5 as const;
 export const REDNESS_BURST_PROVIDER_MAX_ATTEMPTS = 2 as const;
 export const REDNESS_BURST_PROVIDER_CONCURRENCY = 1 as const;
-export const REDNESS_BURST_FINALIZATION_MS = 420 as const;
 
 export function isCompleteRednessEvidenceBurst(
   value: RednessEvidenceBurst | null | undefined,

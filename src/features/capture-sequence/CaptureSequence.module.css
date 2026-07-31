@@ -165,6 +165,10 @@
   text-shadow: 0 1px 18px rgba(0, 0, 0, 0.86);
 }
 
+.chassis[data-capture-phase='captured'] .instruction {
+  animation: analysisStatusCrossfade var(--fv-analysis-crossfade-duration, 225ms) ease-out both;
+}
+
 .instruction h1,
 .instruction p {
   margin: 0;
@@ -183,7 +187,8 @@
 
 .guideField,
 .scanField,
-.regionOverlay {
+.regionOverlay,
+.analysisActivityField {
   position: absolute;
   z-index: 6;
   top: 33.8462cqw;
@@ -196,6 +201,29 @@
     left 180ms var(--fv-ease-damped),
     width 180ms var(--fv-ease-damped),
     height 180ms var(--fv-ease-damped);
+}
+
+.analysisActivityField {
+  z-index: 5;
+  display: block;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.analysisActivityPoint {
+  fill: rgba(255, 167, 96, 0.76);
+  opacity: 0.075;
+  filter: drop-shadow(0 0 1.5px rgba(255, 106, 0, 0.24));
+  animation: analysisPointActivity var(--fv-analysis-field-cycle, 2800ms) linear infinite;
+}
+
+.analysisActivityConnection {
+  stroke: rgba(255, 161, 84, 0.42);
+  stroke-linecap: round;
+  stroke-width: 0.55;
+  opacity: 0;
+  vector-effect: non-scaling-stroke;
+  animation: analysisConnectionActivity var(--fv-analysis-field-cycle, 2800ms) ease-in-out infinite;
 }
 
 .guideField {
@@ -536,42 +564,50 @@
 }
 
 .measurementIndicator {
-  position: absolute;
-  z-index: 11;
-  bottom: 18.2cqw;
-  left: 50%;
-  display: flex;
-  gap: 9px;
-  align-items: center;
+  display: grid;
+  gap: 7px;
   justify-content: center;
-  min-width: 64px;
-  min-height: 24px;
-  padding: 5px 10px;
+  width: fit-content;
+  min-width: 146px;
+  max-width: 100%;
+  min-height: 42px;
+  margin: 7px auto 0;
+  padding: 8px 15px 9px;
   border: 1px solid rgba(244, 243, 239, 0.1);
-  border-radius: 999px;
-  background: rgba(8, 8, 8, 0.48);
-  box-shadow: inset 0 1px rgba(255, 255, 255, 0.025);
+  border-radius: 12px;
+  background: rgba(8, 8, 8, 0.58);
+  box-shadow:
+    inset 0 1px rgba(255, 255, 255, 0.03),
+    0 8px 22px rgba(0, 0, 0, 0.16);
   pointer-events: none;
-  transform: translateX(-50%);
+  backdrop-filter: blur(12px) saturate(0.72);
+  -webkit-backdrop-filter: blur(12px) saturate(0.72);
 }
 
 .analysisMeasurementLabel {
   color: rgba(244, 243, 239, 0.82);
-  font: 600 clamp(7px, 2.05cqw, 8px) / 1 var(--fv-font-mono);
+  font: 620 clamp(8px, 2.3cqw, 9px) / 1.1 var(--fv-font-mono);
   letter-spacing: 0.09em;
+  white-space: nowrap;
+}
+
+.analysisTertiaryStatus {
+  color: rgba(244, 243, 239, 0.62);
+  font: 440 clamp(9px, 2.82cqw, 11px) / 1.25 var(--fv-font-sans);
+  letter-spacing: 0;
   white-space: nowrap;
 }
 
 .measurementDots {
   display: flex;
-  gap: 7px;
+  gap: 13px;
   align-items: center;
   justify-content: center;
 }
 
 .measurementDots i {
-  width: 5px;
-  height: 5px;
+  width: 10px;
+  height: 10px;
   border: 1px solid rgba(244, 243, 239, 0.42);
   border-radius: 50%;
   background: transparent;
@@ -589,9 +625,11 @@
 
 .measurementDots i[data-measurement-state='active'] {
   border-color: rgba(255, 148, 74, 0.9);
-  background: rgba(255, 106, 0, 0.34);
-  box-shadow: 0 0 0 0 rgba(255, 106, 0, 0.22);
-  animation: measurementActivePulse 1.45s ease-in-out infinite;
+  background: rgba(255, 106, 0, 0.08);
+  box-shadow:
+    inset 0 0 4px rgba(255, 167, 92, 0.38),
+    0 0 0 0 rgba(255, 106, 0, 0.18);
+  animation: measurementActivePulse var(--fv-analysis-indicator-cycle, 1800ms) ease-in-out infinite;
 }
 
 .measurementDots i[data-measurement-state='waiting'] {
@@ -804,6 +842,41 @@
   }
 }
 
+@keyframes analysisStatusCrossfade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes analysisPointActivity {
+  0%,
+  39%,
+  60%,
+  100% {
+    opacity: 0.075;
+  }
+  46%,
+  53% {
+    opacity: 0.58;
+  }
+}
+
+@keyframes analysisConnectionActivity {
+  0%,
+  28%,
+  72%,
+  100% {
+    opacity: 0;
+  }
+  44%,
+  56% {
+    opacity: 0.28;
+  }
+}
+
 .chassis[data-reduced-motion='true'] .guideSegments,
 .chassis[data-reduced-motion='true'] .guideConnectors,
 .chassis[data-reduced-motion='true'] .guideField,
@@ -812,8 +885,20 @@
 .chassis[data-reduced-motion='true'] .captureShutter,
 .chassis[data-reduced-motion='true'] .capturedFrame,
 .chassis[data-reduced-motion='true'] .capturedVeil,
+.chassis[data-reduced-motion='true'] .instruction,
+.chassis[data-reduced-motion='true'] .analysisActivityPoint,
+.chassis[data-reduced-motion='true'] .analysisActivityConnection,
 .chassis[data-reduced-motion='true'] .measurementDots i[data-measurement-state='active'] {
   animation: none;
+}
+
+.chassis[data-reduced-motion='true'] .analysisActivityPoint {
+  opacity: 0.11;
+  filter: none;
+}
+
+.chassis[data-reduced-motion='true'] .analysisActivityConnection {
+  opacity: 0;
 }
 
 .chassis[data-reduced-motion='true'] .scanBand {
@@ -859,7 +944,8 @@
 @container (max-height: 620px) {
   .guideField,
   .scanField,
-  .regionOverlay {
+  .regionOverlay,
+  .analysisActivityField {
     top: 28.2051cqw;
     left: 12.5cqw;
     width: 75cqw;
@@ -870,18 +956,20 @@
 @container (max-height: 520px) {
   .guideField,
   .scanField,
-  .regionOverlay {
+  .regionOverlay,
+  .analysisActivityField {
     top: 26.9231cqw;
-    left: 22cqw;
-    width: 56cqw;
-    height: 76.3636cqw;
+    left: 25cqw;
+    width: 50cqw;
+    height: 68.1818cqw;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .guideField,
   .scanField,
-  .regionOverlay {
+  .regionOverlay,
+  .analysisActivityField {
     transition: none;
   }
 

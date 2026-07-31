@@ -1,4 +1,5 @@
 import type { CSSProperties } from 'react';
+import type { OracleSpecimenIdentity } from '../../adapters/product/specimenFromRegisteredProduct';
 import type {
   SpecimenRegistrationPhase,
   SpecimenRegistrationSnapshot,
@@ -8,13 +9,7 @@ import styles from './IdentityLockSpecimen.module.css';
 export type OracleTrialState =
   'empty' | 'registration-preview' | 'baseline-ready' | 'pending' | 'followup-ready';
 
-export interface OracleSpecimenIdentity {
-  brand: string;
-  productName: string;
-  strength: string | null;
-  volume: string | null;
-  assignedJob: 'Reduce visible redness';
-}
+export type { OracleSpecimenIdentity } from '../../adapters/product/specimenFromRegisteredProduct';
 
 export interface IdentityLockSpecimenProps {
   identity: OracleSpecimenIdentity | null;
@@ -34,6 +29,8 @@ type SpecimenRegistrationStyle = CSSProperties & {
 };
 
 const fallbackIdentity: OracleSpecimenIdentity = {
+  productId: null,
+  accession: null,
   brand: 'UNASSIGNED',
   productName: 'FACE VALUE SPECIMEN',
   strength: null,
@@ -330,9 +327,12 @@ export function IdentityLockSpecimen({
       data-label-scan-active={scanActive}
       data-specimen-aspect-ratio="104/136"
       data-specimen-brand={visibleIdentity.brand}
+      data-specimen-id={visibleIdentity.productId ?? ''}
+      data-specimen-accession={visibleIdentity.accession ?? ''}
       data-specimen-product={visibleIdentity.productName}
       data-specimen-strength={visibleIdentity.strength ?? ''}
       data-specimen-volume={visibleIdentity.volume ?? ''}
+      data-specimen-job={visibleIdentity.assignedJob}
       data-display-brand={displayBrand}
       data-display-product={displayProduct}
       data-display-strength={displayStrength}

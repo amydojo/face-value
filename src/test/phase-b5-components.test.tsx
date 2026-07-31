@@ -324,7 +324,7 @@ it('starts with real registration and ends session one at Baseline locked', asyn
           name: 'Anything meaningfully different today?',
         }),
       ).toBeVisible(),
-    { timeout: 5_000 },
+    { timeout: 8_000 },
   );
   await user.click(screen.getByRole('button', { name: 'NOTHING DIFFERENT' }));
   expect(screen.getByRole('heading', { name: 'Baseline locked.' })).toBeVisible();
@@ -342,7 +342,7 @@ it('starts with real registration and ends session one at Baseline locked', asyn
       name: 'ADVANCE DEMO TIMELINE',
     }),
   ).not.toBeInTheDocument();
-}, 10_000);
+}, 12_000);
 
 it('shows one normalized instruction and instrumentation rail, then closes on unmount', async () => {
   const user = userEvent.setup();
@@ -578,7 +578,43 @@ it('keeps one canonical machine through reveal, dispense, collection, and Done',
 
   const machine = document.querySelector('[data-oracle-machine]');
   const machineControl = document.querySelector('[data-oracle-handle]');
+  const registeredSpecimen = machine?.querySelector('[data-oracle-specimen]');
+  const thermalLabel = registeredSpecimen?.querySelector(
+    '[data-specimen-layer="thermal-evidence-label"]',
+  );
+  const evidenceLockStrip = registeredSpecimen?.querySelector(
+    '[data-specimen-layer="evidence-lock-strip"]',
+  );
+  const contactShadow = registeredSpecimen?.querySelector('[data-specimen-layer="contact-shadow"]');
+  const assertRegisteredSpecimen = () => {
+    expect(machine?.querySelector('[data-oracle-specimen]')).toBe(registeredSpecimen);
+    expect(registeredSpecimen).toHaveAttribute('data-specimen-state', 'verdict');
+    expect(registeredSpecimen).toHaveAttribute('data-identity-lock-state', 'locked');
+    expect(registeredSpecimen).toHaveAttribute('data-specimen-brand', 'Naturium');
+    expect(registeredSpecimen).toHaveAttribute('data-specimen-product', 'Azelaic Topical Acid');
+    expect(registeredSpecimen).toHaveAttribute('data-specimen-strength', '10%');
+    expect(registeredSpecimen).toHaveAttribute('data-specimen-volume', '30 ml');
+    expect(registeredSpecimen).toHaveAttribute('data-specimen-accession', 'SPECIMEN 01');
+    expect(registeredSpecimen).toHaveAttribute(
+      'data-specimen-id',
+      'registered-product-20260701120000000',
+    );
+    expect(registeredSpecimen?.querySelector('[data-specimen-layer="contact-shadow"]')).toBe(
+      contactShadow,
+    );
+    expect(thermalLabel).toBeVisible();
+    expect(evidenceLockStrip).toBeVisible();
+    expect(registeredSpecimen?.querySelector('[data-label-status-marker]')).toHaveAttribute(
+      'data-label-status-state',
+      'locked',
+    );
+  };
   expect(machine).toHaveAttribute('data-oracle-state', 'sealed');
+  expect(machine).toHaveAccessibleName(
+    /Registered specimen remains loaded: Naturium, Azelaic Topical Acid, 10%, 30 ml/i,
+  );
+  expect(machine).not.toHaveAccessibleName(/favorable|test longer|possible/i);
+  assertRegisteredSpecimen();
   expect(machineControl).toHaveAttribute('data-oracle-control-label', 'REVEAL');
   await user.click(
     screen.getByRole('button', {
@@ -586,16 +622,19 @@ it('keeps one canonical machine through reveal, dispense, collection, and Done',
     }),
   );
   expect(machine).toHaveAttribute('data-oracle-state', 'opening');
+  assertRegisteredSpecimen();
   expect(screen.getByText('REVEALING RESULT')).toBeVisible();
   expect(screen.getByRole('heading', { name: 'Preparing your evidence record.' })).toBeVisible();
   expect(machineControl).toHaveAttribute('data-oracle-control-label', 'REVEAL');
   expect(machineControl).toHaveAttribute('data-oracle-control-busy', 'true');
   fireEvent.animationEnd(document.querySelector('[data-oracle-motion="opening"]')!);
   expect(machine).toHaveAttribute('data-oracle-state', 'transmitting');
+  assertRegisteredSpecimen();
   expect(machineControl).toHaveAttribute('data-oracle-control-label', 'none');
   expect(screen.queryByText('TEST LONGER')).not.toBeInTheDocument();
   fireEvent.animationEnd(document.querySelector('[data-oracle-motion="transmission"]')!);
   expect(machine).toHaveAttribute('data-oracle-state', 'verdict_revealed');
+  assertRegisteredSpecimen();
   expect(screen.getByRole('heading', { name: 'The result is in.' })).toBeVisible();
   expect(screen.getByText('Visible redness moved in a favorable direction.')).toBeVisible();
   const recommendationRegion = screen.getByLabelText('Result recommendation');
@@ -606,6 +645,10 @@ it('keeps one canonical machine through reveal, dispense, collection, and Done',
     'TEST LONGER',
   );
   expect(document.querySelector('[data-firmware-state="resolved"]')).toHaveTextContent('TRIAL 014');
+  expect(document.querySelector('[data-firmware-state="resolved"]')).toHaveAttribute(
+    'data-firmware-product-context',
+    'Naturium, Azelaic Topical Acid, 10%, 30 ml',
+  );
   expect(
     document.querySelector('[data-fv-part="screen-header"] [data-oracle-trial-identity]'),
   ).toHaveTextContent('FV–014');
@@ -617,6 +660,7 @@ it('keeps one canonical machine through reveal, dispense, collection, and Done',
   fireEvent.click(amber);
   fireEvent.click(amber);
   expect(machine).toHaveAttribute('data-oracle-state', 'committing');
+  assertRegisteredSpecimen();
   expect(machineControl).toHaveAttribute('data-oracle-control-label', 'none');
   expect(screen.queryByText('EVIDENCE RECORDED')).not.toBeInTheDocument();
   expect(screen.getByText('SAVING RESULT')).toBeVisible();
@@ -630,8 +674,17 @@ it('keeps one canonical machine through reveal, dispense, collection, and Done',
   expect(within(savingFirmware).queryByText('RECORDING', { exact: true })).not.toBeInTheDocument();
   const paperDuringCommit = document.querySelector<HTMLButtonElement>('[data-oracle-paper]')!;
   expect(paperDuringCommit).toHaveTextContent('FV–014');
+  expect(paperDuringCommit.querySelector('article')).toHaveAttribute(
+    'data-paper-specimen-strength',
+    '10%',
+  );
+  expect(paperDuringCommit.querySelector('article')).toHaveAttribute(
+    'data-paper-specimen-volume',
+    '30 ml',
+  );
   fireEvent.animationEnd(document.querySelector('[data-oracle-motion="commit"]')!);
   expect(machine).toHaveAttribute('data-oracle-state', 'dispensing');
+  assertRegisteredSpecimen();
   expect(machineControl).toHaveAttribute('data-oracle-control-label', 'none');
   expect(screen.getByText('SAVING RESULT')).toBeVisible();
   expect(savingFirmware).toHaveTextContent('RECORD STATUS');
@@ -656,6 +709,7 @@ it('keeps one canonical machine through reveal, dispense, collection, and Done',
   fireEvent.animationEnd(paper);
 
   expect(machine).toHaveAttribute('data-oracle-state', 'collected');
+  assertRegisteredSpecimen();
   expect(machineControl).toHaveAttribute('data-oracle-control-label', 'none');
   expect(document.querySelector('[data-oracle-paper]')).toBeNull();
   await waitFor(() => expect(screen.getByRole('button', { name: 'DONE' })).toHaveFocus());
@@ -685,13 +739,21 @@ it('keeps one canonical machine through reveal, dispense, collection, and Done',
     };
     expect(stored.archive).toHaveLength(1);
     expect(stored.archive?.[0].id).toBe(stored.record?.id);
-    expect(stored.record?.accession).toBe('FV–014');
+    expect(stored.record?.accession).toBe('SPECIMEN 01');
   });
 
   await user.click(screen.getByRole('button', { name: 'DONE' }));
   expect(screen.getByRole('heading', { name: 'Your trials' })).toBeVisible();
   expect(screen.getByText('NO TRIAL IN PROGRESS')).toBeVisible();
   expect(document.querySelector('[data-latest-verdict-cassette]')).toBeVisible();
+  const latestSpecimen = document.querySelector(
+    '[data-latest-verdict-cassette] [data-oracle-specimen]',
+  );
+  expect(latestSpecimen).toHaveAttribute('data-specimen-brand', 'Naturium');
+  expect(latestSpecimen).toHaveAttribute('data-specimen-product', 'Azelaic Topical Acid');
+  expect(latestSpecimen).toHaveAttribute('data-specimen-strength', '10%');
+  expect(latestSpecimen).toHaveAttribute('data-specimen-volume', '30 ml');
+  expect(latestSpecimen).toHaveAttribute('data-specimen-accession', 'SPECIMEN 01');
   expect(document.querySelector('[data-cassette-variant="latest-verdict"]')).toHaveAttribute(
     'data-cassette-state',
     'partially-revealed',
@@ -708,6 +770,14 @@ it('keeps one canonical machine through reveal, dispense, collection, and Done',
     }),
   );
   expect(screen.getByRole('heading', { name: 'Evidence record' })).toBeVisible();
+  expect(document.querySelector('[data-evidence-record]')).toHaveAttribute(
+    'data-specimen-strength',
+    '10%',
+  );
+  expect(document.querySelector('[data-evidence-record]')).toHaveAttribute(
+    'data-specimen-volume',
+    '30 ml',
+  );
   expect(screen.getByRole('heading', { name: 'Test longer' })).toBeVisible();
   await user.click(screen.getByRole('button', { name: 'Back to previous view' }));
 
@@ -720,6 +790,10 @@ it('keeps one canonical machine through reveal, dispense, collection, and Done',
   const archived = screen.getByRole('button', {
     name: /Open saved result FV–014 for Azelaic Topical Acid/i,
   });
+  expect(archived).toHaveAttribute('data-specimen-brand', 'Naturium');
+  expect(archived).toHaveAttribute('data-specimen-product', 'Azelaic Topical Acid');
+  expect(archived).toHaveAttribute('data-specimen-strength', '10%');
+  expect(archived).toHaveAttribute('data-specimen-volume', '30 ml');
   expect(within(archived).getAllByText('FV–014').length).toBeGreaterThan(0);
   await user.click(archived);
   expect(screen.getByText('FV–014')).toBeVisible();

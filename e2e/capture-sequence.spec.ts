@@ -26,6 +26,7 @@ interface CaptureStatusObservation {
   heading: string | null;
   secondary: string | null;
   measurement: string | null;
+  tertiary: string | null;
   at: number;
 }
 
@@ -91,6 +92,8 @@ async function observeCaptureStatuses(page: Page): Promise<void> {
         sequence.querySelector('[data-capture-instruction] p')?.textContent?.trim() ?? null;
       const measurement =
         sequence.querySelector('[data-analysis-measurement-label]')?.textContent?.trim() ?? null;
+      const tertiary =
+        sequence.querySelector('[data-analysis-tertiary-status]')?.textContent?.trim() ?? null;
       const accessibleProgress =
         sequence.querySelector('[data-measurement-indicator]')?.getAttribute('aria-label') ?? '';
       if (/0 of 3/i.test(`${sequence.textContent ?? ''} ${accessibleProgress}`)) {
@@ -100,7 +103,8 @@ async function observeCaptureStatuses(page: Page): Promise<void> {
       if (
         previous?.heading === heading &&
         previous.secondary === secondary &&
-        previous.measurement === measurement
+        previous.measurement === measurement &&
+        previous.tertiary === tertiary
       ) {
         return;
       }
@@ -108,6 +112,7 @@ async function observeCaptureStatuses(page: Page): Promise<void> {
         heading,
         secondary,
         measurement,
+        tertiary,
         at: performance.now(),
       });
     };
@@ -278,6 +283,19 @@ async function installStaticVisualMilestones(page: Page): Promise<void> {
         [data-capture-scan-atmosphere] {
         animation: none !important;
         opacity: 1 !important;
+      }
+
+      [data-analysis-activity-field] circle,
+      [data-analysis-activity-field] line {
+        animation: none !important;
+      }
+
+      [data-analysis-activity-field] circle:nth-of-type(-n + 4) {
+        opacity: 0.58 !important;
+      }
+
+      [data-analysis-activity-field] line:first-of-type {
+        opacity: 0.28 !important;
       }
     `,
   });
@@ -464,10 +482,7 @@ test('successful acquisition preserves geometry and the selected frame into proc
     timeout: 4_000,
   });
   await expect(page.getByRole('heading', { name: 'Scan complete' })).toBeVisible();
-  await expect(page.locator('[data-measurement-indicator]')).toHaveAttribute(
-    'data-measurements-accepted',
-    '3',
-  );
+  await expect(page.locator('[data-measurement-indicator]')).toHaveCount(0);
   await expect(page.locator('[data-frame-frozen="true"]')).toBeVisible();
   expect(await captureGeometry(page)).toEqual(activeGeometry);
   await expect(page.locator('[data-face-acquisition-guide]')).toHaveCount(1);
@@ -479,14 +494,14 @@ test('successful acquisition preserves geometry and the selected frame into proc
     page.getByRole('heading', {
       name: 'Anything meaningfully different today?',
     }),
-  ).toBeVisible({ timeout: 2_000 });
+  ).toBeVisible({ timeout: 4_000 });
 });
 
 test('post-capture status follows real analysis completions without zero progress', async ({
   page,
 }) => {
   await page.setViewportSize({ width: 390, height: 844 });
-  await openCapture(page, { providerDelayMs: 900 });
+  await openCapture(page, { providerDelayMs: 3_000 });
   await observeCaptureStatuses(page);
   await startCapture(page);
 
@@ -494,6 +509,8 @@ test('post-capture status follows real analysis completions without zero progres
   const indicator = page.locator('[data-measurement-indicator]');
   await expect(page.getByRole('heading', { name: 'Scan complete' })).toBeVisible();
   await expect(page.getByText('You can relax.', { exact: true })).toBeVisible();
+  await page.waitForTimeout(1_000);
+  await expect(page.getByRole('heading', { name: 'Scan complete' })).toBeVisible();
   await expect(page.locator('[data-frame-frozen="true"] img')).toBeVisible();
   await expect(page.locator('[data-captured-specimen-transition]')).toHaveCSS(
     'background-color',
@@ -501,6 +518,12 @@ test('post-capture status follows real analysis completions without zero progres
   );
 
   await expect(page.locator('[data-analysis-measurement-label]')).toHaveText('MEASUREMENT 1 OF 3');
+  await expect(page.getByText('Checking three measurements for consistency.')).toBeVisible();
+  await expect(indicator).toHaveAttribute('data-progress-location', 'primary-status-stack');
+  await expect(page.locator('[data-analysis-activity-field]')).toHaveAttribute(
+    'aria-hidden',
+    'true',
+  );
   await expect(page.getByRole('status', { name: /Measurement 1 of 3 in progress/i })).toBeVisible();
   await expect(captureScreen).toHaveAttribute('data-burst-accepted', '0');
   await expect(indicator).toHaveAttribute('data-active-measurement', '1');
@@ -513,7 +536,7 @@ test('post-capture status follows real analysis completions without zero progres
   await expect(captureScreen).toHaveAttribute('data-burst-accepted', '0');
 
   await expect(page.locator('[data-analysis-measurement-label]')).toHaveText('MEASUREMENT 2 OF 3', {
-    timeout: 2_000,
+    timeout: 4_000,
   });
   await expect(captureScreen).toHaveAttribute('data-burst-accepted', '1');
   await expect(page.locator('[data-measurement-position="1"]')).toHaveAttribute(
@@ -526,7 +549,7 @@ test('post-capture status follows real analysis completions without zero progres
   );
 
   await expect(page.locator('[data-analysis-measurement-label]')).toHaveText('MEASUREMENT 3 OF 3', {
-    timeout: 2_000,
+    timeout: 4_000,
   });
   await expect(captureScreen).toHaveAttribute('data-burst-accepted', '2');
   await expect(page.locator('[data-measurement-position="2"]')).toHaveAttribute(
@@ -539,7 +562,7 @@ test('post-capture status follows real analysis completions without zero progres
   );
 
   await expect(page.getByRole('heading', { name: 'Measurements confirmed' })).toBeVisible({
-    timeout: 2_000,
+    timeout: 4_000,
   });
   await expect(page.getByText('Preparing your comparison.', { exact: true })).toBeVisible();
   await expect(captureScreen).toHaveAttribute('data-burst-accepted', '3');
@@ -565,30 +588,68 @@ test('post-capture status follows real analysis completions without zero progres
   ).toBeLessThanOrEqual(1);
 });
 
-test('slow analysis support copy appears only after four seconds without progress', async ({
+test('provider work advances during the dwell and presentation enters at latest truth', async ({
   page,
 }) => {
-  await openCapture(page, { providerDelayMs: 5_200, providerDelayFrame: 1 });
+  await openCapture(page, { providerDelayMs: 900 });
   await observeCaptureStatuses(page);
   await startCapture(page);
-  await expect(page.locator('[data-analysis-measurement-label]')).toHaveText('MEASUREMENT 1 OF 3');
-  await expect(page.getByText('This is taking a little longer than usual.')).toHaveCount(0);
-  await page.waitForTimeout(3_000);
-  await expect(page.getByText('This is taking a little longer than usual.')).toHaveCount(0);
-  await expect(page.getByText('This is taking a little longer than usual.')).toBeVisible({
-    timeout: 2_000,
+  const captureScreen = page.locator('section[data-preview-state]');
+
+  await expect(page.getByRole('heading', { name: 'Scan complete' })).toBeVisible();
+  await expect(captureScreen).toHaveAttribute('data-burst-accepted', '1', { timeout: 1_500 });
+  await expect(page.getByRole('heading', { name: 'Scan complete' })).toBeVisible();
+  await expect(page.locator('[data-analysis-measurement-label]')).toHaveText(
+    /MEASUREMENT [23] OF 3/,
+    { timeout: 1_500 },
+  );
+  await expect(page.locator('[data-analysis-measurement-label]')).not.toHaveText(
+    'MEASUREMENT 1 OF 3',
+  );
+
+  await expect(page.getByRole('heading', { name: 'Measurements confirmed' })).toBeVisible({
+    timeout: 3_000,
   });
+  const { observations, zeroProgressSeen } = await captureStatusHistory(page);
+  const scanComplete = observations.find(({ heading }) => heading === 'Scan complete');
+  const nextMajorState = observations.find(
+    ({ heading }) => heading === 'Analyzing your scan' || heading === 'Measurements confirmed',
+  );
+  expect(scanComplete).toBeTruthy();
+  expect(nextMajorState).toBeTruthy();
+  expect(nextMajorState!.at - scanComplete!.at).toBeGreaterThanOrEqual(1_790);
+  expect(zeroProgressSeen).toBe(false);
+});
+
+test('slow analysis status is tertiary after six seconds without genuine progress', async ({
+  page,
+}) => {
+  await openCapture(page, { providerDelayMs: 7_200, providerDelayFrame: 1 });
+  await observeCaptureStatuses(page);
+  await startCapture(page);
+  const captureScreen = page.locator('section[data-preview-state]');
+  await expect(page.locator('[data-analysis-measurement-label]')).toHaveText('MEASUREMENT 1 OF 3');
+  await expect(page.getByText('Checking three measurements for consistency.')).toBeVisible();
+  await expect(page.getByText('Finishing this measurement…')).toHaveCount(0);
+  await page.waitForTimeout(3_700);
+  await expect(page.getByText('Finishing this measurement…')).toHaveCount(0);
+  await expect(page.getByText('Finishing this measurement…')).toBeVisible({
+    timeout: 1_500,
+  });
+  await expect(page.getByText('Checking three measurements for consistency.')).toBeVisible();
+  await expect(page.locator('[data-analysis-tertiary-status]')).toBeVisible();
 
   const { observations, zeroProgressSeen } = await captureStatusHistory(page);
-  const firstActive = observations.find(({ measurement }) => measurement === 'MEASUREMENT 1 OF 3');
-  const slow = observations.find(
-    ({ secondary }) => secondary === 'This is taking a little longer than usual.',
-  );
-  expect(firstActive).toBeTruthy();
+  const scanComplete = observations.find(({ heading }) => heading === 'Scan complete');
+  const slow = observations.find(({ tertiary }) => tertiary === 'Finishing this measurement…');
+  expect(scanComplete).toBeTruthy();
   expect(slow).toBeTruthy();
-  expect(slow!.at - firstActive!.at).toBeGreaterThanOrEqual(3_900);
+  expect(slow!.at - scanComplete!.at).toBeGreaterThanOrEqual(5_900);
   expect(zeroProgressSeen).toBe(false);
-  await page.getByRole('button', { name: '← Back' }).click();
+  await expect(captureScreen).toHaveAttribute('data-burst-accepted', /^[1-3]$/, {
+    timeout: 2_500,
+  });
+  await expect(page.getByText('Finishing this measurement…')).toHaveCount(0);
 });
 
 test('native browser camera contract renders the real preview surface and owns capture timing', async ({
@@ -789,13 +850,13 @@ test('a recoverable capture rejection is replaced inside the same ritual', async
 });
 
 test('provider frame two retries once on the same capture and then completes', async ({ page }) => {
-  await openCapture(page, { providerFailureFrame: 2, providerDelayMs: 600 });
+  await openCapture(page, { providerFailureFrame: 2, providerDelayMs: 900 });
   await startCapture(page);
   await expect(page.locator('[data-analysis-measurement-label]')).toHaveText('MEASUREMENT 2 OF 3', {
     timeout: 5_000,
   });
   await expect(
-    page.locator('[data-capture-instruction]').getByText('Rechecking this measurement.', {
+    page.locator('[data-capture-instruction]').getByText('Rechecking this measurement…', {
       exact: true,
     }),
   ).toBeVisible({ timeout: 2_000 });
@@ -803,7 +864,7 @@ test('provider frame two retries once on the same capture and then completes', a
     timeout: 2_000,
   });
   await expect(
-    page.locator('[data-capture-instruction]').getByText('Rechecking this measurement.', {
+    page.locator('[data-capture-instruction]').getByText('Rechecking this measurement…', {
       exact: true,
     }),
   ).toHaveCount(0);
@@ -859,7 +920,7 @@ test('permission denial is calm, recoverable, and keeps photo fallback available
 
 test('reduced motion uses the illumination state and still completes capture', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
-  await openCapture(page, { providerDelayMs: 900 });
+  await openCapture(page, { providerDelayMs: 2_000 });
   await startCapture(page);
   const chassis = page.locator('[data-capture-sequence]');
   await expect(chassis).toHaveAttribute('data-reduced-motion', 'true');
@@ -878,27 +939,37 @@ test('reduced motion uses the illumination state and still completes capture', a
     'none',
   );
   await expect(page.locator('[data-frame-frozen="true"] img')).toHaveCSS('animation-name', 'none');
+  await expect(page.locator('[data-analysis-activity-field] circle').first()).toHaveCSS(
+    'animation-name',
+    'none',
+  );
 });
 
 for (const viewport of [
+  { width: 320, height: 568 },
+  { width: 375, height: 812 },
   { width: 390, height: 844 },
-  { width: 393, height: 852 },
   { width: 402, height: 874 },
   { width: 430, height: 932 },
 ]) {
-  test(`fills the active chamber in mobile WebKit at ${viewport.width} × ${viewport.height}`, async ({
+  test(`keeps capture and primary analysis status readable at ${viewport.width} × ${viewport.height}`, async ({
     page,
   }) => {
     await page.setViewportSize(viewport);
-    await openCapture(page);
-    expectResponsiveCaptureGeometry(await captureGeometry(page), viewport.width);
+    await openCapture(page, { providerDelayMs: 3_000, providerDelayFrame: 1 });
+    const initial = await captureGeometry(page);
+    expectResponsiveCaptureGeometry(initial, viewport.width, {
+      compactGuide: initial.chassis.height <= 620,
+    });
     await startCapture(page);
     await expect(page.locator('[data-capture-sequence]')).toHaveAttribute(
       'data-capture-phase',
       'aligning',
     );
     const active = await captureGeometry(page);
-    expectResponsiveCaptureGeometry(active, viewport.width);
+    expectResponsiveCaptureGeometry(active, viewport.width, {
+      compactGuide: active.chassis.height <= 620,
+    });
     const visible = await page.evaluate(() => {
       const route = document.querySelector('[data-capture-route-bar]')!.getBoundingClientRect();
       const rail = document.querySelector('[data-capture-quality-rail]')!.getBoundingClientRect();
@@ -921,6 +992,40 @@ for (const viewport of [
     expect(visible.scrollY).toBe(0);
     expect(visible.screenScrollTop).toBe(0);
     expect(visible.bodyOverflow).toBe('hidden');
+    await expect(page.getByRole('heading', { name: 'Analyzing your scan' })).toBeVisible({
+      timeout: 6_000,
+    });
+    await expect(page.locator('[data-measurement-indicator]')).toHaveAttribute(
+      'data-progress-location',
+      'primary-status-stack',
+    );
+    await expect(page.getByLabel('Synthetic demo state')).toHaveCount(0);
+    const analysisGeometry = await page.evaluate(() => {
+      const box = (selector: string) => {
+        const rect = document.querySelector<HTMLElement>(selector)!.getBoundingClientRect();
+        return {
+          left: rect.left,
+          top: rect.top,
+          right: rect.right,
+          bottom: rect.bottom,
+          width: rect.width,
+          height: rect.height,
+        };
+      };
+      return {
+        chassis: box('[data-capture-sequence]'),
+        instruction: box('[data-capture-instruction]'),
+        progress: box('[data-measurement-indicator]'),
+        field: box('[data-analysis-activity-field]'),
+        guide: box('[data-face-acquisition-guide]'),
+        rail: box('[data-capture-quality-rail]'),
+      };
+    });
+    expect(analysisGeometry.instruction.left).toBeGreaterThanOrEqual(analysisGeometry.chassis.left);
+    expect(analysisGeometry.instruction.right).toBeLessThanOrEqual(analysisGeometry.chassis.right);
+    expect(analysisGeometry.progress.top).toBeGreaterThan(analysisGeometry.instruction.top);
+    expect(analysisGeometry.instruction.bottom).toBeLessThan(analysisGeometry.rail.top);
+    expect(analysisGeometry.field).toEqual(analysisGeometry.guide);
     const overflow = await page.evaluate(
       () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
     );
@@ -928,11 +1033,39 @@ for (const viewport of [
   });
 }
 
+test('Demo Lab banner stays separate from the active analysis status stack', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/demo');
+  await page.getByRole('radio', { name: /Load demo journey/ }).check();
+  await page.getByRole('combobox', { name: /Starting point/ }).selectOption('baseline_ready');
+  await page.getByRole('button', { name: /OPEN DEMO STATE/ }).click();
+  await page.getByRole('button', { name: 'CONFIRM AND LOAD' }).click();
+  await page.goto('/?fv-demo-journey=1&provider-delay-ms=3000&provider-delay-frame=1');
+  const demoBanner = page.getByLabel('Synthetic demo state');
+  await expect(demoBanner).toContainText('LOADED DEMO JOURNEY');
+  await expect(page.getByRole('heading', { name: 'Position your face' })).toBeVisible();
+  await startCapture(page);
+  await expect(page.getByRole('heading', { name: 'Analyzing your scan' })).toBeVisible({
+    timeout: 6_000,
+  });
+  await expect(page.locator('[data-capture-context-bar]')).toContainText('One Thing Redness Trial');
+  const [statusBox, bannerBox] = await Promise.all([
+    page.locator('[data-capture-instruction]').boundingBox(),
+    demoBanner.boundingBox(),
+  ]);
+  expect(statusBox).not.toBeNull();
+  expect(bannerBox).not.toBeNull();
+  expect(statusBox!.y + statusBox!.height).toBeLessThan(bannerBox!.y);
+  expect(
+    await page.evaluate(() => document.documentElement.scrollWidth - innerWidth),
+  ).toBeLessThanOrEqual(1);
+});
+
 test('visual viewport contraction preserves width and guide geometry without clipping or scrolling', async ({
   page,
 }) => {
   await page.setViewportSize({ width: 390, height: 844 });
-  await openCapture(page);
+  await openCapture(page, { providerDelayMs: 3_000, providerDelayFrame: 1 });
   await startCapture(page);
   await expect(page.locator('[data-capture-sequence]')).toHaveAttribute(
     'data-capture-phase',
@@ -961,6 +1094,31 @@ test('visual viewport contraction preserves width and guide geometry without cli
     .toEqual(guideGeometry(expanded));
   const restored = await captureGeometry(page);
   expect(restored.chassis).toEqual(expanded.chassis);
+
+  await expect(page.getByRole('heading', { name: 'Analyzing your scan' })).toBeVisible({
+    timeout: 6_000,
+  });
+  await pinVisualViewportHeight(page, 660);
+  await page.waitForTimeout(220);
+  const compactAnalysis = await page.evaluate(() => {
+    const rect = (selector: string) =>
+      document.querySelector<HTMLElement>(selector)!.getBoundingClientRect();
+    const instruction = rect('[data-capture-instruction]');
+    const rail = rect('[data-capture-quality-rail]');
+    const field = rect('[data-analysis-activity-field]');
+    const guide = rect('[data-face-acquisition-guide]');
+    return {
+      instructionBottom: instruction.bottom,
+      railTop: rail.top,
+      field: [field.x, field.y, field.width, field.height],
+      guide: [guide.x, guide.y, guide.width, guide.height],
+      overflow: document.documentElement.scrollWidth - innerWidth,
+    };
+  });
+  expect(compactAnalysis.instructionBottom).toBeLessThan(compactAnalysis.railTop);
+  expect(compactAnalysis.field).toEqual(compactAnalysis.guide);
+  expect(compactAnalysis.overflow).toBeLessThanOrEqual(1);
+  await pinVisualViewportHeight(page, 844);
 });
 
 test('visual regression: all canonical phases, permission error, and reduced motion', async ({
@@ -972,7 +1130,7 @@ test('visual regression: all canonical phases, permission error, and reduced mot
   });
   await page.clock.pauseAt(visualClock);
   await page.setViewportSize({ width: 390, height: 844 });
-  await openCapture(page, { slowQuality: true });
+  await openCapture(page, { slowQuality: true, providerDelayMs: 2_000 });
   await pinVisualViewportHeight(page, 844);
   // Install deterministic visual milestones before their elements mount.
   // Mutating promoted SVG/gradient layers after mount can make Linux WebKit's
@@ -1028,6 +1186,33 @@ test('visual regression: all canonical phases, permission error, and reduced mot
     animations: 'disabled',
   });
   await saveEvidence(captureScreen, 'captured.png');
+  await saveEvidence(captureScreen, 'scan-complete-dwell.png');
+
+  await advanceVisualClock(page, 1_800);
+  await expect(page.getByRole('heading', { name: 'Analyzing your scan' })).toBeVisible();
+  await expect(page.locator('[data-analysis-measurement-label]')).toHaveText('MEASUREMENT 1 OF 3');
+  await expect.soft(captureScreen).toHaveScreenshot('capture-analysis-measurement-1.png', {
+    animations: 'disabled',
+  });
+  await saveEvidence(captureScreen, 'analysis-measurement-1.png');
+
+  await advanceVisualClock(page, 800);
+  await expect(page.locator('[data-analysis-measurement-label]')).toHaveText('MEASUREMENT 2 OF 3');
+  await expect.soft(captureScreen).toHaveScreenshot('capture-analysis-measurement-2.png', {
+    animations: 'disabled',
+  });
+  await saveEvidence(captureScreen, 'analysis-measurement-2.png');
+
+  await advanceVisualClock(page, 2_000);
+  await expect(page.locator('[data-analysis-measurement-label]')).toHaveText(
+    'MEASUREMENT 3 OF 3',
+  );
+  await advanceVisualClock(page, 2_000);
+  await expect(page.getByRole('heading', { name: 'Measurements confirmed' })).toBeVisible();
+  await expect.soft(captureScreen).toHaveScreenshot('capture-measurements-confirmed.png', {
+    animations: 'disabled',
+  });
+  await saveEvidence(captureScreen, 'measurements-confirmed.png');
 
   await openCapture(page, { scenario: 'permission-denied' });
   await pinVisualViewportHeight(page, 844);
@@ -1056,4 +1241,18 @@ test('visual regression: all canonical phases, permission error, and reduced mot
     animations: 'disabled',
   });
   await saveEvidence(captureScreen, 'reduced-motion.png');
+});
+
+test('visual regression: calm slow-response analysis state', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await openCapture(page, { providerDelayMs: 7_200, providerDelayFrame: 1 });
+  await pinVisualViewportHeight(page, 844);
+  await installStaticVisualMilestones(page);
+  await startCapture(page);
+  await expect(page.getByText('Finishing this measurement…')).toBeVisible({ timeout: 10_000 });
+  const captureScreen = page.locator('section[data-preview-state]');
+  await expect.soft(captureScreen).toHaveScreenshot('capture-analysis-slow-response.png', {
+    animations: 'disabled',
+  });
+  await saveEvidence(captureScreen, 'analysis-slow-response.png');
 });

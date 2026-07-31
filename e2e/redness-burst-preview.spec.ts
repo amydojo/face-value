@@ -28,7 +28,7 @@ test.describe('exact-preview redness burst verification', () => {
     await installNativeCameraMock(page, { rejectFirstBurstGate: true });
     const provider = await mockProtectedProvider(page, {
       scores: [93.3356, 92.5, 94.25, 100, 99, 100],
-      analysisDelayMs: 180,
+      analysisDelayMs: 2_000,
     });
     await page.emulateMedia({ reducedMotion: 'reduce' });
     await seedBaselineReady(page);
@@ -95,7 +95,7 @@ test.describe('exact-preview redness burst verification', () => {
     const provider = await mockProtectedProvider(page, {
       scores: [93.3356, 92.5],
       failTaskRequests: new Set([3, 4]),
-      analysisDelayMs: 180,
+      analysisDelayMs: 700,
     });
     await page.emulateMedia({ reducedMotion: 'reduce' });
     await seedBaselineReady(page);
@@ -104,7 +104,7 @@ test.describe('exact-preview redness burst verification', () => {
     await startGuidedCapture(page);
     const captureScreen = page.locator('section[data-preview-state]');
     await expect(
-      captureScreen.getByText('Rechecking this measurement.', { exact: true }),
+      captureScreen.getByText('Rechecking this measurement…', { exact: true }),
     ).toBeVisible({ timeout: 10_000 });
     await expect(page.getByRole('alert')).toContainText('We couldn’t finish this scan.');
     await expect(page.getByRole('heading', { name: 'Measurements not saved' })).toBeVisible();

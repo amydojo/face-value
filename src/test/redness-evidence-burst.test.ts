@@ -179,6 +179,15 @@ const commitBurst = (
     completedAt: timestampFor(role, 9),
   });
 
+const finishBurstPresentation = (
+  state: PhaseBFaceValueState,
+  generationId: string,
+): PhaseBFaceValueState =>
+  faceValueReducer(state, {
+    type: 'REDNESS_BURST_PRESENTATION_COMPLETED',
+    generationId,
+  });
+
 describe('redness burst reducer authority', () => {
   it('starts one generation, rejects duplicate IDs, ignores stale completions, and stops at five attempts', () => {
     const started = startBurst(initialState, 'baseline', 'generation-1');
@@ -254,7 +263,8 @@ describe('redness burst reducer authority', () => {
     expect(ready.longitudinalEvidence.baselineBurst).toBeNull();
 
     const committed = commitBurst(ready, generationId, 'baseline');
-    expect(committed.activeRednessBurst).toBeNull();
+    expect(committed.stage).toBe('camera');
+    expect(committed.activeRednessBurst?.status).toBe('committed');
     expect(committed.longitudinalEvidence.baseline).toBeNull();
     expect(
       committed.longitudinalEvidence.baselineBurst?.acceptedFrames.map(
@@ -262,13 +272,20 @@ describe('redness burst reducer authority', () => {
       ),
     ).toEqual([90.25, 91.5, 92.75]);
     expect(committed.longitudinalEvidence.baselineBurst?.attemptedFrameCount).toBe(3);
+
+    const presented = finishBurstPresentation(committed, generationId);
+    expect(presented.activeRednessBurst).toBeNull();
+    expect(presented.stage).toBe('observation');
   });
 
   it('commits a follow-up atomically only after its third analyzed measurement', () => {
-    const baseline = commitBurst(
-      readyBurst(initialState, 'baseline', 'followup-atomic-baseline', [89, 90, 91]),
+    const baseline = finishBurstPresentation(
+      commitBurst(
+        readyBurst(initialState, 'baseline', 'followup-atomic-baseline', [89, 90, 91]),
+        'followup-atomic-baseline',
+        'baseline',
+      ),
       'followup-atomic-baseline',
-      'baseline',
     );
     const generationId = 'followup-atomic';
     const frameIds = [
@@ -293,7 +310,12 @@ describe('redness burst reducer authority', () => {
     const committed = commitBurst(ready, generationId, 'followup');
     expect(committed.longitudinalEvidence.followUpBurst?.acceptedFrames).toHaveLength(3);
     expect(committed.longitudinalEvidence.followUp).toBeNull();
-    expect(committed.activeRednessBurst).toBeNull();
+    expect(committed.activeRednessBurst?.status).toBe('committed');
+    expect(committed.stage).toBe('camera');
+
+    const presented = finishBurstPresentation(committed, generationId);
+    expect(presented.activeRednessBurst).toBeNull();
+    expect(presented.stage).toBe('analysis');
   });
 
   it('settles each provider request once and permits only one sequential retry for a frame', () => {
@@ -339,7 +361,7 @@ describe('redness burst reducer authority', () => {
         retryable: true,
       },
     });
-    expect(state.announcement).toBe('Rechecking this measurement.');
+    expect(state.announcement).toBe('Rechecking this measurement…');
     state = acceptMeasurement(state, generationId, frameIds[0], 90, 2);
     expect(state.announcement).toBe('Measurement 1 confirmed.');
     const acceptedOnce = state;
@@ -380,7 +402,10 @@ describe('redness burst reducer authority', () => {
       [90.5, 93.25, 96.75],
       true,
     );
-    const baseline = commitBurst(baselineReady, 'baseline-evaluator', 'baseline');
+    const baseline = finishBurstPresentation(
+      commitBurst(baselineReady, 'baseline-evaluator', 'baseline'),
+      'baseline-evaluator',
+    );
     expect(baseline.longitudinalEvidence.baselineBurst?.rejectedFrames).toHaveLength(1);
 
     const followUpReady = readyBurst(
@@ -391,7 +416,10 @@ describe('redness burst reducer authority', () => {
       true,
     );
     expect(followUpReady.longitudinalEvidence.followUpBurst).toBeNull();
-    const followUp = commitBurst(followUpReady, 'followup-evaluator', 'followup');
+    const followUp = finishBurstPresentation(
+      commitBurst(followUpReady, 'followup-evaluator', 'followup'),
+      'followup-evaluator',
+    );
     expect(followUp.longitudinalEvidence.followUpBurst?.acceptedFrames).toHaveLength(3);
 
     const compared = faceValueReducer(

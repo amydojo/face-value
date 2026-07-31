@@ -1,7 +1,7 @@
 # Face Value state model
 
 **Status:** Current state authority  
-**Effective date:** July 30, 2026  
+**Effective date:** July 31, 2026  
 **Implementation base:** `main` at merged PR #67
 (`330f51975f162a2c15784114d7a448492973fcad`)
 
@@ -148,12 +148,20 @@ registry. One abort controller is authoritative for cancellation, route exit,
 retry, and unmount. Events for obsolete generation identifiers are no-ops.
 
 Post-capture presentation is a projection of that active reducer state, not a
-second workflow machine. The active measurement is the accepted-frame count
-plus one only while analysis is running; completed indicators come only from
-accepted frames; attempt two selects the bounded recheck copy; and `ready`
-selects the confirmation state. The four-second no-progress flag is ephemeral
-component state, resets on genuine accepted-count progress, and is never
-persisted or used as evidence.
+second workflow machine. The active measurement comes from the frame index of
+the currently running reducer/provider request; completed indicators come only
+from accepted frames. The minimum 1.8-second scan-complete dwell and
+700-millisecond progress legibility may trail those facts but never lead them.
+Attempt two selects the bounded recheck copy only while its request is active.
+The six-second no-progress flag is ephemeral component state, resets only on a
+genuine accepted-count advance, and is never persisted or used as evidence.
+
+`REDNESS_BURST_COMMIT_REQUESTED` immediately commits a complete burst and moves
+the active burst to runtime status `committed` while the confirmation copy
+remains visible. `REDNESS_BURST_PRESENTATION_COMPLETED` then clears that runtime
+burst and advances the route after the approximately 800-millisecond
+presentation hold. The latter event creates no evidence and is ignored unless
+the same generation has already committed.
 
 ## 6. Longitudinal evidence state
 
@@ -299,6 +307,12 @@ The Oracle reducer coordinates only authorized presentation and collection phase
 - `EVIDENCE_COLLECTED` is the current exactly-once durable record boundary.
 - `ORACLE_DONE` returns to Home after the record exists.
 
+The Oracle mechanical model does not own product identity. During an active
+result, one complete identity adapter projects `state.registeredProduct` into
+the existing `IdentityLockSpecimen`. Saved latest/history/detail surfaces
+project the immutable Evidence Record product snapshot. Sealed-state privacy
+hides verdict fields, not the already-known locked product identity.
+
 Historical V7 door-state sequences remain design provenance, not the current production reducer.
 
 ## 11. Persistence and restoration
@@ -306,8 +320,12 @@ Historical V7 door-state sequences remain design provenance, not the current pro
 Persistence stores structured, face-free application data. Restoration resolves interrupted work to a legal stable state:
 
 - interrupted registration returns to a safe first-trial state
-- interrupted baseline capture returns to registered baseline readiness
-- interrupted follow-up capture returns to follow-up readiness
+- interrupted baseline capture without committed evidence returns to registered
+  baseline readiness
+- interrupted follow-up capture without committed evidence returns to follow-up
+  readiness
+- a reload during the short committed confirmation presentation resumes the
+  appropriate baseline or follow-up context with the already-durable burst
 - accepted baseline resumes context, locked, waiting, or ready state
 - accepted baseline and follow-up evidence resume deterministic comparison
 - sealed and revealed Oracle states remain semantically sealed or revealed

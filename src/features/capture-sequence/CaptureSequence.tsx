@@ -1,5 +1,6 @@
 import type { CSSProperties, RefObject } from 'react';
 import type { GuidedCaptureStatus } from '../../adapters/camera/youcam-camera-kit';
+import { AnalysisActivityField } from './AnalysisActivityField';
 import { CaptureCameraFeed } from './CaptureCameraFeed';
 import { CaptureInstruction } from './CaptureInstruction';
 import { CaptureQualityRail } from './CaptureQualityRail';
@@ -11,41 +12,30 @@ import { FaceAcquisitionGuide } from './FaceAcquisitionGuide';
 import { getCaptureInstruction } from './guidance';
 import { RegionRegistrationOverlay } from './RegionRegistrationOverlay';
 import type { CaptureSequenceState } from './types';
+import type { AnalysisWaitPresentationPhase } from './useAnalysisWaitPresentation';
 import styles from './CaptureSequence.module.css';
 
-type BurstStatus = 'idle' | 'capturing' | 'analyzing' | 'ready' | 'failed';
+type BurstStatus = 'idle' | 'capturing' | 'analyzing' | 'ready' | 'committed' | 'failed';
 type MeasurementIndicatorState = 'completed' | 'active' | 'waiting';
 
 function measurementStatusLabel({
-  burstStatus,
-  capturedCount,
-  confirmedCount,
-  activeMeasurement,
-  analysisPresentation,
+  phase,
+  completedCount,
+  measurement,
 }: {
-  burstStatus: BurstStatus;
-  capturedCount: number;
-  confirmedCount: number;
-  activeMeasurement: number | null;
-  analysisPresentation: boolean;
+  phase: AnalysisWaitPresentationPhase;
+  completedCount: number;
+  measurement: number | null;
 }): string {
-  if (burstStatus === 'ready') return 'Three measurements confirmed';
-  if (burstStatus === 'failed') {
-    if (confirmedCount === 1) return 'One measurement confirmed. Analysis stopped.';
-    if (confirmedCount > 1) return `${confirmedCount} measurements confirmed. Analysis stopped.`;
-    return 'Analysis stopped before a measurement was confirmed.';
-  }
-  if (activeMeasurement !== null) {
+  if (phase === 'confirmed') return 'Three measurements confirmed';
+  if (phase === 'analysis' && measurement !== null) {
     const confirmed =
-      confirmedCount === 0
+      completedCount === 0
         ? ''
-        : ` ${confirmedCount} ${confirmedCount === 1 ? 'measurement' : 'measurements'} confirmed.`;
-    return `Measurement ${activeMeasurement} of 3 in progress.${confirmed}`;
+        : ` ${completedCount} ${completedCount === 1 ? 'measurement' : 'measurements'} confirmed.`;
+    return `Measurement ${measurement} of 3 in progress.${confirmed}`;
   }
-  if (analysisPresentation) return 'Three measurements captured. Analysis will begin shortly.';
-  if (capturedCount === 0) return 'Waiting for the first measurement';
-  if (capturedCount === 1) return 'One measurement captured';
-  return `${capturedCount} measurements captured`;
+  return 'Three measurements captured.';
 }
 
 export function CaptureSequence({
@@ -64,9 +54,11 @@ export function CaptureSequence({
   acceptedMeasurementCount = 0,
   analyzedMeasurementCount = 0,
   rejectedMeasurementCount = 0,
-  activeAnalysisMeasurement = null,
   analysisRetrying = false,
   analysisSlow = false,
+  analysisPresentationPhase = null,
+  presentedAnalysisMeasurement = null,
+  presentedAnalysisCompletedCount = 0,
   burstStatus = 'idle',
 }: {
   state: CaptureSequenceState;
@@ -84,9 +76,11 @@ export function CaptureSequence({
   acceptedMeasurementCount?: number;
   analyzedMeasurementCount?: number;
   rejectedMeasurementCount?: number;
-  activeAnalysisMeasurement?: number | null;
   analysisRetrying?: boolean;
   analysisSlow?: boolean;
+  analysisPresentationPhase?: AnalysisWaitPresentationPhase;
+  presentedAnalysisMeasurement?: number | null;
+  presentedAnalysisCompletedCount?: number;
   burstStatus?: BurstStatus;
 }) {
   const timingStyle = {
@@ -98,6 +92,9 @@ export function CaptureSequence({
     '--fv-capture-shutter-duration': `${CAPTURE_TIMING.shutterMs}ms`,
     '--fv-capture-guide-hold-duration': `${CAPTURE_TIMING.capturedGuideHoldMs}ms`,
     '--fv-capture-guide-resolve-duration': `${CAPTURE_TIMING.capturedGuideResolveMs}ms`,
+    '--fv-analysis-crossfade-duration': `${CAPTURE_TIMING.analysisCrossfadeMs}ms`,
+    '--fv-analysis-indicator-cycle': `${CAPTURE_TIMING.analysisIndicatorCycleMs}ms`,
+    '--fv-analysis-field-cycle': `${CAPTURE_TIMING.analysisFieldCycleMs}ms`,
   } as CSSProperties;
   const phaseInstruction = getCaptureInstruction(state);
   const defaultInstruction =
@@ -121,47 +118,40 @@ export function CaptureSequence({
             primary: 'Reading capture conditions',
             secondary: 'Replacing one measurement automatically',
           }
-        : burstStatus === 'ready' && state.phase === 'captured'
+        : analysisPresentationPhase === 'confirmed' && state.phase === 'captured'
           ? {
               primary: 'Measurements confirmed',
               secondary: 'Preparing your comparison.',
             }
-          : burstStatus === 'analyzing' &&
-              state.phase === 'captured' &&
-              activeAnalysisMeasurement === null
+          : analysisPresentationPhase === 'scan-complete' && state.phase === 'captured'
             ? {
                 primary: 'Scan complete',
                 secondary: 'You can relax.',
               }
-            : burstStatus === 'analyzing' && state.phase === 'captured'
+            : analysisPresentationPhase === 'analysis' && state.phase === 'captured'
               ? {
                   primary: 'Analyzing your scan',
-                  secondary: analysisRetrying
-                    ? 'Rechecking this measurement.'
-                    : analysisSlow
-                      ? 'This is taking a little longer than usual.'
-                      : 'Checking three measurements for consistency.',
+                  secondary: 'Checking three measurements for consistency.',
                 }
               : defaultInstruction;
   const analysisPresentation =
     state.phase === 'captured' &&
-    (burstStatus === 'analyzing' || burstStatus === 'ready' || burstStatus === 'failed');
+    (analysisPresentationPhase === 'analysis' || analysisPresentationPhase === 'confirmed');
   const confirmedMeasurementCount =
-    burstStatus === 'ready' ? 3 : Math.min(3, analyzedMeasurementCount);
+    analysisPresentationPhase === 'confirmed'
+      ? 3
+      : Math.min(2, Math.max(0, presentedAnalysisCompletedCount));
   const indicatorStateFor = (position: number): MeasurementIndicatorState => {
-    if (!analysisPresentation) {
-      return position < acceptedMeasurementCount ? 'completed' : 'waiting';
-    }
     if (position < confirmedMeasurementCount) return 'completed';
-    if (burstStatus === 'analyzing' && activeAnalysisMeasurement === position + 1) return 'active';
+    if (analysisPresentationPhase === 'analysis' && presentedAnalysisMeasurement === position + 1) {
+      return 'active';
+    }
     return 'waiting';
   };
   const indicatorLabel = measurementStatusLabel({
-    burstStatus,
-    capturedCount: acceptedMeasurementCount,
-    confirmedCount: confirmedMeasurementCount,
-    activeMeasurement: activeAnalysisMeasurement,
-    analysisPresentation,
+    phase: analysisPresentationPhase,
+    completedCount: confirmedMeasurementCount,
+    measurement: presentedAnalysisMeasurement,
   });
   return (
     <div
@@ -180,6 +170,9 @@ export function CaptureSequence({
         fixture={fixture}
         previewLive={previewLive}
       />
+      {analysisPresentationPhase === 'analysis' && burstStatus === 'analyzing' && (
+        <AnalysisActivityField />
+      )}
       <div
         className={styles.contextBar}
         data-capture-context-bar
@@ -189,7 +182,48 @@ export function CaptureSequence({
         <span>{product}</span>
         <strong>{job ?? 'JOB UNASSIGNED'}</strong>
       </div>
-      <CaptureInstruction copy={instruction} phase={state.phase} />
+      <CaptureInstruction
+        key={`capture-instruction-${analysisPresentationPhase ?? state.phase}`}
+        copy={instruction}
+        phase={state.phase}
+      >
+        {analysisPresentation && (
+          <div
+            className={styles.measurementIndicator}
+            data-measurement-indicator
+            data-progress-location="primary-status-stack"
+            data-measurements-accepted={acceptedMeasurementCount}
+            data-measurements-real-confirmed={Math.min(3, analyzedMeasurementCount)}
+            data-measurements-confirmed={confirmedMeasurementCount}
+            data-active-measurement={presentedAnalysisMeasurement ?? 'none'}
+            data-progress-mode={analysisPresentationPhase}
+            role="status"
+            aria-live="polite"
+            aria-atomic="true"
+            aria-label={indicatorLabel}
+          >
+            <span className={styles.measurementDots} aria-hidden="true">
+              {[0, 1, 2].map((position) => (
+                <i
+                  key={position}
+                  data-measurement-position={position + 1}
+                  data-measurement-state={indicatorStateFor(position)}
+                />
+              ))}
+            </span>
+            {analysisPresentationPhase === 'analysis' && presentedAnalysisMeasurement !== null && (
+              <span className={styles.analysisMeasurementLabel} data-analysis-measurement-label>
+                MEASUREMENT {presentedAnalysisMeasurement} OF 3
+              </span>
+            )}
+            {analysisPresentationPhase === 'analysis' && (analysisRetrying || analysisSlow) && (
+              <span className={styles.analysisTertiaryStatus} data-analysis-tertiary-status>
+                {analysisRetrying ? 'Rechecking this measurement…' : 'Finishing this measurement…'}
+              </span>
+            )}
+          </div>
+        )}
+      </CaptureInstruction>
       {state.phase !== 'error' && (
         <FaceAcquisitionGuide phase={state.phase} activeIssue={state.activeIssue} />
       )}
@@ -202,35 +236,6 @@ export function CaptureSequence({
           <CaptureShutter />
           <CapturedSpecimenTransition />
         </>
-      )}
-      {activeCapture && state.phase !== 'error' && (
-        <div
-          className={styles.measurementIndicator}
-          data-measurement-indicator
-          data-measurements-accepted={acceptedMeasurementCount}
-          data-measurements-confirmed={confirmedMeasurementCount}
-          data-active-measurement={activeAnalysisMeasurement ?? 'none'}
-          data-progress-mode={analysisPresentation ? 'analysis' : 'capture'}
-          role="status"
-          aria-live="polite"
-          aria-atomic="true"
-          aria-label={indicatorLabel}
-        >
-          {activeAnalysisMeasurement !== null && (
-            <span className={styles.analysisMeasurementLabel} data-analysis-measurement-label>
-              MEASUREMENT {activeAnalysisMeasurement} OF 3
-            </span>
-          )}
-          <span className={styles.measurementDots} aria-hidden="true">
-            {[0, 1, 2].map((position) => (
-              <i
-                key={position}
-                data-measurement-position={position + 1}
-                data-measurement-state={indicatorStateFor(position)}
-              />
-            ))}
-          </span>
-        </div>
       )}
       {state.phase !== 'error' && <CaptureQualityRail state={state} />}
     </div>

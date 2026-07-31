@@ -197,7 +197,7 @@ export interface ActiveRednessBurst {
   rejectedFrames: RejectedRednessFrame[];
   providerRequests: RednessProviderRequest[];
   protocol: AnalysisProtocol | null;
-  status: 'capturing' | 'analyzing' | 'ready' | 'failed';
+  status: 'capturing' | 'analyzing' | 'ready' | 'committed' | 'failed';
 }
 
 export interface RednessComparison {

@@ -1,4 +1,5 @@
 import type { EvidenceRecordData } from '../../domain/model';
+import { oracleSpecimenIdentityFromEvidenceRecord } from '../../adapters/product/specimenFromRegisteredProduct';
 import { oracleTrialIdentityForRecord } from '../../domain/oracleTrialIdentity';
 import { verdictProduct, verdictViewModelFromRecord } from '../verdict/verdictViewModel';
 import styles from '../../styles/FaceValue.module.css';
@@ -50,7 +51,11 @@ export function Archive({
         <div className={styles.archiveIndex} aria-label="Previous trials">
           {records.map((record) => {
             const identity = oracleTrialIdentityForRecord(record);
+            const specimenIdentity = oracleSpecimenIdentityFromEvidenceRecord(record);
             const viewModel = verdictViewModelFromRecord(record);
+            const optionalProductDetails = [specimenIdentity.strength, specimenIdentity.volume]
+              .filter((value): value is string => Boolean(value))
+              .join(' · ');
             return (
               <button
                 className={styles.archiveRecord}
@@ -58,6 +63,12 @@ export function Archive({
                 key={record.id}
                 data-archive-record
                 data-record-id={record.id}
+                data-specimen-id={specimenIdentity.productId ?? ''}
+                data-specimen-accession={specimenIdentity.accession ?? ''}
+                data-specimen-brand={specimenIdentity.brand}
+                data-specimen-product={specimenIdentity.productName}
+                data-specimen-strength={specimenIdentity.strength ?? ''}
+                data-specimen-volume={specimenIdentity.volume ?? ''}
                 onClick={() => onOpen(record)}
                 aria-label={`Open saved result ${identity.folio} for ${record.product}`}
               >
@@ -68,6 +79,9 @@ export function Archive({
                   <time dateTime={record.createdAt}>{archiveDateFor(record.createdAt)}</time>
                 </span>
                 <strong className={styles.archiveProduct}>{verdictProduct(viewModel)}</strong>
+                {optionalProductDetails && (
+                  <span className={styles.archiveProductDetails}>{optionalProductDetails}</span>
+                )}
                 <span className={styles.archiveFinding}>{viewModel.headline}</span>
                 <small className={styles.archiveSupport}>{viewModel.explanation}</small>
                 <span className={styles.archiveRecordFooter}>

@@ -42,7 +42,7 @@ const stateFor = (
 });
 
 interface SequenceOptions {
-  burstStatus?: 'idle' | 'capturing' | 'analyzing' | 'ready' | 'failed';
+  burstStatus?: 'idle' | 'capturing' | 'analyzing' | 'ready' | 'committed' | 'failed';
   captureKind?: 'baseline' | 'followup';
   acceptedMeasurementCount?: number;
   analyzedMeasurementCount?: number;
@@ -65,26 +65,38 @@ const sequenceElement = (
     analysisRetrying,
     analysisSlow,
   }: SequenceOptions = {},
-) => (
-  <CaptureSequence
-    state={state}
-    accession="FV–014"
-    product="Azelaic Topical Acid"
-    job="Reduce visible redness"
-    mountRef={createRef<HTMLDivElement>()}
-    fixture
-    previewLive
-    reducedMotion={reducedMotion}
-    burstStatus={burstStatus}
-    captureKind={captureKind}
-    acceptedMeasurementCount={acceptedMeasurementCount}
-    analyzedMeasurementCount={analyzedMeasurementCount}
-    rejectedMeasurementCount={rejectedMeasurementCount}
-    activeAnalysisMeasurement={activeAnalysisMeasurement}
-    analysisRetrying={analysisRetrying}
-    analysisSlow={analysisSlow}
-  />
-);
+) => {
+  const analysisPresentationPhase =
+    burstStatus === 'ready' || burstStatus === 'committed'
+      ? ('confirmed' as const)
+      : burstStatus === 'analyzing' && typeof activeAnalysisMeasurement === 'number'
+        ? ('analysis' as const)
+        : burstStatus === 'analyzing'
+          ? ('scan-complete' as const)
+          : null;
+  return (
+    <CaptureSequence
+      state={state}
+      accession="FV–014"
+      product="Azelaic Topical Acid"
+      job="Reduce visible redness"
+      mountRef={createRef<HTMLDivElement>()}
+      fixture
+      previewLive
+      reducedMotion={reducedMotion}
+      burstStatus={burstStatus}
+      captureKind={captureKind}
+      acceptedMeasurementCount={acceptedMeasurementCount}
+      analyzedMeasurementCount={analyzedMeasurementCount}
+      rejectedMeasurementCount={rejectedMeasurementCount}
+      analysisRetrying={analysisRetrying}
+      analysisSlow={analysisSlow}
+      analysisPresentationPhase={analysisPresentationPhase}
+      presentedAnalysisMeasurement={activeAnalysisMeasurement}
+      presentedAnalysisCompletedCount={Math.max(0, (activeAnalysisMeasurement ?? 1) - 1)}
+    />
+  );
+};
 
 const renderSequence = (
   state: CaptureSequenceState,
@@ -206,7 +218,7 @@ describe('canonical capture phase presentation', () => {
     expect(document.querySelector('[data-guide-phase="captured"]')).toBeTruthy();
   });
 
-  it('moves from the frozen frame to Scan complete without ever rendering zero progress', () => {
+  it('keeps Scan complete calm without rendering premature or zero progress', () => {
     renderSequence(stateFor('captured', { capturedImage: 'blob:abstract-specimen' }), false, {
       burstStatus: 'analyzing',
       acceptedMeasurementCount: 3,
@@ -216,12 +228,8 @@ describe('canonical capture phase presentation', () => {
     expect(screen.getByRole('heading', { name: 'Scan complete' })).toBeVisible();
     expect(screen.getByText('You can relax.')).toBeVisible();
     expect(screen.queryByText(/0 of 3/i)).not.toBeInTheDocument();
-    expect(
-      screen.getByRole('status', {
-        name: 'Three measurements captured. Analysis will begin shortly.',
-      }),
-    ).toBeVisible();
-    expect(document.querySelectorAll('[data-measurement-state="waiting"]')).toHaveLength(3);
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+    expect(document.querySelector('[data-measurement-indicator]')).not.toBeInTheDocument();
   });
 
   it('moves the active analysis indicator only after confirmed measurement count advances', () => {
@@ -238,6 +246,17 @@ describe('canonical capture phase presentation', () => {
     expect(screen.getByRole('heading', { name: 'Analyzing your scan' })).toBeVisible();
     expect(screen.getByText('Checking three measurements for consistency.')).toBeVisible();
     expect(screen.getByText('MEASUREMENT 1 OF 3')).toBeVisible();
+    expect(document.querySelector('[data-measurement-indicator]')).toHaveAttribute(
+      'data-progress-location',
+      'primary-status-stack',
+    );
+    expect(document.querySelector('[data-analysis-activity-field]')).toHaveAttribute(
+      'aria-hidden',
+      'true',
+    );
+    expect(document.querySelector('[data-analysis-activity-field]')).not.toHaveAttribute(
+      'aria-label',
+    );
     expect(document.querySelector('[data-measurement-position="1"]')).toHaveAttribute(
       'data-measurement-state',
       'active',
@@ -291,6 +310,7 @@ describe('canonical capture phase presentation', () => {
     expect(screen.getByText('Preparing your comparison.')).toBeVisible();
     expect(screen.queryByText(/MEASUREMENT \d OF 3/)).not.toBeInTheDocument();
     expect(document.querySelectorAll('[data-measurement-state="completed"]')).toHaveLength(3);
+    expect(document.querySelector('[data-analysis-activity-field]')).toBeNull();
   });
 
   it('shows delayed and bounded-recheck support copy only in their truthful states', () => {
@@ -303,10 +323,8 @@ describe('canonical capture phase presentation', () => {
       }),
     );
 
-    expect(
-      screen.queryByText('This is taking a little longer than usual.'),
-    ).not.toBeInTheDocument();
-    expect(screen.queryByText('Rechecking this measurement.')).not.toBeInTheDocument();
+    expect(screen.queryByText('Finishing this measurement…')).not.toBeInTheDocument();
+    expect(screen.queryByText('Rechecking this measurement…')).not.toBeInTheDocument();
 
     rerender(
       sequenceElement(captured, false, {
@@ -316,7 +334,8 @@ describe('canonical capture phase presentation', () => {
         analysisSlow: true,
       }),
     );
-    expect(screen.getByText('This is taking a little longer than usual.')).toBeVisible();
+    expect(screen.getByText('Checking three measurements for consistency.')).toBeVisible();
+    expect(screen.getByText('Finishing this measurement…')).toBeVisible();
 
     rerender(
       sequenceElement(captured, false, {
@@ -327,10 +346,9 @@ describe('canonical capture phase presentation', () => {
         analysisSlow: true,
       }),
     );
-    expect(screen.getByText('Rechecking this measurement.')).toBeVisible();
-    expect(
-      screen.queryByText('This is taking a little longer than usual.'),
-    ).not.toBeInTheDocument();
+    expect(screen.getByText('Checking three measurements for consistency.')).toBeVisible();
+    expect(screen.getByText('Rechecking this measurement…')).toBeVisible();
+    expect(screen.queryByText('Finishing this measurement…')).not.toBeInTheDocument();
   });
 
   it('does not describe a failed provider burst as secured', () => {
@@ -372,6 +390,20 @@ describe('canonical capture phase presentation', () => {
         name: 'Reading capture conditions',
       }),
     ).toBeVisible();
+  });
+
+  it('keeps the decorative analysis field present but motion-independent for reduced motion', () => {
+    renderSequence(stateFor('captured', { capturedImage: 'blob:abstract-specimen' }), true, {
+      burstStatus: 'analyzing',
+      acceptedMeasurementCount: 3,
+      activeAnalysisMeasurement: 1,
+    });
+    expect(screen.getByRole('heading', { name: 'Analyzing your scan' })).toBeVisible();
+    expect(document.querySelector('[data-analysis-activity-field]')).toHaveAttribute(
+      'aria-hidden',
+      'true',
+    );
+    expect(document.querySelectorAll('[data-analysis-activity-field] circle')).toHaveLength(21);
   });
 
   it('shows one stable opening instruction and no synthetic person in production', () => {

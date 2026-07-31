@@ -107,7 +107,9 @@ describe('Face Value capture acquisition machine', () => {
     expect(state.capturedImage).toBe('blob:synthetic-specimen');
     expect(state.handoffReady).toBe(false);
 
-    state = tick(state, CAPTURE_TIMING.capturedHoldMs);
+    state = tick(state, CAPTURE_TIMING.scanCompleteDwellMs - 1);
+    expect(state.handoffReady).toBe(false);
+    state = tick(state, 1);
     expect(state.handoffReady).toBe(true);
   });
 

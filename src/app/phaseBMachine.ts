@@ -191,6 +191,7 @@ export type PhaseBFaceValueEvent =
       generationId: string;
       completedAt: string;
     }
+  | { type: 'REDNESS_BURST_PRESENTATION_COMPLETED'; generationId: string }
   | {
       type: 'REDNESS_BURST_FAILED';
       generationId: string;
@@ -388,16 +389,7 @@ export function createOracleEvidenceRecord(state: PhaseBFaceValueState): Evidenc
     return null;
   }
   const record = enrichRecord(state, createEvidenceRecord(state, state.oracleCommittedAt));
-  const identity = oracleTrialIdentity({
-    baselineAt: state.baselineLockedAt ?? state.baselineCapture?.createdAt,
-    followUpAt: state.followUpEligibleAt ?? state.followupCapture?.createdAt,
-    accession: record.accession,
-  });
-
-  return {
-    ...record,
-    accession: identity.folio,
-  };
+  return record;
 }
 
 function enrichSavedRecord(
@@ -1041,7 +1033,7 @@ export function faceValueReducer(
         },
         announcement:
           event.attempt === 2
-            ? 'Rechecking this measurement.'
+            ? 'Rechecking this measurement…'
             : `Analyzing measurement ${state.activeRednessBurst.acceptedFrames.length + 1} of ${REDNESS_BURST_REQUIRED_MEASUREMENTS}.`,
       };
     }
@@ -1158,7 +1150,7 @@ export function faceValueReducer(
             : state.activeRednessBurst.rejectedFrames,
           status: event.terminal ? 'failed' : 'analyzing',
         },
-        announcement: event.terminal ? event.error.message : 'Rechecking this measurement.',
+        announcement: event.terminal ? event.error.message : 'Rechecking this measurement…',
       };
     }
 
@@ -1184,14 +1176,14 @@ export function faceValueReducer(
         const baselineLockedAt = completed.completedAt;
         return {
           ...state,
-          stage: state.registeredProduct ? 'baseline_context' : 'observation',
+          stage: 'camera',
           camera: 'captured',
           observation: 'active_stable',
           baselineCapture: primaryCapture,
           comparison: 'not_available',
           confidence: 'insufficient',
           processing: 'succeeded',
-          returnStage: null,
+          returnStage: state.returnStage,
           longitudinalEvidence: {
             protocol: { ...state.activeRednessBurst.protocol },
             baseline: null,
@@ -1205,14 +1197,15 @@ export function faceValueReducer(
           activeAnalysisRequestId: null,
           pendingAnalysisCapture: null,
           analysisError: null,
-          activeRednessBurst: null,
+          activeRednessBurst: {
+            ...state.activeRednessBurst,
+            status: 'committed',
+          },
           baselineLockedAt,
           followUpEligibleAt: addCalendarDays(baselineLockedAt, FOLLOW_UP_INTERVAL_DAYS),
           baselineContext: null,
           demoTimelineAdvanced: false,
-          announcement: state.registeredProduct
-            ? 'Baseline secured. Add optional context before the trial is locked.'
-            : 'Baseline secured. Trial in progress.',
+          announcement: 'Measurements confirmed. Preparing your comparison.',
         };
       }
 
@@ -1226,11 +1219,11 @@ export function faceValueReducer(
       }
       return {
         ...state,
-        stage: state.registeredProduct ? 'followup_context' : 'analysis',
+        stage: 'camera',
         camera: 'captured',
         observation: 'review_due',
         followupCapture: primaryCapture,
-        returnStage: null,
+        returnStage: state.returnStage,
         processing: 'idle',
         analysis: null,
         longitudinalEvidence: {
@@ -1244,18 +1237,53 @@ export function faceValueReducer(
         activeAnalysisRequestId: null,
         pendingAnalysisCapture: null,
         analysisError: null,
-        activeRednessBurst: null,
+        activeRednessBurst: {
+          ...state.activeRednessBurst,
+          status: 'committed',
+        },
         followUpContext: null,
-        announcement: state.registeredProduct
-          ? 'Follow-up secured. Add optional context before comparison.'
-          : 'Follow-up secured. Comparing like with like.',
+        announcement: 'Measurements confirmed. Preparing your comparison.',
+      };
+    }
+
+    case 'REDNESS_BURST_PRESENTATION_COMPLETED': {
+      if (
+        !isCurrentBurst(state, event.generationId) ||
+        state.activeRednessBurst.status !== 'committed'
+      ) {
+        return state;
+      }
+      const role = state.activeRednessBurst.role;
+      if (role === 'baseline' && !hasBaselineEvidence(state.longitudinalEvidence)) return state;
+      if (role === 'followup' && !hasFollowUpEvidence(state.longitudinalEvidence)) return state;
+      return {
+        ...state,
+        stage:
+          role === 'baseline'
+            ? state.registeredProduct
+              ? 'baseline_context'
+              : 'observation'
+            : state.registeredProduct
+              ? 'followup_context'
+              : 'analysis',
+        returnStage: null,
+        activeRednessBurst: null,
+        announcement:
+          role === 'baseline'
+            ? state.registeredProduct
+              ? 'Baseline secured. Add optional context before the trial is locked.'
+              : 'Baseline secured. Trial in progress.'
+            : state.registeredProduct
+              ? 'Follow-up secured. Add optional context before comparison.'
+              : 'Follow-up secured. Comparing like with like.',
       };
     }
 
     case 'REDNESS_BURST_FAILED':
       if (
         !isCurrentBurst(state, event.generationId) ||
-        state.activeRednessBurst.status === 'ready'
+        state.activeRednessBurst.status === 'ready' ||
+        state.activeRednessBurst.status === 'committed'
       ) {
         return state;
       }
@@ -1596,6 +1624,9 @@ export function faceValueReducer(
       };
 
     case 'BACK':
+      if (state.stage === 'camera' && state.activeRednessBurst?.status === 'committed') {
+        return state;
+      }
       if (state.stage === 'product_registration') {
         return {
           ...state,

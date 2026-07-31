@@ -1,7 +1,7 @@
 # Face Value design contract
 
 **Status:** Current visual and interaction authority  
-**Effective date:** July 30, 2026  
+**Effective date:** July 31, 2026  
 **Implementation base:** `main` at merged PR #67
 (`330f51975f162a2c15784114d7a448492973fcad`)
 
@@ -98,9 +98,16 @@ Avoid:
 
 ## 6. Specimen identity
 
-`IdentityLockSpecimen` is the current canonical production specimen.
+`IdentityLockSpecimen` is the current canonical production specimen and the
+only renderer for a loaded product, including the Oracle result sequence.
 
 It preserves one invariant root and stable geometry across loading, locking, ready, pending, follow-up-ready, and result states. Persisted product identity is not mutated to fit the label; deterministic presentation formatting may shorten repeated brand text or extract compact strength only for the visible thermal label.
+
+For an active result, its complete identity comes from the reducer-owned
+registered product: product ID, accession, brand, product name, strength,
+volume, and assigned job. For a saved result, it comes from that immutable
+record's product snapshot. Partial verdict copy and generic demo identity are
+not alternate identity sources.
 
 The specimen must remain:
 
@@ -109,8 +116,13 @@ The specimen must remain:
 - independent from glass blur
 - accessible through the surrounding machine copy
 - free from baked screenshot text
+- seated at the same chamber position with its grounded contact shadow
+- visibly locked with its thermal label, evidence strip, and status marker
 
-No second product silhouette may appear for the same registered product.
+No second product silhouette may appear for the same registered product. The
+specimen may not unload, float, become anonymous, or lose label content during
+sealed, opening, transmitting, revealed, committing, dispensing, collected,
+Home, Previous Trials, Evidence Record, or reload presentation.
 
 ## 7. Registration motion
 
@@ -161,25 +173,45 @@ The authored guide is positioning direction, not proof of automated face geometr
 
 During the current burst, the user still experiences one continuous scan. After
 the third frame, **SCAN COMPLETE / You can relax.** explicitly separates the
-live camera from the preserved still. Analysis then names the currently active
-measurement. The restrained three-position indicator uses solid completed,
-pulsing active, and hollow muted waiting states; its position advances only
-after a genuine analysis completion. It remains subordinate to the existing
-optic and does not turn the screen into a multi-photo checklist. Positions use
-the established amber instrument language rather than generic green success
-styling. The interface shows no raw redness scores, calibration terminology,
-deliberate repositioning prompt, or extra shutter controls.
+live camera from the preserved still for at least 1.8 seconds. Provider work may
+continue in the background; the dwell does not defer requests, reducer truth,
+or durable evidence. A calm 200–250 millisecond crossfade then enters the latest
+truthful presentation state without replaying completed work.
+
+Ordinary analysis keeps **Analyzing your scan / Checking three measurements for
+consistency.** stable. The primary status stack directly beneath that copy owns
+the restrained three-position indicator and **MEASUREMENT 1/2/3 OF 3** label.
+Solid amber means completed, an amber ring with a slow 1.6–2 second breath means
+active, and a faint hollow neutral ring means waiting. A presented position may
+trail a genuine completion for at least 700 milliseconds of legibility, but it
+must never lead it, move backward, or render zero.
+
+Approximately 18–24 authored amber SVG points may move slowly inside the
+existing capture-guide geometry while analysis is genuinely active. This
+decorative, `aria-hidden` field is only an instrument-activity cue. Its
+coordinates are not image-derived and do not represent redness, landmarks,
+segmentation, depth, or measured skin regions; they are neither persisted nor
+passed to a provider or evaluator. The field remains behind copy and the dark
+captured-image veil and stops when analysis completes.
+
+The interface shows no raw redness scores, calibration terminology, deliberate
+repositioning prompt, extra shutter controls, or synthetic scientific geometry.
 
 Recoverable capture rejection calmly acquires a replacement without adding a
-new ceremony. Four seconds without a resolved measurement may replace only the
-support line with **This is taking a little longer than usual.** The bounded
-same-frame recheck uses **Rechecking this measurement.** without exposing
-implementation language. **MEASUREMENTS CONFIRMED / Preparing your comparison.**
-appears before the existing processing transition. No spinner, percentage,
-countdown, progress bar, or scan line over the captured face is allowed.
+new ceremony. Six seconds without a new genuine accepted completion adds the
+tertiary line **Finishing this measurement…** without replacing stable analysis
+copy. The timer resets only when a genuine analysis is accepted. The bounded
+same-frame attempt two uses **Rechecking this measurement…** only while that
+request is active and without exposing implementation language.
+**MEASUREMENTS CONFIRMED / Preparing your comparison.** appears only after all
+three analyses and remains for approximately 800 milliseconds before the
+existing processing presentation. No spinner, percentage, countdown, progress
+bar, or face-crossing scan line is allowed.
 
-Reduced motion preserves every truthful copy and indicator-state change while
-removing the captured-still settle and active-indicator pulse.
+Reduced motion preserves every truthful copy, the 1.8-second readable dwell,
+and every indicator-state change. It removes the captured-still settle,
+active-indicator pulse, and traveling point activity; the point field is static
+at low opacity or omitted when a static field would be confusing.
 
 ## 9. Oracle result machine
 
@@ -197,6 +229,9 @@ sealed
 ```
 
 The sealed state contains no result content in the DOM or accessibility tree.
+The already-known registered specimen identity is not result content and stays
+visible, labeled, locked, and physically seated without weakening reveal
+authorization.
 
 The current control verbs are:
 

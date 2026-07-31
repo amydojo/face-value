@@ -861,11 +861,6 @@
   opacity: 0;
 }
 
-.oracleSpecimen[data-specimen-state='verdict']
-  :is(.evidenceLockStrip, .labelCornerLiftShadow, .thermalEvidenceLabel) {
-  opacity: 0;
-}
-
 .oracleSpecimen[data-specimen-state='registration-preview'] {
   opacity: 0.78;
 }

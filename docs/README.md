@@ -1,7 +1,7 @@
 # Face Value documentation authority
 
 **Status:** Current repository index  
-**Effective date:** July 30, 2026  
+**Effective date:** July 31, 2026  
 **Implementation base:** `main` at merged PR #67
 (`330f51975f162a2c15784114d7a448492973fcad`)
 
@@ -48,10 +48,14 @@ At the current baseline:
 - the reducer commits each period atomically only after all three observations are valid
 - capture attempts are bounded at five and provider work is sequential
 - one failed provider request is retried once on the same captured frame
+- scan complete remains readable for at least 1.8 seconds while provider work may continue
+- analysis uses stable copy, reducer-bounded progress, and a decorative non-scientific activity field
 - canonical redness evaluation uses provisional 5/10 raw-score operating boundaries
 - threshold source remains `provisional_fixture`
 - ordinary trial truth inputs are not yet collected
 - the Oracle creates a durable Evidence Record only after explicit collection
+- the canonical registered specimen remains labeled and locked through Oracle reveal and saving
+- saved-result surfaces use one immutable product snapshot, including strength and volume when present
 - the archive is presented as **Previous Trials**
 - no clinical-validation claim is supported
 
