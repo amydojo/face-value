@@ -4,12 +4,12 @@ type AppShellFetcher = (request: Request) => Promise<Response>;
 
 const fetchAppShell: AppShellFetcher = (request) => fetch(request);
 
-function consumerRedirect(request: Request): Response {
+function engineeringGateRedirect(): Response {
   return new Response(null, {
     status: 302,
     headers: {
       'cache-control': 'no-store, max-age=0',
-      location: new URL('/', request.url).toString(),
+      location: '/youcam-spike?next=demo',
     },
   });
 }
@@ -31,7 +31,7 @@ export async function serveProtectedDemo(
   const accessFailure = requireYouCamAccessWithOptions(request, {
     allowLegacyHeader: false,
   });
-  if (accessFailure) return consumerRedirect(request);
+  if (accessFailure) return engineeringGateRedirect();
 
   const appShell = await loadAppShell(
     new Request(new URL('/index.html', request.url), {
