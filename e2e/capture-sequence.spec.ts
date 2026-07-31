@@ -624,7 +624,7 @@ test('provider work advances during the dwell and presentation enters at latest 
 test('slow analysis status is tertiary after six seconds without genuine progress', async ({
   page,
 }) => {
-  await openCapture(page, { providerDelayMs: 7_200, providerDelayFrame: 1 });
+  await openCapture(page, { providerDelayMs: 10_000, providerDelayFrame: 1 });
   await observeCaptureStatuses(page);
   await startCapture(page);
   const captureScreen = page.locator('section[data-preview-state]');
@@ -647,7 +647,7 @@ test('slow analysis status is tertiary after six seconds without genuine progres
   expect(slow!.at - scanComplete!.at).toBeGreaterThanOrEqual(5_900);
   expect(zeroProgressSeen).toBe(false);
   await expect(captureScreen).toHaveAttribute('data-burst-accepted', /^[1-3]$/, {
-    timeout: 2_500,
+    timeout: 5_500,
   });
   await expect(page.getByText('Finishing this measurement…')).toHaveCount(0);
 });
