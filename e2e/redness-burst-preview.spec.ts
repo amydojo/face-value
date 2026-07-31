@@ -102,10 +102,13 @@ test.describe('exact-preview redness burst verification', () => {
 
     await page.getByRole('button', { name: 'TAKE GUIDED BASELINE' }).click();
     await startGuidedCapture(page);
+    const captureScreen = page.locator('section[data-preview-state]');
+    await expect(
+      captureScreen.getByText('Rechecking this measurement.', { exact: true }),
+    ).toBeVisible({ timeout: 10_000 });
     await expect(page.getByRole('alert')).toContainText('We couldn’t finish this scan.');
     await expect(page.getByRole('heading', { name: 'Measurements not saved' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'TRY BURST AGAIN' })).toBeVisible();
-    const captureScreen = page.locator('section[data-preview-state]');
     await expect(captureScreen).toHaveAttribute('data-burst-accepted', '2');
     await saveEvidence(captureScreen, 'provider-failure.png');
 
