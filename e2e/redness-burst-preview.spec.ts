@@ -9,6 +9,7 @@ import { buildDemoFixtureState } from '../src/features/demo-lab/demoFixtureState
 
 const previewVerification = Boolean(process.env.PLAYWRIGHT_BASE_URL);
 const captureEvidence = process.env.CAPTURE_REDNESS_BURST_EVIDENCE === 'true';
+const vercelShareToken = process.env.VERCEL_SHARE_BYPASS_TOKEN?.trim() || null;
 const evidenceDirectory = resolve('docs/verification/redness-evidence-burst-63');
 const baselineReady = toPersistedDemoData(
   buildDemoFixtureState('baseline_ready', 'clear_favorable_change'),
@@ -141,7 +142,11 @@ async function saveEvidence(locator: Locator, name: string): Promise<void> {
 }
 
 async function seedBaselineReady(page: Page): Promise<void> {
-  await page.goto('/?redness-burst-preview-verification=1');
+  const initialUrl = new URL('/?redness-burst-preview-verification=1', 'https://preview.invalid');
+  if (vercelShareToken) {
+    initialUrl.searchParams.set('_vercel_share', vercelShareToken);
+  }
+  await page.goto(`${initialUrl.pathname}${initialUrl.search}`);
   await page.evaluate(({ key, value }) => localStorage.setItem(key, JSON.stringify(value)), {
     key: STORAGE_KEY,
     value: baselineReady,
