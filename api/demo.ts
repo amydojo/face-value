@@ -14,6 +14,15 @@ function engineeringGateRedirect(): Response {
   });
 }
 
+function protectedShellHeaders(appShell: Response): Headers {
+  const headers = new Headers();
+  const contentType = appShell.headers.get('content-type');
+  if (contentType) headers.set('content-type', contentType);
+  headers.set('cache-control', 'private, no-store, max-age=0');
+  headers.set('x-robots-tag', 'noindex, nofollow, noarchive');
+  return headers;
+}
+
 export async function serveProtectedDemo(
   request: Request,
   loadAppShell: AppShellFetcher = fetchAppShell,
@@ -41,14 +50,17 @@ export async function serveProtectedDemo(
       },
     }),
   );
-  const headers = new Headers(appShell.headers);
-  headers.set('cache-control', 'private, no-store, max-age=0');
-  headers.set('x-robots-tag', 'noindex, nofollow, noarchive');
 
-  return new Response(request.method === 'HEAD' ? null : appShell.body, {
+  // Do not proxy static transport/entity headers such as Content-Length or
+  // Content-Encoding through the function response. Preview tooling may inject
+  // markup into HTML responses, and stale upstream lengths can prevent Safari
+  // from committing the replacement document even after authorization succeeds.
+  const body = request.method === 'HEAD' ? null : await appShell.arrayBuffer();
+
+  return new Response(body, {
     status: appShell.status,
     statusText: appShell.statusText,
-    headers,
+    headers: protectedShellHeaders(appShell),
   });
 }
 
