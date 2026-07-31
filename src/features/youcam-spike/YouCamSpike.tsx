@@ -9,7 +9,17 @@ import {
 } from '../../adapters/analysis/youcam/contracts';
 import styles from '../../styles/FaceValue.module.css';
 
-export function YouCamSpike() {
+type ReplaceLocation = (destination: '/demo') => void;
+
+const replaceBrowserLocation: ReplaceLocation = (destination) => {
+  window.location.replace(destination);
+};
+
+export function YouCamSpike({
+  replaceLocation = replaceBrowserLocation,
+}: {
+  replaceLocation?: ReplaceLocation;
+} = {}) {
   const [file, setFile] = useState<File | null>(null);
   const [accessToken, setAccessToken] = useState('');
   const [sessionOpen, setSessionOpen] = useState(false);
@@ -19,6 +29,9 @@ export function YouCamSpike() {
   const [error, setError] = useState<string | null>(null);
   const abortController = useRef<AbortController | null>(null);
   const runInFlight = useRef(false);
+  const returnToDemo = useRef(
+    new URLSearchParams(window.location.search).get('next') === 'demo',
+  ).current;
 
   useEffect(
     () => () => {
@@ -48,6 +61,10 @@ export function YouCamSpike() {
       };
       if (!response.ok || body.authenticated !== true) {
         throw new Error(body.error?.message ?? 'The protected demo session could not be opened.');
+      }
+      if (returnToDemo) {
+        replaceLocation('/demo');
+        return;
       }
       setSessionOpen(true);
       setSessionExpiry(body.expiresAt ?? null);
@@ -117,6 +134,7 @@ export function YouCamSpike() {
             The raw demo token is exchanged once for a short-lived signed session cookie.
             The Face Value product flow never reads or stores that token.
           </p>
+          {returnToDemo && <p>Open the protected session to continue to Demo Lab.</p>}
         </div>
 
         <label className={styles.traceForm}>
