@@ -85,6 +85,10 @@
   transform: scaleX(-1);
 }
 
+.chassis[data-capture-phase='captured'] .capturedFrame {
+  animation: capturedFrameSettle 520ms var(--fv-ease-damped) both;
+}
+
 .cameraVignette {
   z-index: 4;
   pointer-events: none;
@@ -537,12 +541,12 @@
   bottom: 18.2cqw;
   left: 50%;
   display: flex;
-  gap: 7px;
+  gap: 9px;
   align-items: center;
   justify-content: center;
   min-width: 64px;
-  height: 24px;
-  padding: 0 10px;
+  min-height: 24px;
+  padding: 5px 10px;
   border: 1px solid rgba(244, 243, 239, 0.1);
   border-radius: 999px;
   background: rgba(8, 8, 8, 0.48);
@@ -551,7 +555,21 @@
   transform: translateX(-50%);
 }
 
-.measurementIndicator span {
+.analysisMeasurementLabel {
+  color: rgba(244, 243, 239, 0.82);
+  font: 600 clamp(7px, 2.05cqw, 8px) / 1 var(--fv-font-mono);
+  letter-spacing: 0.09em;
+  white-space: nowrap;
+}
+
+.measurementDots {
+  display: flex;
+  gap: 7px;
+  align-items: center;
+  justify-content: center;
+}
+
+.measurementDots i {
   width: 5px;
   height: 5px;
   border: 1px solid rgba(244, 243, 239, 0.42);
@@ -563,10 +581,23 @@
     box-shadow 140ms ease;
 }
 
-.measurementIndicator span[data-measurement-state='accepted'] {
+.measurementDots i[data-measurement-state='completed'] {
   border-color: var(--fv-capture-accent);
   background: var(--fv-capture-accent);
   box-shadow: 0 0 8px rgba(255, 106, 0, 0.28);
+}
+
+.measurementDots i[data-measurement-state='active'] {
+  border-color: rgba(255, 148, 74, 0.9);
+  background: rgba(255, 106, 0, 0.34);
+  box-shadow: 0 0 0 0 rgba(255, 106, 0, 0.22);
+  animation: measurementActivePulse 1.45s ease-in-out infinite;
+}
+
+.measurementDots i[data-measurement-state='waiting'] {
+  border-color: rgba(244, 243, 239, 0.28);
+  background: transparent;
+  box-shadow: none;
 }
 
 .qualityRail span {
@@ -641,9 +672,10 @@
 
 .capturedVeil {
   z-index: 5;
-  background: rgba(7, 7, 7, 0.14);
-  backdrop-filter: saturate(0.78) contrast(1.04);
-  -webkit-backdrop-filter: saturate(0.78) contrast(1.04);
+  background: rgba(7, 7, 7, 0.24);
+  backdrop-filter: saturate(0.72) contrast(1.03);
+  -webkit-backdrop-filter: saturate(0.72) contrast(1.03);
+  animation: capturedVeilSettle 520ms var(--fv-ease-damped) both;
 }
 
 @keyframes guideBreathing {
@@ -740,12 +772,47 @@
   }
 }
 
+@keyframes capturedFrameSettle {
+  from {
+    opacity: 0.92;
+    transform: scaleX(-1) scale(1.012);
+  }
+  to {
+    opacity: 1;
+    transform: scaleX(-1) scale(1);
+  }
+}
+
+@keyframes capturedVeilSettle {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes measurementActivePulse {
+  0%,
+  100% {
+    opacity: 0.64;
+    box-shadow: 0 0 0 0 rgba(255, 106, 0, 0.18);
+  }
+  50% {
+    opacity: 1;
+    box-shadow: 0 0 0 3px rgba(255, 106, 0, 0.04);
+  }
+}
+
 .chassis[data-reduced-motion='true'] .guideSegments,
 .chassis[data-reduced-motion='true'] .guideConnectors,
 .chassis[data-reduced-motion='true'] .guideField,
 .chassis[data-reduced-motion='true'] .scanAtmosphere,
 .chassis[data-reduced-motion='true'] .regionOverlay i,
-.chassis[data-reduced-motion='true'] .captureShutter {
+.chassis[data-reduced-motion='true'] .captureShutter,
+.chassis[data-reduced-motion='true'] .capturedFrame,
+.chassis[data-reduced-motion='true'] .capturedVeil,
+.chassis[data-reduced-motion='true'] .measurementDots i[data-measurement-state='active'] {
   animation: none;
 }
 
@@ -823,7 +890,10 @@
   .guideField,
   .scanAtmosphere,
   .regionOverlay i,
-  .captureShutter {
+  .captureShutter,
+  .capturedFrame,
+  .capturedVeil,
+  .measurementDots i[data-measurement-state='active'] {
     animation: none !important;
   }
 

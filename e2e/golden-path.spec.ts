@@ -95,12 +95,11 @@ async function takeGuidedCapture(page: Page, kind: 'baseline' | 'followup'): Pro
   await expectGuidedQualityReady(page);
   const captureScreen = page.locator('section[data-preview-state]');
   await expect(captureScreen).toHaveAttribute('data-burst-captured', '3');
-  await expect(page.getByRole('heading', { name: '3 measurements accepted' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Scan complete' })).toBeVisible();
   await expect(page.locator('[data-measurement-indicator]')).toHaveAttribute(
     'data-measurements-accepted',
     '3',
   );
-  await expect(page.getByRole('heading', { name: 'Processing measurements' })).toBeVisible();
   await expect(
     page.getByRole('heading', {
       name: 'Anything meaningfully different today?',

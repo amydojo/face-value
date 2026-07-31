@@ -22,6 +22,19 @@ type FixtureScenario =
   | 'permission-denied'
   | 'camera-unavailable';
 
+interface CaptureStatusObservation {
+  heading: string | null;
+  secondary: string | null;
+  measurement: string | null;
+  at: number;
+}
+
+type CaptureStatusWindow = Window & {
+  __faceValueCaptureStatusObserver?: MutationObserver;
+  __faceValueCaptureStatusHistory?: CaptureStatusObservation[];
+  __faceValueZeroProgressSeen?: boolean;
+};
+
 async function openCapture(
   page: Page,
   {
@@ -30,12 +43,16 @@ async function openCapture(
     nativeCamera = false,
     providerFailureFrame,
     providerTerminalFailureFrame,
+    providerDelayMs,
+    providerDelayFrame,
   }: {
     scenario?: FixtureScenario;
     slowQuality?: boolean;
     nativeCamera?: boolean;
     providerFailureFrame?: 2 | 3;
     providerTerminalFailureFrame?: 2 | 3;
+    providerDelayMs?: number;
+    providerDelayFrame?: 1 | 2 | 3;
   } = {},
 ): Promise<void> {
   const query = new URLSearchParams({
@@ -46,6 +63,8 @@ async function openCapture(
     ...(providerTerminalFailureFrame
       ? { 'provider-terminal-failure-frame': String(providerTerminalFailureFrame) }
       : {}),
+    ...(providerDelayMs ? { 'provider-delay-ms': String(providerDelayMs) } : {}),
+    ...(providerDelayFrame ? { 'provider-delay-frame': String(providerDelayFrame) } : {}),
   });
   await page.goto(`/?${query}`);
   await page.evaluate(({ key, value }) => localStorage.setItem(key, JSON.stringify(value)), {
@@ -55,6 +74,66 @@ async function openCapture(
   await page.reload();
   await page.getByRole('button', { name: 'TAKE GUIDED BASELINE' }).click();
   await expect(page.getByRole('heading', { name: 'Position your face' })).toBeVisible();
+}
+
+async function observeCaptureStatuses(page: Page): Promise<void> {
+  await page.evaluate(() => {
+    const runtime = window as CaptureStatusWindow;
+    runtime.__faceValueCaptureStatusObserver?.disconnect();
+    runtime.__faceValueCaptureStatusHistory = [];
+    runtime.__faceValueZeroProgressSeen = false;
+    const record = () => {
+      const sequence = document.querySelector('[data-capture-sequence]');
+      if (!sequence) return;
+      const heading =
+        sequence.querySelector('[data-capture-instruction] h1')?.textContent?.trim() ?? null;
+      const secondary =
+        sequence.querySelector('[data-capture-instruction] p')?.textContent?.trim() ?? null;
+      const measurement =
+        sequence.querySelector('[data-analysis-measurement-label]')?.textContent?.trim() ?? null;
+      const accessibleProgress =
+        sequence.querySelector('[data-measurement-indicator]')?.getAttribute('aria-label') ?? '';
+      if (/0 of 3/i.test(`${sequence.textContent ?? ''} ${accessibleProgress}`)) {
+        runtime.__faceValueZeroProgressSeen = true;
+      }
+      const previous = runtime.__faceValueCaptureStatusHistory?.at(-1);
+      if (
+        previous?.heading === heading &&
+        previous.secondary === secondary &&
+        previous.measurement === measurement
+      ) {
+        return;
+      }
+      runtime.__faceValueCaptureStatusHistory?.push({
+        heading,
+        secondary,
+        measurement,
+        at: performance.now(),
+      });
+    };
+    record();
+    runtime.__faceValueCaptureStatusObserver = new MutationObserver(record);
+    runtime.__faceValueCaptureStatusObserver.observe(document.body, {
+      attributes: true,
+      characterData: true,
+      childList: true,
+      subtree: true,
+    });
+  });
+}
+
+async function captureStatusHistory(page: Page): Promise<{
+  observations: CaptureStatusObservation[];
+  zeroProgressSeen: boolean;
+}> {
+  return page.evaluate(() => {
+    const runtime = window as CaptureStatusWindow;
+    runtime.__faceValueCaptureStatusObserver?.disconnect();
+    return {
+      observations: runtime.__faceValueCaptureStatusHistory ?? [],
+      zeroProgressSeen: runtime.__faceValueZeroProgressSeen ?? false,
+    };
+  });
 }
 
 async function installNativeCameraMock(page: Page): Promise<void> {
@@ -384,7 +463,7 @@ test('successful acquisition preserves geometry and the selected frame into proc
   await expect(chassis).toHaveAttribute('data-capture-phase', 'captured', {
     timeout: 4_000,
   });
-  await expect(page.getByRole('heading', { name: '3 measurements accepted' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Scan complete' })).toBeVisible();
   await expect(page.locator('[data-measurement-indicator]')).toHaveAttribute(
     'data-measurements-accepted',
     '3',
@@ -393,7 +472,6 @@ test('successful acquisition preserves geometry and the selected frame into proc
   expect(await captureGeometry(page)).toEqual(activeGeometry);
   await expect(page.locator('[data-face-acquisition-guide]')).toHaveCount(1);
   await expect(page.getByText(/Good|Perfect|Passed|Success/)).toHaveCount(0);
-  await expect(page.getByRole('heading', { name: 'Processing measurements' })).toBeVisible();
 
   const persisted = await page.evaluate((key) => localStorage.getItem(key), STORAGE_KEY);
   expect(persisted).not.toMatch(/blob:|data:image|base64|MediaStream/);
@@ -402,6 +480,115 @@ test('successful acquisition preserves geometry and the selected frame into proc
       name: 'Anything meaningfully different today?',
     }),
   ).toBeVisible({ timeout: 2_000 });
+});
+
+test('post-capture status follows real analysis completions without zero progress', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await openCapture(page, { providerDelayMs: 900 });
+  await observeCaptureStatuses(page);
+  await startCapture(page);
+
+  const captureScreen = page.locator('section[data-preview-state]');
+  const indicator = page.locator('[data-measurement-indicator]');
+  await expect(page.getByRole('heading', { name: 'Scan complete' })).toBeVisible();
+  await expect(page.getByText('You can relax.', { exact: true })).toBeVisible();
+  await expect(page.locator('[data-frame-frozen="true"] img')).toBeVisible();
+  await expect(page.locator('[data-captured-specimen-transition]')).toHaveCSS(
+    'background-color',
+    'rgba(7, 7, 7, 0.24)',
+  );
+
+  await expect(page.locator('[data-analysis-measurement-label]')).toHaveText('MEASUREMENT 1 OF 3');
+  await expect(page.getByRole('status', { name: /Measurement 1 of 3 in progress/i })).toBeVisible();
+  await expect(captureScreen).toHaveAttribute('data-burst-accepted', '0');
+  await expect(indicator).toHaveAttribute('data-active-measurement', '1');
+  await expect(page.locator('[data-measurement-position="1"]')).toHaveAttribute(
+    'data-measurement-state',
+    'active',
+  );
+  await page.waitForTimeout(250);
+  await expect(indicator).toHaveAttribute('data-active-measurement', '1');
+  await expect(captureScreen).toHaveAttribute('data-burst-accepted', '0');
+
+  await expect(page.locator('[data-analysis-measurement-label]')).toHaveText('MEASUREMENT 2 OF 3', {
+    timeout: 2_000,
+  });
+  await expect(captureScreen).toHaveAttribute('data-burst-accepted', '1');
+  await expect(page.locator('[data-measurement-position="1"]')).toHaveAttribute(
+    'data-measurement-state',
+    'completed',
+  );
+  await expect(page.locator('[data-measurement-position="2"]')).toHaveAttribute(
+    'data-measurement-state',
+    'active',
+  );
+
+  await expect(page.locator('[data-analysis-measurement-label]')).toHaveText('MEASUREMENT 3 OF 3', {
+    timeout: 2_000,
+  });
+  await expect(captureScreen).toHaveAttribute('data-burst-accepted', '2');
+  await expect(page.locator('[data-measurement-position="2"]')).toHaveAttribute(
+    'data-measurement-state',
+    'completed',
+  );
+  await expect(page.locator('[data-measurement-position="3"]')).toHaveAttribute(
+    'data-measurement-state',
+    'active',
+  );
+
+  await expect(page.getByRole('heading', { name: 'Measurements confirmed' })).toBeVisible({
+    timeout: 2_000,
+  });
+  await expect(page.getByText('Preparing your comparison.', { exact: true })).toBeVisible();
+  await expect(captureScreen).toHaveAttribute('data-burst-accepted', '3');
+  await expect(page.locator('[data-frame-frozen="true"] img')).toBeVisible();
+  await expect(
+    page.getByRole('heading', { name: 'Anything meaningfully different today?' }),
+  ).toBeVisible();
+
+  const { observations, zeroProgressSeen } = await captureStatusHistory(page);
+  const headings = observations.map(({ heading }) => heading).filter(Boolean);
+  expect(headings.indexOf('Scan complete')).toBeLessThan(headings.indexOf('Analyzing your scan'));
+  expect(headings.indexOf('Analyzing your scan')).toBeLessThan(
+    headings.indexOf('Measurements confirmed'),
+  );
+  expect(observations.map(({ measurement }) => measurement).filter(Boolean)).toEqual([
+    'MEASUREMENT 1 OF 3',
+    'MEASUREMENT 2 OF 3',
+    'MEASUREMENT 3 OF 3',
+  ]);
+  expect(zeroProgressSeen).toBe(false);
+  expect(
+    await page.evaluate(() => document.documentElement.scrollWidth - innerWidth),
+  ).toBeLessThanOrEqual(1);
+});
+
+test('slow analysis support copy appears only after four seconds without progress', async ({
+  page,
+}) => {
+  await openCapture(page, { providerDelayMs: 5_200, providerDelayFrame: 1 });
+  await observeCaptureStatuses(page);
+  await startCapture(page);
+  await expect(page.locator('[data-analysis-measurement-label]')).toHaveText('MEASUREMENT 1 OF 3');
+  await expect(page.getByText('This is taking a little longer than usual.')).toHaveCount(0);
+  await page.waitForTimeout(3_000);
+  await expect(page.getByText('This is taking a little longer than usual.')).toHaveCount(0);
+  await expect(page.getByText('This is taking a little longer than usual.')).toBeVisible({
+    timeout: 2_000,
+  });
+
+  const { observations, zeroProgressSeen } = await captureStatusHistory(page);
+  const firstActive = observations.find(({ measurement }) => measurement === 'MEASUREMENT 1 OF 3');
+  const slow = observations.find(
+    ({ secondary }) => secondary === 'This is taking a little longer than usual.',
+  );
+  expect(firstActive).toBeTruthy();
+  expect(slow).toBeTruthy();
+  expect(slow!.at - firstActive!.at).toBeGreaterThanOrEqual(3_900);
+  expect(zeroProgressSeen).toBe(false);
+  await page.getByRole('button', { name: '← Back' }).click();
 });
 
 test('native browser camera contract renders the real preview surface and owns capture timing', async ({
@@ -577,7 +764,7 @@ test('a recoverable capture rejection is replaced inside the same ritual', async
   await startCapture(page);
 
   const captureScreen = page.locator('section[data-preview-state]');
-  await expect(page.getByRole('heading', { name: '3 measurements accepted' })).toBeVisible({
+  await expect(page.getByRole('heading', { name: 'Scan complete' })).toBeVisible({
     timeout: 5_000,
   });
   await expect(captureScreen).toHaveAttribute('data-burst-attempts', '4');
@@ -602,11 +789,24 @@ test('a recoverable capture rejection is replaced inside the same ritual', async
 });
 
 test('provider frame two retries once on the same capture and then completes', async ({ page }) => {
-  await openCapture(page, { providerFailureFrame: 2 });
+  await openCapture(page, { providerFailureFrame: 2, providerDelayMs: 600 });
   await startCapture(page);
-  await expect(page.getByRole('heading', { name: '3 measurements accepted' })).toBeVisible({
+  await expect(page.locator('[data-analysis-measurement-label]')).toHaveText('MEASUREMENT 2 OF 3', {
     timeout: 5_000,
   });
+  await expect(
+    page.locator('[data-capture-instruction]').getByText('Rechecking this measurement.', {
+      exact: true,
+    }),
+  ).toBeVisible({ timeout: 2_000 });
+  await expect(page.locator('[data-analysis-measurement-label]')).toHaveText('MEASUREMENT 3 OF 3', {
+    timeout: 2_000,
+  });
+  await expect(
+    page.locator('[data-capture-instruction]').getByText('Rechecking this measurement.', {
+      exact: true,
+    }),
+  ).toHaveCount(0);
   await expect(
     page.getByRole('heading', { name: 'Anything meaningfully different today?' }),
   ).toBeVisible();
@@ -659,7 +859,7 @@ test('permission denial is calm, recoverable, and keeps photo fallback available
 
 test('reduced motion uses the illumination state and still completes capture', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
-  await openCapture(page);
+  await openCapture(page, { providerDelayMs: 900 });
   await startCapture(page);
   const chassis = page.locator('[data-capture-sequence]');
   await expect(chassis).toHaveAttribute('data-reduced-motion', 'true');
@@ -668,6 +868,16 @@ test('reduced motion uses the illumination state and still completes capture', a
   await expect(chassis).toHaveAttribute('data-capture-phase', 'captured', {
     timeout: 4_000,
   });
+  await expect(page.locator('[data-analysis-measurement-label]')).toHaveText('MEASUREMENT 1 OF 3');
+  await expect(page.locator('[data-measurement-state="active"]')).toHaveCSS(
+    'animation-name',
+    'none',
+  );
+  await expect(page.locator('[data-captured-specimen-transition]')).toHaveCSS(
+    'animation-name',
+    'none',
+  );
+  await expect(page.locator('[data-frame-frozen="true"] img')).toHaveCSS('animation-name', 'none');
 });
 
 for (const viewport of [

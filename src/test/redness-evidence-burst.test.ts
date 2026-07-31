@@ -241,6 +241,7 @@ describe('redness burst reducer authority', () => {
       type: 'REDNESS_BURST_CAPTURE_COMPLETED',
       generationId,
     });
+    expect(analyzing.announcement).toBe('Scan complete. You can relax.');
     analyzing = acceptMeasurement(analyzing, generationId, frameIds[0], 90.25);
     analyzing = acceptMeasurement(analyzing, generationId, frameIds[1], 91.5);
 
@@ -313,6 +314,8 @@ describe('redness burst reducer authority', () => {
       requestId: firstRequestId,
       attempt: 1,
     });
+    expect(state.activeRednessBurst?.acceptedFrames).toHaveLength(0);
+    expect(state.announcement).toBe('Analyzing measurement 1 of 3.');
     const overlappingRequest = faceValueReducer(state, {
       type: 'REDNESS_BURST_ANALYSIS_STARTED',
       generationId,
@@ -336,7 +339,9 @@ describe('redness burst reducer authority', () => {
         retryable: true,
       },
     });
+    expect(state.announcement).toBe('Rechecking this measurement.');
     state = acceptMeasurement(state, generationId, frameIds[0], 90, 2);
+    expect(state.announcement).toBe('Measurement 1 confirmed.');
     const acceptedOnce = state;
     const secondRequestId = `${generationId}-${frameIds[0]}-request-2`;
     const duplicateCompletion = faceValueReducer(state, {

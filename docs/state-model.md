@@ -147,6 +147,14 @@ persistence, and all image-bearing values remain in an ephemeral component
 registry. One abort controller is authoritative for cancellation, route exit,
 retry, and unmount. Events for obsolete generation identifiers are no-ops.
 
+Post-capture presentation is a projection of that active reducer state, not a
+second workflow machine. The active measurement is the accepted-frame count
+plus one only while analysis is running; completed indicators come only from
+accepted frames; attempt two selects the bounded recheck copy; and `ready`
+selects the confirmation state. The four-second no-progress flag is ephemeral
+component state, resets on genuine accepted-count progress, and is never
+persisted or used as evidence.
+
 ## 6. Longitudinal evidence state
 
 `LongitudinalSkinEvidence` currently preserves:

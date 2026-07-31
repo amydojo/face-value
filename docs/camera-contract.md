@@ -164,6 +164,9 @@ Current automated proof includes:
 - whole-frame exposure and movement handling
 - stable hold and state cancellation
 - same-bitmap freeze
+- explicit live-to-still settle with a soft dark captured-image veil
+- truthful scan-complete, per-measurement analysis, and confirmation states
+- solid, active, and waiting indicator semantics without zero or fake progress
 - track teardown
 - no vendor alert
 - dynamic visual viewport behavior
@@ -201,6 +204,10 @@ It preserves:
 - cleanup of every frame after analysis
 - no fabricated pose or registration evidence
 - unchanged production camera geometry
+
+After teardown, the selected third-frame still remains visible through analysis
+and the brief confirmation state. Reduced motion removes its settle transition
+and the active measurement pulse without removing or reordering any state.
 
 Automated and desktop-browser proof does not establish physical-iPhone
 acceptance. The exact-head hardware checklist additionally requires proof of

@@ -138,8 +138,12 @@ Searching
 → Aligning
 → Locking
 → Scanning
-→ 3 Measurements Accepted
-→ Processing
+→ Scan complete
+→ Analyzing measurement 1
+→ Analyzing measurement 2
+→ Analyzing measurement 3
+→ Measurements confirmed
+→ existing comparison processing
 ```
 
 The current visual contract includes:
@@ -150,21 +154,32 @@ The current visual contract includes:
 - one dominant instruction
 - route and specimen context that remain secondary
 - a broad amber optical scan plane
-- same-bitmap freeze into processing
+- same-bitmap freeze into a soft dark veil and restrained settle
 - calm recovery for permission, startup, lighting, movement, and provider failure
 
 The authored guide is positioning direction, not proof of automated face geometry. Copy and visuals must not imply landmark tracking, skin diagnosis, or biometric identity.
 
-During the current burst, the user still experiences one continuous scan. The
-restrained three-position accepted-frame indicator remains subordinate to the
-existing optic and does not turn the screen into a multi-photo checklist.
-Positions use the established amber instrument language rather than generic
-green success styling. The interface shows no raw redness scores, calibration
-terminology, deliberate repositioning prompt, or extra shutter controls.
+During the current burst, the user still experiences one continuous scan. After
+the third frame, **SCAN COMPLETE / You can relax.** explicitly separates the
+live camera from the preserved still. Analysis then names the currently active
+measurement. The restrained three-position indicator uses solid completed,
+pulsing active, and hollow muted waiting states; its position advances only
+after a genuine analysis completion. It remains subordinate to the existing
+optic and does not turn the screen into a multi-photo checklist. Positions use
+the established amber instrument language rather than generic green success
+styling. The interface shows no raw redness scores, calibration terminology,
+deliberate repositioning prompt, or extra shutter controls.
 
 Recoverable capture rejection calmly acquires a replacement without adding a
-new ceremony. After three positions settle, the deterministic **3 MEASUREMENTS
-ACCEPTED** confirmation appears briefly before one transition to Processing.
+new ceremony. Four seconds without a resolved measurement may replace only the
+support line with **This is taking a little longer than usual.** The bounded
+same-frame recheck uses **Rechecking this measurement.** without exposing
+implementation language. **MEASUREMENTS CONFIRMED / Preparing your comparison.**
+appears before the existing processing transition. No spinner, percentage,
+countdown, progress bar, or scan line over the captured face is allowed.
+
+Reduced motion preserves every truthful copy and indicator-state change while
+removing the captured-still settle and active-indicator pulse.
 
 ## 9. Oracle result machine
 

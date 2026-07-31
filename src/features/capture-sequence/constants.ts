@@ -12,6 +12,7 @@ export const CAPTURE_TIMING = {
   capturedGuideHoldMs: 150,
   capturedGuideResolveMs: 360,
   capturedHoldMs: 600,
+  analysisNoProgressMs: 4_000,
   persistentLowLightMs: 8_000,
   breathingMs: 2_200,
 } as const;

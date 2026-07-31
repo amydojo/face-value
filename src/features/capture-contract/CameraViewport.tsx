@@ -32,6 +32,7 @@ import {
 import { logSafeAnalysisDiagnostic, translateProviderError } from '../../domain/youcamEvidence';
 import {
   CAMERA_KIT_ACQUISITION_MS,
+  CAPTURE_TIMING,
   CaptureSequence,
   createCaptureSequenceState,
   getNextCaptureSequenceDeadline,
@@ -180,8 +181,6 @@ export function CameraViewport({
   const objectUrlsRef = useRef(new ObjectUrlRegistry());
   const frameRegistryRef = useRef(new EphemeralBurstFrameRegistry());
   const activeGenerationRef = useRef<ActiveGeneration | null>(null);
-  const currentCaptureUrlRef = useRef<string | null>(null);
-  const currentCaptureFrameIdRef = useRef<string | null>(null);
   const previousSequencePhaseRef = useRef(sequence.phase);
   const startInFlightRef = useRef(false);
   const analysisStartedRef = useRef(false);
@@ -205,6 +204,7 @@ export function CameraViewport({
   const [starting, setStarting] = useState(false);
   const [fixture, setFixture] = useState(false);
   const [fileLimitation, setFileLimitation] = useState(false);
+  const [analysisSlow, setAnalysisSlow] = useState(false);
   const [previewStatus, setPreviewStatus] = useState<GuidedCaptureStatus | 'idle'>('idle');
   const diagnosticMode =
     import.meta.env.DEV &&
@@ -225,8 +225,6 @@ export function CameraViewport({
 
   const releaseCapturedResources = useCallback(() => {
     frameRegistryRef.current.releaseAll();
-    currentCaptureFrameIdRef.current = null;
-    currentCaptureUrlRef.current = null;
     objectUrlsRef.current.revokeAll();
   }, []);
 
@@ -240,6 +238,7 @@ export function CameraViewport({
       startInFlightRef.current = false;
       analysisStartedRef.current = false;
       captureRequestedRef.current = false;
+      setAnalysisSlow(false);
       releaseCapturedResources();
       if (notifyReducer && active) {
         dispatch({ type: 'REDNESS_BURST_CANCELLED', generationId: active.id });
@@ -267,6 +266,7 @@ export function CameraViewport({
       }
       sessionRef.current?.cancel();
       sessionRef.current = null;
+      setAnalysisSlow(false);
       releaseCapturedResources();
     },
     [dispatch, releaseCapturedResources],
@@ -287,12 +287,6 @@ export function CameraViewport({
             `${identity('analysis')}-${frameId}-attempt-${attempt}`,
           releaseFrame: (frameId) => {
             frameRegistryRef.current.release(frameId);
-            if (currentCaptureFrameIdRef.current === frameId) {
-              const url = currentCaptureUrlRef.current;
-              if (url) objectUrlsRef.current.revoke(url);
-              currentCaptureUrlRef.current = null;
-              currentCaptureFrameIdRef.current = null;
-            }
           },
           onRequestStarted: ({ generationId, frameId, requestId, attempt }) => {
             if (activeGenerationRef.current?.id !== generationId) return;
@@ -338,6 +332,7 @@ export function CameraViewport({
               });
               return;
             }
+            setAnalysisSlow(false);
             dispatch({
               type: 'REDNESS_BURST_ANALYSIS_ACCEPTED',
               generationId,
@@ -363,14 +358,25 @@ export function CameraViewport({
             error: analysisErrorFor(error, kind),
           });
           activeGenerationRef.current = null;
+          sessionRef.current?.cancel();
+          sessionRef.current = null;
+          setAnalysisSlow(false);
+          releaseCapturedResources();
           return;
         }
-        if (!(error instanceof RednessBurstProviderFailure)) {
-          failBurst(generation.id, analysisErrorFor(error, kind));
+        if (error instanceof RednessBurstProviderFailure) {
+          generation.controller.abort();
+          activeGenerationRef.current = null;
+          sessionRef.current?.cancel();
+          sessionRef.current = null;
+          setAnalysisSlow(false);
+          releaseCapturedResources();
+          return;
         }
+        failBurst(generation.id, analysisErrorFor(error, kind));
       }
     },
-    [dispatch, failBurst, kind],
+    [dispatch, failBurst, kind, releaseCapturedResources],
   );
 
   const startGuidedCapture = useCallback(async () => {
@@ -398,6 +404,7 @@ export function CameraViewport({
     setStarting(true);
     setFixture(false);
     setFileLimitation(false);
+    setAnalysisSlow(false);
     setPreviewStatus('loading');
     setCameraDiagnostics([]);
     sendSequence({ type: 'RESET', at: now() });
@@ -502,8 +509,6 @@ export function CameraViewport({
           });
           if (frameRegistryRef.current.size === REDNESS_BURST_REQUIRED_MEASUREMENTS) {
             const imageUrl = objectUrlsRef.current.create(image);
-            currentCaptureUrlRef.current = imageUrl;
-            currentCaptureFrameIdRef.current = frame.frameId;
             callbacksRef.current.onCapturing();
             sendSequence({
               type: 'CAPTURE_AVAILABLE',
@@ -772,12 +777,38 @@ export function CameraViewport({
   const rejectedMeasurementCount =
     activeBurst?.rejectedFrames.filter((frame) => frame.stage === 'capture').length ?? 0;
   const providerProcessingStarted = (activeBurst?.providerRequests.length ?? 0) > 0;
+  const activeProviderRequest = activeBurst?.providerRequests.find(
+    (request) =>
+      request.requestId === state.activeAnalysisRequestId && request.status === 'running',
+  );
+  const analysisTimerActive = activeBurst?.status === 'analyzing' && providerProcessingStarted;
+  const analysisGenerationId = activeBurst?.generationId ?? null;
+  const activeAnalysisMeasurement = analysisTimerActive
+    ? Math.min(REDNESS_BURST_REQUIRED_MEASUREMENTS, analyzedMeasurementCount + 1)
+    : null;
+  const analysisRetrying = activeProviderRequest?.attempt === 2;
   const attemptedFrameCount = activeBurst?.attemptedFrameCount ?? 0;
   const analysisError = state.analysisError?.role === kind ? state.analysisError : null;
   const isAnalyzing = activeBurst?.status === 'analyzing' || state.processing === 'running';
   const burstFailed = activeBurst?.status === 'failed';
   const failed = sequence.phase === 'error';
   const presentedAnalysisError = failed ? null : analysisError;
+
+  useEffect(() => {
+    if (!analysisTimerActive || !analysisGenerationId) return;
+    const confirmedCount = analyzedMeasurementCount;
+    const timer = window.setTimeout(() => {
+      const current = stateRef.current.activeRednessBurst;
+      if (
+        current?.generationId === analysisGenerationId &&
+        current.status === 'analyzing' &&
+        current.acceptedFrames.length === confirmedCount
+      ) {
+        setAnalysisSlow(true);
+      }
+    }, CAPTURE_TIMING.analysisNoProgressMs);
+    return () => window.clearTimeout(timer);
+  }, [analysisGenerationId, analysisTimerActive, analyzedMeasurementCount]);
 
   useEffect(() => {
     const target = presentedAnalysisError
@@ -862,7 +893,9 @@ export function CameraViewport({
         acceptedMeasurementCount={capturedMeasurementCount}
         analyzedMeasurementCount={analyzedMeasurementCount}
         rejectedMeasurementCount={rejectedMeasurementCount}
-        providerProcessingStarted={providerProcessingStarted}
+        activeAnalysisMeasurement={activeAnalysisMeasurement}
+        analysisRetrying={analysisRetrying}
+        analysisSlow={analysisSlow}
         burstStatus={activeBurst?.status ?? 'idle'}
       />
 

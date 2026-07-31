@@ -28,6 +28,7 @@ test.describe('exact-preview redness burst verification', () => {
     await installNativeCameraMock(page, { rejectFirstBurstGate: true });
     const provider = await mockProtectedProvider(page, {
       scores: [93.3356, 92.5, 94.25, 100, 99, 100],
+      analysisDelayMs: 180,
     });
     await page.emulateMedia({ reducedMotion: 'reduce' });
     await seedBaselineReady(page);
@@ -94,6 +95,7 @@ test.describe('exact-preview redness burst verification', () => {
     const provider = await mockProtectedProvider(page, {
       scores: [93.3356, 92.5],
       failTaskRequests: new Set([3, 4]),
+      analysisDelayMs: 180,
     });
     await page.emulateMedia({ reducedMotion: 'reduce' });
     await seedBaselineReady(page);
@@ -121,6 +123,8 @@ declare global {
   interface Window {
     __faceValueCaptureHeadingObserver?: MutationObserver;
     __faceValueCaptureHeadings?: string[];
+    __faceValueCaptureMeasurements?: string[];
+    __faceValueZeroProgressSeen?: boolean;
     __faceValueUnhandledRejections?: string[];
   }
 }
@@ -157,12 +161,25 @@ async function startGuidedCapture(page: Page): Promise<void> {
   await page.evaluate(() => {
     window.__faceValueCaptureHeadingObserver?.disconnect();
     window.__faceValueCaptureHeadings = [];
+    window.__faceValueCaptureMeasurements = [];
+    window.__faceValueZeroProgressSeen = false;
     const recordHeadings = () => {
       for (const heading of document.querySelectorAll('h1, h2, h3')) {
         const text = heading.textContent?.trim();
         if (text && !window.__faceValueCaptureHeadings!.includes(text)) {
           window.__faceValueCaptureHeadings!.push(text);
         }
+      }
+      const measurement = document
+        .querySelector('[data-analysis-measurement-label]')
+        ?.textContent?.trim();
+      if (measurement && !window.__faceValueCaptureMeasurements!.includes(measurement)) {
+        window.__faceValueCaptureMeasurements!.push(measurement);
+      }
+      const indicatorLabel =
+        document.querySelector('[data-measurement-indicator]')?.getAttribute('aria-label') ?? '';
+      if (/0 of 3/i.test(`${document.body.textContent ?? ''} ${indicatorLabel}`)) {
+        window.__faceValueZeroProgressSeen = true;
       }
     };
     recordHeadings();
@@ -183,19 +200,39 @@ async function startGuidedCapture(page: Page): Promise<void> {
 
 async function finishCaptureContext(page: Page, role: 'baseline' | 'followup'): Promise<void> {
   await expect
+    .poll(() => page.evaluate(() => window.__faceValueCaptureHeadings?.includes('Scan complete')))
+    .toBe(true);
+  await expect
     .poll(() =>
-      page.evaluate(() => window.__faceValueCaptureHeadings?.includes('3 measurements accepted')),
+      page.evaluate(() => window.__faceValueCaptureHeadings?.includes('Analyzing your scan')),
     )
     .toBe(true);
   await expect
     .poll(() =>
-      page.evaluate(() => window.__faceValueCaptureHeadings?.includes('Processing measurements')),
+      page.evaluate(() => window.__faceValueCaptureHeadings?.includes('Measurements confirmed')),
     )
     .toBe(true);
   await expect(
     page.getByRole('heading', { name: 'Anything meaningfully different today?' }),
   ).toBeVisible();
   await expect(page.locator(`[data-fv-screen="${role}-context"]`)).toBeVisible();
+  const progress = await page.evaluate(() => ({
+    headings: window.__faceValueCaptureHeadings ?? [],
+    measurements: window.__faceValueCaptureMeasurements ?? [],
+    zeroProgressSeen: window.__faceValueZeroProgressSeen ?? false,
+  }));
+  expect(progress.measurements).toEqual([
+    'MEASUREMENT 1 OF 3',
+    'MEASUREMENT 2 OF 3',
+    'MEASUREMENT 3 OF 3',
+  ]);
+  expect(progress.zeroProgressSeen).toBe(false);
+  expect(progress.headings.indexOf('Scan complete')).toBeLessThan(
+    progress.headings.indexOf('Analyzing your scan'),
+  );
+  expect(progress.headings.indexOf('Analyzing your scan')).toBeLessThan(
+    progress.headings.indexOf('Measurements confirmed'),
+  );
   await page.evaluate(() => window.__faceValueCaptureHeadingObserver?.disconnect());
   await page.getByRole('button', { name: 'NOTHING DIFFERENT' }).click();
   if (role === 'baseline') {
@@ -385,9 +422,11 @@ async function mockProtectedProvider(
   {
     scores,
     failTaskRequests = new Set<number>(),
+    analysisDelayMs = 0,
   }: {
     scores: number[];
     failTaskRequests?: Set<number>;
+    analysisDelayMs?: number;
   },
 ): Promise<{ readonly taskRequests: number; readonly successfulAnalyses: number }> {
   let uploadSlot = 0;
@@ -416,6 +455,9 @@ async function mockProtectedProvider(
   await page.route('**/api/youcam/task**', async (route) => {
     if (route.request().method() === 'POST') {
       taskRequests += 1;
+      if (analysisDelayMs > 0) {
+        await new Promise((resolvePromise) => setTimeout(resolvePromise, analysisDelayMs));
+      }
       if (failTaskRequests.has(taskRequests)) {
         await route.fulfill({
           status: 200,

@@ -996,7 +996,7 @@ export function faceValueReducer(
           ...state.activeRednessBurst,
           status: 'analyzing',
         },
-        announcement: 'Analyzing three independent redness measurements.',
+        announcement: 'Scan complete. You can relax.',
       };
 
     case 'REDNESS_BURST_ANALYSIS_STARTED': {
@@ -1039,6 +1039,10 @@ export function faceValueReducer(
             },
           ],
         },
+        announcement:
+          event.attempt === 2
+            ? 'Rechecking this measurement.'
+            : `Analyzing measurement ${state.activeRednessBurst.acceptedFrames.length + 1} of ${REDNESS_BURST_REQUIRED_MEASUREMENTS}.`,
       };
     }
 
@@ -1101,8 +1105,8 @@ export function faceValueReducer(
           status: ready ? 'ready' : 'analyzing',
         },
         announcement: ready
-          ? '3 measurements accepted.'
-          : `${acceptedFrames.length} of ${REDNESS_BURST_REQUIRED_MEASUREMENTS} measurements accepted.`,
+          ? 'Measurements confirmed. Preparing your comparison.'
+          : `Measurement ${acceptedFrames.length} confirmed.`,
       };
     }
 
@@ -1154,9 +1158,7 @@ export function faceValueReducer(
             : state.activeRednessBurst.rejectedFrames,
           status: event.terminal ? 'failed' : 'analyzing',
         },
-        announcement: event.terminal
-          ? event.error.message
-          : 'Analysis was interrupted. Retrying this measurement once.',
+        announcement: event.terminal ? event.error.message : 'Rechecking this measurement.',
       };
     }
 

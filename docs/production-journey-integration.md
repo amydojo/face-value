@@ -140,6 +140,20 @@ accepted score arrays or period medians. Fewer than three valid analyzed
 measurements cannot lock baseline, complete follow-up, request comparison,
 create a result, or create an Evidence Record.
 
+The post-capture waiting surface derives entirely from reducer-owned burst
+truth. It first shows **Scan complete / You can relax.**, then names measurement
+1, 2, or 3 while that measurement is active. A position becomes completed only
+when its independent analysis resolves successfully. The ready state shows
+**Measurements confirmed / Preparing your comparison.** before the existing
+atomic commit transition. There is no zero state, fake percentage, countdown,
+spinner, progress bar, or face-crossing scan line.
+
+A component-local four-second no-progress timer may soften the support line to
+**This is taking a little longer than usual.** It resets only when the reducer's
+accepted-measurement count advances and is never persisted. Attempt two of the
+existing bounded same-frame policy is presented as **Rechecking this
+measurement.** No provider or request implementation language is exposed.
+
 A valid follow-up automatically requests comparison. There is no consumer action to author the verdict, choose a threshold, or call a language model.
 
 ## 7. Comparison and failure behavior
