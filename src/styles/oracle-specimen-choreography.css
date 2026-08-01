@@ -22,7 +22,8 @@
 /*
  * Resolved firmware owns a bounded left copy lane. The right side stays
  * structurally empty for the canonical docked specimen rather than relying
- * on text length or the bottle to avoid one another.
+ * on text length or the bottle to avoid one another. Physical QA fixes this
+ * boundary while the existing specimen dock token remains unchanged.
  */
 [data-oracle-machine][data-cassette-variant='reveal'] [data-firmware-state] {
   --oracle-verdict-copy-lane: 57%;
