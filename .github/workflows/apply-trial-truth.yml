@@ -36,9 +36,23 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci --no-audit --no-fund
-      - name: Decode and apply exact source edits
+      - name: Decode and patch applicator transport
         run: |
           cat .github/trial-truth-payload/part-* | base64 --decode | gzip --decompress > /tmp/apply-trial-truth.mjs
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('/tmp/apply-trial-truth.mjs')
+          source = path.read_text()
+          source = source.replace(
+              'YWN0aXZlUmVkbmVzc0J1cnN0OiBudWxsLAphbm5vdW5jZW1lbnQ6IG9wdGlvbnMuc3ludGhldGljCg==',
+              'YWN0aXZlUmVkbmVzc0J1cnN0OiBudWxsLAogICAgYW5ub3VuY2VtZW50OiBvcHRpb25zLnN5bnRoZXRpYwo=',
+          )
+          source = source.replace(
+              'YWN0aXZlUmVkbmVzc0J1cnN0OiBudWxsLAp0cmlhbFRydXRoRXZpZGVuY2U6IHBlcnNpc3RlZC50cmlhbFRydXRoRXZpZGVuY2UsCnRyaWFsVHJ1dGhWYWxpZGF0aW9uOiBudWxsLAphbm5vdW5jZW1lbnQ6IG9wdGlvbnMuc3ludGhldGljCg==',
+              'YWN0aXZlUmVkbmVzc0J1cnN0OiBudWxsLAogICAgdHJpYWxUcnV0aEV2aWRlbmNlOiBwZXJzaXN0ZWQudHJpYWxUcnV0aEV2aWRlbmNlLAogICAgdHJpYWxUcnV0aFZhbGlkYXRpb246IG51bGwsCiAgICBhbm5vdW5jZW1lbnQ6IG9wdGlvbnMuc3ludGhldGljCg==',
+          )
+          path.write_text(source)
+          PY
           node /tmp/apply-trial-truth.mjs
       - name: Format implementation
         run: |
