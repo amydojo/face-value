@@ -34,7 +34,9 @@ export function FaceAcquisitionGuide({
   return (
     <div
       className={styles.guideField}
+      style={{ zIndex: 6 }}
       data-face-acquisition-guide
+      data-capture-layer="acquisition-guide"
       data-guide-phase={phase}
       data-guide-issue={activeIssue ?? 'none'}
       data-guide-stable={stable}
