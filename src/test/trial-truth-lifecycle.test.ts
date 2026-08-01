@@ -146,21 +146,23 @@ describe('trial truth exactly-once lifecycle', () => {
   });
 
   it('creates one immutable Evidence Record across duplicate collection events', () => {
-    let state = comparedState();
-    state = faceValueReducer(state, { type: 'REVEAL_STARTED' });
-    state = faceValueReducer(state, { type: 'REVEAL_PULL_COMPLETED' });
-    state = faceValueReducer(state, { type: 'TRANSMISSION_COMPLETED' });
-    state = faceValueReducer(state, {
-      type: 'RECOMMENDATION_ACCEPTED',
-      placement: state.placement,
-      now: '2026-08-01T19:45:00.000Z',
+    const compared = comparedState();
+    const readyToCollect: TrialTruthFaceValueState = {
+      ...compared,
+      assignedJob: compared.assignedJob ?? 'Reduce visible redness',
+      oracleRevealState: 'dispensing',
+      oracleEvidenceDispensed: true,
+      oracleCollectionStarted: true,
+      oracleCommittedAt: '2026-08-01T19:45:00.000Z',
+      resultRevealed: true,
+    };
+
+    const collected = faceValueReducer(readyToCollect, {
+      type: 'EVIDENCE_COLLECTED',
     });
-    state = faceValueReducer(state, { type: 'DISPENSE_STARTED' });
-    state = faceValueReducer(state, { type: 'EVIDENCE_DISPENSED' });
-    state = faceValueReducer(state, { type: 'EVIDENCE_COLLECTION_STARTED' });
-    const collected = faceValueReducer(state, { type: 'EVIDENCE_COLLECTED' });
     const duplicate = faceValueReducer(collected, { type: 'EVIDENCE_COLLECTED' });
 
+    expect(collected.oracleRevealState).toBe('collected');
     expect(collected.record).not.toBeNull();
     expect(collected.archive).toHaveLength(1);
     expect(collected.archive[0]?.id).toBe(collected.record?.id);
