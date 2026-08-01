@@ -28,6 +28,100 @@ type SpecimenRegistrationStyle = CSSProperties & {
   '--fv-scan-wash-opacity': string;
 };
 
+const resultReadyPresentationCss = `
+[data-oracle-machine][data-cassette-variant='reveal']
+  [data-oracle-specimen][data-specimen-state='verdict'] {
+  top: 18.5%;
+  right: auto;
+  left: 55%;
+  isolation: isolate;
+  transform: translateX(-50%);
+}
+
+[data-oracle-machine][data-cassette-variant='reveal']
+  [data-oracle-specimen][data-specimen-state='verdict']::before {
+  position: absolute;
+  top: 90.8%;
+  left: -31%;
+  z-index: 0;
+  width: 162%;
+  height: 10.5%;
+  border-top: 1px solid rgba(231, 180, 116, 0.12);
+  border-radius: 50%;
+  background:
+    radial-gradient(
+      ellipse at 50% 0%,
+      rgba(224, 139, 50, 0.1),
+      rgba(224, 139, 50, 0.025) 38%,
+      transparent 72%
+    ),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.025), rgba(8, 7, 6, 0.32));
+  box-shadow:
+    0 -1px 4px rgba(222, 137, 49, 0.06),
+    0 5px 10px rgba(0, 0, 0, 0.42);
+  content: '';
+  pointer-events: none;
+}
+
+[data-oracle-machine][data-cassette-variant='reveal'][data-oracle-state='sealed']
+  [data-oracle-specimen][data-specimen-state='verdict']::after {
+  position: absolute;
+  top: 4%;
+  left: -50%;
+  z-index: 0;
+  width: 200%;
+  height: 100%;
+  border-radius: 50%;
+  opacity: 0.2;
+  background: radial-gradient(
+    ellipse at 50% 58%,
+    rgba(230, 126, 26, 0.26) 0%,
+    rgba(207, 96, 18, 0.12) 33%,
+    rgba(178, 76, 14, 0.035) 52%,
+    transparent 74%
+  );
+  filter: blur(11px) brightness(0.86);
+  animation: oracleSealedHoldingGlow 3.6s ease-in-out infinite;
+  content: '';
+  pointer-events: none;
+}
+
+[data-oracle-machine][data-cassette-variant='reveal'] [data-firmware-state] {
+  padding-right: 48%;
+  background:
+    linear-gradient(
+      90deg,
+      rgba(7, 7, 6, 0.9) 0%,
+      rgba(7, 7, 6, 0.84) 42%,
+      rgba(7, 7, 6, 0.44) 52%,
+      rgba(7, 7, 6, 0.12) 100%
+    ),
+    radial-gradient(circle at 34% 48%, rgba(130, 88, 43, 0.1), transparent 46%);
+}
+
+@keyframes oracleSealedHoldingGlow {
+  0%,
+  100% {
+    opacity: 0.2;
+    filter: blur(11px) brightness(0.86);
+  }
+
+  50% {
+    opacity: 0.42;
+    filter: blur(9px) brightness(1.06);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-oracle-machine][data-cassette-variant='reveal'][data-oracle-state='sealed']
+    [data-oracle-specimen][data-specimen-state='verdict']::after {
+    opacity: 0.27;
+    filter: blur(10px) brightness(0.96);
+    animation: none !important;
+  }
+}
+`;
+
 const fallbackIdentity: OracleSpecimenIdentity = {
   productId: null,
   accession: null,
@@ -314,6 +408,9 @@ export function IdentityLockSpecimen({
       className={styles.oracleSpecimen}
       style={registrationStyle}
       data-oracle-specimen
+      data-specimen-renderer="identity-lock"
+      data-specimen-coordinate-system="oracle-chamber"
+      data-specimen-grounding={specimenState === 'verdict' ? 'registered-platform' : 'native'}
       data-specimen-state={specimenState}
       data-ingestion-phase={phase}
       data-ingestion-active={registrationActive}
@@ -342,6 +439,15 @@ export function IdentityLockSpecimen({
       data-label-layout="safe"
       aria-hidden="true"
     >
+      <style
+        data-oracle-result-ready-presentation
+        data-completion-field-state="sealed-only"
+        data-completion-field-cycle-ms="3600"
+        data-completion-field-reduced-motion="static"
+        data-completion-field-scientific-meaning="none"
+      >
+        {resultReadyPresentationCss}
+      </style>
       <i className={styles.contactShadow} data-specimen-layer="contact-shadow" />
       <i className={styles.amberGroundBounce} data-specimen-layer="amber-ground-bounce" />
       <span className={styles.shoulderForm} data-specimen-layer="shoulder-form" />
