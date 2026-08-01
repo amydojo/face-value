@@ -36,6 +36,7 @@ jobs:
           node /tmp/apply-trial-truth.mjs
           python .github/trial-truth-payload/fix_generated.py
           python .github/trial-truth-payload/fix_architecture.py
+          python .github/trial-truth-payload/fix_surface.py
       - name: Format implementation
         run: |
           npx prettier --write \
