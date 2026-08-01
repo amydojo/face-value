@@ -1,44 +1,70 @@
 /*
  * Oracle verdict specimen choreography
  *
- * Sealed: the registered specimen is held at the true chamber center in a
- * quiet, zero-gravity field. Opening: it docks magnetically to the right.
- * Every resolved and persistence phase retains that same right-side lock so
- * firmware copy remains unobstructed. The specimen itself never moves on the
- * vertical axis, rotates, scales, or bobs.
+ * The canonical specimen coordinate wrapper remains fixed at true chamber
+ * center through every phase. While sealed, its rendered layers are held at
+ * that center in a quiet zero-gravity field. Authorization translates the
+ * rendered assembly to a right-side magnetic dock without changing machine,
+ * wrapper, label, or evidence geometry.
  */
 
 [data-oracle-machine][data-cassette-variant='reveal']
   [data-oracle-specimen][data-specimen-state='verdict'] {
+  --oracle-specimen-dock-offset: clamp(46px, 14.6vw, 63px);
+
   top: 18.5%;
   right: auto;
-  left: 72%;
+  left: 50%;
   isolation: isolate;
   transform: translateX(-50%);
 }
 
-[data-oracle-machine][data-cassette-variant='reveal'][data-oracle-state='sealed']
-  [data-oracle-specimen][data-specimen-state='verdict'] {
-  left: 50%;
+[data-oracle-machine][data-cassette-variant='reveal']
+  [data-oracle-specimen][data-specimen-state='verdict']
+  > :not(style) {
+  translate: 0 0;
+  transition: translate var(--oracle-opening-duration, 400ms)
+    cubic-bezier(0.16, 1.08, 0.3, 1);
 }
 
-[data-oracle-machine][data-cassette-variant='reveal'][data-oracle-state='opening']
-  [data-oracle-specimen][data-specimen-state='verdict'] {
-  left: 72%;
-  will-change: left;
-  animation: oracleSpecimenMagneticDock var(--oracle-opening-duration, 400ms)
-    cubic-bezier(0.16, 1, 0.3, 1) both;
+[data-oracle-machine][data-cassette-variant='reveal']
+  [data-oracle-specimen][data-specimen-state='verdict']::before,
+[data-oracle-machine][data-cassette-variant='reveal']
+  [data-oracle-specimen][data-specimen-state='verdict']::after {
+  translate: 0 0;
+  transition: translate var(--oracle-opening-duration, 400ms)
+    cubic-bezier(0.16, 1.08, 0.3, 1);
 }
 
 [data-oracle-machine][data-cassette-variant='reveal']:is(
+    [data-oracle-state='opening'],
     [data-oracle-state='transmitting'],
     [data-oracle-state='verdict_revealed'],
     [data-oracle-state='committing'],
     [data-oracle-state='dispensing'],
     [data-oracle-state='collected']
   )
-  [data-oracle-specimen][data-specimen-state='verdict'] {
-  left: 72%;
+  [data-oracle-specimen][data-specimen-state='verdict']
+  > :not(style),
+[data-oracle-machine][data-cassette-variant='reveal']:is(
+    [data-oracle-state='opening'],
+    [data-oracle-state='transmitting'],
+    [data-oracle-state='verdict_revealed'],
+    [data-oracle-state='committing'],
+    [data-oracle-state='dispensing'],
+    [data-oracle-state='collected']
+  )
+  [data-oracle-specimen][data-specimen-state='verdict']::before,
+[data-oracle-machine][data-cassette-variant='reveal']:is(
+    [data-oracle-state='opening'],
+    [data-oracle-state='transmitting'],
+    [data-oracle-state='verdict_revealed'],
+    [data-oracle-state='committing'],
+    [data-oracle-state='dispensing'],
+    [data-oracle-state='collected']
+  )
+  [data-oracle-specimen][data-specimen-state='verdict']::after {
+  translate: var(--oracle-specimen-dock-offset) 0;
 }
 
 /* Replace the prior visible shelf with a contained magnetic field shadow. */
@@ -159,25 +185,15 @@
   transform: scale(0.92);
 }
 
-@keyframes oracleSpecimenMagneticDock {
-  0% {
-    left: 50%;
-  }
-
-  74% {
-    left: 73.4%;
-  }
-
-  100% {
-    left: 72%;
-  }
-}
-
 @media (prefers-reduced-motion: reduce) {
-  [data-oracle-machine][data-cassette-variant='reveal'][data-oracle-state='opening']
-    [data-oracle-specimen][data-specimen-state='verdict'] {
-    left: 72%;
-    animation: none;
+  [data-oracle-machine][data-cassette-variant='reveal']
+    [data-oracle-specimen][data-specimen-state='verdict']
+    > :not(style),
+  [data-oracle-machine][data-cassette-variant='reveal']
+    [data-oracle-specimen][data-specimen-state='verdict']::before,
+  [data-oracle-machine][data-cassette-variant='reveal']
+    [data-oracle-specimen][data-specimen-state='verdict']::after {
+    transition: none;
   }
 
   [data-oracle-machine][data-cassette-variant='reveal'][data-oracle-state='sealed']
