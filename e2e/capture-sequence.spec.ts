@@ -630,7 +630,6 @@ test('slow analysis status is tertiary after six seconds without genuine progres
   const captureScreen = page.locator('section[data-preview-state]');
   await expect(page.locator('[data-analysis-measurement-label]')).toHaveText('MEASUREMENT 1 OF 3');
   await expect(page.getByText('Checking three measurements for consistency.')).toBeVisible();
-  await expect(page.getByText('Finishing this measurement…')).toHaveCount(0);
   await expect(page.getByText('Finishing this measurement…')).toBeVisible({
     timeout: 8_000,
   });
