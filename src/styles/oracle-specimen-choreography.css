@@ -6,6 +6,10 @@
  * that center in a quiet zero-gravity field. Authorization releases the
  * rendered assembly into a right-side magnetic dock without changing machine,
  * wrapper, label, evidence geometry, or canonical verdict copy.
+ *
+ * Oracle phase progression remains owned by the existing CSS-module driver
+ * animations. This presentation layer uses state-driven transitions only, so
+ * no decorative animationend event can advance or stall the state machine.
  */
 
 [data-oracle-machine][data-cassette-variant='reveal']
@@ -202,6 +206,8 @@
 /*
  * The outer wrapper never moves. Its rendered assembly receives one delayed,
  * non-elastic precision glide after the sealed field has visibly released it.
+ * The existing 400ms opening plus 300ms transmission drivers remain the only
+ * animation events that own Oracle phase progression.
  */
 [data-oracle-machine][data-cassette-variant='reveal']
   [data-oracle-specimen][data-specimen-state='verdict']
@@ -228,8 +234,18 @@
     width 220ms var(--oracle-dock-ease),
     height 220ms var(--oracle-dock-ease),
     opacity 180ms ease-out,
-    filter 220ms ease-out;
+    filter 220ms ease-out,
+    transform 220ms var(--oracle-dock-ease),
+    background 220ms ease-out;
   pointer-events: none;
+}
+
+[data-oracle-machine][data-cassette-variant='reveal']
+  [data-oracle-specimen][data-specimen-state='verdict']
+  :is([data-specimen-layer='right-rim'], [data-specimen-layer='base-reflection']) {
+  transition:
+    opacity 220ms ease-out,
+    filter 220ms ease-out;
 }
 
 [data-oracle-machine][data-cassette-variant='reveal']:is(
@@ -313,37 +329,49 @@
     transparent 76%
   );
   filter: blur(15px) brightness(0.94);
+  transform: scale(1);
   transform-origin: 50% 58%;
   animation: oracleSealedHoldingGlow 3.6s ease-in-out infinite;
 }
 
-/* Anticipation and field contraction occupy the existing opening state. */
+/*
+ * Opening contracts the broad field and tightens its shadow through ordinary
+ * transitions. No finite decorative keyframe is allowed to emit animationend.
+ */
 [data-oracle-machine][data-cassette-variant='reveal'][data-oracle-state='opening']
   [data-oracle-specimen][data-specimen-state='verdict']::after {
-  top: -6%;
-  left: -60%;
-  width: 220%;
-  height: 118%;
+  top: 3%;
+  left: -34%;
+  width: 168%;
+  height: 98%;
+  opacity: 0.28;
   background: radial-gradient(
     ellipse at 50% 60%,
-    rgba(244, 146, 44, 0.38) 0%,
-    rgba(211, 98, 18, 0.17) 34%,
-    rgba(178, 76, 14, 0.055) 54%,
-    transparent 76%
+    rgba(240, 142, 40, 0.31) 0%,
+    rgba(205, 94, 17, 0.12) 39%,
+    transparent 73%
   );
+  filter: blur(12px) brightness(1.02);
+  transform: scale(0.78);
   transform-origin: 50% 58%;
-  animation: oracleFieldRelease 400ms var(--oracle-dock-ease) both;
 }
 
 [data-oracle-machine][data-cassette-variant='reveal'][data-oracle-state='opening']
   [data-oracle-specimen][data-specimen-state='verdict']::before {
-  animation: oracleShadowTighten 400ms var(--oracle-dock-ease) both;
+  top: 99%;
+  left: -15%;
+  width: 130%;
+  height: 7%;
+  opacity: 0.78;
+  filter: blur(1.5px);
+  transform: scale(0.84);
 }
 
 [data-oracle-machine][data-cassette-variant='reveal'][data-oracle-state='opening']
   [data-oracle-specimen][data-specimen-state='verdict']
   [data-specimen-layer='right-rim'] {
-  animation: oracleReleaseHighlight 400ms ease-out both;
+  opacity: 0.62;
+  filter: drop-shadow(1px 0 2px rgba(240, 147, 59, 0.22));
 }
 
 /* Once authorized, a compact static field follows the active right dock. */
@@ -367,13 +395,8 @@
     transparent 74%
   );
   filter: blur(11px);
-  transform: none;
+  transform: scale(1);
   animation: none;
-}
-
-[data-oracle-machine][data-cassette-variant='reveal'][data-oracle-state='transmitting']
-  [data-oracle-specimen][data-specimen-state='verdict']::after {
-  animation: oracleDockCapture 280ms var(--oracle-dock-ease) 180ms both;
 }
 
 [data-oracle-machine][data-cassette-variant='reveal'][data-oracle-state='committing']
@@ -445,31 +468,6 @@
   transform: scale(0.92);
 }
 
-/* Firmware appears only after the specimen has begun clearing the copy lane. */
-[data-oracle-machine][data-cassette-variant='reveal'][data-oracle-state='transmitting']
-  [data-firmware-state='transmitting']
-  > header {
-  animation: oracleFirmwareUncover 260ms var(--oracle-dock-ease) 40ms both;
-}
-
-[data-oracle-machine][data-cassette-variant='reveal'][data-oracle-state='transmitting']
-  [data-firmware-state='transmitting']
-  > div:first-of-type {
-  animation: oracleFirmwareUncover 260ms var(--oracle-dock-ease) 80ms both;
-}
-
-[data-oracle-machine][data-cassette-variant='reveal'][data-oracle-state='transmitting']
-  [data-firmware-state='transmitting']
-  > div:nth-of-type(2) {
-  animation: oracleFirmwareUncover 260ms var(--oracle-dock-ease) 120ms both;
-}
-
-[data-oracle-machine][data-cassette-variant='reveal'][data-oracle-state='transmitting']
-  [data-oracle-amber-control]
-  > span {
-  animation: oracleControlCapture 280ms var(--oracle-dock-ease) 180ms both;
-}
-
 @keyframes oracleSealedHoldingGlow {
   0%,
   100% {
@@ -485,99 +483,6 @@
   }
 }
 
-@keyframes oracleFieldRelease {
-  0%,
-  24% {
-    opacity: 0.54;
-    filter: blur(18px) brightness(1.14);
-    transform: scale(1.06);
-  }
-
-  62% {
-    opacity: 0.38;
-    filter: blur(12px) brightness(1.06);
-    transform: scale(0.76);
-  }
-
-  100% {
-    opacity: 0.18;
-    filter: blur(8px) brightness(0.94);
-    transform: scale(0.56);
-  }
-}
-
-@keyframes oracleShadowTighten {
-  0%,
-  24% {
-    opacity: 0.62;
-    transform: scale(1);
-  }
-
-  100% {
-    opacity: 0.78;
-    transform: scale(0.84);
-  }
-}
-
-@keyframes oracleReleaseHighlight {
-  0%,
-  24% {
-    filter: none;
-  }
-
-  100% {
-    filter: drop-shadow(1px 0 2px rgba(240, 147, 59, 0.24));
-  }
-}
-
-@keyframes oracleDockCapture {
-  0% {
-    opacity: 0.08;
-    filter: blur(14px) brightness(0.88);
-    transform: scale(0.82);
-  }
-
-  72% {
-    opacity: 0.24;
-    filter: blur(10px) brightness(1.08);
-    transform: scale(1.04);
-  }
-
-  100% {
-    opacity: 0.2;
-    filter: blur(11px) brightness(1);
-    transform: scale(1);
-  }
-}
-
-@keyframes oracleFirmwareUncover {
-  from {
-    opacity: 0;
-    clip-path: inset(8px 0 0 0);
-    transform: translateY(4px);
-  }
-
-  to {
-    opacity: 1;
-    clip-path: inset(0 0 0 0);
-    transform: translateY(0);
-  }
-}
-
-@keyframes oracleControlCapture {
-  0% {
-    filter: brightness(0.92);
-  }
-
-  76% {
-    filter: brightness(1.12);
-  }
-
-  100% {
-    filter: brightness(1);
-  }
-}
-
 @media (prefers-reduced-motion: reduce) {
   [data-oracle-machine][data-cassette-variant='reveal']
     [data-oracle-specimen][data-specimen-state='verdict']
@@ -585,7 +490,10 @@
   [data-oracle-machine][data-cassette-variant='reveal']
     [data-oracle-specimen][data-specimen-state='verdict']::before,
   [data-oracle-machine][data-cassette-variant='reveal']
-    [data-oracle-specimen][data-specimen-state='verdict']::after {
+    [data-oracle-specimen][data-specimen-state='verdict']::after,
+  [data-oracle-machine][data-cassette-variant='reveal']
+    [data-oracle-specimen][data-specimen-state='verdict']
+    :is([data-specimen-layer='right-rim'], [data-specimen-layer='base-reflection']) {
     transition: none;
   }
 
@@ -594,21 +502,6 @@
     opacity: 0.4;
     filter: blur(16px) brightness(1.02);
     transform: scale(1.01);
-    animation: none;
-  }
-
-  [data-oracle-machine][data-cassette-variant='reveal']
-    [data-firmware-state]
-    > header,
-  [data-oracle-machine][data-cassette-variant='reveal']
-    [data-firmware-state]
-    > div,
-  [data-oracle-machine][data-cassette-variant='reveal']
-    [data-oracle-specimen][data-specimen-state='verdict']
-    [data-specimen-layer='right-rim'],
-  [data-oracle-machine][data-cassette-variant='reveal']
-    [data-oracle-amber-control]
-    > span {
     animation: none;
   }
 }
