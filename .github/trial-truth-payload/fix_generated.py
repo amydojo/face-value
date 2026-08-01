@@ -141,3 +141,57 @@ source = source.replace(
       );""",
 )
 fixture.write_text(source)
+
+persistence = Path("src/adapters/persistence/trialTruthObservationStore.ts")
+source = persistence.read_text()
+source = source.replace(
+    "import type { TrialTruthFaceValueState } from '../../app/trialTruthMachine';",
+    """import {
+  normalizeTrialTruthState,
+  type TrialTruthCompatibleState,
+} from '../../app/trialTruthMachine';""",
+)
+source = source.replace(
+    """export function toPersistedTrialTruthData(
+  state: TrialTruthFaceValueState,
+): PersistedTrialTruthData {
+  return {
+    ...toPersistedDemoData(state),
+    trialTruthEvidence: state.trialTruthEvidence
+      ? cloneTrialTruthEvidence(state.trialTruthEvidence)
+      : null,
+  };
+}""",
+    """export function toPersistedTrialTruthData(
+  state: TrialTruthCompatibleState,
+): PersistedTrialTruthData {
+  const normalized = normalizeTrialTruthState(state);
+  return {
+    ...toPersistedDemoData(normalized),
+    trialTruthEvidence: normalized.trialTruthEvidence
+      ? cloneTrialTruthEvidence(normalized.trialTruthEvidence)
+      : null,
+  };
+}""",
+)
+source = source.replace(
+    "  state: TrialTruthFaceValueState,\n  storage: Storage = localStorage,",
+    "  state: TrialTruthCompatibleState,\n  storage: Storage = localStorage,",
+)
+persistence.write_text(source)
+
+journey = Path("src/adapters/persistence/demoJourneyStore.ts")
+source = journey.read_text()
+source = source.replace(
+    "import type { TrialTruthFaceValueState } from '../../app/trialTruthMachine';",
+    "import type { TrialTruthCompatibleState } from '../../app/trialTruthMachine';",
+)
+source = source.replace(
+    "state: TrialTruthFaceValueState;",
+    "state: TrialTruthCompatibleState;",
+)
+source = source.replace(
+    "function recordsAreDemoOriginated(state: TrialTruthFaceValueState): boolean {",
+    "function recordsAreDemoOriginated(state: TrialTruthCompatibleState): boolean {",
+)
+journey.write_text(source)
