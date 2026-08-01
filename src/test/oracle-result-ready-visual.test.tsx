@@ -115,19 +115,23 @@ describe('Oracle result-ready specimen presentation', () => {
     expect(choreographyCss).toContain('font-size: 0;');
   });
 
-  it('uses a delayed Apple-like precision glide without moving the canonical wrapper', () => {
+  it('uses a delayed precision glide while preserving existing Oracle phase authority', () => {
     expect(choreographyCss).toContain('--oracle-dock-delay: 180ms;');
     expect(choreographyCss).toContain('--oracle-dock-duration: 480ms;');
     expect(choreographyCss).toContain('--oracle-dock-ease: cubic-bezier(0.22, 1, 0.36, 1);');
     expect(choreographyCss).toContain('> :not(style)');
     expect(choreographyCss).toContain('translate: var(--oracle-specimen-dock-offset) 0;');
-    expect(choreographyCss).toContain('@keyframes oracleFieldRelease');
-    expect(choreographyCss).toContain('@keyframes oracleShadowTighten');
-    expect(choreographyCss).toContain('@keyframes oracleDockCapture');
-    expect(choreographyCss).toContain('@keyframes oracleFirmwareUncover');
-    expect(choreographyCss).toContain('animation: oracleFirmwareUncover 260ms');
+    expect(choreographyCss).toContain('state-driven transitions only');
+    expect(choreographyCss).toContain('Opening contracts the broad field');
+    expect(choreographyCss).not.toContain('@keyframes oracleFieldRelease');
+    expect(choreographyCss).not.toContain('@keyframes oracleShadowTighten');
+    expect(choreographyCss).not.toContain('@keyframes oracleDockCapture');
+    expect(choreographyCss).not.toContain('@keyframes oracleFirmwareUncover');
+    expect(choreographyCss).not.toContain('animation: oracleFieldRelease');
+    expect(choreographyCss).not.toContain('animation: oracleFirmwareUncover');
 
     for (const phase of [
+      'opening',
       'transmitting',
       'verdict_revealed',
       'committing',
@@ -140,7 +144,6 @@ describe('Oracle result-ready specimen presentation', () => {
 
   it('keeps an active dock field after authorization and dims it through record completion', () => {
     expect(choreographyCss).toContain('Once authorized, a compact static field');
-    expect(choreographyCss).toContain('animation: oracleDockCapture 280ms');
     expect(choreographyCss).toContain("[data-specimen-layer='right-rim']");
     expect(choreographyCss).toContain("[data-specimen-layer='base-reflection']");
     expect(choreographyCss).toContain("[data-oracle-state='committing']");
@@ -149,6 +152,7 @@ describe('Oracle result-ready specimen presentation', () => {
     expect(choreographyCss).toContain('opacity: 0.09;');
     expect(choreographyCss).toContain("[data-oracle-state='collected']");
     expect(choreographyCss).toContain('opacity: 0.06;');
+    expect(choreographyCss).toContain('animation: none;');
   });
 
   it('generates a visible breathing field only while sealed', () => {
@@ -159,7 +163,7 @@ describe('Oracle result-ready specimen presentation', () => {
     expect(choreographyCss).toContain('transform: scale(1.06);');
   });
 
-  it('removes travel, field contraction, capture, and firmware stagger under Reduce Motion', () => {
+  it('removes travel and sealed aura motion under Reduce Motion while preserving final layout', () => {
     expect(choreographyCss).toContain('@media (prefers-reduced-motion: reduce)');
     expect(choreographyCss).toContain('transition: none;');
     expect(choreographyCss).toContain('translate: var(--oracle-specimen-dock-offset) 0;');
