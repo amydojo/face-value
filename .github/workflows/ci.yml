@@ -4,16 +4,13 @@ on:
   pull_request:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   validate:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.pull_request.head.ref }}
-          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: 22.18.0
@@ -25,74 +22,40 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-npm-
       - run: npm ci --no-audit --no-fund
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm run verify:redness-architecture
+      - run: npm run verify:docs
+      - name: Unit and component tests
+        run: npm run test -- --reporter=default --reporter=json --outputFile=vitest-results.json
+      - name: Upload Vitest report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: vitest-results
+          path: vitest-results.json
+          if-no-files-found: error
+      - run: npm run build
+      - name: Scan compiled client privacy
+        run: |
+          set -o pipefail
+          npm run verify:privacy 2>&1 | tee privacy-results.txt
+      - name: Upload privacy scan
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: privacy-results
+          path: privacy-results.txt
+          if-no-files-found: error
+      - name: Upload production bundle
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: production-bundle
+          path: dist
+          if-no-files-found: error
       - run: npx playwright install --with-deps webkit
-      - name: Capture and promote the approved Oracle verdict actual
-        shell: bash
-        run: |
-          set -euo pipefail
-          target='e2e/oracle-reveal.spec.ts-snapshots/oracle-verdict-revealed-mobile-webkit-linux.png'
-          npx playwright test e2e/oracle-reveal.spec.ts \
-            --project=mobile-webkit \
-            --grep "captures the canonical visual states without changing machine geometry" || true
-          actual=$(find test-results -type f -name 'oracle-verdict-revealed-actual.png' -print -quit)
-          test -n "$actual"
-          test -f "$actual"
-          cp "$actual" "$target"
-      - name: Verify and validate the approved reference
-        shell: bash
-        run: |
-          set -euo pipefail
-          target='e2e/oracle-reveal.spec.ts-snapshots/oracle-verdict-revealed-mobile-webkit-linux.png'
-          actual=$(git diff --name-only | sort)
-          test "$actual" = "$target"
-          python - <<'PY'
-          from pathlib import Path
-          import struct
-          import zlib
-
-          path = Path('e2e/oracle-reveal.spec.ts-snapshots/oracle-verdict-revealed-mobile-webkit-linux.png')
-          data = path.read_bytes()
-          assert data[:8] == b'\x89PNG\r\n\x1a\n', f'{path}: invalid PNG signature'
-          offset = 8
-          idat = []
-          saw_iend = False
-          while offset < len(data):
-              assert offset + 12 <= len(data), f'{path}: truncated chunk header'
-              length = struct.unpack('>I', data[offset:offset + 4])[0]
-              kind = data[offset + 4:offset + 8]
-              end = offset + 12 + length
-              assert end <= len(data), f'{path}: truncated {kind!r} chunk'
-              payload = data[offset + 8:offset + 8 + length]
-              expected_crc = struct.unpack('>I', data[offset + 8 + length:end])[0]
-              actual_crc = zlib.crc32(kind)
-              actual_crc = zlib.crc32(payload, actual_crc) & 0xFFFFFFFF
-              assert actual_crc == expected_crc, f'{path}: bad {kind!r} CRC'
-              if kind == b'IDAT':
-                  idat.append(payload)
-              if kind == b'IEND':
-                  saw_iend = True
-                  offset = end
-                  break
-              offset = end
-          assert saw_iend, f'{path}: missing IEND'
-          assert offset == len(data), f'{path}: trailing bytes after IEND'
-          zlib.decompress(b''.join(idat))
-          print(f'{path}: valid PNG and zlib stream ({len(data)} bytes)')
-          PY
-      - name: Commit the reference and restore standard CI
-        shell: bash
-        run: |
-          set -euo pipefail
-          target='e2e/oracle-reveal.spec.ts-snapshots/oracle-verdict-revealed-mobile-webkit-linux.png'
-          git show d53d780e4ffffa14c99618116a4f09636c189314:.github/workflows/ci.yml > .github/workflows/ci.yml
-          expected=$(printf '%s\n' '.github/workflows/ci.yml' "$target" | sort)
-          actual=$(git diff --name-only | sort)
-          test "$actual" = "$expected"
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add .github/workflows/ci.yml "$target"
-          git commit -m 'test: refresh Oracle verdict copy-lane reference'
-          git push origin HEAD:${{ github.event.pull_request.head.ref }}
+      - run: npm run test:e2e
       - name: Upload Playwright evidence
         if: always()
         uses: actions/upload-artifact@v4
