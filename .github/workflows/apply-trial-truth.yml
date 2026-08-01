@@ -7,6 +7,13 @@ on:
     paths:
       - '.github/trial-truth-payload/**'
       - '.github/workflows/apply-trial-truth.yml'
+  pull_request:
+    branches:
+      - main
+    types:
+      - opened
+      - synchronize
+      - reopened
 
 permissions:
   contents: write
@@ -17,6 +24,7 @@ concurrency:
 
 jobs:
   apply:
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
