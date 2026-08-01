@@ -14,7 +14,9 @@ export function CaptureInstruction({
   return (
     <div
       className={styles.instruction}
+      style={{ zIndex: 10 }}
       data-capture-instruction
+      data-capture-layer="instruction-and-progress"
       aria-live="polite"
       aria-atomic="true"
       role={phase === 'error' ? 'alert' : undefined}
