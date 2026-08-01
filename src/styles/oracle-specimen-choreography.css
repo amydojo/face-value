@@ -80,6 +80,22 @@
   max-width: 100%;
 }
 
+/*
+ * The frozen worsening headline is the only firmware finding whose final
+ * phrase was orphaning on physical iPhone. A bounded density step lets the
+ * ordinary browser line breaker keep COMPARABLE SCANS. together inside the
+ * existing 57% copy lane. The source copy and accessible text remain intact.
+ */
+[data-oracle-machine][data-cassette-variant='reveal'][aria-label*='Visible redness worsened across comparable scans.']
+  [data-oracle-finding] {
+  font-size: clamp(10.5px, 3.05vw, 12.4px);
+  line-height: 1.02;
+  letter-spacing: 0;
+  overflow-wrap: normal;
+  word-break: normal;
+  text-wrap: balance;
+}
+
 [data-oracle-machine][data-cassette-variant='reveal']
   [data-oracle-specimen][data-specimen-state='verdict']
   > :not(style) {
