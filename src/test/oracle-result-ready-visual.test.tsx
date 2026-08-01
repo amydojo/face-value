@@ -62,6 +62,7 @@ describe('Oracle result-ready specimen presentation', () => {
   });
 
   it('holds the canonical wrapper and sealed specimen at true center without a visible shelf', () => {
+    // The expanded dock clears the revealed verdict while leaving the sealed origin untouched.
     expect(choreographyCss).toContain('--oracle-specimen-dock-offset: clamp(54px, 16.5vw, 74px);');
     expect(choreographyCss).not.toContain(
       '--oracle-specimen-dock-offset: clamp(46px, 14.6vw, 63px);',
