@@ -61,8 +61,8 @@ describe('Oracle result-ready specimen presentation', () => {
     expect(specimen.querySelector('[data-specimen-layer="evidence-lock-strip"]')).toBeTruthy();
   });
 
-  it('holds the sealed specimen at true center without a visible registration shelf', () => {
-    expect(choreographyCss).toContain("[data-oracle-state='sealed']");
+  it('holds the canonical wrapper and sealed specimen at true center without a visible shelf', () => {
+    expect(choreographyCss).toContain('--oracle-specimen-dock-offset: clamp(46px, 14.6vw, 63px);');
     expect(choreographyCss).toContain('left: 50%;');
     expect(choreographyCss).toContain('top: 103%;');
     expect(choreographyCss).toContain('border: 0;');
@@ -70,14 +70,14 @@ describe('Oracle result-ready specimen presentation', () => {
     expect(choreographyCss).toContain('transform: scale(0.82);');
   });
 
-  it('docks magnetically during opening and remains right-locked for every result phase', () => {
+  it('translates only rendered layers during opening and keeps them docked for every result phase', () => {
     expect(choreographyCss).toContain("[data-oracle-state='opening']");
+    expect(choreographyCss).toContain('> :not(style)');
     expect(choreographyCss).toContain(
-      'animation: oracleSpecimenMagneticDock var(--oracle-opening-duration, 400ms)',
+      'transition: translate var(--oracle-opening-duration, 400ms)',
     );
-    expect(choreographyCss).toContain('@keyframes oracleSpecimenMagneticDock');
-    expect(choreographyCss).toContain('left: 73.4%;');
-    expect(choreographyCss).toContain('left: 72%;');
+    expect(choreographyCss).toContain('cubic-bezier(0.16, 1.08, 0.3, 1)');
+    expect(choreographyCss).toContain('translate: var(--oracle-specimen-dock-offset) 0;');
 
     for (const phase of [
       'transmitting',
@@ -99,9 +99,9 @@ describe('Oracle result-ready specimen presentation', () => {
 
   it('removes specimen travel under Reduce Motion while preserving both final positions', () => {
     expect(choreographyCss).toContain('@media (prefers-reduced-motion: reduce)');
-    expect(choreographyCss).toContain("[data-oracle-state='opening']");
-    expect(choreographyCss).toContain('left: 72%;');
-    expect(choreographyCss).toContain('animation: none;');
+    expect(choreographyCss).toContain('transition: none;');
+    expect(choreographyCss).toContain('translate: var(--oracle-specimen-dock-offset) 0;');
     expect(choreographyCss).toContain('opacity: 0.27;');
+    expect(choreographyCss).toContain('animation: none;');
   });
 });
