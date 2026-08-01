@@ -4,16 +4,13 @@ on:
   pull_request:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   validate:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.pull_request.head.ref }}
-          fetch-depth: 2
       - uses: actions/setup-node@v4
         with:
           node-version: 22.18.0
@@ -58,41 +55,6 @@ jobs:
           path: dist
           if-no-files-found: error
       - run: npx playwright install --with-deps webkit
-      - name: Refresh only approved Oracle dock references
-        env:
-          HEAD_BRANCH: ${{ github.event.pull_request.head.ref }}
-        run: |
-          set -euo pipefail
-
-          npx playwright test e2e/oracle-reveal.spec.ts \
-            --project=mobile-webkit \
-            --grep "captures the canonical visual states without changing machine geometry|collection leaves an empty slot, detail is escapable, and Done restores home continuity" \
-            --update-snapshots
-
-          expected="$(printf '%s\n' \
-            'e2e/oracle-reveal.spec.ts-snapshots/oracle-collected-empty-slot-mobile-webkit-linux.png' \
-            'e2e/oracle-reveal.spec.ts-snapshots/oracle-collected-mobile-webkit-linux.png' \
-            'e2e/oracle-reveal.spec.ts-snapshots/oracle-opening-mobile-webkit-linux.png' | sort)"
-          actual="$(git diff --name-only -- e2e/oracle-reveal.spec.ts-snapshots | sort)"
-
-          if [ "$actual" != "$expected" ]; then
-            echo "Unexpected snapshot change set."
-            echo "Expected:"
-            printf '%s\n' "$expected"
-            echo "Actual:"
-            printf '%s\n' "$actual"
-            exit 1
-          fi
-
-          git checkout HEAD^ -- .github/workflows/ci.yml
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add .github/workflows/ci.yml \
-            e2e/oracle-reveal.spec.ts-snapshots/oracle-opening-mobile-webkit-linux.png \
-            e2e/oracle-reveal.spec.ts-snapshots/oracle-collected-mobile-webkit-linux.png \
-            e2e/oracle-reveal.spec.ts-snapshots/oracle-collected-empty-slot-mobile-webkit-linux.png
-          git commit -m "test: refresh expanded Oracle dock references"
-          git push origin "HEAD:${HEAD_BRANCH}"
       - run: npm run test:e2e
       - name: Upload Playwright evidence
         if: always()
