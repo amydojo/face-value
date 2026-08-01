@@ -4,54 +4,9 @@ on:
   pull_request:
 
 permissions:
-  actions: read
-  contents: write
+  contents: read
 
 jobs:
-  finalize-trial-truth:
-    if: github.head_ref == 'agent/redness-trial-truth-lite'
-    runs-on: ubuntu-24.04
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: agent/redness-trial-truth-lite
-          fetch-depth: 0
-      - name: Download inspected CI evidence
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: gh run download 30716505345 --repo amydojo/face-value --name playwright-evidence --dir /tmp/playwright-evidence
-      - name: Apply bounded E2E fixes and restore ordinary CI
-        run: |
-          python3 - <<'PY'
-          from pathlib import Path
-
-          path = Path('e2e/golden-path.spec.ts')
-          source = path.read_text()
-          heading = "name: 'Anything meaningfully different today?'"
-          if source.count(heading) != 1:
-              raise SystemExit(f'golden-path heading count was {source.count(heading)}, expected 1')
-          heading_at = source.index(heading)
-          insert_at = source.rfind('  await expect(', 0, heading_at)
-          if insert_at < 0:
-              raise SystemExit('golden-path insertion point was not found')
-          block = "  if (kind === 'followup') {\n    await expect(page.locator('[data-fv-screen=\"trial-truth\"]')).toBeVisible({ timeout: 5_000 });\n    await page.getByRole('radio', { name: 'Yes' }).check();\n    await page.getByRole('radio', { name: 'None' }).check();\n    await page.getByRole('radio', { name: 'Less' }).check();\n    await page.getByRole('button', { name: 'CONTINUE TO RESULT' }).click();\n  }\n"
-          path.write_text(source[:insert_at] + block + source[insert_at:])
-          PY
-
-          actual="$(find /tmp/playwright-evidence -name evidence-record-full-expanded-actual.png -print -quit)"
-          test -n "$actual"
-          cp "$actual" e2e/evidence-record.spec.ts-snapshots/evidence-record-full-expanded-mobile-webkit-linux.png
-          rm -f .github/workflows/finish-trial-truth-e2e.yml
-          git fetch origin main
-          git show origin/main:.github/workflows/ci.yml > .github/workflows/ci.yml
-      - name: Commit bounded verification fixes
-        run: |
-          git config user.name github-actions[bot]
-          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git add e2e/golden-path.spec.ts e2e/evidence-record.spec.ts-snapshots/evidence-record-full-expanded-mobile-webkit-linux.png .github/workflows/ci.yml .github/workflows/finish-trial-truth-e2e.yml
-          git commit -m "test: complete trial truth in golden path"
-          git push origin HEAD:agent/redness-trial-truth-lite
-
   validate:
     runs-on: ubuntu-latest
     steps:
