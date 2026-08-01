@@ -53,7 +53,7 @@ const scenarios: TrialScenario[] = [
     expectedSymptoms: [],
     expectedVisibleChange: 1,
     expectedEffect: 'strong_improvement',
-    expectedAction: 'keep',
+    expectedAction: 'test_longer',
     expectedAnchorRelationship: 'agreed',
   },
   {
@@ -90,7 +90,7 @@ const scenarios: TrialScenario[] = [
     expectedSymptoms: [],
     expectedVisibleChange: 0,
     expectedEffect: 'no_detectable_change',
-    expectedAction: 'not_proving_job',
+    expectedAction: 'test_longer',
     expectedAnchorRelationship: 'neutral',
   },
   {
@@ -102,7 +102,7 @@ const scenarios: TrialScenario[] = [
     expectedSymptoms: [],
     expectedVisibleChange: -1,
     expectedEffect: 'worsened',
-    expectedAction: 'not_proving_job',
+    expectedAction: 'test_longer',
     expectedAnchorRelationship: 'agreed',
   },
   {
@@ -249,6 +249,12 @@ async function submitTrialTruth(page: Page, scenario: TrialScenario): Promise<vo
   await expect(page.getByRole('radio', { name: 'Yes' })).not.toBeChecked();
   await expect(page.getByRole('radio', { name: 'None' })).not.toBeChecked();
   await expect(page.getByRole('radio', { name: 'Less' })).not.toBeChecked();
+
+  const staged = await readPersistedState(page);
+  expect(staged.longitudinalEvidence.baseline).toBeNull();
+  expect(staged.longitudinalEvidence.followUp).toBeNull();
+  expect(staged.longitudinalEvidence.baselineBurst?.acceptedFrames).toHaveLength(3);
+  expect(staged.longitudinalEvidence.followUpBurst?.acceptedFrames).toHaveLength(3);
 
   await page.getByRole('radio', { name: 'Yes' }).click();
   await page.getByRole('radio', { name: scenario.tolerance }).click();
@@ -409,6 +415,7 @@ for (const scenario of scenarios) {
     expect(compared.longitudinalEvidence.evaluation?.effectClassification).toBe(
       scenario.expectedEffect,
     );
+    expect(compared.longitudinalEvidence.evaluation?.measurementQuality).toBe('limited');
     expect(compared.longitudinalEvidence.evaluation?.interpretation.recommendedAction).toBe(
       scenario.expectedAction,
     );
