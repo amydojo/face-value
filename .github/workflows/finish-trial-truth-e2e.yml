@@ -1,11 +1,9 @@
 name: Finalize trial truth WebKit
 
 on:
-  push:
+  pull_request:
     branches:
-      - agent/redness-trial-truth-lite
-    paths:
-      - .github/workflows/finish-trial-truth-e2e.yml
+      - main
 
 permissions:
   actions: read
@@ -13,6 +11,7 @@ permissions:
 
 jobs:
   finalize:
+    if: github.head_ref == 'agent/redness-trial-truth-lite'
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
