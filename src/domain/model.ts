@@ -1,6 +1,7 @@
 import type { AnalysisProtocol } from '../adapters/analysis/youcam/contracts';
 import type { ObservationWindowDays, RednessEvaluationSnapshot } from './evidence/redness/types';
 import type { OracleRevealState } from './oracleRevealMachine';
+import type { AnchorRelationship, TrialTruthEvidence } from './trialTruth';
 
 export type CabinetState = 'closed' | 'opening' | 'open' | 'closing';
 export type ObservationState =
@@ -283,6 +284,8 @@ export interface EvidenceRecordData {
   followUpContext?: CaptureContext | null;
   demoOriginated?: boolean;
   rednessEvaluation?: RednessEvaluationSnapshot;
+  trialTruth?: TrialTruthEvidence;
+  anchorRelationship?: AnchorRelationship;
 }
 
 export interface FaceValueState {

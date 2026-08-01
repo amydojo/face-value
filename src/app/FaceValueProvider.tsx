@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useReducer, useState, type ReactNode } from 'react';
+import { clearStructuredDemoData } from '../adapters/persistence/localObservationStore';
 import {
-  clearStructuredDemoData,
-  loadStructuredDemoData,
-  saveStructuredDemoData,
-  type PersistedDemoData,
-} from '../adapters/persistence/localObservationStore';
+  loadTrialTruthStructuredData,
+  saveTrialTruthStructuredData,
+  type PersistedTrialTruthData,
+} from '../adapters/persistence/trialTruthObservationStore';
 import {
   clearDemoPreview,
   demoJourneyRequested,
@@ -26,11 +26,11 @@ import { FaceValueContext } from './faceValueContext';
 import {
   faceValueReducer,
   initialState,
-  normalizePhaseBState,
-  type PhaseBFaceValueState,
-} from './phaseBMachine';
+  normalizeTrialTruthState,
+  type TrialTruthFaceValueState,
+} from './trialTruthMachine';
 
-function restoredStageFor(persisted: PersistedDemoData): AppStage {
+function restoredStageFor(persisted: PersistedTrialTruthData): AppStage {
   const hasBaseline = hasBaselineEvidence(persisted.longitudinalEvidence);
   const hasFollowUp = hasFollowUpEvidence(persisted.longitudinalEvidence);
   const hasComparison = Boolean(persisted.longitudinalEvidence.comparison && persisted.analysis);
@@ -81,22 +81,34 @@ function restoredStageFor(persisted: PersistedDemoData): AppStage {
 }
 
 function hydratePersistedState(
-  persisted: PersistedDemoData,
+  persisted: PersistedTrialTruthData,
   options: {
     preserveStage: boolean;
     resumeComparison: boolean;
     synthetic: boolean;
   },
-): PhaseBFaceValueState {
+): TrialTruthFaceValueState {
+  const trialTruthAwaiting = Boolean(
+    persisted.registeredProduct &&
+    hasBaselineEvidence(persisted.longitudinalEvidence) &&
+    hasFollowUpEvidence(persisted.longitudinalEvidence) &&
+    !persisted.longitudinalEvidence.comparison &&
+    !persisted.analysis &&
+    !persisted.trialTruthEvidence,
+  );
   const completeSignalsAwaitingComparison = Boolean(
     hasBaselineEvidence(persisted.longitudinalEvidence) &&
     hasFollowUpEvidence(persisted.longitudinalEvidence) &&
     !persisted.longitudinalEvidence.comparison &&
     !persisted.analysis &&
+    (!persisted.registeredProduct || Boolean(persisted.trialTruthEvidence)) &&
     !(persisted.stage === 'camera' && persisted.registeredProduct),
   );
-  const restoredStage =
-    options.preserveStage && persisted.stage ? persisted.stage : restoredStageFor(persisted);
+  const restoredStage = trialTruthAwaiting
+    ? 'followup_context'
+    : options.preserveStage && persisted.stage
+      ? persisted.stage
+      : restoredStageFor(persisted);
   const hasPendingRelease = Boolean(
     restoredStage === 'analysis' && persisted.oracleRevealState === 'dispensing',
   );
@@ -107,10 +119,14 @@ function hydratePersistedState(
     restoredStage === 'analysis' && persisted.oracleRevealState === 'collected' && persisted.record,
   );
 
-  const hydrated = normalizePhaseBState({
+  const hydrated = normalizeTrialTruthState({
     ...initialState,
     ...persisted,
-    stage: completeSignalsAwaitingComparison ? 'analysis' : restoredStage,
+    stage: trialTruthAwaiting
+      ? 'followup_context'
+      : completeSignalsAwaitingComparison
+        ? 'analysis'
+        : restoredStage,
     cabinet:
       restoredStage === 'welcome' ||
       restoredStage === 'product_registration' ||
@@ -123,6 +139,8 @@ function hydratePersistedState(
     pendingAnalysisCapture: null,
     analysisError: null,
     activeRednessBurst: null,
+    trialTruthEvidence: persisted.trialTruthEvidence,
+    trialTruthValidation: null,
     announcement: options.synthetic
       ? 'Synthetic demo data restored. No physical capture was used.'
       : hasCollectedEvidence
@@ -144,7 +162,7 @@ function hydratePersistedState(
 }
 
 interface ProviderHydration {
-  state: PhaseBFaceValueState;
+  state: TrialTruthFaceValueState;
   demoRuntime: DemoRuntime;
 }
 
@@ -184,7 +202,7 @@ function hydrateProvider(): ProviderHydration {
     }
   }
 
-  const persisted = loadStructuredDemoData();
+  const persisted = loadTrialTruthStructuredData();
   return {
     state: persisted
       ? hydratePersistedState(persisted, {
@@ -233,9 +251,12 @@ export function FaceValueProvider({ children }: { children: ReactNode }) {
       clearStructuredDemoData();
       return;
     }
-    saveStructuredDemoData(state);
+    saveTrialTruthStructuredData(state);
   }, [demoRuntime, state]);
 
-  const value = useMemo(() => ({ state, dispatch, demoRuntime }), [demoRuntime, state]);
+  const value = useMemo(
+    () => ({ state, dispatch, dispatchTrialTruth: dispatch, demoRuntime }),
+    [demoRuntime, state],
+  );
   return <FaceValueContext.Provider value={value}>{children}</FaceValueContext.Provider>;
 }

@@ -1,9 +1,11 @@
 import { useState } from 'react';
 import { useFaceValue } from '../app/faceValueContext';
+import { trialTruthRequired } from '../app/trialTruthMachine';
 import styles from '../styles/FaceValue.module.css';
 import { FaceValueApplication } from './FaceValueApplication';
 import { DemoRuntimeBanner } from './demo-lab/DemoRuntimeBanner';
 import { DEMO_LAB_ENABLED } from './demo-lab/demoLabAccess';
+import { TrialTruthSurface } from './trial-truth/TrialTruthSurface';
 
 function DemoSessionRecovery() {
   const [dismissed, setDismissed] = useState(false);
@@ -30,7 +32,10 @@ function DemoSessionRecovery() {
     >
       <p className={styles.eyebrow}>ANALYSIS ACCESS REQUIRED</p>
       <strong>Open the protected session in a new tab.</strong>
-      <p>Your capture stays safely staged here. Open access, return to this tab, then tap Retry analysis.</p>
+      <p>
+        Your capture stays safely staged here. Open access, return to this tab, then tap Retry
+        analysis.
+      </p>
       <a
         className={styles.primaryAction}
         href="/youcam-spike?return=trial"
@@ -40,11 +45,7 @@ function DemoSessionRecovery() {
       >
         OPEN ANALYSIS ACCESS
       </a>
-      <button
-        type="button"
-        className={styles.secondaryAction}
-        onClick={() => setDismissed(true)}
-      >
+      <button type="button" className={styles.secondaryAction} onClick={() => setDismissed(true)}>
         I OPENED ACCESS
       </button>
     </aside>
@@ -54,12 +55,25 @@ function DemoSessionRecovery() {
 export function HumanButterProductionJourney() {
   const { state, dispatch, demoRuntime } = useFaceValue();
 
+  if (state.stage === 'followup_context' && trialTruthRequired(state)) {
+    return (
+      <>
+        <TrialTruthSurface />
+        {DEMO_LAB_ENABLED && demoRuntime.mode !== 'ordinary' && (
+          <DemoRuntimeBanner runtime={demoRuntime} />
+        )}
+      </>
+    );
+  }
+
   if (state.stage === 'comparison_refused' && state.analysisError?.code === 'protocol_mismatch') {
     return (
       <main>
         <section className={styles.failureScreen} data-fv-screen="comparison-refused">
           <p className={styles.eyebrow}>COMPARISON UNAVAILABLE</p>
-          <h1 data-stage-focus tabIndex={-1}>Comparison unavailable</h1>
+          <h1 data-stage-focus tabIndex={-1}>
+            Comparison unavailable
+          </h1>
           <p>These scans could not be compared under the same conditions.</p>
           <button
             type="button"
@@ -81,8 +95,7 @@ export function HumanButterProductionJourney() {
   }
 
   const needsDemoSession =
-    state.stage === 'camera' &&
-    state.analysisError?.code === 'unauthorized_demo_session';
+    state.stage === 'camera' && state.analysisError?.code === 'unauthorized_demo_session';
 
   return (
     <>

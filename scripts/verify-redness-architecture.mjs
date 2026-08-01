@@ -83,6 +83,14 @@ for (const file of captureSourceFiles) {
   }
 }
 
+for (const file of sourceFiles.filter((file) => file.endsWith('.tsx'))) {
+  const path = relative(rootPath, file);
+  const source = await readFile(file, 'utf8');
+  if (/symptoms?.*(recommendedAction|safetyStatus)|severity.*safetyStatus/is.test(source)) {
+    violations.push(`${path} maps symptoms or severity directly to verdict or safety state`);
+  }
+}
+
 const evaluatorOwners = [];
 for (const file of sourceFiles) {
   const source = await readFile(file, 'utf8');
@@ -418,6 +426,45 @@ for (const retiredFirstTrialBridge of [
   }
 }
 
+const trialTruthReducer = await readFile(
+  new URL('../src/app/trialTruthMachine.ts', import.meta.url),
+  'utf8',
+);
+for (const requiredBoundary of [
+  'trialTruthMatchesCurrentTrial',
+  "case 'COMPARISON_CREATED'",
+  'applyTrialTruthToRednessEvaluation',
+]) {
+  if (!trialTruthReducer.includes(requiredBoundary)) {
+    violations.push(`Trial truth reducer boundary is missing ${requiredBoundary}`);
+  }
+}
+for (const forbiddenTrialTruthDependency of ['adapters/camera', 'analysis/youcam/contracts']) {
+  if (trialTruthReducer.includes(forbiddenTrialTruthDependency)) {
+    violations.push(
+      `Trial truth reducer crosses into camera or provider code through ${forbiddenTrialTruthDependency}`,
+    );
+  }
+}
+
+const trialTruthSurface = await readFile(
+  new URL('../src/features/trial-truth/TrialTruthSurface.tsx', import.meta.url),
+  'utf8',
+);
+for (const forbiddenUiDecision of [
+  'evaluateRedness',
+  'safetyStatus',
+  'recommendedAction',
+  'effectClassification',
+  'attributionQuality',
+]) {
+  if (trialTruthSurface.includes(forbiddenUiDecision)) {
+    violations.push(
+      `TrialTruthSurface.tsx contains UI-side decision logic through ${forbiddenUiDecision}`,
+    );
+  }
+}
+
 const reducer = await readFile(new URL('../src/app/phaseBMachine.ts', import.meta.url), 'utf8');
 if (!reducer.includes('buildMvpRednessEvaluation')) {
   violations.push('phaseBMachine.ts is not wired to the canonical redness evidence adapter');
@@ -456,6 +503,25 @@ for (const forbiddenPresentationDependency of [
     violations.push(
       `evidenceRecordViewModel.ts references scientific decision dependency ${forbiddenPresentationDependency}`,
     );
+  }
+}
+
+const trialTruthPresentationFiles = sourceFiles.filter((file) =>
+  relative(rootPath, file).startsWith('features/trial-truth/'),
+);
+for (const file of trialTruthPresentationFiles) {
+  const path = relative(rootPath, file);
+  const source = await readFile(file, 'utf8');
+  for (const forbiddenDecisionIdentifier of [
+    'safety_interruption',
+    'retry_alone',
+    'not_proving_job',
+  ]) {
+    if (source.includes(forbiddenDecisionIdentifier)) {
+      violations.push(
+        `${path} contains trial-truth scientific decision identifier ${forbiddenDecisionIdentifier}`,
+      );
+    }
   }
 }
 

@@ -68,9 +68,7 @@ export const emptyTrialTruthDraft = (): TrialTruthDraft => ({
   visibleChange: null,
 });
 
-export function adherenceEvidenceForAnswer(
-  answer: TrialTruthAdherenceAnswer,
-): AdherenceEvidence {
+export function adherenceEvidenceForAnswer(answer: TrialTruthAdherenceAnswer): AdherenceEvidence {
   switch (answer) {
     case 'yes':
       return { status: 'complete' };
@@ -140,8 +138,7 @@ export function commitTrialTruth(input: {
     return null;
   }
 
-  const symptoms =
-    input.draft.tolerance === 'none' ? [] : [...new Set(input.draft.symptoms)];
+  const symptoms = input.draft.tolerance === 'none' ? [] : [...new Set(input.draft.symptoms)];
   return {
     generationId: input.generationId,
     adherence: adherenceEvidenceForAnswer(input.draft.adherence),
@@ -201,11 +198,7 @@ export function anchorRelationshipFor(
   if (!patientAnchor) return 'not_collected';
   if (patientAnchor.visibleChange === 0) return 'neutral';
   const objectiveDirection =
-    effect === 'worsened'
-      ? -1
-      : effect === 'no_detectable_change' || effect === null
-        ? 0
-        : 1;
+    effect === 'worsened' ? -1 : effect === 'no_detectable_change' || effect === null ? 0 : 1;
   if (objectiveDirection === 0) return 'contradicted';
   return Math.sign(patientAnchor.visibleChange) === objectiveDirection ? 'agreed' : 'contradicted';
 }
@@ -214,11 +207,7 @@ export function trialTruthEvidenceFromSnapshot(
   snapshot: RednessEvaluationSnapshot,
   generationId: string,
 ): TrialTruthEvidence | null {
-  if (
-    !snapshot.patientAnchor ||
-    !snapshot.tolerance ||
-    snapshot.adherence.status === 'unknown'
-  ) {
+  if (!snapshot.patientAnchor || !snapshot.tolerance || snapshot.adherence.status === 'unknown') {
     return null;
   }
   return {
