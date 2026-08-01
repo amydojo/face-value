@@ -270,7 +270,7 @@ async function submitTrialTruth(page: Page, scenario: TrialScenario): Promise<vo
   expect(committed.record).toBeNull();
   expect(committed.archive).toHaveLength(0);
 
-  await page.getByRole('button', { name: /CONTINUE TO RESULT/i }).click();
+  await page.getByRole('button', { name: 'NOTHING DIFFERENT' }).click();
   await expect(page.locator('[data-fv-screen="oracle-reveal"]')).toBeVisible();
   await expect(page.locator('[data-oracle-scene-state="sealed"]')).toBeVisible();
 }
