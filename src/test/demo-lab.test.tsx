@@ -91,6 +91,12 @@ describe('canonical typed fixture states', () => {
 
     saveDemoJourney(launch, localStorage, '2026-07-28T12:00:00.000Z');
     const restored = loadDemoJourney();
+    const restoredEvaluation = restored?.state.record?.rednessEvaluation;
+    const expectedAction =
+      fixture.id === 'legacy_trial_truth_not_collected'
+        ? 'test_longer'
+        : evaluateRedness(canonicalRednessFixtures[fixture.canonicalKey]).interpretation
+            .recommendedAction;
 
     expect(restored).toMatchObject({
       schemaVersion: DEMO_ENVELOPE_SCHEMA,
@@ -99,10 +105,13 @@ describe('canonical typed fixture states', () => {
       resultFixture: fixture.id,
     });
     expect(restored?.state.record?.demoOriginated).toBe(true);
-    expect(restored?.state.record?.rednessEvaluation?.interpretation.recommendedAction).toBe(
-      evaluateRedness(canonicalRednessFixtures[fixture.canonicalKey]).interpretation
-        .recommendedAction,
-    );
+    expect(restoredEvaluation?.interpretation.recommendedAction).toBe(expectedAction);
+    if (fixture.id === 'legacy_trial_truth_not_collected') {
+      expect(restoredEvaluation?.adherence.status).toBe('unknown');
+      expect(restoredEvaluation?.tolerance).toBeNull();
+      expect(restoredEvaluation?.patientAnchor).toBeNull();
+      expect(restored?.state.record?.trialTruth).toBeUndefined();
+    }
   });
 
   it.each(DEMO_STARTING_POINTS)('builds a valid $label application state', (startingPoint) => {
