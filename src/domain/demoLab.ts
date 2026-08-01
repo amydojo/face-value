@@ -138,7 +138,7 @@ export const DEMO_RESULT_FIXTURES = [
   {
     id: 'contradictory_anchor',
     label: 'Contradictory participant anchor',
-    canonicalKey: 'A',
+    canonicalKey: 'C',
   },
   {
     id: 'legacy_trial_truth_not_collected',
