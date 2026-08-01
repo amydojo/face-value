@@ -205,8 +205,8 @@ function evaluatedState(resultFixture: DemoResultFixtureId): {
         : analysis.comparison === 'not_available'
           ? null
           : analysis.comparison,
-    baselineCapture: baselineBurst.acceptedFrames[0].capture,
-    followupCapture: followUpBurst.acceptedFrames[0].capture,
+    baselineCapture: { ...baselineBurst.acceptedFrames[0].capture },
+    followupCapture: { ...followUpBurst.acceptedFrames[0].capture },
     analysis,
     record: null,
     archive: [],
