@@ -276,6 +276,12 @@
   flex-wrap: wrap;
 }
 
+.runtimeBannerClearance {
+  min-height: calc(74px + max(10px, env(safe-area-inset-bottom)));
+  flex: 0 0 auto;
+  pointer-events: none;
+}
+
 .runtimeBanner {
   position: fixed;
   z-index: 1200;
@@ -296,6 +302,7 @@
   background: rgba(11, 11, 10, 0.96);
   box-shadow: 0 14px 38px rgba(0, 0, 0, 0.4);
   font-family: var(--fv-font-mono);
+  pointer-events: none;
 }
 
 .runtimeBanner span,
@@ -329,6 +336,7 @@
   font-size: 0.68rem;
   font-weight: 800;
   text-decoration: none;
+  pointer-events: auto;
 }
 
 .runtimeBanner a:focus-visible {
