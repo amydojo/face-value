@@ -48,6 +48,10 @@ Legacy records without trial truth remain readable and display `Not collected`. 
 
 The existing global redness architecture checks continue to reject scientific imports and evaluator ownership drift across production source files. Issue #64 adds a narrower presentation-boundary check under `src/features/trial-truth` for direct scientific decision identifiers such as safety interruption and action outcomes. The narrower check prevents the trial-truth form from interpreting answers while allowing existing saved-verdict renderers to display evaluator-owned snapshot values.
 
+## Verification references
+
+The production golden path completes the required checkpoint before follow-up capture context. The only refreshed Linux WebKit reference is the Evidence Record full-disclosure image whose intentional difference is the honest legacy `Not collected` trial-truth snapshot.
+
 ## Explicit exclusions
 
 Issue #64 does not include calibration, release gating, threshold changes, evaluator precedence changes, new objective signals, camera changes, provider changes, medical diagnosis, free-form symptom interpretation, or LLM-generated verdict wording.
