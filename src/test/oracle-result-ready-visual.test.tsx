@@ -5,6 +5,7 @@ import {
   type OracleSpecimenIdentity,
 } from '../features/oracle-reveal/IdentityLockSpecimen';
 import type { SpecimenRegistrationSnapshot } from '../domain/specimenRegistration';
+import choreographyCss from '../styles/oracle-specimen-choreography.css?raw';
 
 const identity: OracleSpecimenIdentity = {
   productId: 'product-azelaic-10',
@@ -39,7 +40,7 @@ function renderResultReady(state = 'sealed') {
 }
 
 describe('Oracle result-ready specimen presentation', () => {
-  it('keeps one canonical registered specimen grounded inside the Oracle chamber', () => {
+  it('keeps one canonical registered specimen and its complete identity through the ceremony', () => {
     renderResultReady();
 
     const specimens = document.querySelectorAll('[data-oracle-specimen]');
@@ -48,7 +49,6 @@ describe('Oracle result-ready specimen presentation', () => {
     expect(specimens).toHaveLength(1);
     expect(specimen).toHaveAttribute('data-specimen-renderer', 'identity-lock');
     expect(specimen).toHaveAttribute('data-specimen-coordinate-system', 'oracle-chamber');
-    expect(specimen).toHaveAttribute('data-specimen-grounding', 'registered-platform');
     expect(specimen).toHaveAttribute('data-specimen-id', identity.productId);
     expect(specimen).toHaveAttribute('data-specimen-accession', identity.accession);
     expect(specimen).toHaveAttribute('data-specimen-brand', identity.brand);
@@ -61,44 +61,47 @@ describe('Oracle result-ready specimen presentation', () => {
     expect(specimen.querySelector('[data-specimen-layer="evidence-lock-strip"]')).toBeTruthy();
   });
 
-  it('limits the restrained amber completion field to the sealed result-ready state', () => {
-    renderResultReady();
-
-    const contract = document.querySelector<HTMLStyleElement>(
-      '[data-oracle-result-ready-presentation]',
-    );
-    const css = contract?.textContent ?? '';
-
-    expect(contract).toHaveAttribute('data-completion-field-state', 'sealed-only');
-    expect(contract).toHaveAttribute('data-completion-field-cycle-ms', '3600');
-    expect(contract).toHaveAttribute('data-completion-field-scientific-meaning', 'none');
-    expect(css).toContain("[data-oracle-state='sealed']");
-    expect(css).toContain("[data-specimen-state='verdict']::after");
-    expect(css).toContain('animation: oracleSealedHoldingGlow 3.6s ease-in-out infinite;');
-    expect(css).not.toContain("[data-oracle-state='opening']");
-    expect(css).not.toContain("[data-oracle-state='transmitting']");
-    expect(css).not.toContain("[data-oracle-state='verdict_revealed']");
-    expect(css).not.toContain("[data-oracle-state='committing']");
-    expect(css).not.toContain("[data-oracle-state='dispensing']");
-    expect(css).not.toContain("[data-oracle-state='collected']");
+  it('holds the sealed specimen at true center without a visible registration shelf', () => {
+    expect(choreographyCss).toContain("[data-oracle-state='sealed']");
+    expect(choreographyCss).toContain('left: 50%;');
+    expect(choreographyCss).toContain('top: 103%;');
+    expect(choreographyCss).toContain('border: 0;');
+    expect(choreographyCss).toContain("[data-specimen-layer='contact-shadow']");
+    expect(choreographyCss).toContain('transform: scale(0.82);');
   });
 
-  it('locks the centered geometry, grounding shelf, and reduced-motion static field', () => {
-    renderResultReady();
-
-    const contract = document.querySelector<HTMLStyleElement>(
-      '[data-oracle-result-ready-presentation]',
+  it('docks magnetically during opening and remains right-locked for every result phase', () => {
+    expect(choreographyCss).toContain("[data-oracle-state='opening']");
+    expect(choreographyCss).toContain(
+      'animation: oracleSpecimenMagneticDock var(--oracle-opening-duration, 400ms)',
     );
-    const css = contract?.textContent ?? '';
+    expect(choreographyCss).toContain('@keyframes oracleSpecimenMagneticDock');
+    expect(choreographyCss).toContain('left: 73.4%;');
+    expect(choreographyCss).toContain('left: 72%;');
 
-    expect(css).toContain('top: 18.5%;');
-    expect(css).toContain('left: 55%;');
-    expect(css).toContain('right: auto;');
-    expect(css).toContain('transform: translateX(-50%);');
-    expect(css).toContain("[data-specimen-state='verdict']::before");
-    expect(css).toContain('border-top: 1px solid rgba(231, 180, 116, 0.12);');
-    expect(css).toContain('@media (prefers-reduced-motion: reduce)');
-    expect(css).toContain('animation: none !important;');
-    expect(css).toContain('opacity: 0.27;');
+    for (const phase of [
+      'transmitting',
+      'verdict_revealed',
+      'committing',
+      'dispensing',
+      'collected',
+    ]) {
+      expect(choreographyCss).toContain(`[data-oracle-state='${phase}']`);
+    }
+  });
+
+  it('breathes only while sealed, then carries a quiet static dock field', () => {
+    expect(choreographyCss).toContain('animation: oracleSealedHoldingGlow 3.6s ease-in-out infinite;');
+    expect(choreographyCss).toContain('Once authorized, a quieter static field');
+    expect(choreographyCss).toContain('opacity: 0.13;');
+    expect(choreographyCss).toContain('animation: none;');
+  });
+
+  it('removes specimen travel under Reduce Motion while preserving both final positions', () => {
+    expect(choreographyCss).toContain('@media (prefers-reduced-motion: reduce)');
+    expect(choreographyCss).toContain("[data-oracle-state='opening']");
+    expect(choreographyCss).toContain('left: 72%;');
+    expect(choreographyCss).toContain('animation: none;');
+    expect(choreographyCss).toContain('opacity: 0.27;');
   });
 });
