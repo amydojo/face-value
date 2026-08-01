@@ -27,32 +27,23 @@ jobs:
 
           path = Path('e2e/golden-path.spec.ts')
           source = path.read_text()
-          old = '''  await expect(
+          marker = """  await expect(
             page.getByRole('heading', {
               name: 'Anything meaningfully different today?',
             }),
           ).toBeVisible({ timeout: 5_000 });
-          await expect(page.locator(`[data-fv-screen="${kind}-context"]`)).toBeVisible();
-          await page.getByRole('button', { name: 'NOTHING DIFFERENT' }).click();
-          '''
-          new = '''  if (kind === 'followup') {
-            await expect(page.locator('[data-fv-screen="trial-truth"]')).toBeVisible({ timeout: 5_000 });
+          """
+          block = """  if (kind === 'followup') {
+            await expect(page.locator('[data-fv-screen=\"trial-truth\"]')).toBeVisible({ timeout: 5_000 });
             await page.getByRole('radio', { name: 'Yes' }).check();
             await page.getByRole('radio', { name: 'None' }).check();
             await page.getByRole('radio', { name: 'Less' }).check();
             await page.getByRole('button', { name: 'CONTINUE TO RESULT' }).click();
           }
-          await expect(
-            page.getByRole('heading', {
-              name: 'Anything meaningfully different today?',
-            }),
-          ).toBeVisible({ timeout: 5_000 });
-          await expect(page.locator(`[data-fv-screen="${kind}-context"]`)).toBeVisible();
-          await page.getByRole('button', { name: 'NOTHING DIFFERENT' }).click();
-          '''
-          if source.count(old) != 1:
-              raise SystemExit('golden-path patch anchor did not match exactly once')
-          path.write_text(source.replace(old, new))
+          """
+          if source.count(marker) != 1:
+              raise SystemExit(f'golden-path marker count was {source.count(marker)}, expected 1')
+          path.write_text(source.replace(marker, block + marker))
           PY
 
           actual="$(find /tmp/playwright-evidence -name evidence-record-full-expanded-actual.png -print -quit)"
