@@ -27,6 +27,15 @@ const registration: SpecimenRegistrationSnapshot = {
   reducedMotion: false,
 };
 
+const authoredVerdictLines = [
+  ['VISIBLE REDNESS', 'IMPROVED ACROSS', 'COMPARABLE SCANS.'],
+  ['VISIBLE REDNESS', 'MOVED IN A', 'FAVORABLE DIRECTION.'],
+  ['NO DETECTABLE', 'IMPROVEMENT', 'SHOWED UP.'],
+  ['THIS COMPARISON', 'WAS NOT', 'READABLE.'],
+  ['THE TRIAL', 'DID NOT ISOLATE', 'THIS PRODUCT.'],
+  ['VISIBLE REDNESS', 'WORSENED ACROSS', 'COMPARABLE SCANS.'],
+] as const;
+
 function renderResultReady(state = 'sealed') {
   return render(
     <div data-oracle-machine data-cassette-variant="reveal" data-oracle-state={state}>
@@ -61,10 +70,10 @@ describe('Oracle result-ready specimen presentation', () => {
     expect(specimen.querySelector('[data-specimen-layer="evidence-lock-strip"]')).toBeTruthy();
   });
 
-  it('holds the canonical wrapper and sealed specimen at true center without changing the dock', () => {
-    expect(choreographyCss).toContain('--oracle-specimen-dock-offset: clamp(54px, 16.5vw, 74px);');
+  it('holds the sealed specimen at true center and moves the dock only modestly farther right', () => {
+    expect(choreographyCss).toContain('--oracle-specimen-dock-offset: clamp(60px, 18.2vw, 80px);');
     expect(choreographyCss).not.toContain(
-      '--oracle-specimen-dock-offset: clamp(46px, 14.6vw, 63px);',
+      '--oracle-specimen-dock-offset: clamp(54px, 16.5vw, 74px);',
     );
     expect(choreographyCss).toContain('left: 50%;');
     expect(choreographyCss).toContain('top: 106%;');
@@ -72,7 +81,7 @@ describe('Oracle result-ready specimen presentation', () => {
     expect(choreographyCss).toContain('transform: scale(0.76);');
   });
 
-  it('reserves a bounded left firmware lane for verdict and trial metadata', () => {
+  it('reserves a full-width header, bounded copy lane, and stable NEXT row', () => {
     expect(choreographyCss).toContain('--oracle-verdict-copy-lane: 57%;');
     expect(choreographyCss).toContain(
       '--oracle-verdict-lane-gap: clamp(12px, 3.6vw, 16px);',
@@ -80,32 +89,43 @@ describe('Oracle result-ready specimen presentation', () => {
     expect(choreographyCss).toContain(
       'grid-template-columns: minmax(0, var(--oracle-verdict-copy-lane)) minmax(0, 1fr);',
     );
-    expect(choreographyCss).toContain('[data-firmware-state] > header');
-    expect(choreographyCss).toContain('[data-firmware-state]\n  > div:first-of-type');
-    expect(choreographyCss).toContain('[data-firmware-state]\n  [data-oracle-finding]');
-    expect(choreographyCss).toContain('max-width: 100%;');
+    expect(choreographyCss).toContain(
+      'grid-template-rows: 26px minmax(62px, 1fr) minmax(42px, 0.7fr);',
+    );
+    expect(choreographyCss).toContain('grid-column: 1 / -1;');
+    expect(choreographyCss).toContain('justify-content: space-between;');
+    expect(choreographyCss).toContain('text-align: right;');
+    expect(choreographyCss).toContain('grid-row: 3;');
+    expect(choreographyCss).toContain('padding-top: clamp(6px, 1.8vw, 8px);');
   });
 
-  it('keeps comparable scans together without changing source verdict copy or the specimen dock', () => {
-    expect(choreographyCss).toContain(
-      "[aria-label*='Visible redness worsened across comparable scans.']",
-    );
+  it('projects every frozen verdict into exactly three authored non-wrapping visual lines', () => {
+    expect(authoredVerdictLines.every((lines) => lines.length <= 3)).toBe(true);
+    expect(choreographyCss).toContain('white-space: pre;');
     expect(choreographyCss).toContain('font-size: clamp(10.5px, 3.05vw, 12.4px);');
-    expect(choreographyCss).toContain('overflow-wrap: normal;');
-    expect(choreographyCss).toContain('word-break: normal;');
-    expect(choreographyCss).toContain('text-wrap: balance;');
-    expect(choreographyCss).toContain('--oracle-verdict-copy-lane: 57%;');
-    expect(choreographyCss).toContain('--oracle-specimen-dock-offset: clamp(54px, 16.5vw, 74px);');
+    expect(choreographyCss).toContain('font-size: clamp(11.5px, 3.45vw, 14px);');
+
+    for (const lines of authoredVerdictLines) {
+      expect(choreographyCss).toContain(`content: '${lines.join('\\A ')}';`);
+    }
+
+    expect(choreographyCss).toContain('COMPARABLE SCANS.');
+    expect(choreographyCss).toContain('FAVORABLE DIRECTION.');
+    expect(choreographyCss).toContain('color: transparent;');
+    expect(choreographyCss).toContain('font-size: 0;');
   });
 
-  it('translates only rendered layers during opening and keeps them docked for every result phase', () => {
-    expect(choreographyCss).toContain("[data-oracle-state='opening']");
+  it('uses a delayed Apple-like precision glide without moving the canonical wrapper', () => {
+    expect(choreographyCss).toContain('--oracle-dock-delay: 180ms;');
+    expect(choreographyCss).toContain('--oracle-dock-duration: 480ms;');
+    expect(choreographyCss).toContain('--oracle-dock-ease: cubic-bezier(0.22, 1, 0.36, 1);');
     expect(choreographyCss).toContain('> :not(style)');
-    expect(choreographyCss).toContain(
-      'transition: translate var(--oracle-opening-duration, 400ms)',
-    );
-    expect(choreographyCss).toContain('cubic-bezier(0.16, 1.08, 0.3, 1)');
     expect(choreographyCss).toContain('translate: var(--oracle-specimen-dock-offset) 0;');
+    expect(choreographyCss).toContain('@keyframes oracleFieldRelease');
+    expect(choreographyCss).toContain('@keyframes oracleShadowTighten');
+    expect(choreographyCss).toContain('@keyframes oracleDockCapture');
+    expect(choreographyCss).toContain('@keyframes oracleFirmwareUncover');
+    expect(choreographyCss).toContain('animation: oracleFirmwareUncover 260ms');
 
     for (const phase of [
       'transmitting',
@@ -118,18 +138,28 @@ describe('Oracle result-ready specimen presentation', () => {
     }
   });
 
+  it('keeps an active dock field after authorization and dims it through record completion', () => {
+    expect(choreographyCss).toContain('Once authorized, a compact static field');
+    expect(choreographyCss).toContain('animation: oracleDockCapture 280ms');
+    expect(choreographyCss).toContain("[data-specimen-layer='right-rim']");
+    expect(choreographyCss).toContain("[data-specimen-layer='base-reflection']");
+    expect(choreographyCss).toContain("[data-oracle-state='committing']");
+    expect(choreographyCss).toContain('opacity: 0.13;');
+    expect(choreographyCss).toContain("[data-oracle-state='dispensing']");
+    expect(choreographyCss).toContain('opacity: 0.09;');
+    expect(choreographyCss).toContain("[data-oracle-state='collected']");
+    expect(choreographyCss).toContain('opacity: 0.06;');
+  });
+
   it('generates a visible breathing field only while sealed', () => {
     expect(choreographyCss).toContain("content: '';\n  translate: 0 0;");
     expect(choreographyCss).toContain('animation: oracleSealedHoldingGlow 3.6s ease-in-out infinite;');
     expect(choreographyCss).toContain('@keyframes oracleSealedHoldingGlow');
     expect(choreographyCss).toContain('opacity: 0.5;');
     expect(choreographyCss).toContain('transform: scale(1.06);');
-    expect(choreographyCss).toContain('Once authorized, a quieter static field');
-    expect(choreographyCss).toContain('opacity: 0.13;');
-    expect(choreographyCss).toContain('animation: none;');
   });
 
-  it('removes specimen travel and aura breathing under Reduce Motion', () => {
+  it('removes travel, field contraction, capture, and firmware stagger under Reduce Motion', () => {
     expect(choreographyCss).toContain('@media (prefers-reduced-motion: reduce)');
     expect(choreographyCss).toContain('transition: none;');
     expect(choreographyCss).toContain('translate: var(--oracle-specimen-dock-offset) 0;');
