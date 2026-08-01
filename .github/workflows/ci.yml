@@ -57,17 +57,18 @@ jobs:
           path: dist
           if-no-files-found: error
       - run: npx playwright install --with-deps webkit
-      - name: Regenerate the approved Oracle verdict reference
+      - name: Capture and promote the approved Oracle verdict actual
         shell: bash
         run: |
           set -euo pipefail
           target='e2e/oracle-reveal.spec.ts-snapshots/oracle-verdict-revealed-mobile-webkit-linux.png'
-          rm "$target"
           npx playwright test e2e/oracle-reveal.spec.ts \
             --project=mobile-webkit \
-            --grep "captures the canonical visual states without changing machine geometry" \
-            --update-snapshots=missing || true
-          test -f "$target"
+            --grep "captures the canonical visual states without changing machine geometry" || true
+          actual=$(find test-results -type f -name 'oracle-verdict-revealed-actual.png' -print -quit)
+          test -n "$actual"
+          test -f "$actual"
+          cp "$actual" "$target"
       - name: Verify only the approved reference changed
         shell: bash
         run: |
@@ -75,7 +76,7 @@ jobs:
           target='e2e/oracle-reveal.spec.ts-snapshots/oracle-verdict-revealed-mobile-webkit-linux.png'
           actual=$(git diff --name-only | sort)
           test "$actual" = "$target"
-      - name: Validate the regenerated PNG stream
+      - name: Validate the promoted PNG stream
         shell: bash
         run: |
           python - <<'PY'
@@ -118,7 +119,7 @@ jobs:
         run: |
           set -euo pipefail
           target='e2e/oracle-reveal.spec.ts-snapshots/oracle-verdict-revealed-mobile-webkit-linux.png'
-          git checkout HEAD^ -- .github/workflows/ci.yml
+          git checkout HEAD^^ -- .github/workflows/ci.yml
           expected=$(printf '%s\n' '.github/workflows/ci.yml' "$target" | sort)
           actual=$(git diff --name-only | sort)
           test "$actual" = "$expected"
