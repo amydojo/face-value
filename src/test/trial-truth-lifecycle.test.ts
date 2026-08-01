@@ -135,12 +135,8 @@ describe('trial truth exactly-once lifecycle', () => {
     const second = faceValueReducer(first, { type: 'COMPARISON_CREATED' });
 
     expect(first.longitudinalEvidence.comparison).not.toBeNull();
-    expect(second.longitudinalEvidence.comparison).toEqual(
-      first.longitudinalEvidence.comparison,
-    );
-    expect(second.longitudinalEvidence.evaluation).toEqual(
-      first.longitudinalEvidence.evaluation,
-    );
+    expect(second.longitudinalEvidence.comparison).toEqual(first.longitudinalEvidence.comparison);
+    expect(second.longitudinalEvidence.evaluation).toEqual(first.longitudinalEvidence.evaluation);
     expect(second.analysis).toEqual(first.analysis);
     expect(second.trialTruthEvidence).toEqual(first.trialTruthEvidence);
   });
@@ -173,6 +169,41 @@ describe('trial truth exactly-once lifecycle', () => {
     expect(duplicate.record).toEqual(collected.record);
     expect(duplicate.archive).toEqual(collected.archive);
   });
+
+  it('keeps one byte-equivalent evaluation through result, placement, Oracle, Home, history, and record state', () => {
+    let state = comparedState();
+    const evaluation = state.longitudinalEvidence.evaluation;
+    if (!evaluation || !state.analysis?.rednessEvaluation) {
+      throw new Error('Expected one canonical compared evaluation.');
+    }
+    const serialized = JSON.stringify(evaluation);
+
+    expect(JSON.stringify(state.analysis.rednessEvaluation)).toBe(serialized);
+    expect(state.placement).toBe('paused');
+
+    state = faceValueReducer(state, { type: 'REVEAL_STARTED' });
+    state = faceValueReducer(state, { type: 'REVEAL_PULL_COMPLETED' });
+    state = faceValueReducer(state, { type: 'TRANSMISSION_COMPLETED' });
+    state = faceValueReducer(state, {
+      type: 'RECOMMENDATION_ACCEPTED',
+      placement: state.placement,
+      now: recordedAt,
+    });
+    state = faceValueReducer(state, { type: 'DISPENSE_STARTED' });
+    state = faceValueReducer(state, { type: 'EVIDENCE_DISPENSED' });
+    state = faceValueReducer(state, { type: 'EVIDENCE_COLLECTION_STARTED' });
+    state = faceValueReducer(state, { type: 'EVIDENCE_COLLECTED' });
+
+    expect(JSON.stringify(state.longitudinalEvidence.evaluation)).toBe(serialized);
+    expect(JSON.stringify(state.analysis?.rednessEvaluation)).toBe(serialized);
+    expect(JSON.stringify(state.record?.rednessEvaluation)).toBe(serialized);
+    expect(JSON.stringify(state.archive[0]?.rednessEvaluation)).toBe(serialized);
+    expect(state.record?.finalPlacement).toBe(state.placement);
+
+    const duplicate = faceValueReducer(state, { type: 'EVIDENCE_COLLECTED' });
+    expect(duplicate.record).toEqual(state.record);
+    expect(duplicate.archive).toEqual(state.archive);
+  });
 });
 
 describe('trial truth persistence and legacy honesty', () => {
@@ -188,10 +219,7 @@ describe('trial truth persistence and legacy honesty', () => {
   });
 
   it('hydrates a legacy saved record without fabricated trial truth defaults', () => {
-    const legacy = buildDemoFixtureState(
-      'saved_result',
-      'legacy_trial_truth_not_collected',
-    );
+    const legacy = buildDemoFixtureState('saved_result', 'legacy_trial_truth_not_collected');
     const storage = new MemoryStorage();
     saveTrialTruthStructuredData(legacy, storage);
 

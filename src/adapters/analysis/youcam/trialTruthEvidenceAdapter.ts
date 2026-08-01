@@ -21,11 +21,20 @@ const cloneSession = (session: EvidenceSession): EvidenceSession => ({
   versions: { ...session.versions },
 });
 
+const objectiveFingerprint = (snapshot: RednessEvaluationSnapshot): string =>
+  JSON.stringify({
+    baselineRawMedian: snapshot.baselineRawMedian,
+    endpointRawMedian: snapshot.endpointRawMedian,
+    rawScoreDelta: snapshot.rawScoreDelta,
+    threshold: snapshot.threshold,
+    effectClassification: snapshot.effectClassification,
+  });
+
 export function applyTrialTruthToRednessEvaluation(
   snapshot: RednessEvaluationSnapshot,
   evidence: TrialTruthEvidence,
 ): RednessEvaluationSnapshot {
-  return evaluateRedness({
+  const evaluation = evaluateRedness({
     frameworkVersion: snapshot.frameworkVersion,
     schemaVersion: snapshot.schemaVersion,
     trialId: snapshot.trialId,
@@ -48,4 +57,12 @@ export function applyTrialTruthToRednessEvaluation(
     secondProductStatus: snapshot.secondProductStatus,
     contextSignals: { ...snapshot.contextSignals },
   });
+
+  if (objectiveFingerprint(evaluation) !== objectiveFingerprint(snapshot)) {
+    throw new Error(
+      'Trial truth cannot alter redness medians, raw-score delta, thresholds, or objective effect classification.',
+    );
+  }
+
+  return evaluation;
 }

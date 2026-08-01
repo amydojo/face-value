@@ -102,10 +102,12 @@ async function takeGuidedCapture(page: Page, kind: 'baseline' | 'followup'): Pro
   );
   if (kind === 'followup') {
     await expect(page.locator('[data-fv-screen="trial-truth"]')).toBeVisible({ timeout: 5_000 });
-    await page.getByRole('radio', { name: 'Yes' }).check();
-    await page.getByRole('radio', { name: 'None' }).check();
-    await page.getByRole('radio', { name: 'Less' }).check();
-    await page.getByRole('button', { name: 'CONTINUE TO RESULT' }).click();
+    await page.getByRole('radio', { name: 'YES' }).check();
+    await page.getByRole('button', { name: 'Continue to skin response' }).click();
+    await page.getByRole('radio', { name: 'NONE' }).check();
+    await page.getByRole('button', { name: 'Continue to visible redness' }).click();
+    await page.getByRole('radio', { name: 'LESS' }).check();
+    await page.getByRole('button', { name: 'See result' }).click();
   }
   await expect(
     page.getByRole('heading', {

@@ -435,6 +435,29 @@
   font-family: var(--fv-font-mono);
 }
 
+.trialTruthFirmware {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  overflow: hidden;
+  color: #ebe4d7;
+  background:
+    linear-gradient(
+      90deg,
+      rgba(5, 5, 4, 0.95) 0%,
+      rgba(6, 6, 5, 0.88) 56%,
+      rgba(7, 7, 6, 0.72) 100%
+    ),
+    radial-gradient(circle at 50% 46%, rgba(133, 91, 45, 0.08), transparent 52%);
+  font-family: var(--fv-font-mono);
+}
+
+.machine[data-cassette-variant='trial-truth'] .displayGlass {
+  background:
+    radial-gradient(ellipse at 76% 42%, rgba(148, 101, 54, 0.14), transparent 34%),
+    linear-gradient(180deg, #050504, #15100c);
+}
+
 .machine[data-trial-machine-state='registration-preview'] .displayGlass {
   background:
     radial-gradient(ellipse at 72% 51%, rgba(113, 80, 45, 0.1), transparent 31%),
@@ -757,6 +780,43 @@
 .amberControl[data-amber-state='ready'] {
   border-color: #74552f;
   cursor: pointer;
+}
+
+.amberControl[data-amber-state='truth-ready'] {
+  border-color: rgba(128, 87, 43, 0.84);
+  cursor: pointer;
+}
+
+.amberControl[data-amber-state='truth-ready'] span {
+  background:
+    radial-gradient(circle at 42% 34%, rgba(255, 224, 181, 0.2), transparent 15%),
+    radial-gradient(circle at 50% 54%, #a85e1e, #714019 64%, #342011);
+  box-shadow:
+    inset 0 1px rgba(255, 232, 197, 0.22),
+    inset 0 -4px 6px rgba(65, 24, 5, 0.38);
+}
+
+.trialTruthControlLabel {
+  position: absolute;
+  right: 25.5%;
+  bottom: 6px;
+  z-index: 2;
+  width: 43%;
+  min-height: 44px;
+  display: grid;
+  place-items: center;
+  color: #c6beb0;
+  font: 650 8px/1 var(--fv-font-mono);
+  letter-spacing: 0.11em;
+  pointer-events: none;
+}
+
+.machine[data-cassette-variant='trial-truth'] .amberControl:disabled {
+  opacity: 1;
+}
+
+.machine[data-cassette-variant='trial-truth'] .pullHandle {
+  visibility: hidden;
 }
 
 .amberControl[data-amber-state='ready'] span {

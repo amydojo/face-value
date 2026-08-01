@@ -6,6 +6,7 @@ import {
   type AnimationEvent,
   type CSSProperties,
   type PointerEvent as ReactPointerEvent,
+  type ReactNode,
   type RefObject,
 } from 'react';
 import { browserHaptics, type HapticsAdapter } from '../../adapters/haptics/haptics';
@@ -455,6 +456,17 @@ export type OracleTrialStateMachineProps =
       intervalDays: number;
     };
 
+export type OracleTrialTruthMachineProps = {
+  product: RegisteredProduct;
+  step: 1 | 2 | 3;
+  view: 'question' | 'symptoms';
+  firmware: ReactNode;
+  controlLabel: 'CONTINUE' | 'DONE' | 'SEE RESULT';
+  controlAccessibleLabel: string;
+  controlEnabled: boolean;
+  onControl: () => void;
+};
+
 type OracleVerdictMachineProps = {
   variant?: 'reveal' | 'latest-verdict';
   phase: OracleRevealState;
@@ -485,7 +497,13 @@ type OracleTrialMachineProps = {
   intervalDays: number | null;
 };
 
-type OracleMachineProps = OracleVerdictMachineProps | OracleTrialMachineProps;
+type OracleTrialTruthMachineInternalProps = OracleTrialTruthMachineProps & {
+  variant: 'trial-truth';
+  specimenIdentity: OracleSpecimenIdentity;
+};
+
+type OracleMachineProps =
+  OracleVerdictMachineProps | OracleTrialMachineProps | OracleTrialTruthMachineInternalProps;
 
 const idleRegistrationSnapshot: SpecimenRegistrationSnapshot = {
   registrationId: null,
@@ -602,61 +620,83 @@ function TrialStateDisplay({
 
 function OracleMachine(props: OracleMachineProps) {
   const trialMachine = props.variant === 'trial-state' ? props : null;
-  const verdictMachine = props.variant === 'trial-state' ? null : props;
+  const trialTruthMachine = props.variant === 'trial-truth' ? props : null;
+  const verdictMachine =
+    props.variant === 'trial-state' || props.variant === 'trial-truth' ? null : props;
   const latestVerdict = verdictMachine?.variant === 'latest-verdict';
-  const phase = trialMachine ? 'done' : (verdictMachine?.phase ?? 'sealed');
+  const phase = trialMachine || trialTruthMachine ? 'done' : (verdictMachine?.phase ?? 'sealed');
   const viewModel = verdictMachine?.viewModel ?? null;
   const trialIdentity = verdictMachine?.trialIdentity ?? null;
   const record = verdictMachine?.record ?? null;
   const displayOn =
-    trialMachine !== null || latestVerdict || !['sealed', 'opening'].includes(phase);
+    trialMachine !== null ||
+    trialTruthMachine !== null ||
+    latestVerdict ||
+    !['sealed', 'opening'].includes(phase);
   const registration = trialMachine?.registration ?? {
     ...completedRegistrationSnapshot,
-    registrationId: verdictMachine?.specimenIdentity.productId ?? null,
+    registrationId:
+      trialTruthMachine?.specimenIdentity.productId ??
+      verdictMachine?.specimenIdentity.productId ??
+      null,
   };
   const ingestionPhase = registration.phase;
-  const specimenIdentity = trialMachine?.identity ?? verdictMachine?.specimenIdentity ?? null;
-  const amberState = trialMachine
-    ? trialMachine.trialState === 'followup-ready'
-      ? 'followup-ready'
-      : trialMachine.trialState === 'pending'
-        ? 'trial-pending'
-        : trialMachine.trialState === 'baseline-ready'
-          ? ingestionPhase === 'preparing'
-            ? 'specimen-preparing'
-            : ingestionPhase === 'aligning' || ingestionPhase === 'scanning'
-              ? 'specimen-registering'
-              : ingestionPhase === 'processing'
-                ? 'specimen-processing'
-                : ingestionPhase === 'verified'
-                  ? 'specimen-verified'
-                  : ingestionPhase === 'ready'
-                    ? 'baseline-ready'
-                    : 'idle'
-          : 'idle'
-    : latestVerdict
-      ? 'latest'
-      : phase === 'verdict_revealed'
-        ? 'ready'
-        : phase === 'committing'
-          ? 'committed'
-          : phase === 'dispensing'
-            ? 'dispensing'
-            : phase === 'collected'
-              ? 'complete'
-              : phase === 'transmitting'
-                ? 'transmitting'
-                : 'idle';
-  const cassetteVariant = trialMachine
-    ? 'trial-state'
-    : latestVerdict
-      ? 'latest-verdict'
-      : 'reveal';
-  const cassetteState = trialMachine
-    ? trialMachine.trialState
-    : latestVerdict
-      ? 'partially-revealed'
-      : phase;
+  const specimenIdentity =
+    trialMachine?.identity ??
+    trialTruthMachine?.specimenIdentity ??
+    verdictMachine?.specimenIdentity ??
+    null;
+  const amberState = trialTruthMachine
+    ? trialTruthMachine.controlEnabled
+      ? 'truth-ready'
+      : 'idle'
+    : trialMachine
+      ? trialMachine.trialState === 'followup-ready'
+        ? 'followup-ready'
+        : trialMachine.trialState === 'pending'
+          ? 'trial-pending'
+          : trialMachine.trialState === 'baseline-ready'
+            ? ingestionPhase === 'preparing'
+              ? 'specimen-preparing'
+              : ingestionPhase === 'aligning' || ingestionPhase === 'scanning'
+                ? 'specimen-registering'
+                : ingestionPhase === 'processing'
+                  ? 'specimen-processing'
+                  : ingestionPhase === 'verified'
+                    ? 'specimen-verified'
+                    : ingestionPhase === 'ready'
+                      ? 'baseline-ready'
+                      : 'idle'
+            : 'idle'
+      : latestVerdict
+        ? 'latest'
+        : phase === 'verdict_revealed'
+          ? 'ready'
+          : phase === 'committing'
+            ? 'committed'
+            : phase === 'dispensing'
+              ? 'dispensing'
+              : phase === 'collected'
+                ? 'complete'
+                : phase === 'transmitting'
+                  ? 'transmitting'
+                  : 'idle';
+  const cassetteVariant = trialTruthMachine
+    ? 'trial-truth'
+    : trialMachine
+      ? 'trial-state'
+      : latestVerdict
+        ? 'latest-verdict'
+        : 'reveal';
+  const cassetteState = trialTruthMachine
+    ? trialTruthMachine.view === 'symptoms'
+      ? 'symptoms'
+      : `step-${trialTruthMachine.step}`
+    : trialMachine
+      ? trialMachine.trialState
+      : latestVerdict
+        ? 'partially-revealed'
+        : phase;
   const registrationDraftDetails =
     trialMachine?.trialState === 'registration-preview' && trialMachine.identity
       ? [
@@ -667,27 +707,33 @@ function OracleMachine(props: OracleMachineProps) {
           trialMachine.identity.strength,
         ].filter((value): value is string => Boolean(value))
       : [];
-  const machineLabel = trialMachine
-    ? trialMachine.trialState === 'empty'
-      ? 'Empty Face Value instrument. No specimen loaded.'
-      : trialMachine.trialState === 'registration-preview'
-        ? `Product identity preview. The specimen has not been loaded.${
-            registrationDraftDetails.length > 0
-              ? ` Draft specimen: ${registrationDraftDetails.join(', ')}.`
-              : ''
-          }`
-        : trialMachine.trialState === 'baseline-ready'
-          ? ingestionPhase === 'ready'
-            ? `Baseline-ready Face Value instrument. Specimen loaded: ${trialMachine.product?.brand ?? ''}, ${trialMachine.product?.productName ?? ''}. Assigned job: Reduce visible redness. Ready to take the baseline scan.`
-            : `Face Value instrument registering specimen: ${trialMachine.product?.brand ?? ''}, ${trialMachine.product?.productName ?? ''}. Assigned job: Reduce visible redness.`
-          : `${trialMachine.trialState === 'followup-ready' ? 'Follow-up ready' : 'Trial pending'} for ${trialMachine.product?.brand ?? ''} ${trialMachine.product?.productName ?? ''}. Specimen loaded.`
-    : latestVerdict && viewModel && specimenIdentity
-      ? `Latest verdict cassette for ${oracleSpecimenIdentityLabel(specimenIdentity)}. ${viewModel.headline}`
-      : viewModel && specimenIdentity && (phase === 'sealed' || phase === 'opening')
-        ? `Sealed Face Value result cassette. Registered specimen remains loaded: ${oracleSpecimenIdentityLabel(specimenIdentity)}. Result content is unavailable until reveal.`
-        : viewModel && specimenIdentity
-          ? `Face Value result cassette for ${oracleSpecimenIdentityLabel(specimenIdentity)}. ${viewModel.headline}`
-          : 'Face Value result cassette.';
+  const machineLabel = trialTruthMachine
+    ? `Follow-up secured for ${oracleSpecimenIdentityLabel(
+        trialTruthMachine.specimenIdentity,
+      )}. Trial truth step ${trialTruthMachine.step} of 3${
+        trialTruthMachine.view === 'symptoms' ? ', symptom selection' : ''
+      }.`
+    : trialMachine
+      ? trialMachine.trialState === 'empty'
+        ? 'Empty Face Value instrument. No specimen loaded.'
+        : trialMachine.trialState === 'registration-preview'
+          ? `Product identity preview. The specimen has not been loaded.${
+              registrationDraftDetails.length > 0
+                ? ` Draft specimen: ${registrationDraftDetails.join(', ')}.`
+                : ''
+            }`
+          : trialMachine.trialState === 'baseline-ready'
+            ? ingestionPhase === 'ready'
+              ? `Baseline-ready Face Value instrument. Specimen loaded: ${trialMachine.product?.brand ?? ''}, ${trialMachine.product?.productName ?? ''}. Assigned job: Reduce visible redness. Ready to take the baseline scan.`
+              : `Face Value instrument registering specimen: ${trialMachine.product?.brand ?? ''}, ${trialMachine.product?.productName ?? ''}. Assigned job: Reduce visible redness.`
+            : `${trialMachine.trialState === 'followup-ready' ? 'Follow-up ready' : 'Trial pending'} for ${trialMachine.product?.brand ?? ''} ${trialMachine.product?.productName ?? ''}. Specimen loaded.`
+      : latestVerdict && viewModel && specimenIdentity
+        ? `Latest verdict cassette for ${oracleSpecimenIdentityLabel(specimenIdentity)}. ${viewModel.headline}`
+        : viewModel && specimenIdentity && (phase === 'sealed' || phase === 'opening')
+          ? `Sealed Face Value result cassette. Registered specimen remains loaded: ${oracleSpecimenIdentityLabel(specimenIdentity)}. Result content is unavailable until reveal.`
+          : viewModel && specimenIdentity
+            ? `Face Value result cassette for ${oracleSpecimenIdentityLabel(specimenIdentity)}. ${viewModel.headline}`
+            : 'Face Value result cassette.';
   const onReveal = verdictMachine?.onReveal ?? (() => undefined);
   const onOpeningComplete = verdictMachine?.onOpeningComplete ?? (() => undefined);
   const onTransmissionComplete = verdictMachine?.onTransmissionComplete ?? (() => undefined);
@@ -725,6 +771,8 @@ function OracleMachine(props: OracleMachineProps) {
       data-machine-material="carbon"
       data-machine-finish="smoked-graphite"
       data-machine-instance="face-value-oracle"
+      data-trial-truth-step={trialTruthMachine?.step}
+      data-trial-truth-view={trialTruthMachine?.view}
       aria-label={machineLabel}
     >
       <div className={styles.chassis} data-oracle-chassis>
@@ -738,6 +786,11 @@ function OracleMachine(props: OracleMachineProps) {
                 day={trialMachine.day}
                 intervalDays={trialMachine.intervalDays}
               />
+            )}
+            {trialTruthMachine && (
+              <div className={styles.trialTruthFirmware} data-oracle-trial-truth-firmware>
+                {trialTruthMachine.firmware}
+              </div>
             )}
             {!trialMachine && displayOn && !latestVerdict && viewModel && trialIdentity && (
               <FirmwareDisplay
@@ -756,11 +809,13 @@ function OracleMachine(props: OracleMachineProps) {
                 <span />
               </div>
             )}
-            <IdentityLockSpecimen
-              identity={specimenIdentity}
-              specimenState={trialMachine?.trialState ?? 'verdict'}
-              registration={registration}
-            />
+            {!trialTruthMachine && (
+              <IdentityLockSpecimen
+                identity={specimenIdentity}
+                specimenState={trialMachine?.trialState ?? 'verdict'}
+                registration={registration}
+              />
+            )}
             <div
               className={styles.glassReflection}
               data-oracle-glass-reflection
@@ -782,21 +837,52 @@ function OracleMachine(props: OracleMachineProps) {
             className={styles.amberControl}
             data-amber-state={amberState}
             data-oracle-amber-control
-            data-oracle-keep-action={!trialMachine && !latestVerdict ? 'hardware' : undefined}
-            aria-label={
-              !trialMachine && !latestVerdict && phase === 'verdict_revealed'
-                ? 'Keep this result'
-                : undefined
+            data-trial-truth-confirmation={trialTruthMachine ? '' : undefined}
+            data-trial-truth-control-label={trialTruthMachine?.controlLabel}
+            data-oracle-keep-action={
+              !trialMachine && !trialTruthMachine && !latestVerdict ? 'hardware' : undefined
             }
-            aria-hidden={Boolean(trialMachine || latestVerdict || phase !== 'verdict_revealed')}
-            tabIndex={!trialMachine && !latestVerdict && phase === 'verdict_revealed' ? 0 : -1}
-            disabled={Boolean(trialMachine || latestVerdict || phase !== 'verdict_revealed')}
-            onClick={onKeep}
+            aria-label={
+              trialTruthMachine
+                ? trialTruthMachine.controlAccessibleLabel
+                : !trialMachine && !latestVerdict && phase === 'verdict_revealed'
+                  ? 'Keep this result'
+                  : undefined
+            }
+            aria-hidden={
+              trialTruthMachine
+                ? false
+                : Boolean(trialMachine || latestVerdict || phase !== 'verdict_revealed')
+            }
+            tabIndex={
+              trialTruthMachine
+                ? trialTruthMachine.controlEnabled
+                  ? 0
+                  : -1
+                : !trialMachine && !latestVerdict && phase === 'verdict_revealed'
+                  ? 0
+                  : -1
+            }
+            disabled={
+              trialTruthMachine
+                ? !trialTruthMachine.controlEnabled
+                : Boolean(trialMachine || latestVerdict || phase !== 'verdict_revealed')
+            }
+            onClick={trialTruthMachine?.onControl ?? onKeep}
           >
             <span aria-hidden="true" />
           </button>
+          {trialTruthMachine && (
+            <span
+              className={styles.trialTruthControlLabel}
+              data-trial-truth-visible-control-label
+              aria-hidden="true"
+            >
+              {trialTruthMachine.controlEnabled ? trialTruthMachine.controlLabel : ''}
+            </span>
+          )}
           <OraclePullHandle
-            active={!trialMachine && !latestVerdict && phase === 'sealed'}
+            active={!trialMachine && !trialTruthMachine && !latestVerdict && phase === 'sealed'}
             phase={phase}
             product={
               trialMachine?.product?.productName ??
@@ -904,6 +990,16 @@ export function OracleTrialStateMachine(props: OracleTrialStateMachineProps) {
       intervalDays={
         props.state === 'pending' || props.state === 'followup-ready' ? props.intervalDays : null
       }
+    />
+  );
+}
+
+export function OracleTrialTruthMachine(props: OracleTrialTruthMachineProps) {
+  return (
+    <OracleMachine
+      variant="trial-truth"
+      {...props}
+      specimenIdentity={oracleSpecimenIdentityFromRegisteredProduct(props.product)}
     />
   );
 }

@@ -1,5 +1,9 @@
-import { useEffect, useMemo, useRef, type Dispatch } from 'react';
+import { useCallback, useEffect, useRef, useState, type Dispatch } from 'react';
 import { systemClock } from '../../adapters/clock/clock';
+import {
+  oracleSpecimenIdentityFromRegisteredProduct,
+  oracleSpecimenIdentityLabel,
+} from '../../adapters/product/specimenFromRegisteredProduct';
 import { useFaceValue } from '../../app/faceValueContext';
 import {
   normalizeTrialTruthState,
@@ -10,9 +14,10 @@ import {
 import { EvidenceShell, ScreenHeader } from '../../components/hardware';
 import {
   IRRITATION_SIGNALS,
-  validateTrialTruthDraft,
-  type TrialTruthGroup,
+  type TrialTruthDraft,
+  type TrialTruthToleranceAnswer,
 } from '../../domain/trialTruth';
+import { OracleTrialTruthMachine } from '../oracle-reveal/OracleRevealScene';
 import styles from './TrialTruthSurface.module.css';
 
 const symptomLabels = {
@@ -28,211 +33,330 @@ const symptomLabels = {
   unusual_sensitivity: 'Unusual sensitivity',
 } as const;
 
-const groupId = (group: TrialTruthGroup) => `trial-truth-${group}`;
+const adherenceOptions = [
+  ['yes', 'YES'],
+  ['mostly', 'MOSTLY'],
+  ['no', 'NO'],
+] as const;
+
+const toleranceOptions = [
+  ['none', 'NONE'],
+  ['mild', 'MILD'],
+  ['moderate', 'MODERATE'],
+  ['severe', 'SEVERE'],
+] as const;
+
+const visibleChangeOptions = [
+  ['less', 'LESS'],
+  ['same', 'SAME'],
+  ['more', 'MORE'],
+] as const;
+
+type TrialTruthStep = 1 | 2 | 3;
+type FirmwareView = 'question' | 'symptoms';
+type MotionDirection = 'forward' | 'back';
+
+const symptomsRequired = (tolerance: TrialTruthToleranceAnswer | null): boolean =>
+  tolerance === 'moderate' || tolerance === 'severe';
+
+const toleranceReady = (draft: TrialTruthDraft): boolean =>
+  draft.tolerance !== null && (!symptomsRequired(draft.tolerance) || draft.symptoms.length > 0);
+
+const initialStepForDraft = (draft: TrialTruthDraft): TrialTruthStep => {
+  if (draft.adherence === null) return 1;
+  if (!toleranceReady(draft)) return 2;
+  return 3;
+};
 
 export function TrialTruthSurface() {
   const context = useFaceValue();
   const state = normalizeTrialTruthState(context.state);
   const dispatch =
     context.dispatchTrialTruth ?? (context.dispatch as Dispatch<TrialTruthFaceValueEvent>);
-  const validation = state.trialTruthValidation;
-  const summaryRef = useRef<HTMLDivElement>(null);
-  const draftValidation = useMemo(
-    () => validateTrialTruthDraft(state.trialTruthDraft),
-    [state.trialTruthDraft],
+  const [step, setStep] = useState<TrialTruthStep>(() =>
+    initialStepForDraft(state.trialTruthDraft),
   );
+  const [view, setView] = useState<FirmwareView>('question');
+  const [motionDirection, setMotionDirection] = useState<MotionDirection>('forward');
+  const questionRef = useRef<HTMLHeadingElement>(null);
   const generationId = trialTruthGenerationFor(state);
-  const symptomsVisible =
-    state.trialTruthDraft.tolerance !== null && state.trialTruthDraft.tolerance !== 'none';
+  const product = state.registeredProduct;
+  const draft = state.trialTruthDraft;
+  const selectedSymptomLabels = draft.symptoms.map((symptom) => symptomLabels[symptom]);
+
+  const goBack = useCallback(() => {
+    setMotionDirection('back');
+    if (view === 'symptoms') {
+      setView('question');
+      return;
+    }
+    if (step > 1) {
+      setStep((current) => (current - 1) as TrialTruthStep);
+      return;
+    }
+    dispatch({ type: 'TRIAL_TRUTH_BACK' });
+  }, [dispatch, step, view]);
 
   useEffect(() => {
-    if (!validation || validation.valid || !validation.firstInvalidGroup) return;
-    summaryRef.current?.focus();
-    const target = document.getElementById(groupId(validation.firstInvalidGroup));
-    target?.focus();
-  }, [validation]);
+    questionRef.current?.focus({ preventScroll: true });
+  }, [step, view]);
 
-  if (trialTruthMatchesCurrentTrial(state)) return null;
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return;
+      event.preventDefault();
+      goBack();
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [goBack]);
 
-  return (
-    <EvidenceShell tone="dark" label="Face Value trial truth">
-      <ScreenHeader dark />
-      <main className={styles.screen} data-fv-screen="trial-truth">
-        <header className={styles.heading}>
-          <p>FOLLOW-UP SECURED</p>
-          <h1 data-stage-focus tabIndex={-1}>
-            Three things the camera cannot know.
-          </h1>
-          <span>Short evidence checkpoint. No favorable answer is assumed.</span>
-        </header>
+  if (trialTruthMatchesCurrentTrial(state) || !product) return null;
 
-        {validation && !validation.valid && (
-          <div
-            ref={summaryRef}
-            className={styles.errorSummary}
-            role="alert"
-            tabIndex={-1}
-            aria-labelledby="trial-truth-error-title"
-          >
-            <strong id="trial-truth-error-title">Complete the missing evidence.</strong>
-            <ul>
-              {validation.messages.map((message) => (
-                <li key={message}>{message}</li>
-              ))}
-            </ul>
+  const productIdentity = oracleSpecimenIdentityFromRegisteredProduct(product);
+  const compactProductIdentity = [
+    product.accession,
+    [product.productName, product.strength].filter(Boolean).join(' '),
+  ]
+    .filter(Boolean)
+    .join(' · ');
+
+  const controlEnabled =
+    view === 'symptoms'
+      ? draft.tolerance === 'mild' || draft.symptoms.length > 0
+      : step === 1
+        ? draft.adherence !== null
+        : step === 2
+          ? toleranceReady(draft)
+          : draft.visibleChange !== null;
+  const controlLabel = view === 'symptoms' ? 'DONE' : step === 3 ? 'SEE RESULT' : 'CONTINUE';
+  const controlAccessibleLabel =
+    view === 'symptoms'
+      ? 'Done choosing symptoms'
+      : step === 1
+        ? 'Continue to skin response'
+        : step === 2
+          ? 'Continue to visible redness'
+          : 'See result';
+
+  const advance = () => {
+    if (!controlEnabled) return;
+    setMotionDirection('forward');
+    if (view === 'symptoms') {
+      setView('question');
+      return;
+    }
+    if (step === 1) {
+      setStep(2);
+      return;
+    }
+    if (step === 2) {
+      setStep(3);
+      return;
+    }
+    if (!generationId) return;
+    dispatch({
+      type: 'TRIAL_TRUTH_SUBMITTED',
+      generationId,
+      now: systemClock.now(),
+    });
+  };
+
+  const firmware = (
+    <div
+      key={`${step}-${view}`}
+      className={styles.firmwarePanel}
+      data-trial-truth-firmware-view={view}
+      data-motion-direction={motionDirection}
+    >
+      <header className={styles.firmwareHeader}>
+        <span>FOLLOW-UP SECURED</span>
+        <span>{step} / 3</span>
+      </header>
+      <p
+        className={styles.productIdentity}
+        aria-label={`Registered product: ${oracleSpecimenIdentityLabel(productIdentity)}`}
+        data-trial-truth-product-identity
+      >
+        <span aria-hidden="true">{compactProductIdentity}</span>
+      </p>
+
+      {view === 'symptoms' ? (
+        <section className={styles.symptomSubview} aria-labelledby="trial-truth-symptom-heading">
+          <div className={styles.symptomSubviewHeading}>
+            <h1 id="trial-truth-symptom-heading" ref={questionRef} tabIndex={-1}>
+              What did you notice?
+            </h1>
+            <p>Choose all that apply.</p>
           </div>
-        )}
-
-        <form
-          className={styles.form}
-          noValidate
-          onSubmit={(event) => {
-            event.preventDefault();
-            if (!generationId) return;
-            dispatch({
-              type: 'TRIAL_TRUTH_SUBMITTED',
-              generationId,
-              now: systemClock.now(),
-            });
-          }}
-        >
-          <fieldset
-            id={groupId('adherence')}
-            className={styles.group}
-            tabIndex={-1}
-            aria-invalid={validation?.firstInvalidGroup === 'adherence' || undefined}
-          >
-            <legend>USED AS PLANNED?</legend>
-            <div className={styles.optionGrid}>
-              {[
-                ['yes', 'Yes'],
-                ['mostly', 'Mostly'],
-                ['no', 'No'],
-              ].map(([value, label]) => (
-                <label key={value} className={styles.option}>
+          <fieldset className={styles.symptomSelector}>
+            <legend className={styles.srOnly}>What did you notice?</legend>
+            <div className={styles.symptomScroller} data-trial-truth-symptom-scroller>
+              {IRRITATION_SIGNALS.map((symptom) => (
+                <label key={symptom} className={styles.symptomOption}>
                   <input
-                    type="radio"
-                    name="trial-truth-adherence"
-                    value={value}
-                    checked={state.trialTruthDraft.adherence === value}
-                    onChange={() =>
-                      dispatch({
-                        type: 'TRIAL_TRUTH_ADHERENCE_SELECTED',
-                        answer: value as 'yes' | 'mostly' | 'no',
-                      })
-                    }
+                    type="checkbox"
+                    checked={draft.symptoms.includes(symptom)}
+                    onChange={() => dispatch({ type: 'TRIAL_TRUTH_SYMPTOM_TOGGLED', symptom })}
                   />
-                  <span>{label}</span>
+                  <span>{symptomLabels[symptom]}</span>
                 </label>
               ))}
             </div>
           </fieldset>
-
-          <fieldset
-            id={groupId('tolerance')}
-            className={styles.group}
-            tabIndex={-1}
-            aria-invalid={validation?.firstInvalidGroup === 'tolerance' || undefined}
-          >
-            <legend>SKIN RESPONSE?</legend>
-            <div className={styles.optionGrid}>
-              {['none', 'mild', 'moderate', 'severe'].map((value) => (
-                <label key={value} className={styles.option}>
-                  <input
-                    type="radio"
-                    name="trial-truth-tolerance"
-                    value={value}
-                    checked={state.trialTruthDraft.tolerance === value}
-                    onChange={() =>
-                      dispatch({
-                        type: 'TRIAL_TRUTH_TOLERANCE_SELECTED',
-                        answer: value as 'none' | 'mild' | 'moderate' | 'severe',
-                      })
-                    }
-                  />
-                  <span>{value[0].toUpperCase() + value.slice(1)}</span>
-                </label>
-              ))}
-            </div>
-          </fieldset>
-
-          {symptomsVisible && (
-            <fieldset
-              id={groupId('symptoms')}
-              className={`${styles.group} ${styles.symptoms}`}
-              tabIndex={-1}
-              aria-invalid={validation?.firstInvalidGroup === 'symptoms' || undefined}
-            >
-              <legend>WHAT DID YOU NOTICE?</legend>
-              <p>Choose every canonical signal that applies.</p>
-              <div className={styles.symptomGrid}>
-                {IRRITATION_SIGNALS.map((symptom) => (
-                  <label key={symptom} className={styles.symptom}>
-                    <input
-                      type="checkbox"
-                      checked={state.trialTruthDraft.symptoms.includes(symptom)}
-                      onChange={() => dispatch({ type: 'TRIAL_TRUTH_SYMPTOM_TOGGLED', symptom })}
-                    />
-                    <span>{symptomLabels[symptom]}</span>
-                  </label>
-                ))}
-              </div>
-            </fieldset>
+          {symptomsRequired(draft.tolerance) && draft.symptoms.length === 0 && (
+            <p className={styles.symptomRequirement} role="status">
+              Choose at least one.
+            </p>
+          )}
+        </section>
+      ) : (
+        <section className={styles.questionView} data-trial-truth-question-step={step}>
+          {step === 1 && (
+            <>
+              <h1 id="trial-truth-adherence-heading" ref={questionRef} tabIndex={-1}>
+                Did you use it as planned?
+              </h1>
+              <fieldset className={styles.segmentedGroup}>
+                <legend className={styles.srOnly}>Did you use it as planned?</legend>
+                <div className={styles.segments} data-segment-count="3">
+                  {adherenceOptions.map(([value, label]) => (
+                    <label key={value} className={styles.segment}>
+                      <input
+                        type="radio"
+                        name="trial-truth-adherence"
+                        value={value}
+                        checked={draft.adherence === value}
+                        onChange={() =>
+                          dispatch({ type: 'TRIAL_TRUTH_ADHERENCE_SELECTED', answer: value })
+                        }
+                      />
+                      <span>{label}</span>
+                    </label>
+                  ))}
+                </div>
+              </fieldset>
+              <p className={styles.helper}>
+                This helps Face Value judge whether the product was isolated.
+              </p>
+            </>
           )}
 
-          <fieldset
-            id={groupId('visibleChange')}
-            className={styles.group}
-            tabIndex={-1}
-            aria-invalid={validation?.firstInvalidGroup === 'visibleChange' || undefined}
-          >
-            <legend>VISIBLE REDNESS TO YOU?</legend>
-            <div className={styles.optionGrid}>
-              {[
-                ['less', 'Less'],
-                ['same', 'Same'],
-                ['more', 'More'],
-              ].map(([value, label]) => (
-                <label key={value} className={styles.option}>
-                  <input
-                    type="radio"
-                    name="trial-truth-visible-change"
-                    value={value}
-                    checked={state.trialTruthDraft.visibleChange === value}
-                    onChange={() =>
-                      dispatch({
-                        type: 'TRIAL_TRUTH_VISIBLE_CHANGE_SELECTED',
-                        answer: value as 'less' | 'same' | 'more',
-                      })
-                    }
-                  />
-                  <span>{label}</span>
-                </label>
-              ))}
-            </div>
-          </fieldset>
+          {step === 2 && (
+            <>
+              <h1 id="trial-truth-tolerance-heading" ref={questionRef} tabIndex={-1}>
+                How did your skin respond?
+              </h1>
+              <fieldset className={styles.segmentedGroup}>
+                <legend className={styles.srOnly}>How did your skin respond?</legend>
+                <div className={styles.segments} data-segment-count="4">
+                  {toleranceOptions.map(([value, label]) => (
+                    <label key={value} className={styles.segment}>
+                      <input
+                        type="radio"
+                        name="trial-truth-tolerance"
+                        value={value}
+                        checked={draft.tolerance === value}
+                        onChange={() =>
+                          dispatch({ type: 'TRIAL_TRUTH_TOLERANCE_SELECTED', answer: value })
+                        }
+                      />
+                      <span>{label}</span>
+                    </label>
+                  ))}
+                </div>
+              </fieldset>
+              {draft.tolerance !== null && draft.tolerance !== 'none' && (
+                <button
+                  type="button"
+                  className={styles.symptomSummary}
+                  aria-label={`${selectedSymptomLabels.length > 0 ? 'Edit' : 'Add'} reported symptoms`}
+                  onClick={() => {
+                    setMotionDirection('forward');
+                    setView('symptoms');
+                  }}
+                >
+                  <span>
+                    <b>WHAT DID YOU NOTICE?</b>
+                    {selectedSymptomLabels.length > 0 && (
+                      <small>{selectedSymptomLabels.join(' · ')}</small>
+                    )}
+                  </span>
+                  <strong>{selectedSymptomLabels.length > 0 ? 'EDIT' : 'ADD'}</strong>
+                </button>
+              )}
+            </>
+          )}
 
-          <p className={styles.boundary}>Face Value cannot diagnose a reaction.</p>
+          {step === 3 && (
+            <>
+              <h1 id="trial-truth-visible-change-heading" ref={questionRef} tabIndex={-1}>
+                Compared with the start of this trial,
+                <br />
+                your visible redness looks:
+              </h1>
+              <fieldset className={styles.segmentedGroup}>
+                <legend className={styles.srOnly}>
+                  Compared with the start of this trial, your visible redness looks
+                </legend>
+                <div className={styles.segments} data-segment-count="3">
+                  {visibleChangeOptions.map(([value, label]) => (
+                    <label key={value} className={styles.segment}>
+                      <input
+                        type="radio"
+                        name="trial-truth-visible-change"
+                        value={value}
+                        checked={draft.visibleChange === value}
+                        onChange={() =>
+                          dispatch({
+                            type: 'TRIAL_TRUTH_VISIBLE_CHANGE_SELECTED',
+                            answer: value,
+                          })
+                        }
+                      />
+                      <span>{label}</span>
+                    </label>
+                  ))}
+                </div>
+              </fieldset>
+              <p className={styles.helper}>Face Value cannot diagnose a reaction.</p>
+            </>
+          )}
+        </section>
+      )}
 
-          <div className={styles.actions}>
-            <button
-              type="button"
-              className={styles.back}
-              onClick={() => dispatch({ type: 'TRIAL_TRUTH_BACK' })}
-            >
-              BACK
+      {state.trialTruthValidation && !state.trialTruthValidation.valid && (
+        <p className={styles.validation} role="alert">
+          {state.trialTruthValidation.messages[0]}
+        </p>
+      )}
+    </div>
+  );
+
+  return (
+    <EvidenceShell tone="light" label="Face Value trial truth">
+      <ScreenHeader />
+      <section className={styles.screen} data-fv-screen="trial-truth">
+        <div className={styles.machineStage}>
+          <OracleTrialTruthMachine
+            product={product}
+            step={step}
+            view={view}
+            firmware={firmware}
+            controlLabel={controlLabel}
+            controlAccessibleLabel={controlAccessibleLabel}
+            controlEnabled={controlEnabled}
+            onControl={advance}
+          />
+        </div>
+        <div className={styles.backSlot}>
+          {(step > 1 || view === 'symptoms') && (
+            <button type="button" className={styles.back} onClick={goBack}>
+              {view === 'symptoms' ? 'Back to skin response' : 'Back'}
             </button>
-            <button
-              type="submit"
-              className={styles.continue}
-              data-form-valid={draftValidation.valid || undefined}
-            >
-              <span>CONTINUE TO RESULT</span>
-              <span aria-hidden="true">→</span>
-            </button>
-          </div>
-        </form>
-      </main>
+          )}
+        </div>
+      </section>
     </EvidenceShell>
   );
 }

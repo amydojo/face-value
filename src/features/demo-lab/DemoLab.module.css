@@ -276,71 +276,29 @@
   flex-wrap: wrap;
 }
 
-.runtimeBannerClearance {
-  min-height: calc(74px + max(10px, env(safe-area-inset-bottom)));
-  flex: 0 0 auto;
-  pointer-events: none;
-}
-
 .runtimeBanner {
   position: fixed;
   z-index: 1200;
-  right: max(10px, env(safe-area-inset-right));
-  bottom: max(10px, env(safe-area-inset-bottom));
-  left: max(10px, env(safe-area-inset-left));
-  width: min(calc(100% - 20px), 520px);
-  min-height: 54px;
-  margin: 0 auto;
-  padding: 8px 8px 8px 14px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 12px;
-  border: 1px solid rgba(255, 110, 20, 0.62);
-  border-radius: 10px;
-  color: var(--fv-text-on-dark);
-  background: rgba(11, 11, 10, 0.96);
-  box-shadow: 0 14px 38px rgba(0, 0, 0, 0.4);
-  font-family: var(--fv-font-mono);
-  pointer-events: none;
-}
-
-.runtimeBanner span,
-.runtimeBanner strong,
-.runtimeBanner small {
-  min-width: 0;
-  display: block;
-}
-
-.runtimeBanner strong {
-  color: var(--fv-signal-active);
-  font-size: 0.68rem;
-  letter-spacing: 0.1em;
-}
-
-.runtimeBanner small {
-  margin-top: 3px;
-  color: var(--fv-text-dark-muted);
-  font-size: 0.61rem;
-  letter-spacing: 0.06em;
-}
-
-.runtimeBanner a {
-  min-width: 48px;
+  top: max(15px, env(safe-area-inset-top));
+  right: max(20px, env(safe-area-inset-right), calc((100vw - 430px) / 2 + 20px));
+  min-width: 116px;
   min-height: 44px;
-  display: grid;
+  display: inline-grid;
+  grid-auto-flow: column;
+  gap: 5px;
   place-items: center;
-  border-radius: 7px;
-  color: #17110d;
-  background: var(--fv-signal-active);
-  font-size: 0.68rem;
-  font-weight: 800;
+  padding: 0 12px;
+  border: 1px solid rgba(143, 93, 47, 0.42);
+  border-radius: 999px;
+  color: #d99855;
+  background: #12100d;
+  font: 750 9px/1 var(--fv-font-mono);
+  letter-spacing: 0.075em;
   text-decoration: none;
-  pointer-events: auto;
 }
 
-.runtimeBanner a:focus-visible {
-  outline: 3px solid var(--fv-text-on-dark);
+.runtimeBanner:focus-visible {
+  outline: 3px solid var(--fv-signal-active);
   outline-offset: 2px;
 }
 
@@ -357,6 +315,10 @@
 
   .instrument {
     border-radius: 18px;
+  }
+
+  .runtimeBanner {
+    right: max(16px, env(safe-area-inset-right));
   }
 }
 

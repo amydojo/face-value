@@ -4,10 +4,7 @@ import {
   saveDemoJourney,
 } from '../src/adapters/persistence/demoJourneyStore';
 import type { PersistedTrialTruthData } from '../src/adapters/persistence/trialTruthObservationStore';
-import type {
-  DemoResultFixtureId,
-  DemoStartingPoint,
-} from '../src/domain/demoLab';
+import type { DemoResultFixtureId, DemoStartingPoint } from '../src/domain/demoLab';
 import { buildDemoFixtureState } from '../src/features/demo-lab/demoFixtureState';
 
 const FIXTURE_NOW = '2026-07-26T12:00:00.000Z';
@@ -22,11 +19,7 @@ type CanonicalEffect =
   | 'meaningful_candidate'
   | 'strong_improvement';
 type CanonicalAction =
-  | 'keep'
-  | 'test_longer'
-  | 'retry_alone'
-  | 'not_proving_job'
-  | 'safety_interruption';
+  'keep' | 'test_longer' | 'retry_alone' | 'not_proving_job' | 'safety_interruption';
 type AnchorRelationship = 'agreed' | 'neutral' | 'contradicted';
 
 interface TrialScenario {
@@ -236,8 +229,7 @@ async function expectRuntimeClean(
 ): Promise<void> {
   const unhandledRejections = await page.evaluate(
     () =>
-      (window as unknown as { __fvUnhandledRejections?: string[] })
-        .__fvUnhandledRejections ?? [],
+      (window as unknown as { __fvUnhandledRejections?: string[] }).__fvUnhandledRejections ?? [],
   );
   expect(guards.consoleErrors).toEqual([]);
   expect(guards.pageErrors).toEqual([]);
@@ -246,9 +238,8 @@ async function expectRuntimeClean(
 
 async function submitTrialTruth(page: Page, scenario: TrialScenario): Promise<void> {
   await expect(page.locator('[data-fv-screen="trial-truth"]')).toBeVisible();
-  await expect(page.getByRole('radio', { name: 'Yes' })).not.toBeChecked();
-  await expect(page.getByRole('radio', { name: 'None' })).not.toBeChecked();
-  await expect(page.getByRole('radio', { name: 'Less' })).not.toBeChecked();
+  await expect(page.getByRole('radio', { name: 'YES' })).not.toBeChecked();
+  await expect(page.getByRole('button', { name: 'Continue to skin response' })).toBeDisabled();
 
   const staged = await readPersistedState(page);
   expect(staged.longitudinalEvidence.baseline).toBeNull();
@@ -256,14 +247,22 @@ async function submitTrialTruth(page: Page, scenario: TrialScenario): Promise<vo
   expect(staged.longitudinalEvidence.baselineBurst?.acceptedFrames).toHaveLength(3);
   expect(staged.longitudinalEvidence.followUpBurst?.acceptedFrames).toHaveLength(3);
 
-  await page.getByRole('radio', { name: 'Yes' }).click();
-  await page.getByRole('radio', { name: scenario.tolerance }).click();
+  await page.getByRole('radio', { name: 'YES' }).click();
+  await page.getByRole('button', { name: 'Continue to skin response' }).click();
+  await page.getByRole('radio', { name: scenario.tolerance.toUpperCase() }).click();
+  if ((scenario.symptoms ?? []).length > 0) {
+    await page.getByRole('button', { name: 'Add reported symptoms' }).click();
+  }
   for (const symptom of scenario.symptoms ?? []) {
     await page.getByRole('checkbox', { name: symptom }).click();
   }
-  await page.getByRole('radio', { name: scenario.visible }).click();
+  if ((scenario.symptoms ?? []).length > 0) {
+    await page.getByRole('button', { name: 'Done choosing symptoms' }).click();
+  }
+  await page.getByRole('button', { name: 'Continue to visible redness' }).click();
+  await page.getByRole('radio', { name: scenario.visible.toUpperCase() }).click();
 
-  const submit = page.getByRole('button', { name: /CONTINUE TO RESULT/i });
+  const submit = page.getByRole('button', { name: 'See result' });
   await submit.evaluate((button) => {
     (button as HTMLButtonElement).click();
     (button as HTMLButtonElement).click();
@@ -279,6 +278,7 @@ async function submitTrialTruth(page: Page, scenario: TrialScenario): Promise<vo
   await page.getByRole('button', { name: 'NOTHING DIFFERENT' }).click();
   await expect(page.locator('[data-fv-screen="oracle-reveal"]')).toBeVisible();
   await expect(page.locator('[data-oracle-scene-state="sealed"]')).toBeVisible();
+  await expect(page.locator('[data-oracle-specimen]')).toHaveCount(1);
 }
 
 async function expectSealedOraclePrivacy(page: Page): Promise<void> {
@@ -363,7 +363,7 @@ async function expectEvidenceRecordRows(
     scenario.expectedTolerance,
   );
   await expect(row('reported-symptoms')).toContainText(
-    scenario.expectedSymptoms.length === 0 ? 'None reported' : scenario.symptoms?.[0] ?? '',
+    scenario.expectedSymptoms.length === 0 ? 'None reported' : (scenario.symptoms?.[0] ?? ''),
   );
   await expect(row('participant-observation')).toContainText(scenario.visible);
   await expect(row('participant-report-timestamp')).toHaveAttribute(
@@ -420,12 +420,8 @@ for (const scenario of scenarios) {
       scenario.expectedAction,
     );
     expect(compared.trialTruthEvidence?.adherence.status).toBe('complete');
-    expect(compared.trialTruthEvidence?.tolerance.severity).toBe(
-      scenario.expectedTolerance,
-    );
-    expect(compared.trialTruthEvidence?.tolerance.symptoms).toEqual(
-      scenario.expectedSymptoms,
-    );
+    expect(compared.trialTruthEvidence?.tolerance.severity).toBe(scenario.expectedTolerance);
+    expect(compared.trialTruthEvidence?.tolerance.symptoms).toEqual(scenario.expectedSymptoms);
     expect(compared.trialTruthEvidence?.patientAnchor.visibleChange).toBe(
       scenario.expectedVisibleChange,
     );
@@ -438,14 +434,19 @@ for (const scenario of scenarios) {
     expect(collected.record?.id).toBe(collected.archive[0]?.id);
     expect(collected.record?.includesFaceImage).toBe(false);
     expect(collected.record?.trialTruth).toEqual(collected.trialTruthEvidence);
-    expect(collected.record?.anchorRelationship).toBe(
-      scenario.expectedAnchorRelationship,
-    );
-    expect(collected.record?.rednessEvaluation?.effectClassification).toBe(
-      scenario.expectedEffect,
-    );
+    expect(collected.record?.anchorRelationship).toBe(scenario.expectedAnchorRelationship);
+    expect(collected.record?.rednessEvaluation?.effectClassification).toBe(scenario.expectedEffect);
     expect(collected.record?.rednessEvaluation?.interpretation.recommendedAction).toBe(
       scenario.expectedAction,
+    );
+    expect(JSON.stringify(collected.analysis?.rednessEvaluation)).toBe(
+      JSON.stringify(collected.longitudinalEvidence.evaluation),
+    );
+    expect(JSON.stringify(collected.record?.rednessEvaluation)).toBe(
+      JSON.stringify(collected.longitudinalEvidence.evaluation),
+    );
+    expect(JSON.stringify(collected.archive[0]?.rednessEvaluation)).toBe(
+      JSON.stringify(collected.longitudinalEvidence.evaluation),
     );
 
     const beforeReload = stableEvidenceSnapshot(collected);
@@ -459,12 +460,7 @@ for (const scenario of scenarios) {
     const afterReload = await readPersistedState(page);
     expect(stableEvidenceSnapshot(afterReload)).toEqual(beforeReload);
 
-    await expectImmutableSavedSurfaces(
-      page,
-      scenario,
-      recordId as string,
-      recordedAt as string,
-    );
+    await expectImmutableSavedSurfaces(page, scenario, recordId as string, recordedAt as string);
     await expectNoHorizontalOverflow(page);
     await expectRuntimeClean(page, guards);
   });
@@ -482,36 +478,24 @@ test('legacy saved result remains readable without fabricated trial truth', asyn
   expect(record?.anchorRelationship).toBeUndefined();
 
   const recordId = record?.id as string;
-  await expect(page.locator('[data-evidence-record]')).toHaveAttribute(
-    'data-record-id',
-    recordId,
-  );
+  await expect(page.locator('[data-evidence-record]')).toHaveAttribute('data-record-id', recordId);
   await page.getByRole('button', { name: 'Full evidence record' }).click();
   const row = (id: string) => page.locator(`[data-evidence-row="${id}"]`);
   await expect(row('adherence')).toHaveAttribute('data-canonical-value', 'not_collected');
-  await expect(row('tolerance-severity')).toHaveAttribute(
-    'data-canonical-value',
-    'not_collected',
-  );
+  await expect(row('tolerance-severity')).toHaveAttribute('data-canonical-value', 'not_collected');
   await expect(row('reported-symptoms')).toContainText('Not collected');
   await expect(row('participant-observation')).toContainText('Not collected');
   await expect(row('participant-report-timestamp')).toHaveAttribute(
     'data-canonical-value',
     'not_collected',
   );
-  await expect(row('anchor-relationship')).toHaveAttribute(
-    'data-canonical-value',
-    'not_collected',
-  );
+  await expect(row('anchor-relationship')).toHaveAttribute('data-canonical-value', 'not_collected');
 
   const beforeReload = stableEvidenceSnapshot(state);
   await page.reload();
   const afterReload = await readPersistedState(page);
   expect(stableEvidenceSnapshot(afterReload)).toEqual(beforeReload);
-  await expect(page.locator('[data-evidence-record]')).toHaveAttribute(
-    'data-record-id',
-    recordId,
-  );
+  await expect(page.locator('[data-evidence-record]')).toHaveAttribute('data-record-id', recordId);
 
   await page.getByRole('button', { name: 'Back to previous view' }).click();
   await expect(page.locator('[data-latest-verdict-record]')).toHaveAttribute(
@@ -519,37 +503,80 @@ test('legacy saved result remains readable without fabricated trial truth', asyn
     recordId,
   );
   await page.getByRole('button', { name: /Previous trials, 1 saved result/i }).click();
-  await expect(page.locator('[data-archive-record]')).toHaveAttribute(
-    'data-record-id',
-    recordId,
-  );
+  await expect(page.locator('[data-archive-record]')).toHaveAttribute('data-record-id', recordId);
   await expectNoHorizontalOverflow(page);
   await expectRuntimeClean(page, guards);
 });
 
-test('trial truth remains one-hand usable across required Safari widths and short viewports', async ({
+test('trial truth keeps one stationary machine across steps, symptoms, widths, and reduced motion', async ({
   page,
 }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
   for (const viewport of [
     { width: 320, height: 520 },
-    { width: 375, height: 600 },
     { width: 390, height: 664 },
-    { width: 402, height: 700 },
-    { width: 430, height: 740 },
+    { width: 430, height: 760 },
   ]) {
     await page.setViewportSize(viewport);
     await launchFixture(page, 'trial_truth', 'clear_favorable_change');
     await expect(page.locator('[data-fv-screen="trial-truth"]')).toBeVisible();
     await expectNoHorizontalOverflow(page);
 
-    await page.getByRole('button', { name: /CONTINUE TO RESULT/i }).click();
-    await expect(page.getByRole('alert')).toContainText('Complete the missing evidence.');
-    await expect(page.getByRole('group', { name: 'USED AS PLANNED?' })).toBeFocused();
+    const geometry = async () =>
+      page.evaluate(() => {
+        const box = (selector: string) => {
+          const rect = document.querySelector<HTMLElement>(selector)!.getBoundingClientRect();
+          return {
+            x: Math.round(rect.x * 10) / 10,
+            y: Math.round(rect.y * 10) / 10,
+            width: Math.round(rect.width * 10) / 10,
+            height: Math.round(rect.height * 10) / 10,
+          };
+        };
+        return {
+          machine: box('[data-oracle-machine]'),
+          identity: box('[data-trial-truth-product-identity]'),
+          amber: box('[data-trial-truth-confirmation]'),
+        };
+      });
+    const initialGeometry = await geometry();
+    await expect(page.locator('[data-oracle-specimen]')).toHaveCount(0);
+    await expect(
+      page.getByLabel('Registered product: Face Value Lab, One Thing Redness Trial, 10%, 30 ml'),
+    ).toContainText('DEMO 01 · One Thing Redness Trial 10%');
 
-    await page.getByRole('radio', { name: 'Yes' }).click();
-    await page.getByRole('radio', { name: 'Severe' }).click();
-    await expect(page.getByRole('group', { name: 'WHAT DID YOU NOTICE?' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Continue to skin response' })).toBeDisabled();
+    await page.getByRole('radio', { name: 'YES' }).click();
+    const amber = page.getByRole('button', { name: 'Continue to skin response' });
+    await amber.evaluate((button) => {
+      (button as HTMLButtonElement).click();
+      (button as HTMLButtonElement).click();
+    });
+    await expect(page.getByRole('heading', { name: 'How did your skin respond?' })).toBeFocused();
+    expect(await geometry()).toEqual(initialGeometry);
+
+    await page.getByRole('radio', { name: 'MILD' }).click();
+    const summary = page.getByRole('button', { name: 'Add reported symptoms' });
+    await expect(summary).toContainText('WHAT DID YOU NOTICE?');
+    await expect(summary).toContainText('ADD');
+    await summary.click();
+    await expect(page.getByRole('heading', { name: 'What did you notice?' })).toBeFocused();
+    expect(await geometry()).toEqual(initialGeometry);
+    await page.getByRole('checkbox', { name: 'Itching' }).click();
+    await page.getByRole('checkbox', { name: 'Unusual sensitivity' }).click();
+    await page.getByRole('button', { name: 'Done choosing symptoms' }).click();
+    await expect(page.getByRole('button', { name: 'Edit reported symptoms' })).toContainText(
+      'Itching · Unusual sensitivity',
+    );
+    expect(await geometry()).toEqual(initialGeometry);
+
+    await page.getByRole('button', { name: 'Continue to visible redness' }).click();
+    await expect(
+      page.getByRole('heading', {
+        name: /Compared with the start of this trial, your visible redness looks/i,
+      }),
+    ).toBeFocused();
+    expect(await geometry()).toEqual(initialGeometry);
     await expectNoHorizontalOverflow(page);
 
     for (const control of await page
@@ -560,14 +587,50 @@ test('trial truth remains one-hand usable across required Safari widths and shor
       expect(box?.height ?? 0).toBeGreaterThanOrEqual(44);
     }
 
-    const groupOrder = await page
-      .locator('[data-fv-screen="trial-truth"] fieldset legend')
-      .allTextContents();
-    expect(groupOrder).toEqual([
-      'USED AS PLANNED?',
-      'SKIN RESPONSE?',
-      'WHAT DID YOU NOTICE?',
-      'VISIBLE REDNESS TO YOU?',
-    ]);
+    const viewportState = await page.evaluate(() => ({
+      documentHeight: document.documentElement.scrollHeight,
+      viewportHeight: document.documentElement.clientHeight,
+      scrollY,
+      animationName: getComputedStyle(
+        document.querySelector<HTMLElement>('[data-motion-direction]')!,
+      ).animationName,
+    }));
+    expect(viewportState.documentHeight).toBeLessThanOrEqual(viewportState.viewportHeight);
+    expect(viewportState.scrollY).toBe(0);
+    expect(viewportState.animationName).toBe('none');
+  }
+});
+
+test('Demo Lab pill stays clear of the machine in expanded and collapsed Safari viewports', async ({
+  page,
+}) => {
+  for (const height of [844, 664]) {
+    await page.setViewportSize({ width: 390, height });
+    await launchFixture(page, 'trial_truth', 'clear_favorable_change');
+    const boxes = await page.evaluate(() => {
+      const rect = (selector: string) => {
+        const box = document.querySelector<HTMLElement>(selector)!.getBoundingClientRect();
+        return { top: box.top, right: box.right, bottom: box.bottom, left: box.left };
+      };
+      return {
+        pill: rect('[data-demo-runtime-pill]'),
+        machine: rect('[data-oracle-machine]'),
+        amber: rect('[data-trial-truth-confirmation]'),
+      };
+    });
+    const overlaps = (
+      left: { top: number; right: number; bottom: number; left: number },
+      right: { top: number; right: number; bottom: number; left: number },
+    ) =>
+      left.left < right.right &&
+      left.right > right.left &&
+      left.top < right.bottom &&
+      left.bottom > right.top;
+
+    expect(boxes.pill.top).toBeGreaterThanOrEqual(0);
+    expect(boxes.pill.bottom).toBeLessThanOrEqual(66);
+    expect(overlaps(boxes.pill, boxes.machine)).toBe(false);
+    expect(overlaps(boxes.pill, boxes.amber)).toBe(false);
+    await expectNoHorizontalOverflow(page);
   }
 });

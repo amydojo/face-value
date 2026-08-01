@@ -112,6 +112,46 @@ describe('trial truth reducer gate', () => {
     expect(reentered.longitudinalEvidence.followUp).toEqual(state.longitudinalEvidence.followUp);
   });
 
+  it('preserves a partial reducer draft across Back and re-entry', () => {
+    const selected = faceValueReducer(trialTruthState(), {
+      type: 'TRIAL_TRUTH_ADHERENCE_SELECTED',
+      answer: 'mostly',
+    });
+    const backed = faceValueReducer(selected, { type: 'TRIAL_TRUTH_BACK' });
+    const reentered = faceValueReducer(backed, {
+      type: 'BEGIN_CAPTURE',
+      kind: 'followup',
+      now: '2026-08-01T19:30:00.000Z',
+    });
+
+    expect(reentered.stage).toBe('followup_context');
+    expect(reentered.trialTruthDraft).toEqual({
+      adherence: 'mostly',
+      tolerance: null,
+      symptoms: [],
+      visibleChange: null,
+    });
+    expect(reentered.trialTruthEvidence).toBeNull();
+  });
+
+  it('clears reported symptoms immediately when tolerance changes to none', () => {
+    let state = faceValueReducer(trialTruthState(), {
+      type: 'TRIAL_TRUTH_TOLERANCE_SELECTED',
+      answer: 'moderate',
+    });
+    state = faceValueReducer(state, {
+      type: 'TRIAL_TRUTH_SYMPTOM_TOGGLED',
+      symptom: 'itching',
+    });
+    state = faceValueReducer(state, {
+      type: 'TRIAL_TRUTH_TOLERANCE_SELECTED',
+      answer: 'none',
+    });
+
+    expect(state.trialTruthDraft.tolerance).toBe('none');
+    expect(state.trialTruthDraft.symptoms).toEqual([]);
+  });
+
   it('feeds committed evidence into the canonical evaluator without changing objective effect', () => {
     const committed = commitComplete();
     const withContext = faceValueReducer(committed, {
@@ -219,5 +259,20 @@ describe('trial truth reducer gate', () => {
 
   it('starts with an empty reducer-owned draft', () => {
     expect(trialTruthState().trialTruthDraft).toEqual(emptyTrialTruthDraft());
+  });
+
+  it('ignores answer and symptom events after an immutable commit', () => {
+    const committed = commitComplete();
+    const staleAnswer = faceValueReducer(committed, {
+      type: 'TRIAL_TRUTH_ADHERENCE_SELECTED',
+      answer: 'no',
+    });
+    const staleSymptom = faceValueReducer(committed, {
+      type: 'TRIAL_TRUTH_SYMPTOM_TOGGLED',
+      symptom: 'rapid_escalation',
+    });
+
+    expect(staleAnswer).toEqual(committed);
+    expect(staleSymptom).toEqual(committed);
   });
 });

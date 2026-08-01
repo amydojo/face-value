@@ -1039,7 +1039,8 @@ test('Demo Lab banner stays separate from the active analysis status stack', asy
   await page.getByRole('button', { name: 'CONFIRM AND LOAD' }).click();
   await page.goto('/?fv-demo-journey=1&provider-delay-ms=3000&provider-delay-frame=1');
   const demoBanner = page.getByLabel('Synthetic demo state');
-  await expect(demoBanner).toContainText('LOADED DEMO JOURNEY');
+  await expect(demoBanner).toContainText('LAB · SYNTHETIC');
+  await expect(demoBanner).toHaveAttribute('data-demo-runtime-mode', 'journey');
   await expect(page.getByRole('heading', { name: 'Position your face' })).toBeVisible();
   await startCapture(page);
   await expect(page.getByRole('heading', { name: 'Analyzing your scan' })).toBeVisible({
@@ -1052,7 +1053,12 @@ test('Demo Lab banner stays separate from the active analysis status stack', asy
   ]);
   expect(statusBox).not.toBeNull();
   expect(bannerBox).not.toBeNull();
-  expect(statusBox!.y + statusBox!.height).toBeLessThan(bannerBox!.y);
+  const overlaps =
+    statusBox!.x < bannerBox!.x + bannerBox!.width &&
+    statusBox!.x + statusBox!.width > bannerBox!.x &&
+    statusBox!.y < bannerBox!.y + bannerBox!.height &&
+    statusBox!.y + statusBox!.height > bannerBox!.y;
+  expect(overlaps).toBe(false);
   expect(
     await page.evaluate(() => document.documentElement.scrollWidth - innerWidth),
   ).toBeLessThanOrEqual(1);
@@ -1201,9 +1207,7 @@ test('visual regression: all canonical phases, permission error, and reduced mot
   await saveEvidence(captureScreen, 'analysis-measurement-2.png');
 
   await advanceVisualClock(page, 2_000);
-  await expect(page.locator('[data-analysis-measurement-label]')).toHaveText(
-    'MEASUREMENT 3 OF 3',
-  );
+  await expect(page.locator('[data-analysis-measurement-label]')).toHaveText('MEASUREMENT 3 OF 3');
   await advanceVisualClock(page, 2_000);
   await expect(page.getByRole('heading', { name: 'Measurements confirmed' })).toBeVisible();
   await expect.soft(captureScreen).toHaveScreenshot('capture-measurements-confirmed.png', {
