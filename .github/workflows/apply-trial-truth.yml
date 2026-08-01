@@ -43,14 +43,39 @@ jobs:
           from pathlib import Path
           path = Path('/tmp/apply-trial-truth.mjs')
           source = path.read_text()
+          replacements = [
+              (
+                  'YWN0aXZlUmVkbmVzc0J1cnN0OiBudWxsLAphbm5vdW5jZW1lbnQ6IG9wdGlvbnMuc3ludGhldGljCg==',
+                  'YWN0aXZlUmVkbmVzc0J1cnN0OiBudWxsLAogICAgYW5ub3VuY2VtZW50OiBvcHRpb25zLnN5bnRoZXRpYwo=',
+              ),
+              (
+                  'YWN0aXZlUmVkbmVzc0J1cnN0OiBudWxsLAp0cmlhbFRydXRoRXZpZGVuY2U6IHBlcnNpc3RlZC50cmlhbFRydXRoRXZpZGVuY2UsCnRyaWFsVHJ1dGhWYWxpZGF0aW9uOiBudWxsLAphbm5vdW5jZW1lbnQ6IG9wdGlvbnMuc3ludGhldGljCg==',
+                  'YWN0aXZlUmVkbmVzc0J1cnN0OiBudWxsLAogICAgdHJpYWxUcnV0aEV2aWRlbmNlOiBwZXJzaXN0ZWQudHJpYWxUcnV0aEV2aWRlbmNlLAogICAgdHJpYWxUcnV0aFZhbGlkYXRpb246IG51bGwsCiAgICBhbm5vdW5jZW1lbnQ6IG9wdGlvbnMuc3ludGhldGljCg==',
+              ),
+              (
+                  'ewogIGlkOiAnY29tcGFyaXNvbl9wcm9jZXNzaW5nJywK',
+                  'ewogICAgaWQ6ICdjb21wYXJpc29uX3Byb2Nlc3NpbmcnLAo=',
+              ),
+              (
+                  'ewogIGlkOiAndHJpYWxfdHJ1dGgnLAogIGxhYmVsOiAnVHJpYWwgdHJ1dGgnLAogIGRlc2NyaXB0aW9uOiAnT3BlbiB0aGUgcmVxdWlyZWQgZXZpZGVuY2UgY2hlY2twb2ludCBhZnRlciBmb2xsb3ctdXAgaXMgc2VjdXJlZC4nLAogIGZyZXF1ZW50OiBmYWxzZSwKfSwKewogIGlkOiAnY29tcGFyaXNvbl9wcm9jZXNzaW5nJywK',
+                  'ewogICAgaWQ6ICd0cmlhbF90cnV0aCcsCiAgICBsYWJlbDogJ1RyaWFsIHRydXRoJywKICAgIGRlc2NyaXB0aW9uOiAnT3BlbiB0aGUgcmVxdWlyZWQgZXZpZGVuY2UgY2hlY2twb2ludCBhZnRlciBmb2xsb3ctdXAgaXMgc2VjdXJlZC4nLAogICAgZnJlcXVlbnQ6IGZhbHNlLAogIH0sCiAgewogICAgaWQ6ICdjb21wYXJpc29uX3Byb2Nlc3NpbmcnLAo=',
+              ),
+          ]
+          for old, new in replacements:
+              source = source.replace(old, new)
           source = source.replace(
-              'YWN0aXZlUmVkbmVzc0J1cnN0OiBudWxsLAphbm5vdW5jZW1lbnQ6IG9wdGlvbnMuc3ludGhldGljCg==',
-              'YWN0aXZlUmVkbmVzc0J1cnN0OiBudWxsLAogICAgYW5ub3VuY2VtZW50OiBvcHRpb25zLnN5bnRoZXRpYwo=',
+              'for (const [path, oldEncoded, newEncoded] of replacements) {',
+              'const replacementErrors = [];\nfor (const [path, oldEncoded, newEncoded] of replacements) {',
           )
           source = source.replace(
-              'YWN0aXZlUmVkbmVzc0J1cnN0OiBudWxsLAp0cmlhbFRydXRoRXZpZGVuY2U6IHBlcnNpc3RlZC50cmlhbFRydXRoRXZpZGVuY2UsCnRyaWFsVHJ1dGhWYWxpZGF0aW9uOiBudWxsLAphbm5vdW5jZW1lbnQ6IG9wdGlvbnMuc3ludGhldGljCg==',
-              'YWN0aXZlUmVkbmVzc0J1cnN0OiBudWxsLAogICAgdHJpYWxUcnV0aEV2aWRlbmNlOiBwZXJzaXN0ZWQudHJpYWxUcnV0aEV2aWRlbmNlLAogICAgdHJpYWxUcnV0aFZhbGlkYXRpb246IG51bGwsCiAgICBhbm5vdW5jZW1lbnQ6IG9wdGlvbnMuc3ludGhldGljCg==',
+              "  if (first < 0) throw new Error(`Missing exact replacement in ${path}: ${oldValue.slice(0, 100)}`);",
+              "  if (first < 0) { replacementErrors.push(`Missing exact replacement in ${path}: ${oldValue.slice(0, 100)}`); continue; }",
           )
+          source = source.replace(
+              "  if (first !== last) throw new Error(`Ambiguous exact replacement in ${path}: ${oldValue.slice(0, 100)}`);",
+              "  if (first !== last) { replacementErrors.push(`Ambiguous exact replacement in ${path}: ${oldValue.slice(0, 100)}`); continue; }",
+          )
+          source += "\nif (replacementErrors.length > 0) throw new Error(replacementErrors.join('\\n'));\n"
           path.write_text(source)
           PY
           node /tmp/apply-trial-truth.mjs
