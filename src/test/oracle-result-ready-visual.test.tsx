@@ -86,6 +86,18 @@ describe('Oracle result-ready specimen presentation', () => {
     expect(choreographyCss).toContain('max-width: 100%;');
   });
 
+  it('keeps comparable scans together without changing source verdict copy or the specimen dock', () => {
+    expect(choreographyCss).toContain(
+      "[aria-label*='Visible redness worsened across comparable scans.']",
+    );
+    expect(choreographyCss).toContain('font-size: clamp(10.5px, 3.05vw, 12.4px);');
+    expect(choreographyCss).toContain('overflow-wrap: normal;');
+    expect(choreographyCss).toContain('word-break: normal;');
+    expect(choreographyCss).toContain('text-wrap: balance;');
+    expect(choreographyCss).toContain('--oracle-verdict-copy-lane: 57%;');
+    expect(choreographyCss).toContain('--oracle-specimen-dock-offset: clamp(54px, 16.5vw, 74px);');
+  });
+
   it('translates only rendered layers during opening and keeps them docked for every result phase', () => {
     expect(choreographyCss).toContain("[data-oracle-state='opening']");
     expect(choreographyCss).toContain('> :not(style)');
