@@ -35,6 +35,7 @@ jobs:
           python .github/trial-truth-payload/patch_applicator.py
           node /tmp/apply-trial-truth.mjs
           python .github/trial-truth-payload/fix_generated.py
+          python .github/trial-truth-payload/fix_architecture.py
       - name: Format implementation
         run: |
           npx prettier --write \
