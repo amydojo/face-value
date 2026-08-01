@@ -18,9 +18,8 @@ import {
 import type {
   AnalysisResult,
   CaptureContext,
-  CaptureMetadata,
-  DurableSkinSignal,
   EvidenceRecordData,
+  RednessEvidenceBurst,
   RegisteredProduct,
 } from '../../domain/model';
 import { openCurrentSavedResultRoute } from './evidenceRecordDemoAdapter';
@@ -40,6 +39,8 @@ const DEMO_PRODUCT = {
   volume: '30 ml',
 } as const;
 
+const DEMO_CAPTURE_PROFILE = 'youcam-camera-kit-standard-720p' as const;
+
 const emptyContext: CaptureContext = {
   makeup: false,
   recentHeatOrExercise: false,
@@ -48,48 +49,64 @@ const emptyContext: CaptureContext = {
   note: 'Synthetic canonical fixture. No physical capture was used.',
 };
 
-function firstCapturedAt(
+function burstFromSnapshot(
   snapshot: RednessEvaluationSnapshot,
   period: 'baseline' | 'endpoint',
-): string {
+  role: 'baseline' | 'followup',
+): RednessEvidenceBurst {
   const session = snapshot[period].sessions[0];
   if (!session) {
     throw new Error(`Canonical fixture has no ${period} session.`);
   }
-  return session.capturedAt;
-}
-
-function requiredMedian(value: number | null, period: 'baseline' | 'follow-up'): number {
-  if (value === null) {
-    throw new Error(`Canonical fixture has no ${period} raw-score median.`);
+  const scores = session.rawScores.slice(0, 3);
+  if (scores.length !== 3 || scores.some((score) => !Number.isFinite(score))) {
+    throw new Error(`Canonical fixture ${period} session requires three finite raw scores.`);
   }
-  return value;
-}
 
-function signal(rawScore: number, capturedAt: string): DurableSkinSignal {
-  return {
-    provider: 'youcam',
-    apiVersion: '2.1',
-    mode: 'hd',
-    concern: 'hd_redness',
-    region: null,
-    scoreType: 'raw_score',
-    captureProtocolVersion: 'face-value-youcam-1',
-    rawScore,
-    capturedAt,
-    captureQuality: 'accepted',
-  };
-}
+  const acceptedFrames = scores.map((rawScore, index) => {
+    const frameId = `demo-${snapshot.trialId}-${role}-frame-${index + 1}`;
+    return {
+      frameId,
+      capture: {
+        id: frameId,
+        kind: role,
+        source: 'camera' as const,
+        mimeType: 'image/jpeg' as const,
+        createdAt: session.capturedAt,
+        orientationRule: 'analysis-unmirrored' as const,
+        cameraProfileId: DEMO_CAPTURE_PROFILE,
+      },
+      quality: {
+        currentFrame: 'accepted' as const,
+        exposure: 'accepted' as const,
+        movement: 'accepted' as const,
+      },
+      signal: {
+        provider: 'youcam' as const,
+        apiVersion: '2.1' as const,
+        mode: 'hd' as const,
+        concern: 'hd_redness' as const,
+        region: null,
+        scoreType: 'raw_score' as const,
+        captureProtocolVersion: 'face-value-youcam-1' as const,
+        rawScore,
+        capturedAt: session.capturedAt,
+        captureQuality: 'accepted' as const,
+      },
+      providerAttemptCount: 1 as const,
+    };
+  });
 
-function capture(kind: 'baseline' | 'followup', createdAt: string): CaptureMetadata {
   return {
-    id: `demo-synthetic-${kind}`,
-    kind,
-    source: 'file',
-    mimeType: 'image/unknown',
-    createdAt,
-    orientationRule: 'analysis-unmirrored',
-    cameraProfileId: null,
+    burstId: `demo-${snapshot.trialId}-${role}-burst`,
+    role,
+    sessionId: `demo-${session.sessionId}`,
+    captureProfileId: DEMO_CAPTURE_PROFILE,
+    startedAt: session.capturedAt,
+    completedAt: session.capturedAt,
+    attemptedFrameCount: 3,
+    acceptedFrames,
+    rejectedFrames: [],
   };
 }
 
@@ -151,10 +168,10 @@ function evaluatedState(resultFixture: DemoResultFixtureId): {
     fixtureInput.adherence = { status: 'unknown' };
   }
   const snapshot = evaluateRedness(fixtureInput);
-  const baselineAt = firstCapturedAt(snapshot, 'baseline');
-  const followUpAt = firstCapturedAt(snapshot, 'endpoint');
-  const baseline = signal(requiredMedian(snapshot.baselineRawMedian, 'baseline'), baselineAt);
-  const followUp = signal(requiredMedian(snapshot.endpointRawMedian, 'follow-up'), followUpAt);
+  const baselineBurst = burstFromSnapshot(snapshot, 'baseline', 'baseline');
+  const followUpBurst = burstFromSnapshot(snapshot, 'endpoint', 'followup');
+  const baselineAt = baselineBurst.completedAt;
+  const followUpAt = followUpBurst.completedAt;
   const product = registeredProduct(snapshot, baselineAt);
   const analysis: AnalysisResult = {
     ...analysisResultFromRednessEvaluation(snapshot),
@@ -162,7 +179,7 @@ function evaluatedState(resultFixture: DemoResultFixtureId): {
     simulated: true,
   };
   const compatibilityComparison = rednessComparisonFromEvaluation(snapshot);
-  const generationId = `${product.id}:${followUp.capturedAt}`;
+  const generationId = `${product.id}:${followUpAt}`;
   const trialTruthEvidence =
     resultFixture === 'legacy_trial_truth_not_collected'
       ? null
@@ -188,8 +205,8 @@ function evaluatedState(resultFixture: DemoResultFixtureId): {
         : analysis.comparison === 'not_available'
           ? null
           : analysis.comparison,
-    baselineCapture: capture('baseline', baselineAt),
-    followupCapture: capture('followup', followUpAt),
+    baselineCapture: baselineBurst.acceptedFrames[0].capture,
+    followupCapture: followUpBurst.acceptedFrames[0].capture,
     analysis,
     record: null,
     archive: [],
@@ -197,8 +214,10 @@ function evaluatedState(resultFixture: DemoResultFixtureId): {
     returnStage: null,
     longitudinalEvidence: {
       protocol: { ...HD_REDNESS_PROTOCOL },
-      baseline,
-      followUp,
+      baseline: null,
+      followUp: null,
+      baselineBurst,
+      followUpBurst,
       comparison: compatibilityComparison,
       evaluation: snapshot,
     },
@@ -254,6 +273,8 @@ function registeredState(state: TrialTruthFaceValueState): TrialTruthFaceValueSt
       protocol: null,
       baseline: null,
       followUp: null,
+      baselineBurst: null,
+      followUpBurst: null,
       comparison: null,
       evaluation: null,
     },
@@ -300,6 +321,7 @@ function baselineOnlyState(
     longitudinalEvidence: {
       ...state.longitudinalEvidence,
       followUp: null,
+      followUpBurst: null,
       comparison: null,
       evaluation: null,
     },
