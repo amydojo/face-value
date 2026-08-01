@@ -29,7 +29,7 @@ type SpecimenRegistrationStyle = CSSProperties & {
 };
 
 const resultReadyPresentationCss = `
-[data-oracle-machine][data-cassette-variant='reveal']
+[data-cassette-variant='reveal']
   [data-oracle-specimen][data-specimen-state='verdict'] {
   top: 18.5%;
   right: auto;
@@ -38,7 +38,7 @@ const resultReadyPresentationCss = `
   transform: translateX(-50%);
 }
 
-[data-oracle-machine][data-cassette-variant='reveal']
+[data-cassette-variant='reveal']
   [data-oracle-specimen][data-specimen-state='verdict']::before {
   position: absolute;
   top: 90.8%;
@@ -63,7 +63,7 @@ const resultReadyPresentationCss = `
   pointer-events: none;
 }
 
-[data-oracle-machine][data-cassette-variant='reveal'][data-oracle-state='sealed']
+[data-cassette-variant='reveal'][data-oracle-state='sealed']
   [data-oracle-specimen][data-specimen-state='verdict']::after {
   position: absolute;
   top: 4%;
@@ -86,7 +86,7 @@ const resultReadyPresentationCss = `
   pointer-events: none;
 }
 
-[data-oracle-machine][data-cassette-variant='reveal'] [data-firmware-state] {
+[data-cassette-variant='reveal'] [data-firmware-state] {
   padding-right: 48%;
   background:
     linear-gradient(
@@ -113,7 +113,7 @@ const resultReadyPresentationCss = `
 }
 
 @media (prefers-reduced-motion: reduce) {
-  [data-oracle-machine][data-cassette-variant='reveal'][data-oracle-state='sealed']
+  [data-cassette-variant='reveal'][data-oracle-state='sealed']
     [data-oracle-specimen][data-specimen-state='verdict']::after {
     opacity: 0.27;
     filter: blur(10px) brightness(0.96);
