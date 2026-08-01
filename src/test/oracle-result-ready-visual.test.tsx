@@ -62,7 +62,10 @@ describe('Oracle result-ready specimen presentation', () => {
   });
 
   it('holds the canonical wrapper and sealed specimen at true center without a visible shelf', () => {
-    expect(choreographyCss).toContain('--oracle-specimen-dock-offset: clamp(46px, 14.6vw, 63px);');
+    expect(choreographyCss).toContain('--oracle-specimen-dock-offset: clamp(54px, 16.5vw, 74px);');
+    expect(choreographyCss).not.toContain(
+      '--oracle-specimen-dock-offset: clamp(46px, 14.6vw, 63px);',
+    );
     expect(choreographyCss).toContain('left: 50%;');
     expect(choreographyCss).toContain('top: 103%;');
     expect(choreographyCss).toContain('border: 0;');
