@@ -45,6 +45,7 @@ export function createCameraKitAdapter(): CameraKitAdapter {
     requestedScenario === 'signal-flicker' ||
     requestedScenario === 'lose-lock' ||
     requestedScenario === 'lose-scan' ||
+    requestedScenario === 'burst-rejection' ||
     requestedScenario === 'permission-denied' ||
     requestedScenario === 'camera-unavailable'
       ? requestedScenario
@@ -60,9 +61,7 @@ export function createCameraKitAdapter(): CameraKitAdapter {
   // The vendor's documented renderer is retained only as a privacy-safe
   // development contract harness. Production uses a first-party <video>
   // preview and captures that exact visible frame.
-  return useCameraKitDiagnostic
-    ? new YouCamCameraKitAdapter()
-    : new NativeBrowserCameraAdapter();
+  return useCameraKitDiagnostic ? new YouCamCameraKitAdapter() : new NativeBrowserCameraAdapter();
 }
 
 export const createGuidedCaptureAdapter = createCameraKitAdapter;

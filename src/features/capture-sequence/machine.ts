@@ -69,15 +69,10 @@ const allValid = (quality: CaptureQuality): boolean => Object.values(quality).ev
 const usesFrameQuality = (sample: CaptureSignalSample): boolean =>
   sample.verificationMode === 'frame-quality';
 
-const hasAcquisitionFrame = (
-  quality: CaptureQuality,
-  sample: CaptureSignalSample,
-): boolean => (usesFrameQuality(sample) ? sample.frameReady === true : quality.facePresent);
+const hasAcquisitionFrame = (quality: CaptureQuality, sample: CaptureSignalSample): boolean =>
+  usesFrameQuality(sample) ? sample.frameReady === true : quality.facePresent;
 
-const captureConditionsValid = (
-  quality: CaptureQuality,
-  sample: CaptureSignalSample,
-): boolean =>
+const captureConditionsValid = (quality: CaptureQuality, sample: CaptureSignalSample): boolean =>
   usesFrameQuality(sample)
     ? sample.frameReady === true && quality.lightingValid && quality.stillnessValid
     : allValid(quality);
@@ -175,10 +170,7 @@ const updatePresentationSignals = (
   state: CaptureSequenceState,
   at: number,
 ): CaptureSequenceState => {
-  const nextIssue = getHighestPriorityCaptureIssue(
-    state.quality,
-    state.latestSample,
-  );
+  const nextIssue = getHighestPriorityCaptureIssue(state.quality, state.latestSample);
   if (nextIssue === state.activeIssue) {
     return {
       ...state,
@@ -193,10 +185,7 @@ const updatePresentationSignals = (
     state.issueCandidateSince !== null && state.issueCandidate === nextIssue
       ? state.issueCandidateSince
       : at;
-  const delay =
-    nextIssue === null
-      ? CAPTURE_TIMING.returnValidMs
-      : CAPTURE_TIMING.enterInvalidMs;
+  const delay = nextIssue === null ? CAPTURE_TIMING.returnValidMs : CAPTURE_TIMING.enterInvalidMs;
   const issueStable = at - issueCandidateSince >= delay;
 
   return {
@@ -219,7 +208,7 @@ function advancePhase(
   if (state.phase === 'error') return state;
 
   if (state.phase === 'captured') {
-    if (!state.handoffReady && at - state.phaseEnteredAt >= CAPTURE_TIMING.capturedHoldMs) {
+    if (!state.handoffReady && at - state.phaseEnteredAt >= CAPTURE_TIMING.scanCompleteDwellMs) {
       return { ...state, handoffReady: true };
     }
     return state;
@@ -256,17 +245,11 @@ function advancePhase(
     return { ...state, validSince };
   }
 
-  const rawQualityValid = captureConditionsValid(
-    state.latestSample.quality,
-    state.latestSample,
-  );
+  const rawQualityValid = captureConditionsValid(state.latestSample.quality, state.latestSample);
   if (!rawQualityValid) {
     const invalidSince = state.invalidSince ?? at;
     if (at - invalidSince >= CAPTURE_TIMING.loseLockMs) {
-      const frameLost = !hasAcquisitionFrame(
-        state.latestSample.quality,
-        state.latestSample,
-      );
+      const frameLost = !hasAcquisitionFrame(state.latestSample.quality, state.latestSample);
       return enterPhase(
         {
           ...state,
@@ -407,7 +390,7 @@ export function getNextCaptureSequenceDeadline(
     );
   }
   if (state.phase === 'captured' && !state.handoffReady) {
-    deadlines.push(state.phaseEnteredAt + CAPTURE_TIMING.capturedHoldMs);
+    deadlines.push(state.phaseEnteredAt + CAPTURE_TIMING.scanCompleteDwellMs);
   }
 
   return deadlines.length > 0 ? Math.min(...deadlines) : null;

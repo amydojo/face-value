@@ -5,9 +5,10 @@ import {
   STORAGE_KEY,
   toPersistedDemoData,
 } from '../adapters/persistence/localObservationStore';
+import { HD_REDNESS_PROTOCOL } from '../adapters/analysis/youcam/contracts';
 import { initialState } from '../app/machine';
 import { clearImprovementFixture, evaluateRedness } from '../domain/evidence/redness';
-import type { EvidenceRecordData } from '../domain/model';
+import type { EvidenceRecordData, RednessEvidenceBurst } from '../domain/model';
 import { verdictViewModelFromRecord } from '../features/verdict/verdictViewModel';
 
 const legacyRecord: EvidenceRecordData = {
@@ -29,6 +30,51 @@ const legacyRecord: EvidenceRecordData = {
   createdAt: '2026-06-01T12:00:00.000Z',
   includesFaceImage: false,
 };
+
+const burst = (role: 'baseline' | 'followup', scores: number[]): RednessEvidenceBurst => ({
+  burstId: `${role}-burst`,
+  role,
+  sessionId: `${role}-session`,
+  captureProfileId: 'native-browser-camera-v1',
+  startedAt: `2026-07-${role === 'baseline' ? '01' : '30'}T12:00:00.000Z`,
+  completedAt: `2026-07-${role === 'baseline' ? '01' : '30'}T12:00:01.000Z`,
+  attemptedFrameCount: 3,
+  acceptedFrames: scores.map((rawScore, index) => {
+    const frameId = `${role}-frame-${index + 1}`;
+    const capturedAt = `2026-07-${role === 'baseline' ? '01' : '30'}T12:00:00.00${index + 1}Z`;
+    return {
+      frameId,
+      capture: {
+        id: frameId,
+        kind: role,
+        source: 'camera',
+        mimeType: 'image/jpeg',
+        createdAt: capturedAt,
+        orientationRule: 'analysis-unmirrored',
+        cameraProfileId: 'native-browser-camera-v1',
+      },
+      quality: {
+        currentFrame: 'accepted',
+        exposure: 'accepted',
+        movement: 'accepted',
+      },
+      signal: {
+        provider: 'youcam',
+        apiVersion: '2.1',
+        mode: 'hd',
+        concern: 'hd_redness',
+        region: null,
+        scoreType: 'raw_score',
+        captureProtocolVersion: 'face-value-youcam-1',
+        rawScore,
+        capturedAt,
+        captureQuality: 'accepted',
+      },
+      providerAttemptCount: 1,
+    };
+  }),
+  rejectedFrames: [],
+});
 
 it('persists structured scan metadata without images or object URLs', () => {
   const state = {
@@ -130,6 +176,116 @@ it('keeps a versioned canonical evaluation byte-stable after persistence', () =>
   const restored = loadStructuredDemoData();
   expect(JSON.stringify(restored?.archive[0].rednessEvaluation)).toBe(serializedSnapshot);
   expect(restored?.archive[0].rednessEvaluation?.threshold.version).toBe('redness-provisional-v1');
+});
+
+it('reloads complete face-free bursts and never persists the partial active generation', () => {
+  const baselineBurst = burst('baseline', [90.25, 92.5, 91.75]);
+  const data = toPersistedDemoData({
+    ...initialState,
+    stage: 'camera',
+    assignedJob: 'Reduce visible redness',
+    longitudinalEvidence: {
+      protocol: { ...HD_REDNESS_PROTOCOL },
+      baseline: null,
+      followUp: null,
+      baselineBurst,
+      followUpBurst: null,
+      comparison: null,
+      evaluation: null,
+    },
+    activeRednessBurst: {
+      generationId: 'runtime-only-generation',
+      burstId: 'runtime-only-burst',
+      role: 'followup',
+      sessionId: 'runtime-only-session',
+      captureProfileId: null,
+      startedAt: '2026-07-30T12:30:00.000Z',
+      attemptedFrameCount: 1,
+      capturedFrames: [],
+      acceptedFrames: [],
+      rejectedFrames: [
+        {
+          frameId: 'runtime-only-rejection',
+          attemptedAt: '2026-07-30T12:30:00.001Z',
+          stage: 'capture',
+          reasons: ['movement above accepted range'],
+        },
+      ],
+      providerRequests: [],
+      protocol: { ...HD_REDNESS_PROTOCOL },
+      status: 'capturing',
+    },
+  });
+  const serialized = JSON.stringify(data);
+  expect(serialized).not.toContain('runtime-only-generation');
+  expect(serialized).not.toMatch(/Blob|blob:|data:image|base64|objectURL|MediaStream/);
+
+  localStorage.setItem(STORAGE_KEY, serialized);
+  const restored = loadStructuredDemoData();
+  expect(
+    restored?.longitudinalEvidence.baselineBurst?.acceptedFrames.map(
+      (frame) => frame.signal.rawScore,
+    ),
+  ).toEqual([90.25, 92.5, 91.75]);
+  expect(restored?.longitudinalEvidence.baselineBurst?.captureProfileId).toBe(
+    'native-browser-camera-v1',
+  );
+});
+
+it('fails closed when a persisted burst is stored under the wrong period role', () => {
+  const data = toPersistedDemoData({
+    ...initialState,
+    assignedJob: 'Reduce visible redness',
+    longitudinalEvidence: {
+      protocol: { ...HD_REDNESS_PROTOCOL },
+      baseline: null,
+      followUp: null,
+      baselineBurst: burst('baseline', [90, 91, 92]),
+      followUpBurst: null,
+      comparison: null,
+      evaluation: null,
+    },
+  });
+  const malformed = structuredClone(data);
+  malformed.longitudinalEvidence.baselineBurst!.role = 'followup';
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(malformed));
+
+  expect(loadStructuredDemoData()).toBeNull();
+  expect(localStorage.getItem(STORAGE_KEY)).toBeNull();
+});
+
+it('keeps a pre-burst signal and its saved snapshot unchanged without inventing a burst', () => {
+  const snapshot = evaluateRedness(structuredClone(clearImprovementFixture));
+  const capturedAt = '2026-06-01T12:00:00.000Z';
+  const legacySignal = {
+    provider: 'youcam' as const,
+    apiVersion: '2.1' as const,
+    mode: 'hd' as const,
+    concern: 'hd_redness' as const,
+    region: null,
+    scoreType: 'raw_score' as const,
+    captureProtocolVersion: 'face-value-youcam-1' as const,
+    rawScore: 93.3356,
+    capturedAt,
+    captureQuality: 'accepted' as const,
+  };
+  const savedSnapshotBytes = JSON.stringify(snapshot);
+  saveStructuredDemoData({
+    ...initialState,
+    assignedJob: 'Reduce visible redness',
+    longitudinalEvidence: {
+      protocol: { ...HD_REDNESS_PROTOCOL },
+      baseline: legacySignal,
+      followUp: null,
+      comparison: null,
+      evaluation: snapshot,
+    },
+  });
+
+  const restored = loadStructuredDemoData();
+  expect(restored?.longitudinalEvidence.baseline?.rawScore).toBe(93.3356);
+  expect(restored?.longitudinalEvidence.baselineBurst).toBeNull();
+  expect(JSON.stringify(restored?.longitudinalEvidence.evaluation)).toBe(savedSnapshotBytes);
 });
 
 it('keeps pre-engine saved records readable without inventing a snapshot', () => {

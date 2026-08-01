@@ -145,6 +145,14 @@ test('home keeps one hierarchy and the exact verdict across home, detail, and hi
   await expect(cassette).toContainText('A small favorable shift showed up.');
   await expect(cassette).toContainText('POSSIBLE');
   await expect(cassette).toContainText('TEST LONGER');
+  const latestSpecimen = cassette.locator('[data-oracle-specimen]');
+  await expect(latestSpecimen).toHaveCSS('opacity', '1');
+  await expect(latestSpecimen).toHaveCSS('z-index', '7');
+  await expect(latestSpecimen).toHaveAttribute('data-specimen-brand', 'Naturium');
+  await expect(latestSpecimen).toHaveAttribute('data-specimen-product', 'Azelaic Topical Acid');
+  await expect(latestSpecimen).toHaveAttribute('data-specimen-strength', '10%');
+  await expect(latestSpecimen).toHaveAttribute('data-specimen-volume', '30 ml');
+  await expect(latestSpecimen).toHaveAttribute('data-specimen-accession', 'SPECIMEN 01');
   await expect(cassette.getByText(/VIEW TRIAL/)).toBeVisible();
   const latestPaper = cassette.locator('[data-latest-verdict-record]');
   await expect(latestPaper).toContainText('RESULT');
@@ -169,6 +177,10 @@ test('home keeps one hierarchy and the exact verdict across home, detail, and hi
   await expect(savedResult).toContainText('Naturium · Azelaic Topical Acid');
   await expect(savedResult).toContainText('A small favorable shift showed up.');
   await expect(savedResult).toContainText('TEST LONGER');
+  await expect(savedResult).toHaveAttribute('data-specimen-brand', 'Naturium');
+  await expect(savedResult).toHaveAttribute('data-specimen-product', 'Azelaic Topical Acid');
+  await expect(savedResult).toHaveAttribute('data-specimen-strength', '10%');
+  await expect(savedResult).toHaveAttribute('data-specimen-volume', '30 ml');
 
   await page.getByRole('button', { name: 'Back to previous view' }).click();
   await expect(cassette).toBeVisible();
@@ -202,6 +214,13 @@ test('home keeps one hierarchy and the exact verdict across home, detail, and hi
   );
   await expect(savedRecords.first()).toContainText('POSSIBLE');
   await expect(savedRecords.first()).toContainText('TEST LONGER');
+  await expect(savedRecords.first()).toHaveAttribute('data-specimen-brand', 'Naturium');
+  await expect(savedRecords.first()).toHaveAttribute(
+    'data-specimen-product',
+    'Azelaic Topical Acid',
+  );
+  await expect(savedRecords.first()).toHaveAttribute('data-specimen-strength', '10%');
+  await expect(savedRecords.first()).toHaveAttribute('data-specimen-volume', '30 ml');
   await expect(savedRecords.first()).toContainText('→');
   expect((await savedRecords.first().boundingBox())?.height).toBeGreaterThanOrEqual(44);
   for (let index = 0; index < 4; index += 1) {
@@ -215,6 +234,12 @@ test('home keeps one hierarchy and the exact verdict across home, detail, and hi
   await savedRecords.first().click();
   await expect(page.locator('[data-oracle-trial-identity]')).toHaveText('FV–014');
   await expect(savedResult).toContainText('Naturium · Azelaic Topical Acid');
+  await page.reload();
+  await expect(page.getByRole('heading', { name: 'Evidence record' })).toBeVisible();
+  await expect(savedResult).toHaveAttribute('data-specimen-brand', 'Naturium');
+  await expect(savedResult).toHaveAttribute('data-specimen-product', 'Azelaic Topical Acid');
+  await expect(savedResult).toHaveAttribute('data-specimen-strength', '10%');
+  await expect(savedResult).toHaveAttribute('data-specimen-volume', '30 ml');
   await noHorizontalOverflow(page);
 });
 

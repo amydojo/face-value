@@ -4,3 +4,4 @@ export * from './geometry';
 export * from './guidance';
 export * from './machine';
 export * from './types';
+export * from './useAnalysisWaitPresentation';

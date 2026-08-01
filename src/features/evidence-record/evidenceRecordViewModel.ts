@@ -128,6 +128,30 @@ const signedPoints = (value: number | null): string =>
     ? 'Not available'
     : `${signedScoreFormatter.format(value)} ${Math.abs(value) === 1 ? 'point' : 'points'}`;
 
+const acceptedMeasurements = (scores: number[]): string =>
+  scores.length === 0 ? 'Not available' : scores.map(scoreFormatter.format).join(' · ');
+
+const rejectedAttempts = (period: RednessEvaluationSnapshot['baseline']): string => {
+  const reasons = [
+    ...new Set(
+      period.sessions.flatMap((session) =>
+        session.rejectedFrames.flatMap((frame) => frame.reasons),
+      ),
+    ),
+  ];
+  if (period.rejectedFrameCount === 0) return 'None';
+  const count = `${period.rejectedFrameCount} ${
+    period.rejectedFrameCount === 1 ? 'attempt' : 'attempts'
+  }`;
+  return reasons.length > 0 ? `${count} · ${reasons.join(' · ')}` : count;
+};
+
+const directionAgreement = (evaluation: RednessEvaluationSnapshot): string => {
+  const direction = humanizeCode(evaluation.directionAgreement.status);
+  const count = evaluation.directionAgreement.assessedEndpointFrameCount;
+  return `${direction} · ${count} follow-up ${count === 1 ? 'measurement' : 'measurements'}`;
+};
+
 const days = (value: number): string => {
   if (!Number.isFinite(value)) return 'Not available';
   const formatted = scoreFormatter.format(value);
@@ -178,10 +202,7 @@ const evidenceLabel = (value: EvidenceQuality): string => {
 
 const attributionLabel = (evaluation: RednessEvaluationSnapshot): string => {
   if (evaluation.attributionQuality === 'blocked') return 'Another change interfered';
-  if (
-    evaluation.secondProductStatus === 'possible_overlap' ||
-    evaluation.confounders.length > 0
-  ) {
+  if (evaluation.secondProductStatus === 'possible_overlap' || evaluation.confounders.length > 0) {
     return evaluation.attributionQuality === 'moderate'
       ? 'Minor changes reported'
       : 'Not fully isolated';
@@ -415,9 +436,7 @@ const productOverlap = (evaluation: RednessEvaluationSnapshot): string => {
 const confounderSummary = (evaluation: RednessEvaluationSnapshot): string =>
   evaluation.confounders.length === 0
     ? 'None recorded'
-    : evaluation.confounders
-        .map((flag) => flag.note?.trim() || humanizeCode(flag.code))
-        .join(' ');
+    : evaluation.confounders.map((flag) => flag.note?.trim() || humanizeCode(flag.code)).join(' ');
 
 const adherenceLabel = (value: RednessEvaluationSnapshot['adherence']['status']): string => {
   switch (value) {
@@ -579,6 +598,32 @@ const fullRecordFor = (
             id: 'follow-up-score',
             label: 'Follow-up score',
             value: score(evaluation.endpointRawMedian),
+          },
+          {
+            id: 'baseline-measurements',
+            label: 'Baseline measurements',
+            value: acceptedMeasurements(evaluation.baseline.acceptedRawScores),
+          },
+          {
+            id: 'follow-up-measurements',
+            label: 'Follow-up measurements',
+            value: acceptedMeasurements(evaluation.endpoint.acceptedRawScores),
+          },
+          {
+            id: 'baseline-rejections',
+            label: 'Baseline replacements',
+            value: rejectedAttempts(evaluation.baseline),
+          },
+          {
+            id: 'follow-up-rejections',
+            label: 'Follow-up replacements',
+            value: rejectedAttempts(evaluation.endpoint),
+          },
+          {
+            id: 'direction-agreement',
+            label: 'Follow-up agreement',
+            value: directionAgreement(evaluation),
+            canonicalValue: evaluation.directionAgreement.status,
           },
           {
             id: 'observed-change',

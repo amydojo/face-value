@@ -110,6 +110,7 @@ test('captures the canonical visual states without changing machine geometry', a
     state: string;
     chassis: { width: number; height: number };
     display: { width: number; height: number };
+    specimen: { x: number; y: number; width: number; height: number };
     slot: { x: number; width: number };
     reflection: { x: number; y: number; width: number; height: number };
   }> = [];
@@ -146,13 +147,20 @@ test('captures the canonical visual states without changing machine geometry', a
     const display = await page.locator('[data-oracle-display-opening]').boundingBox();
     const slot = await page.locator('[data-oracle-slot]').boundingBox();
     const reflection = await page.locator('[data-oracle-glass-reflection]').boundingBox();
-    if (!chassis || !display || !slot || !reflection) {
+    const specimen = await page.locator('[data-oracle-specimen]').boundingBox();
+    if (!chassis || !display || !slot || !reflection || !specimen) {
       throw new Error(`Missing oracle geometry for ${phase}`);
     }
     geometry.push({
       state: phase,
       chassis: { width: chassis.width, height: chassis.height },
       display: { width: display.width, height: display.height },
+      specimen: {
+        x: specimen.x - display.x,
+        y: specimen.y - display.y,
+        width: specimen.width,
+        height: specimen.height,
+      },
       slot: { x: slot.x, width: slot.width },
       reflection: {
         x: reflection.x - display.x,
@@ -166,6 +174,34 @@ test('captures the canonical visual states without changing machine geometry', a
       'carbon',
     );
     await expect(page.locator('[data-oracle-machine] [data-amber-state]')).toHaveCount(1);
+    const loadedSpecimen = page.locator('[data-oracle-specimen]');
+    await expect(loadedSpecimen).toHaveAttribute('data-specimen-state', 'verdict');
+    await expect(loadedSpecimen).toHaveAttribute('data-identity-lock-state', 'locked');
+    await expect(loadedSpecimen).toHaveCSS('opacity', '1');
+    await expect(loadedSpecimen).toHaveCSS('z-index', '7');
+    await expect(loadedSpecimen).toHaveAttribute(
+      'data-specimen-id',
+      persistedSealedTrial.registeredProduct.id,
+    );
+    await expect(loadedSpecimen).toHaveAttribute('data-specimen-accession', 'SPECIMEN 01');
+    await expect(loadedSpecimen).toHaveAttribute('data-specimen-brand', 'Naturium');
+    await expect(loadedSpecimen).toHaveAttribute('data-specimen-product', 'Azelaic Topical Acid');
+    await expect(loadedSpecimen).toHaveAttribute('data-specimen-strength', '10%');
+    await expect(loadedSpecimen).toHaveAttribute('data-specimen-volume', '30 ml');
+    await expect(
+      loadedSpecimen.locator('[data-specimen-layer="thermal-evidence-label"]'),
+    ).toHaveCSS('opacity', '1');
+    await expect(
+      loadedSpecimen.locator('[data-specimen-layer="evidence-lock-strip"]'),
+    ).not.toHaveCSS('opacity', '0');
+    await expect(loadedSpecimen.locator('[data-label-status-marker]')).toHaveAttribute(
+      'data-label-status-state',
+      'locked',
+    );
+    if (phase === 'sealed' || phase === 'opening') {
+      await expect(page.locator('[data-oracle-finding]')).toHaveCount(0);
+      await expect(page.getByText(persistedSealedTrial.analysis.finding)).toHaveCount(0);
+    }
     const control = page.locator('[data-oracle-handle]');
     await expect(control).toHaveAttribute('data-oracle-control-label', controlLabels[phase]);
     if (!['sealed', 'opening'].includes(phase)) {
@@ -205,6 +241,22 @@ test('captures the canonical visual states without changing machine geometry', a
     expect(
       Math.abs(sample.display.height - baseline.display.height),
       `${sample.state} display height`,
+    ).toBeLessThanOrEqual(0.5);
+    expect(
+      Math.abs(sample.specimen.x - baseline.specimen.x),
+      `${sample.state} specimen x`,
+    ).toBeLessThanOrEqual(0.5);
+    expect(
+      Math.abs(sample.specimen.y - baseline.specimen.y),
+      `${sample.state} specimen y`,
+    ).toBeLessThanOrEqual(0.5);
+    expect(
+      Math.abs(sample.specimen.width - baseline.specimen.width),
+      `${sample.state} specimen width`,
+    ).toBeLessThanOrEqual(0.5);
+    expect(
+      Math.abs(sample.specimen.height - baseline.specimen.height),
+      `${sample.state} specimen height`,
     ).toBeLessThanOrEqual(0.5);
     expect(
       Math.abs(sample.slot.x - baseline.slot.x),
@@ -247,6 +299,14 @@ test('keeps one opaque square paper in a clipped Safari-safe coordinate system',
   if (!initialPaper || !path || !paperHandle || !paperPathHandle) {
     throw new Error('Missing persistent evidence path geometry');
   }
+  const paperIdentity = page.locator('[data-oracle-paper] article');
+  await expect(paperIdentity).toHaveAttribute('data-paper-specimen-brand', 'Naturium');
+  await expect(paperIdentity).toHaveAttribute(
+    'data-paper-specimen-product',
+    'Azelaic Topical Acid',
+  );
+  await expect(paperIdentity).toHaveAttribute('data-paper-specimen-strength', '10%');
+  await expect(paperIdentity).toHaveAttribute('data-paper-specimen-volume', '30 ml');
 
   const layerModel = await page.locator('[data-oracle-paper]').evaluate((paper) => {
     const pathElement = paper.parentElement;
@@ -433,10 +493,7 @@ test('captures a clean reduced-motion completed feed', async ({ page }) => {
     }),
   );
 
-  await expect(page.locator('[data-oracle-paper]')).toHaveAttribute(
-    'data-paper-position',
-    'final',
-  );
+  await expect(page.locator('[data-oracle-paper]')).toHaveAttribute('data-paper-position', 'final');
   await expect(page.locator('[data-oracle-paper]')).toHaveCSS('opacity', '1');
   await expect(page.locator('[data-oracle-evidence-path]')).toHaveCSS('overflow', 'hidden');
   const exposedContentIsPaper = await page.locator('[data-oracle-paper]').evaluate((element) => {
@@ -468,6 +525,10 @@ test('collection leaves an empty slot, detail is escapable, and Done restores ho
   await loadState(page, stateFor('collected'));
 
   await expect(page.locator('[data-oracle-paper]')).toHaveCount(0);
+  await expect(page.locator('[data-oracle-specimen]')).toHaveAttribute(
+    'data-specimen-product',
+    'Azelaic Topical Acid',
+  );
   await expect(page.locator('[data-oracle-handle]')).toHaveAttribute(
     'data-oracle-control-label',
     'none',
@@ -495,6 +556,12 @@ test('collection leaves an empty slot, detail is escapable, and Done restores ho
     'data-cassette-state',
     'partially-revealed',
   );
+  await expect(
+    page.locator('[data-latest-verdict-cassette] [data-oracle-specimen]'),
+  ).toHaveAttribute('data-specimen-strength', '10%');
+  await expect(
+    page.locator('[data-latest-verdict-cassette] [data-oracle-specimen]'),
+  ).toHaveAttribute('data-specimen-volume', '30 ml');
   await expect(
     page.locator('[data-latest-verdict-record]').locator('[data-oracle-trial-identity]'),
   ).toHaveText('FV–014');
@@ -583,7 +650,7 @@ test('responsive and reduced-motion flows preserve order without overflow', asyn
       const value = localStorage.getItem(key);
       return value ? JSON.parse(value) : null;
     }, STORAGE_KEY);
-    expect(persisted?.record?.accession).toBe('FV–014');
+    expect(persisted?.record?.accession).toBe('SPECIMEN 01');
     await page.getByRole('button', { name: 'DONE' }).click();
     await expect(page.getByRole('heading', { name: 'Your trials' })).toBeVisible();
     await expect(page.locator('[data-cassette-variant="latest-verdict"]')).toHaveAttribute(

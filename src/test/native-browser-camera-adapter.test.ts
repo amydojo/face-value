@@ -3,6 +3,7 @@ import {
   NativeBrowserCameraAdapter,
   assessNativeFramePixels,
   isVisibleVideoFrame,
+  waitForDistinctVideoFrame,
   waitForVisibleVideoFrame,
   type GuidedCaptureStartOptions,
   type NativeCameraEnvironment,
@@ -94,10 +95,22 @@ const makeEnvironment = ({
   const createFrameReader = vi.fn(() =>
     Object.assign(() => steadyAssessment(), { reset: frameReset }),
   );
+  let frameNumber = 0;
+  const waitForDistinctFrame = vi.fn(async () => {
+    frameNumber += 1;
+    return {
+      mediaTime: frameNumber / 30,
+      presentedFrames: frameNumber,
+      currentTime: frameNumber / 30,
+    };
+  });
+  const now = vi.fn(() => `2026-07-30T12:00:00.${String(frameNumber).padStart(3, '0')}Z`);
   const environment: NativeCameraEnvironment = {
     requestCamera,
     captureFrame,
     createFrameReader,
+    waitForDistinctFrame,
+    now,
     firstFrameTimeoutMs,
     sampleIntervalMs: 25,
   };
@@ -217,10 +230,96 @@ describe('native camera session lifecycle', () => {
     expect(options.onCapture).toHaveBeenCalledWith(
       expect.any(Blob),
       'native-browser-camera-v1',
+      expect.objectContaining({
+        capturedAt: '2026-07-30T12:00:00.000Z',
+        frameId: 'native-1-1-1',
+      }),
     );
     expect(track.stop).toHaveBeenCalledOnce();
     expect(frameReset).toHaveBeenCalledOnce();
     session.cancel();
+    expect(track.stop).toHaveBeenCalledOnce();
+  });
+
+  it('captures exactly three independently proven decoded frames in one live session', async () => {
+    const track = makeTrack();
+    let captureNumber = 0;
+    const { environment, frameReset } = makeEnvironment({
+      streams: [makeStream(track)],
+    });
+    environment.captureFrame = vi.fn(async () => {
+      captureNumber += 1;
+      return new Blob([`abstract-frame-${captureNumber}`], { type: 'image/jpeg' });
+    });
+    const onCapture = vi.fn();
+    const options = optionsFor(makeVideo().video, {
+      burstGenerationId: 'burst-current-frames',
+      onCapture,
+      onRejectedAttempt: vi.fn(),
+      onBurstComplete: vi.fn(),
+    });
+    const session = await new NativeBrowserCameraAdapter(environment).start(options);
+
+    session.capture?.();
+
+    await vi.waitFor(() => expect(environment.captureFrame).toHaveBeenCalledTimes(3));
+    expect(environment.waitForDistinctFrame).toHaveBeenCalledTimes(3);
+    expect(onCapture).toHaveBeenCalledTimes(3);
+    const frameIds = onCapture.mock.calls.map((call) => call[2]?.frameId);
+    expect(frameIds).toEqual(['native-1-1-1', 'native-1-2-2', 'native-1-3-3']);
+    expect(new Set(frameIds).size).toBe(3);
+    expect(options.onBurstComplete).toHaveBeenCalledWith({
+      attemptedFrameCount: 3,
+      acceptedFrameCount: 3,
+    });
+    expect(options.onRejectedAttempt).not.toHaveBeenCalled();
+    expect(track.stop).toHaveBeenCalledOnce();
+    expect(frameReset).toHaveBeenCalledOnce();
+  });
+
+  it('enforces five capture attempts and reapplies quality gates before every frame', async () => {
+    const track = makeTrack();
+    const { environment } = makeEnvironment({
+      streams: [makeStream(track)],
+    });
+    const rejectedAssessment: NativeFrameAssessment = {
+      ...steadyAssessment(),
+      stillnessValid: false,
+    };
+    const attemptAssessments = [
+      rejectedAssessment,
+      rejectedAssessment,
+      rejectedAssessment,
+      steadyAssessment(),
+      steadyAssessment(),
+    ];
+    let assessmentCall = 0;
+    environment.createFrameReader = vi.fn(() => {
+      const read = Object.assign(
+        () => {
+          assessmentCall += 1;
+          return assessmentCall === 1
+            ? steadyAssessment()
+            : (attemptAssessments[assessmentCall - 2] ?? steadyAssessment());
+        },
+        { reset: vi.fn() },
+      );
+      return read;
+    });
+    const options = optionsFor(makeVideo().video, {
+      burstGenerationId: 'burst-attempt-bound',
+      onRejectedAttempt: vi.fn(),
+      onBurstComplete: vi.fn(),
+    });
+    const session = await new NativeBrowserCameraAdapter(environment).start(options);
+
+    session.capture?.();
+
+    await vi.waitFor(() => expect(options.onFailure).toHaveBeenCalledWith('burst-exhausted'));
+    expect(environment.waitForDistinctFrame).toHaveBeenCalledTimes(5);
+    expect(environment.captureFrame).toHaveBeenCalledTimes(2);
+    expect(options.onRejectedAttempt).toHaveBeenCalledTimes(3);
+    expect(options.onBurstComplete).not.toHaveBeenCalled();
     expect(track.stop).toHaveBeenCalledOnce();
   });
 
@@ -279,5 +378,42 @@ describe('native camera session lifecycle', () => {
     await start;
     expect(options.onFailure).not.toHaveBeenCalled();
     expect(track.stop).toHaveBeenCalledOnce();
+  });
+});
+
+describe('decoded-frame currentness', () => {
+  it('ignores a repeated callback boundary until a newer decoded frame is presented', async () => {
+    const { video } = makeVideo();
+    document.body.append(video);
+    const callbacks: VideoFrameRequestCallback[] = [];
+    Object.defineProperties(video, {
+      currentTime: { configurable: true, get: () => 1 },
+      requestVideoFrameCallback: {
+        configurable: true,
+        value: vi.fn((callback: VideoFrameRequestCallback) => {
+          callbacks.push(callback);
+          return callbacks.length;
+        }),
+      },
+      cancelVideoFrameCallback: {
+        configurable: true,
+        value: vi.fn(),
+      },
+    });
+    const pending = waitForDistinctVideoFrame(
+      video,
+      { mediaTime: 1, presentedFrames: 7, currentTime: 1 },
+      { timeoutMs: 1_000 },
+    );
+
+    callbacks.shift()?.(0, { mediaTime: 1, presentedFrames: 7 } as VideoFrameCallbackMetadata);
+    expect(callbacks).toHaveLength(1);
+    callbacks.shift()?.(1, { mediaTime: 1, presentedFrames: 8 } as VideoFrameCallbackMetadata);
+
+    await expect(pending).resolves.toEqual({
+      mediaTime: 1,
+      presentedFrames: 8,
+      currentTime: 1,
+    });
   });
 });

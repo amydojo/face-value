@@ -10,6 +10,7 @@ import type {
   DurableSkinSignal,
   RegisteredProduct,
 } from '../domain/model';
+import { oracleTrialIdentityForRecord } from '../domain/oracleTrialIdentity';
 import {
   FOLLOW_UP_INTERVAL_DAYS,
   createRegisteredProduct,
@@ -407,7 +408,7 @@ describe('Phase B.5 sealed result and atomic release', () => {
     expect(collected.record).toMatchObject({
       id: 'ER-202607151230',
       specimenId: collected.registeredProduct?.id,
-      accession: 'FV–014',
+      accession: 'SPECIMEN 01',
       product: 'Azelaic Topical Acid',
       productBrand: 'Naturium',
       finalPlacement: 'paused',
@@ -416,7 +417,7 @@ describe('Phase B.5 sealed result and atomic release', () => {
     expect(collected.record?.rednessEvaluation).toEqual(revealed.analysis?.rednessEvaluation);
     expect(collected.archive[0].rednessEvaluation).toEqual(revealed.analysis?.rednessEvaluation);
     const resultViewModel = verdictViewModelFromAnalysis({
-      trialId: collected.record!.accession,
+      trialId: oracleTrialIdentityForRecord(collected.record!).folio,
       productName: collected.record!.product,
       productBrand: collected.record!.productBrand,
       analysis: revealed.analysis!,

@@ -7,6 +7,7 @@ import {
 
 afterEach(() => {
   delete process.env.YOUCAM_SPIKE_TOKEN;
+  vi.useRealTimers();
 });
 
 describe('YouCam demo authorization boundary', () => {
@@ -41,7 +42,7 @@ describe('YouCam demo authorization boundary', () => {
     });
   });
 
-  it('redirects unauthorized /demo requests without loading the Demo Lab shell', async () => {
+  it('redirects unauthorized /demo requests to the engineering gate without loading the shell', async () => {
     process.env.YOUCAM_SPIKE_TOKEN = 'phase-b-secret-value';
     const loadAppShell = vi.fn();
 
@@ -51,20 +52,68 @@ describe('YouCam demo authorization boundary', () => {
     );
 
     expect(response.status).toBe(302);
-    expect(response.headers.get('location')).toBe('https://face-value.test/');
-    expect(response.headers.get('cache-control')).toContain('no-store');
+    expect(response.headers.get('location')).toBe('/youcam-spike?next=demo');
+    expect(response.headers.get('cache-control')).toBe('no-store, max-age=0');
+    expect(response.headers.get('location')).not.toContain('phase-b-secret-value');
+    expect(response.headers.get('location')).not.toContain('fv_youcam_demo');
     expect(loadAppShell).not.toHaveBeenCalled();
     expect(await response.text()).not.toContain('Demo Lab');
   });
 
-  it('serves the production app shell for /demo only with the signed session cookie', async () => {
+  it('redirects invalid signed-cookie shapes to the engineering gate', async () => {
+    process.env.YOUCAM_SPIKE_TOKEN = 'phase-b-secret-value';
+    const loadAppShell = vi.fn();
+
+    const response = await serveProtectedDemo(
+      new Request('https://face-value.test/demo', {
+        headers: { cookie: 'fv_youcam_demo=not-a-valid-signed-session' },
+      }),
+      loadAppShell,
+    );
+
+    expect(response.status).toBe(302);
+    expect(response.headers.get('location')).toBe('/youcam-spike?next=demo');
+    expect(response.headers.get('cache-control')).toBe('no-store, max-age=0');
+    expect(loadAppShell).not.toHaveBeenCalled();
+  });
+
+  it('redirects an expired signed cookie to the engineering gate', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-07-30T20:00:00.000Z'));
+    process.env.YOUCAM_SPIKE_TOKEN = 'phase-b-secret-value';
+    const session = createYouCamDemoSession('phase-b-secret-value');
+    const cookie = (session.headers.get('set-cookie') ?? '').split(';')[0];
+    vi.advanceTimersByTime((30 * 60 * 1_000) + 1);
+    const loadAppShell = vi.fn();
+
+    const response = await serveProtectedDemo(
+      new Request('https://face-value.test/demo', {
+        headers: { cookie },
+      }),
+      loadAppShell,
+    );
+
+    expect(response.status).toBe(302);
+    expect(response.headers.get('location')).toBe('/youcam-spike?next=demo');
+    expect(response.headers.get('cache-control')).toBe('no-store, max-age=0');
+    expect(loadAppShell).not.toHaveBeenCalled();
+  });
+
+  it('serves a buffered production app shell without forwarding static transport headers', async () => {
     process.env.YOUCAM_SPIKE_TOKEN = 'phase-b-secret-value';
     const session = createYouCamDemoSession('phase-b-secret-value');
     const cookie = (session.headers.get('set-cookie') ?? '').split(';')[0];
     const loadAppShell = vi.fn(async (request: Request) => {
       expect(new URL(request.url).pathname).toBe('/index.html');
       return new Response('<div id="root"></div>', {
-        headers: { 'content-type': 'text/html; charset=utf-8' },
+        headers: {
+          'accept-ranges': 'bytes',
+          'content-disposition': 'inline; filename="index.html"',
+          'content-encoding': 'br',
+          'content-length': '552',
+          'content-type': 'text/html; charset=utf-8',
+          etag: 'stale-static-etag',
+        },
       });
     });
 
@@ -78,6 +127,12 @@ describe('YouCam demo authorization boundary', () => {
     expect(response.status).toBe(200);
     expect(response.headers.get('cache-control')).toContain('no-store');
     expect(response.headers.get('x-robots-tag')).toContain('noindex');
+    expect(response.headers.get('content-type')).toBe('text/html; charset=utf-8');
+    expect(response.headers.get('accept-ranges')).toBeNull();
+    expect(response.headers.get('content-disposition')).toBeNull();
+    expect(response.headers.get('content-encoding')).toBeNull();
+    expect(response.headers.get('content-length')).toBeNull();
+    expect(response.headers.get('etag')).toBeNull();
     expect(await response.text()).toBe('<div id="root"></div>');
     expect(loadAppShell).toHaveBeenCalledOnce();
   });
@@ -94,6 +149,7 @@ describe('YouCam demo authorization boundary', () => {
     );
 
     expect(response.status).toBe(302);
+    expect(response.headers.get('location')).toBe('/youcam-spike?next=demo');
     expect(loadAppShell).not.toHaveBeenCalled();
   });
 });

@@ -1,8 +1,11 @@
 # Face Value Oracle Reveal v1
 
 **Status:** Current result-machine and collection authority  
-**Effective date:** July 30, 2026  
-**Implementation baseline:** `main` after PR #62 (`e0173ee`)
+**Effective date:** July 31, 2026  
+**Implementation base:** `main` at merged PR #67
+(`330f51975f162a2c15784114d7a448492973fcad`)
+
+**Current change:** issue #63
 
 The Oracle is the one current machine mounted from sealed result through explicit Evidence Record collection. It presents an already-authorized canonical result. It does not measure skin, evaluate redness, select thresholds, or create a second result model.
 
@@ -78,13 +81,37 @@ Before authorized reveal, the rendered and accessibility trees contain no:
 - recommendation
 - next step
 
-The sealed glass may render non-semantic optical haze and specimen silhouette only.
+The already registered product identity is not secret result content. The
+sealed glass keeps the same labeled and locked specimen visible in its chamber,
+including brand, product, strength, and volume when present, while result fields
+remain absent. Non-semantic optical haze may remain, but it must not degrade the
+specimen into an anonymous silhouette.
 
 The result becomes present only after the reducer reaches `verdict_revealed`.
 
 ## 5. Presentation model
 
 Firmware, Evidence Record paper, Home latest verdict, Previous Trials, and full Evidence Record detail derive from the same canonical saved evaluation and typed view-model adapters.
+
+The active result sequence separately receives one complete
+`OracleSpecimenIdentity` derived from canonical `state.registeredProduct`:
+
+- product ID
+- accession
+- brand
+- product name
+- strength
+- volume
+- assigned job
+
+That identity is passed explicitly into the existing `IdentityLockSpecimen`,
+firmware product context, and Evidence Record paper. Verdict copy is not a
+product source and may not null available strength or volume.
+
+After collection, Home latest verdict, Previous Trials, Evidence Record detail,
+and reload use the immutable saved-record product snapshot. Legacy records with
+missing optional fields remain readable through honest bounded fallbacks;
+available canonical values are never replaced by a generic Face Value product.
 
 The Oracle must not:
 
@@ -94,6 +121,13 @@ The Oracle must not:
 - override the canonical action
 - treat animation state as confidence
 - author fallback scientific copy
+- create a second specimen renderer or parallel product store
+- substitute demo identity while continuing an ordinary registered journey
+
+Demo Lab synthetic fixtures may use their own canonical registered product when
+the fixture owns the loaded journey. That product must remain internally
+consistent through Oracle, paper, saved record, and reload. The Demo Lab banner
+is presentation only and never becomes product truth.
 
 The current repository includes RednessEvidence v1. The Oracle’s scope remains presentation and collection only.
 
@@ -124,6 +158,11 @@ Different mechanisms use distinct timing and easing:
 - collection: one locked removal path
 
 The paper is never reparented. It remains in one Oracle coordinate system, moves vertically, and does not rotate, scale, or fade as a substitute for feed.
+
+The specimen likewise remains seated in the same chamber position, scale, and
+orientation from sealed through collected. Its thermal identity label, evidence
+lock strip, locked status marker, contact shadow, and restrained amber chamber
+bounce remain available; mechanical phases do not unload it.
 
 No particles, confetti, springy toy motion, or looping glow are permitted.
 
@@ -168,9 +207,20 @@ The same record identity must exist across:
 - Previous Trials
 - reload
 
+The same saved product snapshot must agree across the specimen, firmware,
+paper, record detail, Home latest verdict, Previous Trials, and reload. Product
+accession and trial folio remain distinct identities; one must not overwrite the
+other.
+
 The artifact front remains concise. Full technical evidence, raw values, threshold provenance, rule IDs, and audit trace belong in progressive disclosure.
 
-#63 and #64 may add burst and trial-truth details to the saved snapshot and full Evidence Record. They must not create a new paper or Oracle state machine.
+Issue #63 adds the accepted baseline and follow-up measurement arrays, rejected
+attempt summaries, and direction agreement to the saved immutable snapshot and
+full Evidence Record disclosure. Home, Previous Trials, Evidence Record detail,
+and reload render that same snapshot; none re-evaluates a burst.
+
+Issue #64 may later add trial-truth details. Neither issue creates a new paper
+or Oracle state machine.
 
 ## 11. Accessibility
 
@@ -218,6 +268,10 @@ Current test coverage should include:
 - Home continuity
 - Evidence Record and Previous Trials restoration
 - provider and privacy boundaries
+- canonical registered specimen identity through every Oracle phase
+- thermal label, evidence lock, status marker, contact shadow, and chamber geometry
+- product agreement across firmware, paper, saved record, Home, history, and reload
+- legacy optional-field fallback and Demo Lab identity isolation
 
 Visual snapshots cover the meaningful stable and transitional phases without claiming that screenshots prove physical-device behavior.
 

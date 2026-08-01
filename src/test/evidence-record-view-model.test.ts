@@ -28,8 +28,7 @@ const baseRecord = (
   disturbance: evaluation?.secondProductStatus === 'active_overlap' ? 'overlap_retained' : 'none',
   finalPlacement: 'paused',
   recommendedAction: 'wait',
-  claimBoundary:
-    evaluation?.interpretation.claimBoundary.join(' ') ?? 'Legacy claim boundary.',
+  claimBoundary: evaluation?.interpretation.claimBoundary.join(' ') ?? 'Legacy claim boundary.',
   createdAt: evaluation?.evaluatedAt ?? '2026-02-05T12:00:00.000Z',
   includesFaceImage: false,
   rednessEvaluation: evaluation,
@@ -90,6 +89,14 @@ describe('EvidenceRecordViewModel', () => {
     expect(fullRow(viewModel, 'threshold-description')?.value).toBe(
       'Detectable 5 · strong 10 points',
     );
+    expect(fullRow(viewModel, 'baseline-measurements')?.value).toBe('59 · 60 · 61');
+    expect(fullRow(viewModel, 'follow-up-measurements')?.value).toBe('71 · 72 · 73');
+    expect(fullRow(viewModel, 'baseline-rejections')?.value).toBe('None');
+    expect(fullRow(viewModel, 'follow-up-rejections')?.value).toBe('None');
+    expect(fullRow(viewModel, 'direction-agreement')).toMatchObject({
+      value: 'Agreeing · 3 follow-up measurements',
+      canonicalValue: 'agreeing',
+    });
     expect(fullRow(viewModel, 'configuration-hash')).toBeUndefined();
     expect(viewModel.full?.technicalMetadata).toEqual(
       expect.arrayContaining([

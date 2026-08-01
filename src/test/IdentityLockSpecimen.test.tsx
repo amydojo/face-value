@@ -14,6 +14,8 @@ const identity = (
   strength: string | null = null,
   volume: string | null = '30 ml',
 ): OracleSpecimenIdentity => ({
+  productId: 'registered-product-1',
+  accession: 'FV-PRODUCT-014',
   brand: 'Test Brand',
   productName,
   strength,
@@ -67,6 +69,8 @@ describe('IdentityLockSpecimen', () => {
     expect(specimen).toHaveAttribute('aria-hidden', 'true');
     expect(specimen).not.toHaveAttribute('aria-label');
     expect(specimen).toHaveAttribute('data-specimen-brand', 'Test Brand');
+    expect(specimen).toHaveAttribute('data-specimen-id', 'registered-product-1');
+    expect(specimen).toHaveAttribute('data-specimen-accession', 'FV-PRODUCT-014');
     expect(specimen).toHaveAttribute('data-specimen-product', productName);
     expect(specimen).toHaveAttribute('data-specimen-strength', '');
     expect(specimen).toHaveAttribute('data-specimen-volume', '30 ml');
@@ -83,6 +87,26 @@ describe('IdentityLockSpecimen', () => {
     expect(label).not.toHaveTextContent('30 ML');
     expect(label).not.toHaveTextContent('FV / S01');
     expect(label).not.toHaveTextContent('SPECIMEN ID');
+  });
+
+  it('retains the locked thermal label and evidence strip in verdict context', () => {
+    render(
+      <IdentityLockSpecimen
+        identity={identity('Ceramide Barrier Cream', '5%', '50 ml')}
+        specimenState="verdict"
+        registration={registration('ready')}
+      />,
+    );
+    const specimen = document.querySelector('[data-oracle-specimen]');
+    expect(specimen).toHaveAttribute('data-identity-lock-state', 'locked');
+    expect(specimen).toHaveAttribute('data-specimen-strength', '5%');
+    expect(specimen).toHaveAttribute('data-specimen-volume', '50 ml');
+    expect(specimen?.querySelector('[data-specimen-layer="thermal-evidence-label"]')).toBeVisible();
+    expect(specimen?.querySelector('[data-specimen-layer="evidence-lock-strip"]')).toBeVisible();
+    expect(specimen?.querySelector('[data-label-status-marker]')).toHaveAttribute(
+      'data-label-status-state',
+      'locked',
+    );
   });
 
   it('uses the controller snapshot for scan, verification, and completion attributes', () => {

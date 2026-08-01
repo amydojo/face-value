@@ -1,13 +1,19 @@
 # Face Value Product Contract
 
 **Status:** Current product authority  
-**Version:** 2.0  
-**Effective date:** July 30, 2026  
-**Implementation baseline:** `main` after PR #62 (`e0173ee`)
+**Version:** 2.1
+
+**Effective date:** July 31, 2026
+
+**Implementation base:** `main` at merged PR #67
+(`330f51975f162a2c15784114d7a448492973fcad`)
+
+**Current change:** issue #63
 
 This document governs the current Face Value product experience. Product, API, scientific, design, demo, and submission changes must follow it or amend it explicitly in the same pull request.
 
-Planned issues #63–#65 are identified as future work. Their behavior is not current until merged.
+Issue #63 is implemented by this change. Issues #64 and #65 remain future
+work.
 
 ## 1. Product definition
 
@@ -104,10 +110,18 @@ Searching
 → Aligning
 → Locking
 → Scanning
-→ Captured
+→ Scan complete
+→ active three-measurement analysis
+→ Measurements confirmed
 ```
 
 Face Value currently evaluates whole-frame exposure and movement locally. It does not claim native facial landmark detection, pose measurement, skin-tone classification, disease detection, or facial-region registration.
+
+**Scan complete / You can relax.** remains readable for at least 1.8 seconds
+even when analysis advances in the background. Ordinary analysis keeps
+**Analyzing your scan / Checking three measurements for consistency.** stable,
+and every visible position is bounded by genuine accepted work. The sparse
+amber activity field is a decorative system cue, not a measured facial map.
 
 The external Perfect Corp Camera Kit renderer is a development diagnostic harness only. It is not the production acquisition surface.
 
@@ -123,16 +137,33 @@ Higher raw scores represent a more favorable or less severe visible-redness cond
 
 ### Current evidence volume
 
-At the implementation baseline, an ordinary trial stores:
+An ordinary trial stores:
 
-- one accepted baseline raw score
-- one accepted follow-up raw score
+- one complete baseline burst with exactly three accepted raw-score observations
+- one complete follow-up burst with exactly three accepted raw-score observations
+- a unique frame identifier and normalized durable signal for each accepted observation
+- face-free capture-gate evidence for each accepted observation
+- face-free rejected-attempt evidence, when applicable
+- the provider attempt count for each accepted observation
 - one frozen protocol
-- face-free capture metadata
 - optional capture context
 - one immutable redness evaluation snapshot after comparison
 
-The system must name missing evidence rather than fabricate repeated measurements, adherence, tolerance, patient anchors, masks, registration, segmentation, or provider model metadata.
+Each period allows at most five capture attempts. The three accepted frames must
+be distinct decoded frames from one camera session, pass the available exposure
+and movement gates, and receive independent provider requests. One failed
+provider request is retried once on the same frame; a second failure fails the
+whole burst. Provider requests are sequential.
+
+The reducer commits a period atomically only after three valid analyzed
+observations exist. The canonical evaluator receives the actual accepted arrays
+and rejected-frame evidence and exclusively calculates medians, direction
+agreement, delta, evidence quality, and result. A median is never stored as a
+synthetic provider signal.
+
+The system must name missing evidence rather than fabricate adherence,
+tolerance, patient anchors, masks, registration, segmentation, cross-session
+pose, crop, face-size, color-cast, skin-tone, or provider model metadata.
 
 ### Current operating boundaries
 
@@ -158,19 +189,23 @@ The canonical evaluator preserves independent dimensions:
 
 The current action set is exactly:
 
-| Canonical action | Product meaning |
-| --- | --- |
-| `keep` | the evidence supports continuing the product for the assigned job |
-| `test_longer` | the trial needs more time or stronger evidence |
-| `retry_alone` | another product or major change blocks clean attribution |
-| `not_proving_job` | the completed trial does not support the assigned job |
+| Canonical action      | Product meaning                                                      |
+| --------------------- | -------------------------------------------------------------------- |
+| `keep`                | the evidence supports continuing the product for the assigned job    |
+| `test_longer`         | the trial needs more time or stronger evidence                       |
+| `retry_alone`         | another product or major change blocks clean attribution             |
+| `not_proving_job`     | the completed trial does not support the assigned job                |
 | `safety_interruption` | reported or objective safety evidence interrupts ordinary evaluation |
 
 The deciding raw-score result cannot be rescued by unrelated skin metrics. A favorable raw-score movement cannot override an attribution blocker or safety interruption.
 
 ## 8. Oracle completion contract
 
-The result remains sealed until the person activates the reveal.
+The result remains sealed until the person activates the reveal. Finding,
+score, delta, confidence, evidence status, recommendation, next step, and
+limitations remain unavailable before reveal. The registered product identity
+was already known and stays visibly loaded, labeled, and locked without
+exposing any result field.
 
 The Oracle uses one mounted machine and one pure mechanical reducer:
 
@@ -185,7 +220,10 @@ sealed
 → done
 ```
 
-Reveal and motion do not create scientific state.
+Reveal and motion do not create scientific state. The active Oracle specimen
+uses the complete canonical registered product identity, including strength
+and volume when present, and remains the same `IdentityLockSpecimen` through
+sealed, reveal, saving, dispensing, and collection.
 
 A recommendation is accepted or deliberately changed before collection. The durable Evidence Record is created exactly once at the reducer-owned collection boundary. Only `ORACLE_DONE` returns to Home.
 
@@ -195,7 +233,7 @@ The retired product description of a separate mandatory next-step screen followe
 
 A completed Evidence Record preserves, where available:
 
-- registered product identity and accession
+- registered product ID, accession, brand, product name, strength, and volume
 - assigned job
 - baseline and follow-up timestamps and face-free metadata
 - normalized raw scores and delta
@@ -206,7 +244,10 @@ A completed Evidence Record preserves, where available:
 - selected next step
 - `includesFaceImage: false`
 
-Canonical records render from their saved immutable snapshot. They are not re-evaluated during Home, Previous Trials, detail, reload, or future engine upgrades.
+Canonical records render product and result from their saved immutable
+snapshot. Home, Previous Trials, detail, and reload do not substitute active,
+demo, verdict-copy, or generic product identity and do not re-evaluate the
+result under future engine upgrades.
 
 Legacy records remain readable without being upgraded as though they contained evidence that was never collected.
 
@@ -266,19 +307,17 @@ Primary product language is:
 
 Internal reducer, migration, scientific, and adapter names may remain precise in code and technical detail. They must not create a second visible product vocabulary.
 
-## 13. Planned Phase C amendments
+## 13. Phase C status
 
-The following behavior is planned, not current:
-
-### #63 — Evidence Burst
+### #63 — Evidence Burst (current)
 
 Three independently analyzed frames per baseline and follow-up, median aggregation, direction agreement, bounded attempts, rejection evidence, and face-free burst persistence.
 
-### #64 — Trial Truth
+### #64 — Trial Truth (planned)
 
 Explicit adherence, tolerance, symptoms, and participant-observed redness direction mapped into the existing canonical evaluator.
 
-### #65 — Preliminary Calibration Harness
+### #65 — Preliminary Calibration Harness (planned)
 
 A protected internal repeatability instrument that produces exploratory estimates and a technical report. It must not silently promote a small hackathon sample into a production-approved threshold or clinical claim.
 

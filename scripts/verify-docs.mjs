@@ -20,6 +20,7 @@ const currentAuthorityFiles = [
   'docs/design-contract.md',
   'docs/source-of-truth-manifest.md',
   'docs/verification/face-value-specimen-acquisition/README.md',
+  'docs/verification/redness-evidence-burst-63/README.md',
 ];
 
 const staleAssertionFiles = currentAuthorityFiles.filter((file) => file !== 'docs/README.md');
@@ -59,6 +60,14 @@ const highRiskStaleAssertions = [
     pattern: /physical iPhone acceptance[^\n]*passed/i,
     explanation: 'The final exact-head physical acceptance record remains pending.',
   },
+  {
+    pattern: /ordinary trials store one accepted baseline raw score/i,
+    explanation: 'Ordinary periods now require three independently analyzed observations.',
+  },
+  {
+    pattern: /#63 will (?:replace|change|add)/i,
+    explanation: 'Issue #63 is current implementation truth in authority documents.',
+  },
 ];
 
 const requiredAssertions = [
@@ -75,7 +84,12 @@ const requiredAssertions = [
   {
     file: 'README.md',
     pattern: /#63[\s\S]*#64[\s\S]*#65/,
-    explanation: 'README must distinguish the planned Phase C sequence.',
+    explanation: 'README must distinguish implemented #63 from planned #64 and #65.',
+  },
+  {
+    file: 'README.md',
+    pattern: /three distinct decoded frames and three independent YouCam analyses/,
+    explanation: 'README must describe the current three-measurement evidence volume.',
   },
   {
     file: 'docs/README.md',
@@ -93,9 +107,29 @@ const requiredAssertions = [
     explanation: 'The current exactly-once boundary must remain documented.',
   },
   {
+    file: 'docs/state-model.md',
+    pattern: /ActiveRednessBurst/,
+    explanation: 'The runtime-only burst generation authority must remain documented.',
+  },
+  {
     file: 'docs/camera-contract.md',
     pattern: /Camera Kit 2\.5 renderer is retained only in development/,
     explanation: 'Camera Kit must remain diagnostic only.',
+  },
+  {
+    file: 'docs/camera-contract.md',
+    pattern: /requestVideoFrameCallback/,
+    explanation: 'Decoded-frame currentness must remain explicit.',
+  },
+  {
+    file: 'docs/youcam-evidence-engine-contract.md',
+    pattern: /retry the failed provider request\s+once on the same captured frame/,
+    explanation: 'The selected provider-failure policy must remain unambiguous.',
+  },
+  {
+    file: 'docs/verification/redness-evidence-burst-63/README.md',
+    pattern: /Physical-iPhone acceptance:\*\* Pending/,
+    explanation: 'Physical-device acceptance must remain honest until hardware proof exists.',
   },
   {
     file: 'docs/youcam-phase-b5-implementation.md',

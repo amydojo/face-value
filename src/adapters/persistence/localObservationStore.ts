@@ -1,5 +1,6 @@
 import type {
   AnalysisResult,
+  AcceptedRednessFrame,
   AppStage,
   CaptureContext,
   CaptureKind,
@@ -14,9 +15,15 @@ import type {
   ObservationState,
   ProductPlacement,
   RednessComparison,
+  RednessEvidenceBurst,
+  RejectedRednessFrame,
   RegisteredProduct,
   TraceEntry,
 } from '../../domain/model';
+import {
+  baselineEvidenceCapturedAt,
+  isCompleteRednessEvidenceBurst,
+} from '../../domain/rednessEvidenceBurst';
 import type { OracleRevealState } from '../../domain/oracleRevealMachine';
 import {
   REDNESS_MVP_OBSERVATION_WINDOW,
@@ -66,6 +73,8 @@ const emptyLongitudinalEvidence = (): LongitudinalSkinEvidence => ({
   protocol: null,
   baseline: null,
   followUp: null,
+  baselineBurst: null,
+  followUpBurst: null,
   comparison: null,
   evaluation: null,
 });
@@ -255,6 +264,49 @@ const isDurableSignal = (value: unknown): value is DurableSkinSignal =>
   typeof value.capturedAt === 'string' &&
   value.captureQuality === 'accepted';
 
+const isAcceptedRednessFrame = (value: unknown): value is AcceptedRednessFrame =>
+  isObject(value) &&
+  typeof value.frameId === 'string' &&
+  isCaptureMetadata(value.capture) &&
+  isObject(value.quality) &&
+  value.quality.currentFrame === 'accepted' &&
+  value.quality.exposure === 'accepted' &&
+  value.quality.movement === 'accepted' &&
+  isDurableSignal(value.signal) &&
+  (value.providerAttemptCount === 1 || value.providerAttemptCount === 2);
+
+const isRejectedRednessFrame = (value: unknown): value is RejectedRednessFrame =>
+  isObject(value) &&
+  typeof value.frameId === 'string' &&
+  typeof value.attemptedAt === 'string' &&
+  (value.stage === 'capture' || value.stage === 'provider') &&
+  Array.isArray(value.reasons) &&
+  value.reasons.length > 0 &&
+  value.reasons.every((reason) => typeof reason === 'string' && reason.length > 0);
+
+const isRednessEvidenceBurst = (value: unknown): value is RednessEvidenceBurst => {
+  if (
+    !isObject(value) ||
+    typeof value.burstId !== 'string' ||
+    (value.role !== 'baseline' && value.role !== 'followup') ||
+    typeof value.sessionId !== 'string' ||
+    !(
+      value.captureProfileId === null || cameraCaptureProfiles.has(String(value.captureProfileId))
+    ) ||
+    typeof value.startedAt !== 'string' ||
+    typeof value.completedAt !== 'string' ||
+    typeof value.attemptedFrameCount !== 'number' ||
+    !Number.isInteger(value.attemptedFrameCount) ||
+    !Array.isArray(value.acceptedFrames) ||
+    !value.acceptedFrames.every(isAcceptedRednessFrame) ||
+    !Array.isArray(value.rejectedFrames) ||
+    !value.rejectedFrames.every(isRejectedRednessFrame)
+  ) {
+    return false;
+  }
+  return isCompleteRednessEvidenceBurst(value as unknown as RednessEvidenceBurst);
+};
+
 const isRednessComparison = (value: unknown): value is RednessComparison =>
   isObject(value) &&
   typeof value.baselineRawScore === 'number' &&
@@ -269,15 +321,36 @@ const isRednessComparison = (value: unknown): value is RednessComparison =>
   Array.isArray(value.limitations) &&
   value.limitations.every((item) => typeof item === 'string');
 
-const isLongitudinalEvidence = (value: unknown): value is LongitudinalSkinEvidence =>
-  isObject(value) &&
-  (value.protocol === null || isProtocol(value.protocol)) &&
-  (value.baseline === null || isDurableSignal(value.baseline)) &&
-  (value.followUp === null || isDurableSignal(value.followUp)) &&
-  (value.comparison === null || isRednessComparison(value.comparison)) &&
-  (value.evaluation === undefined ||
-    value.evaluation === null ||
-    isRednessEvaluationSnapshot(value.evaluation));
+const isLongitudinalEvidence = (value: unknown): value is LongitudinalSkinEvidence => {
+  if (
+    !isObject(value) ||
+    !(value.protocol === null || isProtocol(value.protocol)) ||
+    !(value.baseline === null || isDurableSignal(value.baseline)) ||
+    !(value.followUp === null || isDurableSignal(value.followUp)) ||
+    !(
+      value.baselineBurst === undefined ||
+      value.baselineBurst === null ||
+      (isRednessEvidenceBurst(value.baselineBurst) && value.baselineBurst.role === 'baseline')
+    ) ||
+    !(
+      value.followUpBurst === undefined ||
+      value.followUpBurst === null ||
+      (isRednessEvidenceBurst(value.followUpBurst) && value.followUpBurst.role === 'followup')
+    ) ||
+    !(value.comparison === null || isRednessComparison(value.comparison)) ||
+    !(
+      value.evaluation === undefined ||
+      value.evaluation === null ||
+      isRednessEvaluationSnapshot(value.evaluation)
+    )
+  ) {
+    return false;
+  }
+
+  const hasBurst = Boolean(value.baselineBurst || value.followUpBurst);
+  const hasBaseline = Boolean(value.baseline || value.baselineBurst);
+  return (!hasBurst || isProtocol(value.protocol)) && (!value.followUpBurst || hasBaseline);
+};
 
 const migrateLegacyRegisteredProduct = (input: {
   selectedSpecimenId: string;
@@ -365,7 +438,7 @@ export function loadStructuredDemoData(storage: Storage = localStorage): Persist
     const trace = value.trace;
     const analysis = value.analysis;
     const record = value.record;
-    const longitudinalEvidence = value.longitudinalEvidence ?? emptyLongitudinalEvidence();
+    const longitudinalEvidenceValue = value.longitudinalEvidence ?? emptyLongitudinalEvidence();
     const stage =
       typeof value.stage === 'string' && appStages.has(value.stage as AppStage)
         ? (value.stage as AppStage)
@@ -417,7 +490,7 @@ export function loadStructuredDemoData(storage: Storage = localStorage): Persist
       !(record === null || isEvidenceRecord(record)) ||
       !Array.isArray(archive) ||
       !archive.every(isEvidenceRecord) ||
-      !isLongitudinalEvidence(longitudinalEvidence) ||
+      !isLongitudinalEvidence(longitudinalEvidenceValue) ||
       !(
         registeredProductValue === null ||
         isValidRegisteredProduct(registeredProductValue as RegisteredProduct)
@@ -436,6 +509,12 @@ export function loadStructuredDemoData(storage: Storage = localStorage): Persist
       throw new Error('Invalid persisted data');
     }
 
+    const longitudinalEvidence: LongitudinalSkinEvidence = {
+      ...longitudinalEvidenceValue,
+      baselineBurst: longitudinalEvidenceValue.baselineBurst ?? null,
+      followUpBurst: longitudinalEvidenceValue.followUpBurst ?? null,
+      evaluation: longitudinalEvidenceValue.evaluation ?? null,
+    };
     const validatedRegisteredProduct =
       registeredProductValue === null ? null : (registeredProductValue as RegisteredProduct);
     const registeredProduct =
@@ -449,7 +528,7 @@ export function loadStructuredDemoData(storage: Storage = localStorage): Persist
     const restoredBaselineLockedAt =
       baselineLockedAt ??
       registeredProduct?.createdAt ??
-      longitudinalEvidence.baseline?.capturedAt ??
+      baselineEvidenceCapturedAt(longitudinalEvidence) ??
       null;
     const restoredFollowUpEligibleAt =
       followUpEligibleAt ??

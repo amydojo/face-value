@@ -15,17 +15,23 @@ The checked-in images are synthetic fixture renders. They contain no face photog
 
 ## WebKit evidence
 
-| State | Evidence |
-| --- | --- |
-| Searching | [searching.png](./searching.png) |
-| Aligning | [aligning.png](./aligning.png) |
-| Locking | [locking.png](./locking.png) |
-| Scanning | [scanning.png](./scanning.png) |
-| Captured | [captured.png](./captured.png) |
-| Permission denied | [permission-denied.png](./permission-denied.png) |
-| Reduced motion | [reduced-motion.png](./reduced-motion.png) |
+| State                    | Evidence                                                   |
+| ------------------------ | ---------------------------------------------------------- |
+| Searching                | [searching.png](./searching.png)                           |
+| Aligning                 | [aligning.png](./aligning.png)                             |
+| Locking                  | [locking.png](./locking.png)                               |
+| Scanning                 | [scanning.png](./scanning.png)                             |
+| Captured                 | [captured.png](./captured.png)                             |
+| Scan complete dwell      | [scan-complete-dwell.png](./scan-complete-dwell.png)       |
+| Analysis · measurement 1 | [analysis-measurement-1.png](./analysis-measurement-1.png) |
+| Analysis · measurement 2 | [analysis-measurement-2.png](./analysis-measurement-2.png) |
+| Analysis · slow response | [analysis-slow-response.png](./analysis-slow-response.png) |
+| Measurements confirmed   | [measurements-confirmed.png](./measurements-confirmed.png) |
+| Permission denied        | [permission-denied.png](./permission-denied.png)           |
+| Reduced motion           | [reduced-motion.png](./reduced-motion.png)                 |
 
-The Playwright geometry assertions cover `390 × 844`, `393 × 852`, `402 × 874`, and `430 × 932`.
+The Playwright geometry assertions cover widths of 320, 375, 390, 402, and
+430 CSS pixels, including `390 × 844` and `430 × 932`.
 
 During active capture:
 
@@ -36,10 +42,22 @@ During active capture:
 - short-viewport behavior scales the guide field instead of shrinking the complete chamber
 - route bar and action rail remain visible
 - neither page nor chamber introduces unintended scrolling
+- the primary analysis stack stays above the quality rail and separate from the
+  Demo Lab banner
+- the decorative analysis field remains clipped to the responsive guide
 
 The four guide arcs remain mounted for the complete ritual. Locking draws persistent connector paths from those arcs rather than mounting a replacement ellipse. Scanning uses the shared amber optical plane, bloom, and leading edge. Captured holds the guide briefly and resolves it to low emphasis over the same frozen frame.
 
 The normal scan uses the state machine’s single timing constant. Reduced motion replaces travel with a shorter illumination state without skipping Captured or processing continuity.
+
+The focused PR #68 correction adds a minimum 1.8-second **Scan complete / You
+can relax.** dwell while provider work continues, stable analysis copy,
+truthful 1/2/3 progress with a 700-millisecond minimum visible position, a
+six-second tertiary slow-response line, and an approximately 800-millisecond
+confirmation presentation after durable commit. The sparse amber SVG field is
+decorative and `aria-hidden`; it reads no pixels and does not claim to show
+redness or facial geometry. Reduced motion keeps all copy and timing while
+removing settle, pulse, and traveling point activity.
 
 ## Native adapter automated proof
 
@@ -105,10 +123,17 @@ On an exact deployed commit, record:
 22. follow-up provider completion
 23. face-free persistence and reload continuity
 
-For #63, the final checklist must also prove three distinct accepted frame events and three genuine provider analyses for baseline and follow-up.
+For #63 and the focused PR #68 correction, the final checklist must also prove
+three distinct accepted frame events and three genuine provider analyses for
+baseline and follow-up; readable dwell and progress behavior; restrained
+activity-field presentation; and registered-specimen continuity through Oracle,
+saved record, Home, history, and reload.
 
 ## Current outcome
 
-Automated acquisition, responsive WebKit, reduced motion, privacy-safe visual evidence, and native-adapter contract tests pass for the PR #62 implementation.
+PR #62's automated acquisition baseline remains established. The focused PR
+#68 correction has automated responsive WebKit, reduced-motion, privacy-safe
+visual, analysis-wait, and specimen-continuity coverage; its exact command
+results and preview are recorded in the draft PR handoff.
 
 The final exact-head physical-iPhone golden-path acceptance remains open and must be recorded before hackathon release. No physical acceptance claim should be inferred from the synthetic screenshots.

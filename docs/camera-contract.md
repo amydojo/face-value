@@ -1,8 +1,11 @@
 # Face Value camera contract
 
 **Status:** Current camera authority  
-**Effective date:** July 30, 2026  
-**Implementation baseline:** `main` after PR #62 (`e0173ee`)
+**Effective date:** July 31, 2026  
+**Implementation base:** `main` at merged PR #67
+(`330f51975f162a2c15784114d7a448492973fcad`)
+
+**Current change:** issue #63
 
 ## 1. Production boundary
 
@@ -17,7 +20,7 @@ It must:
 5. normalize errors to stable product categories
 6. attach the stream to the exact muted inline-playing `<video>` surface the person sees
 7. report preview readiness only when that surface is connected, visible, non-zero, and producing a current frame
-8. capture the exact current visible frame as an unmirrored JPEG
+8. capture three exact current visible frames as unmirrored JPEGs
 9. mirror preview presentation with CSS only
 10. stop every track on success, failure, cancellation, navigation, retry, and unmount
 11. revoke every temporary object URL
@@ -46,6 +49,8 @@ It deliberately does not claim:
 - skin condition or diagnosis
 
 The authored four-arc guide supplies positioning direction. It is not a biometric overlay and must not be described as automated face geometry.
+On the native frame-quality path, the alignment rail therefore remains pending;
+only the measured exposure and movement rails may be marked as passing.
 
 ## 3. Current acquisition sequence
 
@@ -56,7 +61,8 @@ Searching
 → Aligning
 → Locking
 → Scanning
-→ Captured
+→ 3 Measurements Accepted
+→ Processing
 ```
 
 Camera startup and capture timing have one authority.
@@ -66,9 +72,23 @@ Camera startup and capture timing have one authority.
 - losing valid exposure or stillness cancels lock/scan calmly
 - one scan timing constant controls normal motion
 - reduced motion preserves the same state order with a short illumination state
-- the exact captured bitmap remains as the private preview into YouCam processing
+- a restrained three-position indicator advances only for an accepted current frame
+- recoverable capture rejection acquires a replacement automatically
+- the same camera session remains alive through the short burst
+- the final captured bitmap may remain as the private preview into YouCam processing
 
-Only capture metadata and the normalized durable signal enter application state.
+Every burst requires three accepted frames and permits at most five capture
+attempts. `requestVideoFrameCallback` supplies decoded-frame identity when the
+browser supports it. The fallback accepts a frame only after `video.currentTime`
+advances through an animation-frame observation. Elapsed time alone never
+proves that a new frame exists. Duplicate frame identifiers are rejected.
+
+The available whole-frame exposure and movement gates run again before every
+accepted frame. The product does not ask the person to deliberately reposition
+between frames.
+
+Only face-free capture metadata and normalized durable signals enter
+application state.
 
 ## 4. Image lifecycle
 
@@ -87,15 +107,10 @@ They must be cleared when no longer needed. No raw face image enters reducer sta
 
 `<input accept="image/*" capture="user">` remains available when camera APIs are unsupported, denied, or fail after recovery.
 
-The fallback must:
-
-- use a clear front-facing supported image
-- preserve the same frozen analysis protocol
-- disclose any evidence limitation
-- avoid duplicating one file to simulate a future multi-frame burst
-- release the selected image after analysis or cancellation
-
-#63 must define an explicit burst-compatible fallback policy rather than silently treating one uploaded image as three measurements.
+One existing photo cannot prove three distinct current decoded frames. The
+fallback therefore discloses that limitation, performs no provider analysis,
+commits no period evidence, and releases the selected file immediately. It is
+never duplicated or reinterpreted as a burst.
 
 ## 6. Camera Kit diagnostic harness
 
@@ -142,9 +157,20 @@ Current automated proof includes:
 
 - first-frame readiness
 - visible video binding
+- three distinct decoded-frame boundaries
+- fresh exposure and movement gates before each accepted frame
+- a hard five-attempt acquisition ceiling
+- duplicate frame-identifier rejection
 - whole-frame exposure and movement handling
 - stable hold and state cancellation
 - same-bitmap freeze
+- explicit live-to-still settle with a soft dark captured-image veil
+- truthful scan-complete, per-measurement analysis, and confirmation states
+- solid, active, and waiting indicator semantics without zero or fake progress
+- a minimum 1.8-second scan-complete dwell while provider work continues
+- stable analysis copy, six-second tertiary delay status, and state-bound recheck copy
+- a decorative `aria-hidden` activity field clipped to the existing guide
+- an approximately 800-millisecond confirmed presentation after durable commit
 - track teardown
 - no vendor alert
 - dynamic visual viewport behavior
@@ -167,11 +193,12 @@ A physical-device claim must record:
 
 The physical observations that motivated PR #62 are recorded, but a final exact-head merged-production baseline and follow-up pass remains a release gate.
 
-## 9. Planned burst extension
+## 9. Current burst extension
 
-#63 may extend the active native session to capture three distinct current frames before teardown.
+Issue #63 extends the active native session to capture three distinct current
+frames before teardown.
 
-It must preserve:
+It preserves:
 
 - one user gesture and one continuous ritual
 - current-frame boundaries rather than score/image duplication
@@ -181,5 +208,29 @@ It must preserve:
 - cleanup of every frame after analysis
 - no fabricated pose or registration evidence
 - unchanged production camera geometry
+
+After teardown, the selected third-frame still remains visible through analysis
+and the brief confirmation state. The presentation holds **Scan complete / You
+can relax.** for at least 1.8 seconds while provider work may continue. It then
+uses a 200–250 millisecond crossfade to the latest truthful analysis state,
+holds each visible progress position for at least 700 milliseconds, and holds
+the all-confirmed presentation for approximately 800 milliseconds. These
+runtime-only timings can trail provider and reducer truth but cannot lead it or
+delay requests, atomic period commit, persistence, or evaluation.
+
+The sparse amber activity field is authored SVG/CSS clipped to the existing
+guide. It is `aria-hidden`, reads no image pixels, makes no landmark, redness,
+segmentation, depth, or measured-region claim, and creates no durable geometry.
+
+Reduced motion preserves the 1.8-second dwell, stable copy, and truthful state
+order while removing still settle, active-measurement pulse, and traveling
+point activity. The field becomes static low-opacity points or may be omitted
+when static presentation would be confusing.
+
+Automated and desktop-browser proof does not establish physical-iPhone
+acceptance. The exact-head hardware checklist additionally requires proof of
+three distinct accepted frame events, three genuine provider analyses for both
+periods, retry and route-exit teardown, Safari viewport behavior, and
+face-free reload continuity.
 
 See `production-journey-integration.md`, `architecture.md`, and `source-of-truth-manifest.md`.

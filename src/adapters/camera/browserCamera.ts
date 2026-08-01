@@ -1,18 +1,10 @@
-import type {
-  CameraCaptureProfileId,
-  CaptureMetadata,
-} from '../../domain/model';
+import type { CameraCaptureProfileId, CaptureMetadata } from '../../domain/model';
 
 export type CameraFailureReason =
-  | 'unsupported'
-  | 'denied'
-  | 'no_camera'
-  | 'overconstrained'
-  | 'unknown';
+  'unsupported' | 'denied' | 'no_camera' | 'overconstrained' | 'unknown';
 
 export type CameraRequestResult =
-  | { ok: true; stream: MediaStream }
-  | { ok: false; reason: CameraFailureReason };
+  { ok: true; stream: MediaStream } | { ok: false; reason: CameraFailureReason };
 
 export const CAMERA_CONSTRAINTS: MediaStreamConstraints = {
   video: {
@@ -82,10 +74,7 @@ export function attachStream(video: HTMLVideoElement, stream: MediaStream): void
   void video.play().catch(() => undefined);
 }
 
-export function waitForVideoFrame(
-  video: HTMLVideoElement,
-  timeoutMs = 4_000,
-): Promise<void> {
+export function waitForVideoFrame(video: HTMLVideoElement, timeoutMs = 4_000): Promise<void> {
   if (video.videoWidth > 0 && video.videoHeight > 0) return Promise.resolve();
 
   return new Promise<void>((resolve, reject) => {
@@ -171,18 +160,14 @@ export function metadataForCapture(
   mimeType: string,
   now = new Date().toISOString(),
   cameraProfileId: CameraCaptureProfileId | null = null,
+  frameId = `${kind}-${now}`,
 ): CaptureMetadata {
-  const normalizedMime = [
-    'image/jpeg',
-    'image/png',
-    'image/webp',
-    'image/heic',
-  ].includes(mimeType)
+  const normalizedMime = ['image/jpeg', 'image/png', 'image/webp', 'image/heic'].includes(mimeType)
     ? (mimeType as CaptureMetadata['mimeType'])
     : 'image/unknown';
 
   return {
-    id: `${kind}-${now}`,
+    id: frameId,
     kind,
     source,
     mimeType: normalizedMime,

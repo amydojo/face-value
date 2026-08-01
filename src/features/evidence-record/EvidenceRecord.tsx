@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { oracleSpecimenIdentityFromEvidenceRecord } from '../../adapters/product/specimenFromRegisteredProduct';
 import type { EvidenceRecordData } from '../../domain/model';
 import { ScreenHeader } from '../../components/hardware';
 import {
@@ -274,6 +275,10 @@ export function EvidenceRecord({
       initialDisclosureState.technicalMetadataOpen,
   );
   const viewModel = evidenceRecordViewModelFromRecord(record);
+  const specimenIdentity = oracleSpecimenIdentityFromEvidenceRecord(record);
+  const optionalProductDetails = [specimenIdentity.strength, specimenIdentity.volume]
+    .filter((value): value is string => Boolean(value))
+    .join(' · ');
   const toggleDisclosure = (disclosure: EvidenceRecordDisclosure) => {
     setOpenDisclosure((current) => (current === disclosure ? null : disclosure));
   };
@@ -287,6 +292,12 @@ export function EvidenceRecord({
         data-evidence-record
         data-record-id={viewModel.recordId}
         data-snapshot-kind={viewModel.canonical ? 'canonical' : 'legacy'}
+        data-specimen-id={specimenIdentity.productId ?? ''}
+        data-specimen-accession={specimenIdentity.accession ?? ''}
+        data-specimen-brand={specimenIdentity.brand}
+        data-specimen-product={specimenIdentity.productName}
+        data-specimen-strength={specimenIdentity.strength ?? ''}
+        data-specimen-volume={specimenIdentity.volume ?? ''}
         aria-labelledby="evidence-record-heading"
       >
         <div className={styles.recordNavigation}>
@@ -300,6 +311,11 @@ export function EvidenceRecord({
 
         <section className={styles.resultHero} aria-labelledby="evidence-result-heading">
           <p className={styles.productIdentity}>{viewModel.product}</p>
+          {optionalProductDetails && (
+            <p className={styles.trialMetadata} data-record-specimen-details>
+              {optionalProductDetails}
+            </p>
+          )}
           <p className={styles.trialMetadata}>{viewModel.trialMetadata}</p>
           <p className={styles.resultLabel}>Result</p>
           <h2 id="evidence-result-heading">{viewModel.headline}</h2>
@@ -313,7 +329,10 @@ export function EvidenceRecord({
         {viewModel.comparison ? (
           <ComparisonCard comparison={viewModel.comparison} />
         ) : viewModel.canonical ? (
-          <section className={styles.comparisonUnavailable} aria-labelledby="comparison-unavailable">
+          <section
+            className={styles.comparisonUnavailable}
+            aria-labelledby="comparison-unavailable"
+          >
             <h3 id="comparison-unavailable">Visible redness</h3>
             <p>{viewModel.comparisonUnavailableMessage}</p>
           </section>

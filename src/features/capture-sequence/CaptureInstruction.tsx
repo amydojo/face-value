@@ -1,17 +1,22 @@
+import type { ReactNode } from 'react';
 import type { CaptureInstructionCopy, CapturePhase } from './types';
 import styles from './CaptureSequence.module.css';
 
 export function CaptureInstruction({
   copy,
   phase,
+  children,
 }: {
   copy: CaptureInstructionCopy;
   phase: CapturePhase;
+  children?: ReactNode;
 }) {
   return (
     <div
       className={styles.instruction}
+      style={{ zIndex: 10 }}
       data-capture-instruction
+      data-capture-layer="instruction-and-progress"
       aria-live="polite"
       aria-atomic="true"
       role={phase === 'error' ? 'alert' : undefined}
@@ -20,6 +25,7 @@ export function CaptureInstruction({
         {copy.primary}
       </h1>
       <p>{copy.secondary}</p>
+      {children}
     </div>
   );
 }

@@ -1,8 +1,13 @@
 # Face Value capture design QA
 
-**Scope:** PR #62 acquisition visual and interaction QA  
-**Implementation baseline:** PR #62 merge `e0173ee`  
-**Privacy-safe fixture result:** Passed  
+**Scope:** PR #62 acquisition foundation plus issue #63 burst feedback
+
+**Implementation base:** `main` at merged PR #67
+(`330f51975f162a2c15784114d7a448492973fcad`)
+
+**Issue #63 privacy-safe fixture result:** Pass on the exact Vercel preview
+recorded in the draft pull request
+
 **Final physical-iPhone release result:** Pending explicit exact-head acceptance record
 
 ## Source visual truth
@@ -28,6 +33,11 @@ Current Figma nodes and checked-in evidence are indexed in `docs/source-of-truth
 - `docs/verification/face-value-specimen-acquisition/reduced-motion.png`
 
 The committed implementation evidence was captured from a `390 × 844` CSS-pixel Mobile WebKit viewport at device scale factor 3. It is synthetic and contains no user data.
+
+Issue #63 adds a second privacy-safe evidence set under
+`docs/verification/redness-evidence-burst-63/`. It covers baseline and
+follow-up progress, recoverable rejection, provider failure, and final immutable
+Evidence Record continuity without storing a face frame.
 
 ## QA findings
 
@@ -58,6 +68,17 @@ No actionable P0, P1, or P2 mismatch remained in the privacy-safe fixture implem
 - Locking adds persistent connectors instead of replacing the guide with another ellipse.
 - Scanning uses the shared amber optical plane, bloom, and leading edge.
 - Captured resolves the guide to low emphasis over the same frozen bitmap.
+
+### Issue #63 burst feedback
+
+- One three-position indicator remains subordinate to the existing guide.
+- Accepted positions use restrained amber rather than generic green success.
+- Recoverable capture rejection automatically acquires a replacement without a
+  second camera screen or shutter.
+- **3 MEASUREMENTS ACCEPTED** appears briefly before the one existing
+  processing transition.
+- Raw redness scores, calibration language, and deliberate repositioning
+  instructions remain absent.
 
 ### Accessibility
 
@@ -106,10 +127,17 @@ The physical observations used to find the original faults are evidence of those
 - [x] Reduced-motion equivalent
 - [x] Mobile WebKit geometry and visual-viewport checks
 - [x] Privacy-safe committed evidence only
+- [x] Exact-head privacy-safe baseline and follow-up burst evidence
+- [x] Exact-head recoverable rejection and provider-failure evidence
+- [x] Exact-head immutable Evidence Record continuity evidence
 - [ ] Final exact-head physical-iPhone baseline and follow-up acceptance record
 
 ## Final assessment
 
-The acquisition design passes privacy-safe fixture QA and automated responsive verification for the PR #62 implementation.
+The acquisition foundation passes the existing PR #62 privacy-safe fixture QA.
+Issue #63 passes its exact-preview Mobile WebKit visual, responsive, runtime,
+and face-free continuity checks. This is desktop-browser evidence driven by
+synthetic frames and provider-shaped responses; it is not physical-iPhone or
+genuine-provider proof.
 
 Hackathon release still requires a separately recorded exact-head physical-iPhone golden-path pass. The repository must not represent that release gate as complete until the checklist in `docs/verification/face-value-specimen-acquisition/README.md` is executed and documented.

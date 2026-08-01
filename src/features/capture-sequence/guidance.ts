@@ -70,7 +70,7 @@ export function getCaptureInstruction(state: CaptureSequenceState): CaptureInstr
     if (state.failure === 'permission-denied') {
       return {
         primary: 'Camera access is needed',
-        secondary: 'Enable camera access or choose a photo instead',
+        secondary: 'Enable camera access for three live measurements',
       };
     }
     if (state.failure === 'preview-stalled') {
@@ -81,7 +81,7 @@ export function getCaptureInstruction(state: CaptureSequenceState): CaptureInstr
     }
     return {
       primary: 'Camera unavailable',
-      secondary: 'Choose an existing photo to continue',
+      secondary: 'A live camera is required for this scan',
     };
   }
 
@@ -109,7 +109,7 @@ export function getCaptureInstruction(state: CaptureSequenceState): CaptureInstr
   if (state.persistentLowLight) {
     return {
       primary: 'Lighting is still too low',
-      secondary: 'Try facing a window or choose a photo instead',
+      secondary: 'Try facing a window and keep the camera open',
     };
   }
   if (state.frameLost && state.activeIssue === 'face-missing') {
@@ -183,9 +183,7 @@ export function getCaptureRailStates(
   const rail: Record<'light' | 'alignment' | 'stillness', CaptureRailState> = {
     light: categoryPassed('light', state.quality) ? 'passed' : 'pending',
     alignment: frameQualityMode
-      ? ['locking', 'scanning', 'captured'].includes(state.phase)
-        ? 'passed'
-        : 'current'
+      ? 'pending'
       : categoryPassed('alignment', state.quality)
         ? 'passed'
         : 'pending',

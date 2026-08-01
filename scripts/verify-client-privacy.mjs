@@ -63,6 +63,62 @@ for (const file of await filesUnder(rootPath)) {
   }
 }
 
+const modelSource = await readFile(new URL('../src/domain/model.ts', import.meta.url), 'utf8');
+const durableBurstStart = modelSource.indexOf('export interface RednessEvidenceBurst');
+const durableBurstEnd = modelSource.indexOf('export interface RednessProviderRequest');
+if (durableBurstStart < 0 || durableBurstEnd <= durableBurstStart) {
+  violations.push('src/domain/model.ts durable burst scan boundary is missing');
+} else {
+  const durableBurstSource = modelSource.slice(durableBurstStart, durableBurstEnd);
+  for (const marker of [
+    'Blob',
+    'File',
+    'image:',
+    'imageBytes',
+    'base64',
+    'dataUrl',
+    'objectUrl',
+    'signedUrl',
+    'providerTask',
+    'rawPayload',
+    'MediaStream',
+  ]) {
+    if (durableBurstSource.includes(marker)) {
+      violations.push(`src/domain/model.ts durable burst contains ${JSON.stringify(marker)}`);
+    }
+  }
+}
+
+const persistenceSource = await readFile(
+  new URL('../src/adapters/persistence/localObservationStore.ts', import.meta.url),
+  'utf8',
+);
+const serializerStart = persistenceSource.indexOf('export function toPersistedDemoData');
+const serializerEnd = persistenceSource.indexOf('export function saveStructuredDemoData');
+if (serializerStart < 0 || serializerEnd <= serializerStart) {
+  violations.push('localObservationStore serializer scan boundary is missing');
+} else {
+  const serializerSource = persistenceSource.slice(serializerStart, serializerEnd);
+  for (const marker of [
+    'activeRednessBurst',
+    'Blob',
+    'File',
+    'imageBytes',
+    'base64',
+    'objectUrl',
+    'signedUrl',
+    'providerTask',
+    'rawPayload',
+    'MediaStream',
+  ]) {
+    if (serializerSource.includes(marker)) {
+      violations.push(
+        `localObservationStore serializer includes runtime/image marker ${JSON.stringify(marker)}`,
+      );
+    }
+  }
+}
+
 if (violations.length) {
   console.error('Forbidden client-bundle markers detected:');
   for (const violation of violations) console.error(`- ${violation}`);

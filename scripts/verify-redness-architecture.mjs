@@ -1,4 +1,5 @@
 import { readdir, readFile } from 'node:fs/promises';
+import { createHash } from 'node:crypto';
 import { extname, join, relative } from 'node:path';
 
 const root = new URL('../src/', import.meta.url);
@@ -49,6 +50,147 @@ for (const file of sourceFiles) {
     if (source.includes(retiredDerivation)) {
       violations.push(`${path} references retired verdict derivation ${retiredDerivation}`);
     }
+  }
+}
+
+const captureSourceFiles = sourceFiles.filter((file) => {
+  const path = relative(rootPath, file);
+  return (
+    path.startsWith('features/capture-contract/') || path.startsWith('features/capture-sequence/')
+  );
+});
+for (const file of captureSourceFiles) {
+  const path = relative(rootPath, file);
+  const source = await readFile(file, 'utf8');
+  for (const forbiddenCaptureDependency of [
+    'domain/evidence/redness',
+    'evidence/redness/thresholds',
+    'evaluateRedness',
+    'baselineRawMedian',
+    'endpointRawMedian',
+    'rawScoreDelta',
+    'classifyEffect',
+    'PROVISIONAL_REDNESS_THRESHOLDS',
+  ]) {
+    if (source.includes(forbiddenCaptureDependency)) {
+      violations.push(
+        `${path} crosses the capture/evaluator boundary through ${forbiddenCaptureDependency}`,
+      );
+    }
+  }
+  if (/\bmedian\s*\(|\bdelta\s*=/.test(source)) {
+    violations.push(`${path} calculates a median or delta inside capture presentation code`);
+  }
+}
+
+const evaluatorOwners = [];
+for (const file of sourceFiles) {
+  const source = await readFile(file, 'utf8');
+  if (/export function evaluateRedness\s*\(/.test(source)) {
+    evaluatorOwners.push(relative(rootPath, file));
+  }
+}
+if (
+  evaluatorOwners.length !== 1 ||
+  evaluatorOwners[0] !== 'domain/evidence/redness/evaluateRedness.ts'
+) {
+  violations.push(
+    `Canonical redness evaluator must have one owner; found ${evaluatorOwners.join(', ') || 'none'}`,
+  );
+}
+
+const burstContract = await readFile(
+  new URL('../src/domain/rednessEvidenceBurst.ts', import.meta.url),
+  'utf8',
+);
+for (const requiredBound of [
+  'REDNESS_BURST_REQUIRED_MEASUREMENTS = 3',
+  'REDNESS_BURST_MAX_CAPTURE_ATTEMPTS = 5',
+  'REDNESS_BURST_PROVIDER_MAX_ATTEMPTS = 2',
+  'REDNESS_BURST_PROVIDER_CONCURRENCY = 1',
+]) {
+  if (!burstContract.includes(requiredBound)) {
+    violations.push(`Redness burst bound changed or is missing: ${requiredBound}`);
+  }
+}
+
+const model = await readFile(new URL('../src/domain/model.ts', import.meta.url), 'utf8');
+const durableBurstStart = model.indexOf('export interface RednessEvidenceBurst');
+const durableBurstEnd = model.indexOf('export interface RednessProviderRequest');
+if (durableBurstStart < 0 || durableBurstEnd <= durableBurstStart) {
+  violations.push('Durable RednessEvidenceBurst scan boundary is missing');
+} else {
+  const durableBurstSource = model.slice(durableBurstStart, durableBurstEnd);
+  for (const forbiddenDurableField of [
+    'Blob',
+    'File',
+    'image:',
+    'imageBytes',
+    'base64',
+    'dataUrl',
+    'objectUrl',
+    'signedUrl',
+    'providerTask',
+    'rawPayload',
+    'median',
+  ]) {
+    if (durableBurstSource.includes(forbiddenDurableField)) {
+      violations.push(
+        `Durable RednessEvidenceBurst contains forbidden field ${forbiddenDurableField}`,
+      );
+    }
+  }
+}
+
+const cameraViewport = await readFile(
+  new URL('../src/features/capture-contract/CameraViewport.tsx', import.meta.url),
+  'utf8',
+);
+if (!cameraViewport.includes('analyzeRednessBurstFrames')) {
+  violations.push('CameraViewport.tsx is not wired to the bounded burst orchestrator');
+}
+if (cameraViewport.includes('analyzeLongitudinalCapture')) {
+  violations.push('CameraViewport.tsx invokes the single-capture provider path directly');
+}
+
+const captureGuidance = await readFile(
+  new URL('../src/features/capture-sequence/guidance.ts', import.meta.url),
+  'utf8',
+);
+if (!/alignment:\s*frameQualityMode\s*\?\s*'pending'/.test(captureGuidance)) {
+  violations.push(
+    'Native frame-quality presentation must not mark unmeasured alignment as passing',
+  );
+}
+
+const cameraFactory = await readFile(
+  new URL('../src/adapters/camera/youcam-camera-kit/index.ts', import.meta.url),
+  'utf8',
+);
+if (!cameraFactory.includes(': new NativeBrowserCameraAdapter()')) {
+  violations.push('Production camera factory no longer resolves to NativeBrowserCameraAdapter');
+}
+
+const thresholdSource = await readFile(
+  new URL('../src/domain/evidence/redness/thresholds.ts', import.meta.url),
+);
+const thresholdHash = createHash('sha256').update(thresholdSource).digest('hex');
+if (thresholdHash !== 'bcf1ac22bc1187f47122687e1c859c81e7d6c6b11d481ca7cddf241e5b00dfc6') {
+  violations.push(`Frozen provisional threshold source changed byte-for-byte (${thresholdHash})`);
+}
+
+for (const file of sourceFiles) {
+  const path = relative(rootPath, file);
+  const source = await readFile(file, 'utf8');
+  if (
+    source.includes('ui_score') &&
+    ![
+      'adapters/analysis/youcam/rednessEvidenceAdapter.ts',
+      'domain/evidence/redness/evaluateRedness.ts',
+      'domain/evidence/redness/types.ts',
+    ].includes(path)
+  ) {
+    violations.push(`${path} contains production ui_score use outside rejection guards`);
   }
 }
 

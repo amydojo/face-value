@@ -44,6 +44,8 @@ const draftFromRegisteredProduct = (product: RegisteredProduct): ProductRegistra
 });
 
 const draftSpecimenIdentity = (draft: ProductRegistrationInput): OracleSpecimenIdentity => ({
+  productId: null,
+  accession: null,
   brand: draft.brand.trim() || 'UNNAMED BRAND',
   productName: draft.productName.trim() || 'UNNAMED PRODUCT',
   strength: draft.strength?.trim() || null,

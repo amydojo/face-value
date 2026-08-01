@@ -1,4 +1,8 @@
-import type { AnalysisProtocol } from '../adapters/analysis/youcam/contracts';
+import {
+  HD_REDNESS_PROTOCOL,
+  protocolsMatch,
+  type AnalysisProtocol,
+} from '../adapters/analysis/youcam/contracts';
 import {
   analysisResultFromRednessEvaluation,
   buildMvpRednessEvaluation,
@@ -7,6 +11,8 @@ import {
 } from '../adapters/analysis/youcam/rednessEvidenceAdapter';
 import type {
   AnalysisErrorState,
+  ActiveRednessBurst,
+  CapturedRednessFrame,
   CaptureContext,
   CaptureMetadata,
   DurableSkinSignal,
@@ -14,6 +20,8 @@ import type {
   FaceValueState,
   LongitudinalSkinEvidence,
   ProductPlacement,
+  RednessEvidenceBurst,
+  RejectedRednessFrame,
   RegisteredProduct,
 } from '../domain/model';
 import {
@@ -25,6 +33,15 @@ import {
 } from '../domain/oracleRevealMachine';
 import { oracleTrialIdentity } from '../domain/oracleTrialIdentity';
 import { REDNESS_MVP_OBSERVATION_WINDOW } from '../domain/evidence/redness';
+import {
+  REDNESS_BURST_MAX_CAPTURE_ATTEMPTS,
+  REDNESS_BURST_REQUIRED_MEASUREMENTS,
+  baselineEvidenceCapturedAt,
+  followUpEvidenceCapturedAt,
+  hasBaselineEvidence,
+  hasFollowUpEvidence,
+  isCompleteRednessEvidenceBurst,
+} from '../domain/rednessEvidenceBurst';
 import {
   FOLLOW_UP_INTERVAL_DAYS,
   addCalendarDays,
@@ -58,6 +75,7 @@ export type PhaseBFaceValueState = FaceValueState & {
   oracleEvidenceDispensed: boolean;
   oracleCollectionStarted: boolean;
   oracleCommittedAt: string | null;
+  activeRednessBurst: ActiveRednessBurst | null;
 };
 
 export type PhaseBFaceValueEvent =
@@ -124,6 +142,62 @@ export type PhaseBFaceValueEvent =
       requestId: string;
       error: AnalysisErrorState;
     }
+  | {
+      type: 'REDNESS_BURST_STARTED';
+      generationId: string;
+      burstId: string;
+      sessionId: string;
+      role: 'baseline' | 'followup';
+      startedAt: string;
+    }
+  | {
+      type: 'REDNESS_BURST_CAPTURE_REJECTED';
+      generationId: string;
+      frame: RejectedRednessFrame;
+    }
+  | {
+      type: 'REDNESS_BURST_FRAME_CAPTURED';
+      generationId: string;
+      frame: CapturedRednessFrame;
+    }
+  | { type: 'REDNESS_BURST_CAPTURE_COMPLETED'; generationId: string }
+  | {
+      type: 'REDNESS_BURST_ANALYSIS_STARTED';
+      generationId: string;
+      frameId: string;
+      requestId: string;
+      attempt: 1 | 2;
+    }
+  | {
+      type: 'REDNESS_BURST_ANALYSIS_ACCEPTED';
+      generationId: string;
+      frameId: string;
+      requestId: string;
+      attempt: 1 | 2;
+      protocol: AnalysisProtocol;
+      signal: DurableSkinSignal;
+    }
+  | {
+      type: 'REDNESS_BURST_ANALYSIS_FAILED';
+      generationId: string;
+      frameId: string;
+      requestId: string;
+      attempt: 1 | 2;
+      terminal: boolean;
+      error: AnalysisErrorState;
+    }
+  | {
+      type: 'REDNESS_BURST_COMMIT_REQUESTED';
+      generationId: string;
+      completedAt: string;
+    }
+  | { type: 'REDNESS_BURST_PRESENTATION_COMPLETED'; generationId: string }
+  | {
+      type: 'REDNESS_BURST_FAILED';
+      generationId: string;
+      error: AnalysisErrorState;
+    }
+  | { type: 'REDNESS_BURST_CANCELLED'; generationId: string }
   | { type: 'COMPARISON_CREATED' }
   | { type: 'COMPARISON_REJECTED'; error: AnalysisErrorState }
   | { type: 'ANALYSIS_CANCELLED'; requestId: string };
@@ -134,6 +208,8 @@ export const createEmptyLongitudinalEvidence = (): LongitudinalSkinEvidence => (
   protocol: null,
   baseline: null,
   followUp: null,
+  baselineBurst: null,
+  followUpBurst: null,
   comparison: null,
   evaluation: null,
 });
@@ -156,6 +232,7 @@ export const initialState: PhaseBFaceValueState = {
   oracleEvidenceDispensed: initialOracleRevealModel.evidenceDispensed,
   oracleCollectionStarted: initialOracleRevealModel.collectionStarted,
   oracleCommittedAt: null,
+  activeRednessBurst: null,
 };
 
 export function normalizePhaseBState(state: FaceValueState): PhaseBFaceValueState {
@@ -172,6 +249,8 @@ export function normalizePhaseBState(state: FaceValueState): PhaseBFaceValueStat
     longitudinalEvidence: state.longitudinalEvidence
       ? {
           ...state.longitudinalEvidence,
+          baselineBurst: state.longitudinalEvidence.baselineBurst ?? null,
+          followUpBurst: state.longitudinalEvidence.followUpBurst ?? null,
           evaluation: state.longitudinalEvidence.evaluation ?? null,
         }
       : createEmptyLongitudinalEvidence(),
@@ -192,11 +271,74 @@ export function normalizePhaseBState(state: FaceValueState): PhaseBFaceValueStat
     oracleCollectionStarted: state.oracleCollectionStarted ?? false,
     oracleCommittedAt:
       state.oracleCommittedAt ?? (state.placementSealed ? (state.record?.createdAt ?? null) : null),
+    activeRednessBurst: state.activeRednessBurst ?? null,
   };
 }
 
 const isCurrentRequest = (state: PhaseBFaceValueState, requestId: string): boolean =>
   state.activeAnalysisRequestId === requestId;
+
+const isCurrentBurst = (
+  state: PhaseBFaceValueState,
+  generationId: string,
+): state is PhaseBFaceValueState & { activeRednessBurst: ActiveRednessBurst } =>
+  state.activeRednessBurst?.generationId === generationId;
+
+const burstHasFrameId = (burst: ActiveRednessBurst, frameId: string): boolean =>
+  burst.capturedFrames.some((frame) => frame.frameId === frameId) ||
+  burst.rejectedFrames.some((frame) => frame.frameId === frameId);
+
+const baselineCaptureProfileFor = (
+  state: PhaseBFaceValueState,
+): CaptureMetadata['cameraProfileId'] =>
+  (isCompleteRednessEvidenceBurst(state.longitudinalEvidence.baselineBurst)
+    ? state.longitudinalEvidence.baselineBurst.captureProfileId
+    : null) ??
+  state.baselineCapture?.cameraProfileId ??
+  null;
+
+const signalMatchesProtocol = (signal: DurableSkinSignal, protocol: AnalysisProtocol): boolean =>
+  signal.provider === protocol.provider &&
+  signal.apiVersion === protocol.apiVersion &&
+  signal.mode === protocol.mode &&
+  signal.concern === protocol.concern &&
+  signal.region === protocol.region &&
+  signal.scoreType === protocol.scoreType &&
+  signal.captureProtocolVersion === protocol.captureProtocolVersion;
+
+const burstAttemptLimitError = (role: 'baseline' | 'followup'): AnalysisErrorState => ({
+  role,
+  code: 'burst_attempts_exhausted',
+  message:
+    'Three valid measurements could not be secured within five attempts. Try the scan again.',
+  retryable: true,
+});
+
+function completedBurstFrom(
+  active: ActiveRednessBurst,
+  completedAt: string,
+): RednessEvidenceBurst | null {
+  const burst: RednessEvidenceBurst = {
+    burstId: active.burstId,
+    role: active.role,
+    sessionId: active.sessionId,
+    captureProfileId: active.captureProfileId,
+    startedAt: active.startedAt,
+    completedAt,
+    attemptedFrameCount: active.attemptedFrameCount,
+    acceptedFrames: active.acceptedFrames.map((frame) => ({
+      ...frame,
+      capture: { ...frame.capture },
+      quality: { ...frame.quality },
+      signal: { ...frame.signal },
+    })),
+    rejectedFrames: active.rejectedFrames.map((frame) => ({
+      ...frame,
+      reasons: [...frame.reasons],
+    })),
+  };
+  return isCompleteRednessEvidenceBurst(burst) ? burst : null;
+}
 
 const oracleModelFor = (state: PhaseBFaceValueState): OracleRevealModel => ({
   phase: state.oracleRevealState,
@@ -247,16 +389,7 @@ export function createOracleEvidenceRecord(state: PhaseBFaceValueState): Evidenc
     return null;
   }
   const record = enrichRecord(state, createEvidenceRecord(state, state.oracleCommittedAt));
-  const identity = oracleTrialIdentity({
-    baselineAt: state.baselineLockedAt ?? state.baselineCapture?.createdAt,
-    followUpAt: state.followUpEligibleAt ?? state.followupCapture?.createdAt,
-    accession: record.accession,
-  });
-
-  return {
-    ...record,
-    accession: identity.folio,
-  };
+  return record;
 }
 
 function enrichSavedRecord(
@@ -275,7 +408,7 @@ function enrichSavedRecord(
 
 function productForRednessEvaluation(
   state: PhaseBFaceValueState,
-  baseline: DurableSkinSignal,
+  baselineCapturedAt: string,
 ): RegisteredProduct {
   if (state.registeredProduct) return state.registeredProduct;
   return {
@@ -290,7 +423,7 @@ function productForRednessEvaluation(
     expectedObservationWindowDays: {
       ...REDNESS_MVP_OBSERVATION_WINDOW,
     },
-    createdAt: baseline.capturedAt,
+    createdAt: baselineCapturedAt,
   };
 }
 
@@ -347,6 +480,7 @@ export function faceValueReducer(
         activeAnalysisRequestId: null,
         pendingAnalysisCapture: null,
         analysisError: null,
+        activeRednessBurst: null,
         registeredProduct: { ...event.product },
         baselineLockedAt: null,
         followUpEligibleAt: null,
@@ -370,7 +504,7 @@ export function faceValueReducer(
       if (event.kind === 'baseline') {
         if (
           state.stage !== 'job' ||
-          state.longitudinalEvidence.baseline ||
+          hasBaselineEvidence(state.longitudinalEvidence) ||
           state.processing === 'running'
         ) {
           return state;
@@ -378,8 +512,8 @@ export function faceValueReducer(
       } else {
         if (
           !event.now ||
-          !state.longitudinalEvidence.baseline ||
-          state.longitudinalEvidence.followUp ||
+          !hasBaselineEvidence(state.longitudinalEvidence) ||
+          hasFollowUpEvidence(state.longitudinalEvidence) ||
           ![
             'waiting_for_followup',
             'followup_ready',
@@ -404,6 +538,7 @@ export function faceValueReducer(
         camera: 'idle',
         processing: 'idle',
         analysisError: null,
+        activeRednessBurst: null,
         returnStage: event.kind === 'baseline' ? 'job' : 'followup_ready',
         announcement:
           event.kind === 'baseline'
@@ -416,7 +551,7 @@ export function faceValueReducer(
       if (
         event.kind === 'baseline' &&
         (state.stage === 'baseline_context' || state.stage === 'baseline_locked') &&
-        state.longitudinalEvidence.baseline
+        hasBaselineEvidence(state.longitudinalEvidence)
       ) {
         return {
           ...state,
@@ -428,7 +563,7 @@ export function faceValueReducer(
       if (
         event.kind === 'followup' &&
         state.stage === 'followup_context' &&
-        state.longitudinalEvidence.followUp
+        hasFollowUpEvidence(state.longitudinalEvidence)
       ) {
         return {
           ...state,
@@ -442,7 +577,7 @@ export function faceValueReducer(
     }
 
     case 'FINISH_BASELINE_SESSION':
-      if (state.stage !== 'baseline_locked' || !state.longitudinalEvidence.baseline) {
+      if (state.stage !== 'baseline_locked' || !hasBaselineEvidence(state.longitudinalEvidence)) {
         return state;
       }
       return {
@@ -457,7 +592,7 @@ export function faceValueReducer(
     case 'CHECK_FOLLOWUP_ELIGIBILITY':
       if (
         !['waiting_for_followup', 'cabinet'].includes(state.stage) ||
-        state.longitudinalEvidence.followUp ||
+        hasFollowUpEvidence(state.longitudinalEvidence) ||
         !followUpIsEligible({
           followUpEligibleAt: state.followUpEligibleAt,
           demoTimelineAdvanced: state.demoTimelineAdvanced,
@@ -476,8 +611,8 @@ export function faceValueReducer(
     case 'ADVANCE_DEMO_TIMELINE':
       if (
         !state.registeredProduct ||
-        !state.longitudinalEvidence.baseline ||
-        state.longitudinalEvidence.followUp ||
+        !hasBaselineEvidence(state.longitudinalEvidence) ||
+        hasFollowUpEvidence(state.longitudinalEvidence) ||
         !['waiting_for_followup', 'cabinet'].includes(state.stage)
       ) {
         return state;
@@ -637,6 +772,7 @@ export function faceValueReducer(
         activeAnalysisRequestId: null,
         pendingAnalysisCapture: null,
         analysisError: null,
+        activeRednessBurst: null,
         registeredProduct: null,
         baselineLockedAt: null,
         followUpEligibleAt: null,
@@ -681,12 +817,507 @@ export function faceValueReducer(
         now: event.now,
       });
 
+    case 'REDNESS_BURST_STARTED': {
+      const replacingFailedGeneration = state.activeRednessBurst?.status === 'failed';
+      if (
+        state.stage !== 'camera' ||
+        state.captureKind !== event.role ||
+        state.processing === 'running' ||
+        (!replacingFailedGeneration && state.activeRednessBurst !== null) ||
+        !event.generationId ||
+        !event.burstId ||
+        !event.sessionId ||
+        !event.startedAt ||
+        (event.role === 'baseline' && hasBaselineEvidence(state.longitudinalEvidence)) ||
+        (event.role === 'followup' &&
+          (!hasBaselineEvidence(state.longitudinalEvidence) ||
+            hasFollowUpEvidence(state.longitudinalEvidence) ||
+            !state.longitudinalEvidence.protocol ||
+            !protocolsMatch(state.longitudinalEvidence.protocol, HD_REDNESS_PROTOCOL) ||
+            (state.registeredProduct !== null &&
+              !followUpIsEligible({
+                followUpEligibleAt: state.followUpEligibleAt,
+                demoTimelineAdvanced: state.demoTimelineAdvanced,
+                now: event.startedAt,
+              }))))
+      ) {
+        return state;
+      }
+
+      return {
+        ...state,
+        processing: 'idle',
+        analysisRole: event.role,
+        activeAnalysisRequestId: null,
+        pendingAnalysisCapture: null,
+        analysisError: null,
+        activeRednessBurst: {
+          generationId: event.generationId,
+          burstId: event.burstId,
+          role: event.role,
+          sessionId: event.sessionId,
+          captureProfileId: null,
+          startedAt: event.startedAt,
+          attemptedFrameCount: 0,
+          capturedFrames: [],
+          acceptedFrames: [],
+          rejectedFrames: [],
+          providerRequests: [],
+          protocol:
+            event.role === 'followup' && state.longitudinalEvidence.protocol
+              ? { ...state.longitudinalEvidence.protocol }
+              : null,
+          status: 'capturing',
+        },
+        announcement: 'Three-measurement capture started.',
+      };
+    }
+
+    case 'REDNESS_BURST_CAPTURE_REJECTED': {
+      if (
+        !isCurrentBurst(state, event.generationId) ||
+        state.activeRednessBurst.status !== 'capturing' ||
+        state.activeRednessBurst.attemptedFrameCount >= REDNESS_BURST_MAX_CAPTURE_ATTEMPTS ||
+        event.frame.stage !== 'capture' ||
+        !event.frame.frameId ||
+        !event.frame.attemptedAt ||
+        event.frame.reasons.length === 0 ||
+        burstHasFrameId(state.activeRednessBurst, event.frame.frameId)
+      ) {
+        return state;
+      }
+      const attemptedFrameCount = state.activeRednessBurst.attemptedFrameCount + 1;
+      const exhausted =
+        attemptedFrameCount >= REDNESS_BURST_MAX_CAPTURE_ATTEMPTS &&
+        state.activeRednessBurst.capturedFrames.length < REDNESS_BURST_REQUIRED_MEASUREMENTS;
+      const error = exhausted ? burstAttemptLimitError(state.activeRednessBurst.role) : null;
+      return {
+        ...state,
+        processing: exhausted ? 'failed' : state.processing,
+        analysisError: error,
+        activeRednessBurst: {
+          ...state.activeRednessBurst,
+          attemptedFrameCount,
+          rejectedFrames: [
+            ...state.activeRednessBurst.rejectedFrames,
+            {
+              ...event.frame,
+              reasons: [...event.frame.reasons],
+            },
+          ],
+          status: exhausted ? 'failed' : 'capturing',
+        },
+        announcement: exhausted
+          ? error!.message
+          : 'Capture conditions changed. Replacing that measurement automatically.',
+      };
+    }
+
+    case 'REDNESS_BURST_FRAME_CAPTURED': {
+      const burst = state.activeRednessBurst;
+      if (
+        !isCurrentBurst(state, event.generationId) ||
+        burst?.status !== 'capturing' ||
+        burst.attemptedFrameCount >= REDNESS_BURST_MAX_CAPTURE_ATTEMPTS ||
+        burst.capturedFrames.length >= REDNESS_BURST_REQUIRED_MEASUREMENTS ||
+        !event.frame.frameId ||
+        event.frame.capture.id !== event.frame.frameId ||
+        event.frame.capture.kind !== burst.role ||
+        event.frame.capture.source !== 'camera' ||
+        !event.frame.capture.cameraProfileId ||
+        event.frame.quality.currentFrame !== 'accepted' ||
+        event.frame.quality.exposure !== 'accepted' ||
+        event.frame.quality.movement !== 'accepted' ||
+        burstHasFrameId(burst, event.frame.frameId) ||
+        (burst.role === 'followup' &&
+          baselineCaptureProfileFor(state) !== null &&
+          event.frame.capture.cameraProfileId !== baselineCaptureProfileFor(state)) ||
+        (burst.captureProfileId !== null &&
+          event.frame.capture.cameraProfileId !== burst.captureProfileId)
+      ) {
+        return state;
+      }
+
+      const capturedFrames = [
+        ...burst.capturedFrames,
+        {
+          ...event.frame,
+          capture: { ...event.frame.capture },
+          quality: { ...event.frame.quality },
+        },
+      ];
+      const attemptedFrameCount = burst.attemptedFrameCount + 1;
+      const exhausted =
+        attemptedFrameCount >= REDNESS_BURST_MAX_CAPTURE_ATTEMPTS &&
+        capturedFrames.length < REDNESS_BURST_REQUIRED_MEASUREMENTS;
+      const error = exhausted ? burstAttemptLimitError(burst.role) : null;
+      return {
+        ...state,
+        processing: exhausted ? 'failed' : state.processing,
+        analysisError: error,
+        activeRednessBurst: {
+          ...burst,
+          captureProfileId: burst.captureProfileId ?? event.frame.capture.cameraProfileId ?? null,
+          attemptedFrameCount,
+          capturedFrames,
+          status: exhausted ? 'failed' : 'capturing',
+        },
+        announcement: exhausted
+          ? error!.message
+          : `${capturedFrames.length} of ${REDNESS_BURST_REQUIRED_MEASUREMENTS} current frames secured.`,
+      };
+    }
+
+    case 'REDNESS_BURST_CAPTURE_COMPLETED':
+      if (
+        !isCurrentBurst(state, event.generationId) ||
+        state.activeRednessBurst.status !== 'capturing' ||
+        state.activeRednessBurst.capturedFrames.length !== REDNESS_BURST_REQUIRED_MEASUREMENTS ||
+        state.activeRednessBurst.attemptedFrameCount > REDNESS_BURST_MAX_CAPTURE_ATTEMPTS
+      ) {
+        return state;
+      }
+      return {
+        ...state,
+        camera: 'captured',
+        processing: 'running',
+        analysisRole: state.activeRednessBurst.role,
+        activeAnalysisRequestId: null,
+        pendingAnalysisCapture: null,
+        activeRednessBurst: {
+          ...state.activeRednessBurst,
+          status: 'analyzing',
+        },
+        announcement: 'Scan complete. You can relax.',
+      };
+
+    case 'REDNESS_BURST_ANALYSIS_STARTED': {
+      if (
+        !isCurrentBurst(state, event.generationId) ||
+        state.activeRednessBurst.status !== 'analyzing' ||
+        state.activeAnalysisRequestId !== null ||
+        state.activeRednessBurst.providerRequests.some(
+          (request) => request.requestId === event.requestId,
+        ) ||
+        state.activeRednessBurst.acceptedFrames.some((frame) => frame.frameId === event.frameId) ||
+        !state.activeRednessBurst.capturedFrames.some((frame) => frame.frameId === event.frameId)
+      ) {
+        return state;
+      }
+      const frameRequests = state.activeRednessBurst.providerRequests.filter(
+        (request) => request.frameId === event.frameId,
+      );
+      const validAttempt =
+        (event.attempt === 1 && frameRequests.length === 0) ||
+        (event.attempt === 2 &&
+          frameRequests.length === 1 &&
+          frameRequests[0].attempt === 1 &&
+          frameRequests[0].status === 'failed');
+      if (!validAttempt) return state;
+
+      return {
+        ...state,
+        processing: 'running',
+        activeAnalysisRequestId: event.requestId,
+        activeRednessBurst: {
+          ...state.activeRednessBurst,
+          providerRequests: [
+            ...state.activeRednessBurst.providerRequests,
+            {
+              requestId: event.requestId,
+              frameId: event.frameId,
+              attempt: event.attempt,
+              status: 'running',
+            },
+          ],
+        },
+        announcement:
+          event.attempt === 2
+            ? 'Rechecking this measurement…'
+            : `Analyzing measurement ${state.activeRednessBurst.acceptedFrames.length + 1} of ${REDNESS_BURST_REQUIRED_MEASUREMENTS}.`,
+      };
+    }
+
+    case 'REDNESS_BURST_ANALYSIS_ACCEPTED': {
+      if (
+        !isCurrentBurst(state, event.generationId) ||
+        state.activeRednessBurst.status !== 'analyzing' ||
+        state.activeAnalysisRequestId !== event.requestId
+      ) {
+        return state;
+      }
+      const request = state.activeRednessBurst.providerRequests.find(
+        (candidate) => candidate.requestId === event.requestId,
+      );
+      const captured = state.activeRednessBurst.capturedFrames.find(
+        (frame) => frame.frameId === event.frameId,
+      );
+      const frozenProtocol =
+        state.activeRednessBurst.protocol ?? state.longitudinalEvidence.protocol;
+      if (
+        !request ||
+        request.status !== 'running' ||
+        request.frameId !== event.frameId ||
+        request.attempt !== event.attempt ||
+        !captured ||
+        state.activeRednessBurst.acceptedFrames.some((frame) => frame.frameId === event.frameId) ||
+        !protocolsMatch(event.protocol, HD_REDNESS_PROTOCOL) ||
+        (frozenProtocol !== null && !protocolsMatch(frozenProtocol, event.protocol)) ||
+        !signalMatchesProtocol(event.signal, event.protocol) ||
+        !Number.isFinite(event.signal.rawScore) ||
+        event.signal.captureQuality !== 'accepted' ||
+        event.signal.capturedAt !== captured.capture.createdAt
+      ) {
+        return state;
+      }
+
+      const acceptedFrames = [
+        ...state.activeRednessBurst.acceptedFrames,
+        {
+          ...captured,
+          signal: { ...event.signal },
+          providerAttemptCount: event.attempt,
+        },
+      ];
+      const ready = acceptedFrames.length === REDNESS_BURST_REQUIRED_MEASUREMENTS;
+      return {
+        ...state,
+        processing: ready ? 'succeeded' : 'running',
+        activeAnalysisRequestId: null,
+        analysisError: null,
+        activeRednessBurst: {
+          ...state.activeRednessBurst,
+          protocol: { ...event.protocol },
+          acceptedFrames,
+          providerRequests: state.activeRednessBurst.providerRequests.map((candidate) =>
+            candidate.requestId === event.requestId
+              ? { ...candidate, status: 'accepted' as const }
+              : candidate,
+          ),
+          status: ready ? 'ready' : 'analyzing',
+        },
+        announcement: ready
+          ? 'Measurements confirmed. Preparing your comparison.'
+          : `Measurement ${acceptedFrames.length} confirmed.`,
+      };
+    }
+
+    case 'REDNESS_BURST_ANALYSIS_FAILED': {
+      if (
+        !isCurrentBurst(state, event.generationId) ||
+        state.activeRednessBurst.status !== 'analyzing' ||
+        state.activeAnalysisRequestId !== event.requestId
+      ) {
+        return state;
+      }
+      const request = state.activeRednessBurst.providerRequests.find(
+        (candidate) => candidate.requestId === event.requestId,
+      );
+      if (
+        !request ||
+        request.status !== 'running' ||
+        request.frameId !== event.frameId ||
+        request.attempt !== event.attempt
+      ) {
+        return state;
+      }
+      const providerRequests = state.activeRednessBurst.providerRequests.map((candidate) =>
+        candidate.requestId === event.requestId
+          ? { ...candidate, status: 'failed' as const }
+          : candidate,
+      );
+      return {
+        ...state,
+        processing: event.terminal ? 'failed' : 'running',
+        activeAnalysisRequestId: null,
+        analysisError: event.terminal ? event.error : null,
+        activeRednessBurst: {
+          ...state.activeRednessBurst,
+          providerRequests,
+          rejectedFrames: event.terminal
+            ? [
+                ...state.activeRednessBurst.rejectedFrames,
+                {
+                  frameId: event.frameId,
+                  attemptedAt:
+                    state.activeRednessBurst.capturedFrames.find(
+                      (frame) => frame.frameId === event.frameId,
+                    )?.capture.createdAt ?? state.activeRednessBurst.startedAt,
+                  stage: 'provider',
+                  reasons: ['provider analysis failed after bounded retry'],
+                },
+              ]
+            : state.activeRednessBurst.rejectedFrames,
+          status: event.terminal ? 'failed' : 'analyzing',
+        },
+        announcement: event.terminal ? event.error.message : 'Rechecking this measurement…',
+      };
+    }
+
+    case 'REDNESS_BURST_COMMIT_REQUESTED': {
+      if (
+        !isCurrentBurst(state, event.generationId) ||
+        state.activeRednessBurst.status !== 'ready' ||
+        !state.activeRednessBurst.protocol
+      ) {
+        return state;
+      }
+      const completed = completedBurstFrom(state.activeRednessBurst, event.completedAt);
+      if (!completed) return state;
+      const primaryCapture = completed.acceptedFrames[0].capture;
+
+      if (completed.role === 'baseline') {
+        if (
+          hasBaselineEvidence(state.longitudinalEvidence) ||
+          !protocolsMatch(state.activeRednessBurst.protocol, HD_REDNESS_PROTOCOL)
+        ) {
+          return state;
+        }
+        const baselineLockedAt = completed.completedAt;
+        return {
+          ...state,
+          stage: 'camera',
+          camera: 'captured',
+          observation: 'active_stable',
+          baselineCapture: primaryCapture,
+          comparison: 'not_available',
+          confidence: 'insufficient',
+          processing: 'succeeded',
+          returnStage: state.returnStage,
+          longitudinalEvidence: {
+            protocol: { ...state.activeRednessBurst.protocol },
+            baseline: null,
+            followUp: null,
+            baselineBurst: completed,
+            followUpBurst: null,
+            comparison: null,
+            evaluation: null,
+          },
+          analysisRole: null,
+          activeAnalysisRequestId: null,
+          pendingAnalysisCapture: null,
+          analysisError: null,
+          activeRednessBurst: {
+            ...state.activeRednessBurst,
+            status: 'committed',
+          },
+          baselineLockedAt,
+          followUpEligibleAt: addCalendarDays(baselineLockedAt, FOLLOW_UP_INTERVAL_DAYS),
+          baselineContext: null,
+          demoTimelineAdvanced: false,
+          announcement: 'Measurements confirmed. Preparing your comparison.',
+        };
+      }
+
+      if (
+        !hasBaselineEvidence(state.longitudinalEvidence) ||
+        hasFollowUpEvidence(state.longitudinalEvidence) ||
+        !state.longitudinalEvidence.protocol ||
+        !protocolsMatch(state.longitudinalEvidence.protocol, state.activeRednessBurst.protocol)
+      ) {
+        return state;
+      }
+      return {
+        ...state,
+        stage: 'camera',
+        camera: 'captured',
+        observation: 'review_due',
+        followupCapture: primaryCapture,
+        returnStage: state.returnStage,
+        processing: 'idle',
+        analysis: null,
+        longitudinalEvidence: {
+          ...state.longitudinalEvidence,
+          followUp: null,
+          followUpBurst: completed,
+          comparison: null,
+          evaluation: null,
+        },
+        analysisRole: null,
+        activeAnalysisRequestId: null,
+        pendingAnalysisCapture: null,
+        analysisError: null,
+        activeRednessBurst: {
+          ...state.activeRednessBurst,
+          status: 'committed',
+        },
+        followUpContext: null,
+        announcement: 'Measurements confirmed. Preparing your comparison.',
+      };
+    }
+
+    case 'REDNESS_BURST_PRESENTATION_COMPLETED': {
+      if (
+        !isCurrentBurst(state, event.generationId) ||
+        state.activeRednessBurst.status !== 'committed'
+      ) {
+        return state;
+      }
+      const role = state.activeRednessBurst.role;
+      if (role === 'baseline' && !hasBaselineEvidence(state.longitudinalEvidence)) return state;
+      if (role === 'followup' && !hasFollowUpEvidence(state.longitudinalEvidence)) return state;
+      return {
+        ...state,
+        stage:
+          role === 'baseline'
+            ? state.registeredProduct
+              ? 'baseline_context'
+              : 'observation'
+            : state.registeredProduct
+              ? 'followup_context'
+              : 'analysis',
+        returnStage: null,
+        activeRednessBurst: null,
+        announcement:
+          role === 'baseline'
+            ? state.registeredProduct
+              ? 'Baseline secured. Add optional context before the trial is locked.'
+              : 'Baseline secured. Trial in progress.'
+            : state.registeredProduct
+              ? 'Follow-up secured. Add optional context before comparison.'
+              : 'Follow-up secured. Comparing like with like.',
+      };
+    }
+
+    case 'REDNESS_BURST_FAILED':
+      if (
+        !isCurrentBurst(state, event.generationId) ||
+        state.activeRednessBurst.status === 'ready' ||
+        state.activeRednessBurst.status === 'committed'
+      ) {
+        return state;
+      }
+      return {
+        ...state,
+        processing: 'failed',
+        activeAnalysisRequestId: null,
+        analysisError: event.error,
+        activeRednessBurst: {
+          ...state.activeRednessBurst,
+          status: 'failed',
+        },
+        announcement: event.error.message,
+      };
+
+    case 'REDNESS_BURST_CANCELLED':
+      if (!isCurrentBurst(state, event.generationId)) return state;
+      return {
+        ...state,
+        processing: 'idle',
+        analysisRole: null,
+        activeAnalysisRequestId: null,
+        pendingAnalysisCapture: null,
+        analysisError: null,
+        activeRednessBurst: null,
+        announcement: 'Evidence burst cancelled. Existing evidence is unchanged.',
+      };
+
     case 'BASELINE_ANALYSIS_STARTED':
       if (
         state.stage !== 'camera' ||
         state.captureKind !== 'baseline' ||
         state.processing === 'running' ||
-        state.longitudinalEvidence.baseline
+        hasBaselineEvidence(state.longitudinalEvidence)
       ) {
         return state;
       }
@@ -704,7 +1335,7 @@ export function faceValueReducer(
       if (
         !isCurrentRequest(state, event.requestId) ||
         state.analysisRole !== 'baseline' ||
-        state.longitudinalEvidence.baseline
+        hasBaselineEvidence(state.longitudinalEvidence)
       ) {
         return state;
       }
@@ -723,6 +1354,8 @@ export function faceValueReducer(
           protocol: { ...event.protocol },
           baseline: event.signal,
           followUp: null,
+          baselineBurst: null,
+          followUpBurst: null,
           comparison: null,
           evaluation: null,
         },
@@ -730,6 +1363,7 @@ export function faceValueReducer(
         activeAnalysisRequestId: null,
         pendingAnalysisCapture: null,
         analysisError: null,
+        activeRednessBurst: null,
         baselineLockedAt,
         followUpEligibleAt: addCalendarDays(baselineLockedAt, FOLLOW_UP_INTERVAL_DAYS),
         baselineContext: null,
@@ -766,6 +1400,7 @@ export function faceValueReducer(
         analysisRole: null,
         activeAnalysisRequestId: null,
         analysisError: null,
+        activeRednessBurst: null,
         announcement: 'Baseline retry ready.',
       };
 
@@ -775,8 +1410,8 @@ export function faceValueReducer(
         state.captureKind !== 'followup' ||
         state.processing === 'running' ||
         !state.longitudinalEvidence.protocol ||
-        !state.longitudinalEvidence.baseline ||
-        state.longitudinalEvidence.followUp ||
+        !hasBaselineEvidence(state.longitudinalEvidence) ||
+        hasFollowUpEvidence(state.longitudinalEvidence) ||
         (state.baselineCapture?.source === 'camera' &&
           event.metadata.source === 'camera' &&
           state.baselineCapture.cameraProfileId &&
@@ -804,9 +1439,9 @@ export function faceValueReducer(
       if (
         !isCurrentRequest(state, event.requestId) ||
         state.analysisRole !== 'followup' ||
-        !state.longitudinalEvidence.baseline ||
+        !hasBaselineEvidence(state.longitudinalEvidence) ||
         !state.longitudinalEvidence.protocol ||
-        state.longitudinalEvidence.followUp
+        hasFollowUpEvidence(state.longitudinalEvidence)
       ) {
         return state;
       }
@@ -822,6 +1457,7 @@ export function faceValueReducer(
         longitudinalEvidence: {
           ...state.longitudinalEvidence,
           followUp: event.signal,
+          followUpBurst: null,
           comparison: null,
           evaluation: null,
         },
@@ -829,6 +1465,7 @@ export function faceValueReducer(
         activeAnalysisRequestId: null,
         pendingAnalysisCapture: null,
         analysisError: null,
+        activeRednessBurst: null,
         followUpContext: null,
         announcement: state.registeredProduct
           ? 'Follow-up secured. Add optional context before comparison.'
@@ -853,7 +1490,7 @@ export function faceValueReducer(
       }
       if (
         !['analysis_failure', 'comparison_refused'].includes(state.stage) ||
-        !state.longitudinalEvidence.baseline
+        !hasBaselineEvidence(state.longitudinalEvidence)
       ) {
         return state;
       }
@@ -868,11 +1505,13 @@ export function faceValueReducer(
         activeAnalysisRequestId: null,
         pendingAnalysisCapture: null,
         analysisError: null,
+        activeRednessBurst: null,
         comparison: 'not_available',
         confidence: 'insufficient',
         longitudinalEvidence: {
           ...state.longitudinalEvidence,
           followUp: null,
+          followUpBurst: null,
           comparison: null,
           evaluation: null,
         },
@@ -885,25 +1524,35 @@ export function faceValueReducer(
       };
 
     case 'COMPARISON_CREATED': {
-      const baseline = state.longitudinalEvidence.baseline;
-      const followUp = state.longitudinalEvidence.followUp;
+      const baseline =
+        (isCompleteRednessEvidenceBurst(state.longitudinalEvidence.baselineBurst)
+          ? state.longitudinalEvidence.baselineBurst
+          : null) ?? state.longitudinalEvidence.baseline;
+      const followUp =
+        (isCompleteRednessEvidenceBurst(state.longitudinalEvidence.followUpBurst)
+          ? state.longitudinalEvidence.followUpBurst
+          : null) ?? state.longitudinalEvidence.followUp;
+      const baselineCapturedAt = baselineEvidenceCapturedAt(state.longitudinalEvidence);
+      const followUpCapturedAt = followUpEvidenceCapturedAt(state.longitudinalEvidence);
       if (
         state.stage !== 'analysis' ||
         state.analysis ||
         state.longitudinalEvidence.comparison ||
         !baseline ||
-        !followUp
+        !followUp ||
+        !baselineCapturedAt ||
+        !followUpCapturedAt
       ) {
         return state;
       }
       const trialIdentity = oracleTrialIdentity({
-        baselineAt: state.baselineLockedAt ?? baseline.capturedAt,
-        followUpAt: state.followupCapture?.createdAt ?? followUp.capturedAt,
+        baselineAt: state.baselineLockedAt ?? baselineCapturedAt,
+        followUpAt: state.followupCapture?.createdAt ?? followUpCapturedAt,
         accession: state.registeredProduct?.accession,
       });
       const evaluation = buildMvpRednessEvaluation({
         trialId: trialIdentity.folio,
-        product: productForRednessEvaluation(state, baseline),
+        product: productForRednessEvaluation(state, baselineCapturedAt),
         baseline,
         endpoint: followUp,
         baselineCapture: state.baselineCapture,
@@ -951,6 +1600,7 @@ export function faceValueReducer(
         activeAnalysisRequestId: null,
         pendingAnalysisCapture: null,
         analysisError: event.error,
+        activeRednessBurst: null,
         resultRevealed: false,
         oracleRevealState: 'sealed',
         oracleEvidenceDispensed: false,
@@ -969,10 +1619,14 @@ export function faceValueReducer(
         activeAnalysisRequestId: null,
         pendingAnalysisCapture: null,
         analysisError: null,
+        activeRednessBurst: null,
         announcement: 'Analysis cancelled. Existing evidence is unchanged.',
       };
 
     case 'BACK':
+      if (state.stage === 'camera' && state.activeRednessBurst?.status === 'committed') {
+        return state;
+      }
       if (state.stage === 'product_registration') {
         return {
           ...state,
@@ -984,7 +1638,7 @@ export function faceValueReducer(
       if (
         state.stage === 'job' &&
         state.registeredProduct &&
-        !state.longitudinalEvidence.baseline
+        !hasBaselineEvidence(state.longitudinalEvidence)
       ) {
         return {
           ...state,
@@ -1002,6 +1656,7 @@ export function faceValueReducer(
           activeAnalysisRequestId: null,
           pendingAnalysisCapture: null,
           analysisError: null,
+          activeRednessBurst: null,
           announcement: 'Guided capture closed. Existing evidence is unchanged.',
         };
       }
@@ -1060,6 +1715,7 @@ export function faceValueReducer(
         activeAnalysisRequestId: null,
         pendingAnalysisCapture: null,
         analysisError: null,
+        activeRednessBurst: null,
         registeredProduct: null,
         baselineLockedAt: null,
         followUpEligibleAt: null,

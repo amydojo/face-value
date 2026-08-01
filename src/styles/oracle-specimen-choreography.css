@@ -1,0 +1,507 @@
+/*
+ * Oracle verdict specimen choreography
+ *
+ * The canonical specimen coordinate wrapper remains fixed at true chamber
+ * center through every phase. While sealed, its rendered layers are held at
+ * that center in a quiet zero-gravity field. Authorization releases the
+ * rendered assembly into a right-side magnetic dock without changing machine,
+ * wrapper, label, evidence geometry, or canonical verdict copy.
+ *
+ * Oracle phase progression remains owned by the existing CSS-module driver
+ * animations. This presentation layer uses state-driven transitions only, so
+ * no decorative animationend event can advance or stall the state machine.
+ */
+
+[data-oracle-machine][data-cassette-variant='reveal']
+  [data-oracle-specimen][data-specimen-state='verdict'] {
+  --oracle-specimen-dock-offset: clamp(60px, 18.2vw, 80px);
+  --oracle-dock-delay: 180ms;
+  --oracle-dock-duration: 480ms;
+  --oracle-dock-ease: cubic-bezier(0.22, 1, 0.36, 1);
+
+  top: 18.5%;
+  right: auto;
+  left: 50%;
+  isolation: isolate;
+  transform: translateX(-50%);
+}
+
+/*
+ * Firmware composition is a stable two-lane instrument layout. Header identity
+ * spans the full glass width, while finding and action copy remain inside the
+ * bounded left lane and the canonical specimen owns the right lane.
+ */
+[data-oracle-machine][data-cassette-variant='reveal'] [data-firmware-state] {
+  --oracle-verdict-copy-lane: 57%;
+  --oracle-verdict-lane-gap: clamp(12px, 3.6vw, 16px);
+
+  grid-template-columns: minmax(0, var(--oracle-verdict-copy-lane)) minmax(0, 1fr);
+  grid-template-rows: 26px minmax(62px, 1fr) minmax(42px, 0.7fr);
+  column-gap: var(--oracle-verdict-lane-gap);
+  row-gap: 0;
+  padding-right: 14px;
+}
+
+[data-oracle-machine][data-cassette-variant='reveal'] [data-firmware-state] > header {
+  width: 100%;
+  min-width: 0;
+  display: flex;
+  grid-column: 1 / -1;
+  grid-row: 1;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+[data-oracle-machine][data-cassette-variant='reveal']
+  [data-firmware-state]
+  > header
+  > span {
+  min-width: 0;
+}
+
+[data-oracle-machine][data-cassette-variant='reveal']
+  [data-firmware-state]
+  > header
+  > span:last-child {
+  margin-left: auto;
+  padding-left: 12px;
+  white-space: nowrap;
+  text-align: right;
+}
+
+[data-oracle-machine][data-cassette-variant='reveal']
+  [data-firmware-state]
+  > div:first-of-type {
+  min-width: 0;
+  max-width: 100%;
+  display: grid;
+  grid-column: 1;
+  grid-row: 2;
+  grid-template-rows: auto minmax(0, 1fr);
+  align-content: stretch;
+  gap: clamp(5px, 1.5vw, 7px);
+  padding: 1px 0 clamp(7px, 2vw, 9px);
+}
+
+[data-oracle-machine][data-cassette-variant='reveal']
+  [data-firmware-state]
+  > div:nth-of-type(2) {
+  min-width: 0;
+  max-width: 100%;
+  display: grid;
+  grid-column: 1;
+  grid-row: 3;
+  grid-template-rows: auto minmax(0, 1fr);
+  align-content: start;
+  gap: clamp(4px, 1.3vw, 6px);
+  padding-top: clamp(6px, 1.8vw, 8px);
+}
+
+[data-oracle-machine][data-cassette-variant='reveal']
+  [data-firmware-state]
+  [data-oracle-finding] {
+  max-width: 100%;
+  min-height: calc(3em * 1.02);
+  align-self: start;
+}
+
+[data-oracle-machine][data-cassette-variant='reveal']
+  [data-firmware-state]
+  > div:nth-of-type(2)
+  > strong {
+  max-width: 100%;
+  overflow-wrap: normal;
+  word-break: normal;
+}
+
+/*
+ * Frozen canonical verdict strings stay untouched in the DOM and accessibility
+ * tree. These exact selectors supply an authored three-line visual projection,
+ * preventing Safari from making a different editorial decision at each width.
+ */
+[data-oracle-machine][data-cassette-variant='reveal']:is(
+    [aria-label*='Visible redness improved across comparable scans.'],
+    [aria-label*='Visible redness moved in a favorable direction.'],
+    [aria-label*='No detectable improvement showed up.'],
+    [aria-label*='This comparison was not readable.'],
+    [aria-label*='The trial did not isolate this product.'],
+    [aria-label*='Visible redness worsened across comparable scans.']
+  )
+  [data-oracle-finding] {
+  color: transparent;
+  font-size: 0;
+  line-height: 0;
+  letter-spacing: 0;
+  overflow: visible;
+}
+
+[data-oracle-machine][data-cassette-variant='reveal']:is(
+    [aria-label*='Visible redness improved across comparable scans.'],
+    [aria-label*='Visible redness moved in a favorable direction.'],
+    [aria-label*='No detectable improvement showed up.'],
+    [aria-label*='This comparison was not readable.'],
+    [aria-label*='The trial did not isolate this product.'],
+    [aria-label*='Visible redness worsened across comparable scans.']
+  )
+  [data-oracle-finding]::after {
+  display: block;
+  color: #ebe4d7;
+  font-weight: 630;
+  line-height: 1.02;
+  letter-spacing: 0;
+  text-transform: uppercase;
+  white-space: pre;
+}
+
+/* Compact optical tier. */
+[data-oracle-machine][data-cassette-variant='reveal']:is(
+    [aria-label*='Visible redness improved across comparable scans.'],
+    [aria-label*='Visible redness moved in a favorable direction.'],
+    [aria-label*='The trial did not isolate this product.'],
+    [aria-label*='Visible redness worsened across comparable scans.']
+  )
+  [data-oracle-finding]::after {
+  font-size: clamp(10.5px, 3.05vw, 12.4px);
+}
+
+/* Standard optical tier. */
+[data-oracle-machine][data-cassette-variant='reveal']:is(
+    [aria-label*='No detectable improvement showed up.'],
+    [aria-label*='This comparison was not readable.']
+  )
+  [data-oracle-finding]::after {
+  font-size: clamp(11.5px, 3.45vw, 14px);
+}
+
+[data-oracle-machine][data-cassette-variant='reveal'][aria-label*='Visible redness improved across comparable scans.']
+  [data-oracle-finding]::after {
+  content: 'VISIBLE REDNESS\A IMPROVED ACROSS\A COMPARABLE SCANS.';
+}
+
+[data-oracle-machine][data-cassette-variant='reveal'][aria-label*='Visible redness moved in a favorable direction.']
+  [data-oracle-finding]::after {
+  content: 'VISIBLE REDNESS\A MOVED IN A\A FAVORABLE DIRECTION.';
+}
+
+[data-oracle-machine][data-cassette-variant='reveal'][aria-label*='No detectable improvement showed up.']
+  [data-oracle-finding]::after {
+  content: 'NO DETECTABLE\A IMPROVEMENT\A SHOWED UP.';
+}
+
+[data-oracle-machine][data-cassette-variant='reveal'][aria-label*='This comparison was not readable.']
+  [data-oracle-finding]::after {
+  content: 'THIS COMPARISON\A WAS NOT\A READABLE.';
+}
+
+[data-oracle-machine][data-cassette-variant='reveal'][aria-label*='The trial did not isolate this product.']
+  [data-oracle-finding]::after {
+  content: 'THE TRIAL\A DID NOT ISOLATE\A THIS PRODUCT.';
+}
+
+[data-oracle-machine][data-cassette-variant='reveal'][aria-label*='Visible redness worsened across comparable scans.']
+  [data-oracle-finding]::after {
+  content: 'VISIBLE REDNESS\A WORSENED ACROSS\A COMPARABLE SCANS.';
+}
+
+/*
+ * The outer wrapper never moves. Its rendered assembly receives one delayed,
+ * non-elastic precision glide after the sealed field has visibly released it.
+ * The existing 400ms opening plus 300ms transmission drivers remain the only
+ * animation events that own Oracle phase progression.
+ */
+[data-oracle-machine][data-cassette-variant='reveal']
+  [data-oracle-specimen][data-specimen-state='verdict']
+  > :not(style) {
+  translate: 0 0;
+  transition: translate var(--oracle-dock-duration) var(--oracle-dock-ease)
+    var(--oracle-dock-delay);
+}
+
+[data-oracle-machine][data-cassette-variant='reveal']
+  [data-oracle-specimen][data-specimen-state='verdict']::before,
+[data-oracle-machine][data-cassette-variant='reveal']
+  [data-oracle-specimen][data-specimen-state='verdict']::after {
+  position: absolute;
+  z-index: 0;
+  display: block;
+  border-radius: 50%;
+  content: '';
+  translate: 0 0;
+  transition:
+    translate var(--oracle-dock-duration) var(--oracle-dock-ease) var(--oracle-dock-delay),
+    top 220ms var(--oracle-dock-ease),
+    left 220ms var(--oracle-dock-ease),
+    width 220ms var(--oracle-dock-ease),
+    height 220ms var(--oracle-dock-ease),
+    opacity 180ms ease-out,
+    filter 220ms ease-out,
+    transform 220ms var(--oracle-dock-ease),
+    background 220ms ease-out;
+  pointer-events: none;
+}
+
+[data-oracle-machine][data-cassette-variant='reveal']
+  [data-oracle-specimen][data-specimen-state='verdict']
+  :is([data-specimen-layer='right-rim'], [data-specimen-layer='base-reflection']) {
+  transition:
+    opacity 220ms ease-out,
+    filter 220ms ease-out;
+}
+
+[data-oracle-machine][data-cassette-variant='reveal']:is(
+    [data-oracle-state='opening'],
+    [data-oracle-state='transmitting'],
+    [data-oracle-state='verdict_revealed'],
+    [data-oracle-state='committing'],
+    [data-oracle-state='dispensing'],
+    [data-oracle-state='collected']
+  )
+  [data-oracle-specimen][data-specimen-state='verdict']
+  > :not(style),
+[data-oracle-machine][data-cassette-variant='reveal']:is(
+    [data-oracle-state='opening'],
+    [data-oracle-state='transmitting'],
+    [data-oracle-state='verdict_revealed'],
+    [data-oracle-state='committing'],
+    [data-oracle-state='dispensing'],
+    [data-oracle-state='collected']
+  )
+  [data-oracle-specimen][data-specimen-state='verdict']::before,
+[data-oracle-machine][data-cassette-variant='reveal']:is(
+    [data-oracle-state='opening'],
+    [data-oracle-state='transmitting'],
+    [data-oracle-state='verdict_revealed'],
+    [data-oracle-state='committing'],
+    [data-oracle-state='dispensing'],
+    [data-oracle-state='collected']
+  )
+  [data-oracle-specimen][data-specimen-state='verdict']::after {
+  translate: var(--oracle-specimen-dock-offset) 0;
+}
+
+/* Replace the visible shelf with a contained magnetic field shadow. */
+[data-oracle-machine][data-cassette-variant='reveal']
+  [data-oracle-specimen][data-specimen-state='verdict']::before {
+  top: 97%;
+  left: -12%;
+  width: 124%;
+  height: 7%;
+  opacity: 0.7;
+  background: radial-gradient(
+    ellipse at center,
+    rgba(224, 139, 50, 0.1) 0%,
+    rgba(0, 0, 0, 0.42) 40%,
+    transparent 76%
+  );
+  box-shadow: none;
+  filter: blur(1px);
+}
+
+[data-oracle-machine][data-cassette-variant='reveal'][data-oracle-state='sealed']
+  [data-oracle-specimen][data-specimen-state='verdict']::before {
+  top: 106%;
+  left: -31%;
+  width: 162%;
+  height: 9%;
+  opacity: 0.62;
+  background: radial-gradient(
+    ellipse at center,
+    rgba(231, 135, 42, 0.14) 0%,
+    rgba(0, 0, 0, 0.3) 43%,
+    transparent 79%
+  );
+  filter: blur(3.5px);
+}
+
+/* The breathing completion field exists only while the result is sealed. */
+[data-oracle-machine][data-cassette-variant='reveal'][data-oracle-state='sealed']
+  [data-oracle-specimen][data-specimen-state='verdict']::after {
+  top: -6%;
+  left: -60%;
+  width: 220%;
+  height: 118%;
+  opacity: 0.34;
+  background: radial-gradient(
+    ellipse at 50% 60%,
+    rgba(238, 135, 32, 0.34) 0%,
+    rgba(211, 98, 18, 0.16) 34%,
+    rgba(178, 76, 14, 0.055) 54%,
+    transparent 76%
+  );
+  filter: blur(15px) brightness(0.94);
+  transform: scale(1);
+  transform-origin: 50% 58%;
+  animation: oracleSealedHoldingGlow 3.6s ease-in-out infinite;
+}
+
+/*
+ * Opening contracts the broad field and tightens its shadow through ordinary
+ * transitions. No finite decorative keyframe is allowed to emit animationend.
+ */
+[data-oracle-machine][data-cassette-variant='reveal'][data-oracle-state='opening']
+  [data-oracle-specimen][data-specimen-state='verdict']::after {
+  top: 3%;
+  left: -34%;
+  width: 168%;
+  height: 98%;
+  opacity: 0.28;
+  background: radial-gradient(
+    ellipse at 50% 60%,
+    rgba(240, 142, 40, 0.31) 0%,
+    rgba(205, 94, 17, 0.12) 39%,
+    transparent 73%
+  );
+  filter: blur(12px) brightness(1.02);
+  transform: scale(0.78);
+  transform-origin: 50% 58%;
+}
+
+[data-oracle-machine][data-cassette-variant='reveal'][data-oracle-state='opening']
+  [data-oracle-specimen][data-specimen-state='verdict']::before {
+  top: 99%;
+  left: -15%;
+  width: 130%;
+  height: 7%;
+  opacity: 0.78;
+  filter: blur(1.5px);
+  transform: scale(0.84);
+}
+
+[data-oracle-machine][data-cassette-variant='reveal'][data-oracle-state='opening']
+  [data-oracle-specimen][data-specimen-state='verdict']
+  [data-specimen-layer='right-rim'] {
+  opacity: 0.62;
+  filter: drop-shadow(1px 0 2px rgba(240, 147, 59, 0.22));
+}
+
+/* Once authorized, a compact static field follows the active right dock. */
+[data-oracle-machine][data-cassette-variant='reveal']:is(
+    [data-oracle-state='transmitting'],
+    [data-oracle-state='verdict_revealed'],
+    [data-oracle-state='committing'],
+    [data-oracle-state='dispensing'],
+    [data-oracle-state='collected']
+  )
+  [data-oracle-specimen][data-specimen-state='verdict']::after {
+  top: 10%;
+  left: -18%;
+  width: 136%;
+  height: 88%;
+  opacity: 0.2;
+  background: radial-gradient(
+    ellipse at 52% 58%,
+    rgba(232, 132, 38, 0.28) 0%,
+    rgba(188, 82, 17, 0.09) 43%,
+    transparent 74%
+  );
+  filter: blur(11px);
+  transform: scale(1);
+  animation: none;
+}
+
+[data-oracle-machine][data-cassette-variant='reveal'][data-oracle-state='committing']
+  [data-oracle-specimen][data-specimen-state='verdict']::after {
+  opacity: 0.13;
+}
+
+[data-oracle-machine][data-cassette-variant='reveal'][data-oracle-state='dispensing']
+  [data-oracle-specimen][data-specimen-state='verdict']::after {
+  opacity: 0.09;
+}
+
+[data-oracle-machine][data-cassette-variant='reveal'][data-oracle-state='collected']
+  [data-oracle-specimen][data-specimen-state='verdict']::after {
+  opacity: 0.06;
+}
+
+[data-oracle-machine][data-cassette-variant='reveal']:is(
+    [data-oracle-state='transmitting'],
+    [data-oracle-state='verdict_revealed']
+  )
+  [data-oracle-specimen][data-specimen-state='verdict']
+  [data-specimen-layer='right-rim'] {
+  opacity: 0.72;
+  filter: drop-shadow(1px 0 2px rgba(240, 147, 59, 0.28));
+}
+
+[data-oracle-machine][data-cassette-variant='reveal']:is(
+    [data-oracle-state='transmitting'],
+    [data-oracle-state='verdict_revealed'],
+    [data-oracle-state='committing']
+  )
+  [data-oracle-specimen][data-specimen-state='verdict']
+  [data-specimen-layer='base-reflection'] {
+  opacity: 0.44;
+  filter: drop-shadow(0 1px 2px rgba(225, 126, 35, 0.22));
+}
+
+[data-oracle-machine][data-cassette-variant='reveal'][data-oracle-state='sealed']
+  [data-oracle-specimen][data-specimen-state='verdict']
+  [data-specimen-layer='contact-shadow'] {
+  top: 102%;
+  opacity: 0.28;
+  filter: blur(1.8px);
+  transform: scale(0.76);
+}
+
+[data-oracle-machine][data-cassette-variant='reveal'][data-oracle-state='sealed']
+  [data-oracle-specimen][data-specimen-state='verdict']
+  [data-specimen-layer='amber-ground-bounce'] {
+  top: 100%;
+  opacity: 0.27;
+  transform: scale(0.78);
+}
+
+[data-oracle-machine][data-cassette-variant='reveal']:is(
+    [data-oracle-state='opening'],
+    [data-oracle-state='transmitting'],
+    [data-oracle-state='verdict_revealed'],
+    [data-oracle-state='committing'],
+    [data-oracle-state='dispensing'],
+    [data-oracle-state='collected']
+  )
+  [data-oracle-specimen][data-specimen-state='verdict']
+  [data-specimen-layer='contact-shadow'] {
+  top: 94.5%;
+  opacity: 0.62;
+  filter: blur(0.6px);
+  transform: scale(0.92);
+}
+
+@keyframes oracleSealedHoldingGlow {
+  0%,
+  100% {
+    opacity: 0.26;
+    filter: blur(15px) brightness(0.86);
+    transform: scale(0.96);
+  }
+
+  50% {
+    opacity: 0.5;
+    filter: blur(18px) brightness(1.12);
+    transform: scale(1.06);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-oracle-machine][data-cassette-variant='reveal']
+    [data-oracle-specimen][data-specimen-state='verdict']
+    > :not(style),
+  [data-oracle-machine][data-cassette-variant='reveal']
+    [data-oracle-specimen][data-specimen-state='verdict']::before,
+  [data-oracle-machine][data-cassette-variant='reveal']
+    [data-oracle-specimen][data-specimen-state='verdict']::after,
+  [data-oracle-machine][data-cassette-variant='reveal']
+    [data-oracle-specimen][data-specimen-state='verdict']
+    :is([data-specimen-layer='right-rim'], [data-specimen-layer='base-reflection']) {
+    transition: none;
+  }
+
+  [data-oracle-machine][data-cassette-variant='reveal'][data-oracle-state='sealed']
+    [data-oracle-specimen][data-specimen-state='verdict']::after {
+    opacity: 0.4;
+    filter: blur(16px) brightness(1.02);
+    transform: scale(1.01);
+    animation: none;
+  }
+}

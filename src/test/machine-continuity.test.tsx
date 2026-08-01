@@ -177,6 +177,8 @@ describe('Machine Continuity production projections', () => {
     expect(machine).toHaveAttribute('data-machine-implementation', 'oracle');
     expect(specimen).toHaveAttribute('data-specimen-brand', 'Face Value Lab');
     expect(specimen).toHaveAttribute('data-specimen-product', 'One Thing Redness Trial');
+    expect(specimen).toHaveAttribute('data-specimen-strength', '10%');
+    expect(specimen).toHaveAttribute('data-specimen-volume', '30 ml');
     expect(specimen).toHaveAttribute('data-display-brand', 'FACE VAL');
     expect(within(machine).queryByText('FACE VAL')).not.toBeInTheDocument();
     expect(machine.querySelector('[data-label-product]')).toHaveTextContent('ONE THING');
@@ -239,7 +241,44 @@ describe('Machine Continuity production projections', () => {
       'oracle',
     );
     expect(document.querySelector('[data-cassette-variant="trial-state"]')).toBeNull();
+    expect(document.querySelector('[data-oracle-specimen]')).toHaveAttribute(
+      'data-specimen-brand',
+      'Face Value Lab',
+    );
+    expect(document.querySelector('[data-oracle-specimen]')).toHaveAttribute(
+      'data-specimen-product',
+      'One Thing Redness Trial',
+    );
+    expect(document.querySelector('[data-oracle-specimen]')).toHaveAttribute(
+      'data-specimen-strength',
+      '10%',
+    );
+    expect(document.querySelector('[data-oracle-specimen]')).toHaveAttribute(
+      'data-specimen-volume',
+      '30 ml',
+    );
     expect(screen.getByRole('button', { name: /Previous trials, 1 saved result/ })).toBeVisible();
+  });
+
+  it('keeps one internally consistent Demo Lab product from follow-up through saved result', () => {
+    for (const startingPoint of [
+      'followup_ready',
+      'verdict_ready',
+      'cassette_revealed',
+      'evidence_recorded',
+      'home_saved_result',
+    ] as const) {
+      const state = buildDemoFixtureState(startingPoint, 'clear_favorable_change');
+      const rendered = renderState(state, startingPoint);
+      const specimen = document.querySelector('[data-oracle-specimen]');
+      expect(specimen).toHaveAttribute('data-specimen-brand', 'Face Value Lab');
+      expect(specimen).toHaveAttribute('data-specimen-product', 'One Thing Redness Trial');
+      expect(specimen).toHaveAttribute('data-specimen-strength', '10%');
+      expect(specimen).toHaveAttribute('data-specimen-volume', '30 ml');
+      expect(specimen).not.toHaveAttribute('data-specimen-brand', 'FACE VALUE');
+      rendered.unmount();
+      cleanup();
+    }
   });
 
   it('keeps one Oracle hardware tree across empty, pending, ready, reveal, and latest verdict', () => {

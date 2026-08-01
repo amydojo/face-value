@@ -35,12 +35,19 @@ const cases: GoldenPathCase[] = [
   },
 ];
 
-function collectRuntimeErrors(page: Page): string[] {
+function collectRuntimeErrors(page: Page, analysisAcceptances: string[] = []): string[] {
   const errors: string[] = [];
   page.on('pageerror', (error) => errors.push(`page: ${error.message}`));
   page.on('console', (message) => {
     if (message.type() === 'error') {
       errors.push(`console: ${message.text()}`);
+    }
+    if (
+      message.type() === 'info' &&
+      message.text().includes('[face-value-analysis]') &&
+      message.text().includes('normalized')
+    ) {
+      analysisAcceptances.push(message.text());
     }
   });
   return errors;
@@ -86,6 +93,13 @@ async function takeGuidedCapture(page: Page, kind: 'baseline' | 'followup'): Pro
   await expect(page.locator('[data-camera-kit-fixture="active"]')).toBeVisible();
   await expect(page.locator('[data-preview-state="preview-live"]')).toBeVisible();
   await expectGuidedQualityReady(page);
+  const captureScreen = page.locator('section[data-preview-state]');
+  await expect(captureScreen).toHaveAttribute('data-burst-captured', '3');
+  await expect(page.getByRole('heading', { name: 'Scan complete' })).toBeVisible();
+  await expect(page.locator('[data-measurement-indicator]')).toHaveAttribute(
+    'data-measurements-accepted',
+    '3',
+  );
   await expect(
     page.getByRole('heading', {
       name: 'Anything meaningfully different today?',
@@ -110,7 +124,8 @@ async function saveScreenshot(
 
 for (const scenario of cases) {
   test(`complete Phase B.5 golden path — ${scenario.name}`, async ({ page }, testInfo) => {
-    const runtimeErrors = collectRuntimeErrors(page);
+    const analysisAcceptances: string[] = [];
+    const runtimeErrors = collectRuntimeErrors(page, analysisAcceptances);
     await page.setViewportSize(scenario.viewport);
     await page.emulateMedia({
       reducedMotion: scenario.reducedMotion ? 'reduce' : 'no-preference',
@@ -148,6 +163,8 @@ for (const scenario of cases) {
 
     await page.getByRole('button', { name: 'TAKE GUIDED BASELINE' }).click();
     await takeGuidedCapture(page, 'baseline');
+    expect(analysisAcceptances).toHaveLength(3);
+    expect(analysisAcceptances.every((entry) => entry.includes('baseline'))).toBe(true);
     await expect(page.getByRole('heading', { name: 'Baseline locked.' })).toBeVisible();
     await expect(
       page.getByRole('button', { name: /take follow-up|continue|compare/i }),
@@ -160,6 +177,8 @@ for (const scenario of cases) {
     }, STORAGE_KEY);
     expect(baselineStorage).toContain('Naturium');
     expect(baselineStorage).toContain('93.3356');
+    expect(baselineStorage).toContain('92.5');
+    expect(baselineStorage).toContain('94.25');
     expect(baselineStorage).toContain('youcam-redness-v1');
     expect(baselineStorage).toContain('"cameraProfileId":"youcam-camera-kit-standard-720p"');
     assertFaceFreeStorage(baselineStorage);
@@ -203,6 +222,8 @@ for (const scenario of cases) {
 
     await page.getByRole('button', { name: 'Take follow-up scan' }).click();
     await takeGuidedCapture(page, 'followup');
+    expect(analysisAcceptances).toHaveLength(6);
+    expect(analysisAcceptances.slice(3).every((entry) => entry.includes('followup'))).toBe(true);
     await expect(
       page.getByRole('heading', {
         name: 'Comparing against your baseline…',
@@ -223,8 +244,20 @@ for (const scenario of cases) {
           schemaVersion: string;
           engineVersion: string;
           assignedJob: string;
-          baseline: { sessionCount: number; acceptedRawScores: number[] };
-          endpoint: { sessionCount: number; acceptedRawScores: number[] };
+          baseline: {
+            sessionCount: number;
+            acceptedRawScores: number[];
+            rejectedFrameCount: number;
+          };
+          endpoint: {
+            sessionCount: number;
+            acceptedRawScores: number[];
+            rejectedFrameCount: number;
+          };
+          directionAgreement: {
+            status: string;
+            assessedEndpointFrameCount: number;
+          };
           rawScoreDelta: number;
           threshold: {
             source: string;
@@ -249,8 +282,20 @@ for (const scenario of cases) {
       schemaVersion: 'redness-evidence-v1',
       engineVersion: 'face-value-redness-engine-v1.0.0',
       assignedJob: 'calm_visible_redness',
-      baseline: { sessionCount: 1, acceptedRawScores: [93.3356] },
-      endpoint: { sessionCount: 1, acceptedRawScores: [100] },
+      baseline: {
+        sessionCount: 1,
+        acceptedRawScores: [93.3356, 92.5, 94.25],
+        rejectedFrameCount: 0,
+      },
+      endpoint: {
+        sessionCount: 1,
+        acceptedRawScores: [100, 99, 100],
+        rejectedFrameCount: 0,
+      },
+      directionAgreement: {
+        status: 'agreeing',
+        assessedEndpointFrameCount: 3,
+      },
       threshold: {
         source: 'provisional_fixture',
         version: 'redness-provisional-v1',
@@ -456,6 +501,11 @@ for (const scenario of cases) {
     await expect(page.getByText('redness-provisional-v1')).toHaveCount(0);
     await page.getByRole('button', { name: /Full evidence record/i }).click();
     await expect(page.getByText('redness-provisional-v1', { exact: true })).toBeVisible();
+    await expect(page.getByText('93.34 · 92.5 · 94.25', { exact: true })).toBeVisible();
+    await expect(page.getByText('100 · 99 · 100', { exact: true })).toBeVisible();
+    await expect(
+      page.getByText('Agreeing · 3 follow-up measurements', { exact: true }),
+    ).toBeVisible();
     await expect(
       page.getByText('Production thresholds require repeat-scan calibration.'),
     ).toBeVisible();

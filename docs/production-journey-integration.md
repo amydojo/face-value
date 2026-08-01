@@ -1,8 +1,11 @@
 # Face Value production journey integration
 
 **Status:** Current journey authority  
-**Effective date:** July 30, 2026  
-**Implementation baseline:** `main` after PR #62 (`e0173ee`)
+**Effective date:** July 31, 2026  
+**Implementation base:** `main` at merged PR #67
+(`330f51975f162a2c15784114d7a448492973fcad`)
+
+**Current change:** issue #63
 
 Face Value exposes one reducer-owned product journey. Development fixtures, diagnostics, and Demo Lab starting points project typed state into the same production components; they do not create an alternate consumer product.
 
@@ -18,7 +21,7 @@ empty instrument
 → REGISTER AND LOAD
 → specimen materializes, loads, scans, and locks
 → Reduce visible redness confirmed
-→ guided baseline capture
+→ guided baseline evidence burst
 → optional baseline capture context
 → baseline locked
 → trial pending
@@ -79,7 +82,7 @@ Searching
 → Aligning
 → Locking
 → Scanning
-→ Captured
+→ 3 Measurements Accepted
 → YouCam processing
 ```
 
@@ -95,6 +98,12 @@ The current local signal model may observe:
 It does not claim native face detection, pose estimation, facial landmarks, skin-tone classification, or facial registration.
 
 The external Camera Kit renderer is available only through the development diagnostics query. It is not an alternate production camera.
+
+The person sees one continuous acquisition ritual. A restrained three-position
+indicator reports accepted current frames without exposing raw scores or
+creating three shutter actions. Recoverable exposure or movement rejection
+automatically captures a replacement within the same session. There are at
+most five capture attempts.
 
 ## 5. Capture context
 
@@ -115,18 +124,54 @@ Adherence, tolerance, symptoms, and participant-observed longitudinal redness di
 The current ordinary path uses:
 
 ```text
-accepted baseline capture
-→ YouCam HD redness raw score
-→ frozen durable baseline signal
-→ accepted eligible follow-up capture
-→ identical YouCam protocol
-→ durable follow-up signal
+three accepted distinct baseline frames
+→ three independent YouCam HD redness raw scores
+→ atomic frozen baseline burst
+→ three accepted distinct eligible follow-up frames
+→ three independent requests under the identical YouCam protocol
+→ atomic frozen follow-up burst
 → canonical redness evidence adapter
-→ deterministic evaluator
+→ evaluator-owned medians, direction agreement, and result
 → immutable RednessEvaluationSnapshot
 ```
 
-The current implementation stores one accepted provider score per period. #63 will replace the live single-frame assumption with one low-friction three-measurement burst per period.
+Rejected capture attempts remain face-free evidence and never enter the
+accepted score arrays or period medians. Fewer than three valid analyzed
+measurements cannot lock baseline, complete follow-up, request comparison,
+create a result, or create an Evidence Record.
+
+The post-capture waiting surface derives entirely from reducer-owned burst
+truth. It first shows **Scan complete / You can relax.** for at least 1.8
+seconds. Provider requests may start and resolve during that readable dwell;
+presentation timing does not delay, duplicate, restart, or reorder them. A
+200–250 millisecond crossfade then enters the latest truthful state. If several
+analyses already completed, the UI does not replay fake intermediate progress.
+
+Analysis keeps **Analyzing your scan / Checking three measurements for
+consistency.** stable. The primary status stack directly beneath the support
+line names measurement 1, 2, or 3 only while that request is genuinely active.
+A position becomes completed only when its independent analysis resolves
+successfully. Presentation may trail a real completion for at least 700
+milliseconds of legibility, but never leads, reverses, or renders zero.
+
+A sparse authored amber point field may animate slowly inside the existing
+capture guide only during genuine analysis. It is decorative and
+`aria-hidden`; it reads no pixels, represents no measured face geometry, makes
+no scientific claim, creates no request, and contributes no persistent or
+evaluator data.
+
+A component-local six-second no-progress timer adds **Finishing this
+measurement…** as tertiary status without replacing stable analysis copy. It
+resets only when the reducer's accepted-measurement count advances and is never
+persisted. Attempt two of the existing bounded same-frame policy is presented
+as **Rechecking this measurement…** only while that request is active. No
+provider or request implementation language is exposed.
+
+The ready state commits the complete period immediately and shows
+**Measurements confirmed / Preparing your comparison.** for approximately 800
+milliseconds before advancing presentation. The hold does not delay reducer
+truth or durable evidence. There is no zero state, fake percentage, countdown,
+spinner, progress bar, or face-crossing scan line.
 
 A valid follow-up automatically requests comparison. There is no consumer action to author the verdict, choose a threshold, or call a language model.
 
@@ -149,13 +194,21 @@ Failure behavior must preserve already accepted evidence.
 - cancellation and route teardown reject stale work and release resources
 - duplicate callbacks cannot create duplicate signals, comparisons, or records
 
+Provider failure uses one policy: a failed request is retried exactly once on
+the same captured frame. Work remains sequential. If that retry fails, the
+whole burst fails and the person may start a new generation; Face Value does
+not silently capture a replacement for a provider failure.
+
 No failure path invents a result.
 
 ## 8. Sealed result
 
-When comparison produces a canonical snapshot, the current Oracle remains mounted inside the analysis journey.
+When comparison produces a canonical snapshot, the current Oracle remains mounted inside the analysis journey. Its specimen is the same registered object already loaded for the trial, not a bottle reconstructed from verdict copy.
 
-Before reveal, finding, score, evidence status, limitations, and recommendation remain absent from the rendered and accessibility trees.
+Before reveal, finding, score, delta, confidence, evidence status, next step,
+limitations, and recommendation remain absent from the rendered and
+accessibility trees. The already-known product label remains visible on the
+locked specimen and does not reveal result content.
 
 The reveal sequence is authorized by the Oracle reducer:
 
@@ -175,7 +228,18 @@ The revealed surface presents:
 - a restrained See why disclosure
 - the option to choose a different next step where allowed
 
-The Oracle does not create another result model. Firmware, paper, Home, Previous Trials, and Evidence Record detail derive from the same saved evaluation and presentation mapping.
+The Oracle does not create another result model. During the active result,
+product ID, accession, brand, product name, strength, volume, and assigned job
+come from `state.registeredProduct` through one complete specimen adapter.
+Firmware and paper use that same identity. The renderer does not reconstruct a
+partial product from verdict copy.
+
+At collection, the existing Evidence Record stores the immutable product
+snapshot alongside the result. Home latest verdict, Previous Trials, full
+Evidence Record detail, and restored saved presentation use that record
+snapshot. Optional fields absent from legacy records receive an honest bounded
+fallback; available canonical fields are never replaced by a generic Face
+Value specimen.
 
 ## 9. Recommendation and collection
 
@@ -206,7 +270,7 @@ The former mandatory separate next-step screen and visible `SAVE RESULT` action 
 
 ## 10. Evidence Record continuity
 
-One record ID is preserved across:
+One record ID and one saved product snapshot are preserved across:
 
 - Oracle paper
 - explicit collection
@@ -216,7 +280,10 @@ One record ID is preserved across:
 - browser reload
 - progressive disclosure
 
-Canonical records render from the saved `RednessEvaluationSnapshot`. React must not re-run thresholds, classify direction, or calculate safety during render.
+Canonical records render from the saved `RednessEvaluationSnapshot` and its
+saved product fields. React must not re-run thresholds, classify direction,
+calculate safety, or mix the active registered product with a different saved
+record during render.
 
 Older records remain readable through legacy fields without being assigned new burst, trial-truth, mask, symptom, or calibration evidence.
 
@@ -244,6 +311,8 @@ It may:
 - load an isolated synthetic demo journey
 - run the ordinary real-camera journey
 - clear Demo Lab data without affecting ordinary trials
+- keep the loaded fixture product internally consistent across Oracle, paper,
+  saved record, and reload
 
 It may not:
 
@@ -251,6 +320,11 @@ It may not:
 - merge synthetic data into ordinary storage
 - expose secrets in the client
 - imply that synthetic capture is physical evidence
+- substitute a generic demo product while continuing an already registered
+  journey
+
+The Demo Lab banner is presentation only. It does not compete with the primary
+analysis status stack and cannot become a product-identity source.
 
 The planned calibration route in #65 must use the same protected boundary and an isolated calibration store.
 
@@ -292,6 +366,9 @@ Automated proof includes:
 
 - reducer legality and idempotency
 - provider contract and failure fixtures
+- distinct decoded-frame, five-attempt, duplicate, and stale-generation guards
+- sequential three-request orchestration and same-frame provider retry
+- atomic baseline/follow-up burst persistence and legacy readability
 - raw-score-only architecture guards
 - sealed-state DOM and accessibility checks
 - Oracle exactly-once collection
@@ -302,17 +379,17 @@ Automated proof includes:
 
 Synthetic WebKit evidence is not physical-device proof. A final exact-head physical-iPhone golden-path pass remains a release gate and must record the tested commit, device, browser, conditions, and result.
 
-## 16. Planned journey changes
+## 16. Phase C journey status
 
-### #63
+### #63 (current)
 
 The user still experiences one scan, while the system collects three genuine provider measurements and commits one burst-backed evidence period atomically.
 
-### #64
+### #64 (planned)
 
 After follow-up evidence is secured, the journey collects adherence, tolerance, and participant-observed redness direction before comparison becomes ready.
 
-### #65
+### #65 (planned)
 
 A separate protected route collects calibration observations. It does not enter consumer navigation or replace the provisional production threshold.
 

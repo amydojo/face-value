@@ -120,15 +120,20 @@ export function createEvidenceRecord(state: FaceValueState, now: string): Eviden
   const specimen = registeredProduct
     ? specimenFromRegisteredProduct(registeredProduct)
     : legacySpecimenFor(state.selectedSpecimenId, state.selectedDrawerIndex);
+  const baselineAt = state.baselineLockedAt ?? state.baselineCapture?.createdAt ?? null;
+  const followUpAt = state.followupCapture?.createdAt ?? state.followUpEligibleAt ?? null;
   return {
     id: `ER-${now.replace(/\D/g, '').slice(0, 12)}`,
     specimenId: specimen.id,
     accession: specimen.accession,
     product: specimen.product,
     job: state.assignedJob,
-    observationWindow: registeredProduct
-      ? 'Baseline to follow-up'
-      : 'Baseline to follow-up · legacy fixture timeline',
+    observationWindow:
+      registeredProduct && baselineAt && followUpAt
+        ? `${baselineAt} to ${followUpAt}`
+        : registeredProduct
+          ? 'Baseline to follow-up'
+          : 'Baseline to follow-up · legacy fixture timeline',
     comparison: state.analysis.comparison,
     finding: state.analysis.finding,
     nonFinding: state.analysis.nonFinding,
