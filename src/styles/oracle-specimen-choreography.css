@@ -3,14 +3,17 @@
  *
  * The canonical specimen coordinate wrapper remains fixed at true chamber
  * center through every phase. While sealed, its rendered layers are held at
- * that center in a quiet zero-gravity field. Authorization translates the
- * rendered assembly to a right-side magnetic dock without changing machine,
- * wrapper, label, or evidence geometry.
+ * that center in a quiet zero-gravity field. Authorization releases the
+ * rendered assembly into a right-side magnetic dock without changing machine,
+ * wrapper, label, evidence geometry, or canonical verdict copy.
  */
 
 [data-oracle-machine][data-cassette-variant='reveal']
   [data-oracle-specimen][data-specimen-state='verdict'] {
-  --oracle-specimen-dock-offset: clamp(54px, 16.5vw, 74px);
+  --oracle-specimen-dock-offset: clamp(60px, 18.2vw, 80px);
+  --oracle-dock-delay: 180ms;
+  --oracle-dock-duration: 480ms;
+  --oracle-dock-ease: cubic-bezier(0.22, 1, 0.36, 1);
 
   top: 18.5%;
   right: auto;
@@ -20,25 +23,29 @@
 }
 
 /*
- * Resolved firmware owns a bounded left copy lane. The right side stays
- * structurally empty for the canonical docked specimen rather than relying
- * on text length or the bottle to avoid one another. Physical QA fixes this
- * boundary while the existing specimen dock token remains unchanged.
+ * Firmware composition is a stable two-lane instrument layout. Header identity
+ * spans the full glass width, while finding and action copy remain inside the
+ * bounded left lane and the canonical specimen owns the right lane.
  */
 [data-oracle-machine][data-cassette-variant='reveal'] [data-firmware-state] {
   --oracle-verdict-copy-lane: 57%;
   --oracle-verdict-lane-gap: clamp(12px, 3.6vw, 16px);
 
   grid-template-columns: minmax(0, var(--oracle-verdict-copy-lane)) minmax(0, 1fr);
-  grid-template-rows: 26px 1fr 0.7fr;
+  grid-template-rows: 26px minmax(62px, 1fr) minmax(42px, 0.7fr);
   column-gap: var(--oracle-verdict-lane-gap);
+  row-gap: 0;
   padding-right: 14px;
 }
 
 [data-oracle-machine][data-cassette-variant='reveal'] [data-firmware-state] > header {
+  width: 100%;
   min-width: 0;
-  grid-column: 1;
+  display: flex;
+  grid-column: 1 / -1;
   grid-row: 1;
+  align-items: baseline;
+  justify-content: space-between;
 }
 
 [data-oracle-machine][data-cassette-variant='reveal']
@@ -52,8 +59,10 @@
   [data-firmware-state]
   > header
   > span:last-child {
-  margin-left: 10px;
+  margin-left: auto;
+  padding-left: 12px;
   white-space: nowrap;
+  text-align: right;
 }
 
 [data-oracle-machine][data-cassette-variant='reveal']
@@ -61,8 +70,13 @@
   > div:first-of-type {
   min-width: 0;
   max-width: 100%;
+  display: grid;
   grid-column: 1;
   grid-row: 2;
+  grid-template-rows: auto minmax(0, 1fr);
+  align-content: stretch;
+  gap: clamp(5px, 1.5vw, 7px);
+  padding: 1px 0 clamp(7px, 2vw, 9px);
 }
 
 [data-oracle-machine][data-cassette-variant='reveal']
@@ -70,38 +84,131 @@
   > div:nth-of-type(2) {
   min-width: 0;
   max-width: 100%;
+  display: grid;
   grid-column: 1;
   grid-row: 3;
+  grid-template-rows: auto minmax(0, 1fr);
+  align-content: start;
+  gap: clamp(4px, 1.3vw, 6px);
+  padding-top: clamp(6px, 1.8vw, 8px);
 }
 
 [data-oracle-machine][data-cassette-variant='reveal']
   [data-firmware-state]
   [data-oracle-finding] {
   max-width: 100%;
+  min-height: calc(3em * 1.02);
+  align-self: start;
+}
+
+[data-oracle-machine][data-cassette-variant='reveal']
+  [data-firmware-state]
+  > div:nth-of-type(2)
+  > strong {
+  max-width: 100%;
+  overflow-wrap: normal;
+  word-break: normal;
 }
 
 /*
- * The frozen worsening headline is the only firmware finding whose final
- * phrase was orphaning on physical iPhone. A bounded density step lets the
- * ordinary browser line breaker keep COMPARABLE SCANS. together inside the
- * existing 57% copy lane. The source copy and accessible text remain intact.
+ * Frozen canonical verdict strings stay untouched in the DOM and accessibility
+ * tree. These exact selectors supply an authored three-line visual projection,
+ * preventing Safari from making a different editorial decision at each width.
  */
-[data-oracle-machine][data-cassette-variant='reveal'][aria-label*='Visible redness worsened across comparable scans.']
+[data-oracle-machine][data-cassette-variant='reveal']:is(
+    [aria-label*='Visible redness improved across comparable scans.'],
+    [aria-label*='Visible redness moved in a favorable direction.'],
+    [aria-label*='No detectable improvement showed up.'],
+    [aria-label*='This comparison was not readable.'],
+    [aria-label*='The trial did not isolate this product.'],
+    [aria-label*='Visible redness worsened across comparable scans.']
+  )
   [data-oracle-finding] {
-  font-size: clamp(10.5px, 3.05vw, 12.4px);
-  line-height: 1.02;
+  color: transparent;
+  font-size: 0;
+  line-height: 0;
   letter-spacing: 0;
-  overflow-wrap: normal;
-  word-break: normal;
-  text-wrap: balance;
+  overflow: visible;
 }
 
+[data-oracle-machine][data-cassette-variant='reveal']:is(
+    [aria-label*='Visible redness improved across comparable scans.'],
+    [aria-label*='Visible redness moved in a favorable direction.'],
+    [aria-label*='No detectable improvement showed up.'],
+    [aria-label*='This comparison was not readable.'],
+    [aria-label*='The trial did not isolate this product.'],
+    [aria-label*='Visible redness worsened across comparable scans.']
+  )
+  [data-oracle-finding]::after {
+  display: block;
+  color: #ebe4d7;
+  font-weight: 630;
+  line-height: 1.02;
+  letter-spacing: 0;
+  text-transform: uppercase;
+  white-space: pre;
+}
+
+/* Compact optical tier. */
+[data-oracle-machine][data-cassette-variant='reveal']:is(
+    [aria-label*='Visible redness improved across comparable scans.'],
+    [aria-label*='Visible redness moved in a favorable direction.'],
+    [aria-label*='The trial did not isolate this product.'],
+    [aria-label*='Visible redness worsened across comparable scans.']
+  )
+  [data-oracle-finding]::after {
+  font-size: clamp(10.5px, 3.05vw, 12.4px);
+}
+
+/* Standard optical tier. */
+[data-oracle-machine][data-cassette-variant='reveal']:is(
+    [aria-label*='No detectable improvement showed up.'],
+    [aria-label*='This comparison was not readable.']
+  )
+  [data-oracle-finding]::after {
+  font-size: clamp(11.5px, 3.45vw, 14px);
+}
+
+[data-oracle-machine][data-cassette-variant='reveal'][aria-label*='Visible redness improved across comparable scans.']
+  [data-oracle-finding]::after {
+  content: 'VISIBLE REDNESS\A IMPROVED ACROSS\A COMPARABLE SCANS.';
+}
+
+[data-oracle-machine][data-cassette-variant='reveal'][aria-label*='Visible redness moved in a favorable direction.']
+  [data-oracle-finding]::after {
+  content: 'VISIBLE REDNESS\A MOVED IN A\A FAVORABLE DIRECTION.';
+}
+
+[data-oracle-machine][data-cassette-variant='reveal'][aria-label*='No detectable improvement showed up.']
+  [data-oracle-finding]::after {
+  content: 'NO DETECTABLE\A IMPROVEMENT\A SHOWED UP.';
+}
+
+[data-oracle-machine][data-cassette-variant='reveal'][aria-label*='This comparison was not readable.']
+  [data-oracle-finding]::after {
+  content: 'THIS COMPARISON\A WAS NOT\A READABLE.';
+}
+
+[data-oracle-machine][data-cassette-variant='reveal'][aria-label*='The trial did not isolate this product.']
+  [data-oracle-finding]::after {
+  content: 'THE TRIAL\A DID NOT ISOLATE\A THIS PRODUCT.';
+}
+
+[data-oracle-machine][data-cassette-variant='reveal'][aria-label*='Visible redness worsened across comparable scans.']
+  [data-oracle-finding]::after {
+  content: 'VISIBLE REDNESS\A WORSENED ACROSS\A COMPARABLE SCANS.';
+}
+
+/*
+ * The outer wrapper never moves. Its rendered assembly receives one delayed,
+ * non-elastic precision glide after the sealed field has visibly released it.
+ */
 [data-oracle-machine][data-cassette-variant='reveal']
   [data-oracle-specimen][data-specimen-state='verdict']
   > :not(style) {
   translate: 0 0;
-  transition: translate var(--oracle-opening-duration, 400ms)
-    cubic-bezier(0.16, 1.08, 0.3, 1);
+  transition: translate var(--oracle-dock-duration) var(--oracle-dock-ease)
+    var(--oracle-dock-delay);
 }
 
 [data-oracle-machine][data-cassette-variant='reveal']
@@ -114,8 +221,14 @@
   border-radius: 50%;
   content: '';
   translate: 0 0;
-  transition: translate var(--oracle-opening-duration, 400ms)
-    cubic-bezier(0.16, 1.08, 0.3, 1);
+  transition:
+    translate var(--oracle-dock-duration) var(--oracle-dock-ease) var(--oracle-dock-delay),
+    top 220ms var(--oracle-dock-ease),
+    left 220ms var(--oracle-dock-ease),
+    width 220ms var(--oracle-dock-ease),
+    height 220ms var(--oracle-dock-ease),
+    opacity 180ms ease-out,
+    filter 220ms ease-out;
   pointer-events: none;
 }
 
@@ -150,7 +263,7 @@
   translate: var(--oracle-specimen-dock-offset) 0;
 }
 
-/* Replace the prior visible shelf with a contained magnetic field shadow. */
+/* Replace the visible shelf with a contained magnetic field shadow. */
 [data-oracle-machine][data-cassette-variant='reveal']
   [data-oracle-specimen][data-specimen-state='verdict']::before {
   top: 97%;
@@ -204,9 +317,37 @@
   animation: oracleSealedHoldingGlow 3.6s ease-in-out infinite;
 }
 
-/* Once authorized, a quieter static field follows the right-side dock. */
+/* Anticipation and field contraction occupy the existing opening state. */
+[data-oracle-machine][data-cassette-variant='reveal'][data-oracle-state='opening']
+  [data-oracle-specimen][data-specimen-state='verdict']::after {
+  top: -6%;
+  left: -60%;
+  width: 220%;
+  height: 118%;
+  background: radial-gradient(
+    ellipse at 50% 60%,
+    rgba(244, 146, 44, 0.38) 0%,
+    rgba(211, 98, 18, 0.17) 34%,
+    rgba(178, 76, 14, 0.055) 54%,
+    transparent 76%
+  );
+  transform-origin: 50% 58%;
+  animation: oracleFieldRelease 400ms var(--oracle-dock-ease) both;
+}
+
+[data-oracle-machine][data-cassette-variant='reveal'][data-oracle-state='opening']
+  [data-oracle-specimen][data-specimen-state='verdict']::before {
+  animation: oracleShadowTighten 400ms var(--oracle-dock-ease) both;
+}
+
+[data-oracle-machine][data-cassette-variant='reveal'][data-oracle-state='opening']
+  [data-oracle-specimen][data-specimen-state='verdict']
+  [data-specimen-layer='right-rim'] {
+  animation: oracleReleaseHighlight 400ms ease-out both;
+}
+
+/* Once authorized, a compact static field follows the active right dock. */
 [data-oracle-machine][data-cassette-variant='reveal']:is(
-    [data-oracle-state='opening'],
     [data-oracle-state='transmitting'],
     [data-oracle-state='verdict_revealed'],
     [data-oracle-state='committing'],
@@ -214,20 +355,61 @@
     [data-oracle-state='collected']
   )
   [data-oracle-specimen][data-specimen-state='verdict']::after {
-  top: 13%;
-  left: -12%;
-  width: 124%;
-  height: 82%;
-  opacity: 0.13;
+  top: 10%;
+  left: -18%;
+  width: 136%;
+  height: 88%;
+  opacity: 0.2;
   background: radial-gradient(
-    ellipse at 50% 58%,
-    rgba(224, 119, 28, 0.2) 0%,
-    rgba(178, 76, 14, 0.06) 42%,
+    ellipse at 52% 58%,
+    rgba(232, 132, 38, 0.28) 0%,
+    rgba(188, 82, 17, 0.09) 43%,
     transparent 74%
   );
-  filter: blur(12px);
+  filter: blur(11px);
   transform: none;
   animation: none;
+}
+
+[data-oracle-machine][data-cassette-variant='reveal'][data-oracle-state='transmitting']
+  [data-oracle-specimen][data-specimen-state='verdict']::after {
+  animation: oracleDockCapture 280ms var(--oracle-dock-ease) 180ms both;
+}
+
+[data-oracle-machine][data-cassette-variant='reveal'][data-oracle-state='committing']
+  [data-oracle-specimen][data-specimen-state='verdict']::after {
+  opacity: 0.13;
+}
+
+[data-oracle-machine][data-cassette-variant='reveal'][data-oracle-state='dispensing']
+  [data-oracle-specimen][data-specimen-state='verdict']::after {
+  opacity: 0.09;
+}
+
+[data-oracle-machine][data-cassette-variant='reveal'][data-oracle-state='collected']
+  [data-oracle-specimen][data-specimen-state='verdict']::after {
+  opacity: 0.06;
+}
+
+[data-oracle-machine][data-cassette-variant='reveal']:is(
+    [data-oracle-state='transmitting'],
+    [data-oracle-state='verdict_revealed']
+  )
+  [data-oracle-specimen][data-specimen-state='verdict']
+  [data-specimen-layer='right-rim'] {
+  opacity: 0.72;
+  filter: drop-shadow(1px 0 2px rgba(240, 147, 59, 0.28));
+}
+
+[data-oracle-machine][data-cassette-variant='reveal']:is(
+    [data-oracle-state='transmitting'],
+    [data-oracle-state='verdict_revealed'],
+    [data-oracle-state='committing']
+  )
+  [data-oracle-specimen][data-specimen-state='verdict']
+  [data-specimen-layer='base-reflection'] {
+  opacity: 0.44;
+  filter: drop-shadow(0 1px 2px rgba(225, 126, 35, 0.22));
 }
 
 [data-oracle-machine][data-cassette-variant='reveal'][data-oracle-state='sealed']
@@ -263,6 +445,31 @@
   transform: scale(0.92);
 }
 
+/* Firmware appears only after the specimen has begun clearing the copy lane. */
+[data-oracle-machine][data-cassette-variant='reveal'][data-oracle-state='transmitting']
+  [data-firmware-state='transmitting']
+  > header {
+  animation: oracleFirmwareUncover 260ms var(--oracle-dock-ease) 40ms both;
+}
+
+[data-oracle-machine][data-cassette-variant='reveal'][data-oracle-state='transmitting']
+  [data-firmware-state='transmitting']
+  > div:first-of-type {
+  animation: oracleFirmwareUncover 260ms var(--oracle-dock-ease) 80ms both;
+}
+
+[data-oracle-machine][data-cassette-variant='reveal'][data-oracle-state='transmitting']
+  [data-firmware-state='transmitting']
+  > div:nth-of-type(2) {
+  animation: oracleFirmwareUncover 260ms var(--oracle-dock-ease) 120ms both;
+}
+
+[data-oracle-machine][data-cassette-variant='reveal'][data-oracle-state='transmitting']
+  [data-oracle-amber-control]
+  > span {
+  animation: oracleControlCapture 280ms var(--oracle-dock-ease) 180ms both;
+}
+
 @keyframes oracleSealedHoldingGlow {
   0%,
   100% {
@@ -275,6 +482,99 @@
     opacity: 0.5;
     filter: blur(18px) brightness(1.12);
     transform: scale(1.06);
+  }
+}
+
+@keyframes oracleFieldRelease {
+  0%,
+  24% {
+    opacity: 0.54;
+    filter: blur(18px) brightness(1.14);
+    transform: scale(1.06);
+  }
+
+  62% {
+    opacity: 0.38;
+    filter: blur(12px) brightness(1.06);
+    transform: scale(0.76);
+  }
+
+  100% {
+    opacity: 0.18;
+    filter: blur(8px) brightness(0.94);
+    transform: scale(0.56);
+  }
+}
+
+@keyframes oracleShadowTighten {
+  0%,
+  24% {
+    opacity: 0.62;
+    transform: scale(1);
+  }
+
+  100% {
+    opacity: 0.78;
+    transform: scale(0.84);
+  }
+}
+
+@keyframes oracleReleaseHighlight {
+  0%,
+  24% {
+    filter: none;
+  }
+
+  100% {
+    filter: drop-shadow(1px 0 2px rgba(240, 147, 59, 0.24));
+  }
+}
+
+@keyframes oracleDockCapture {
+  0% {
+    opacity: 0.08;
+    filter: blur(14px) brightness(0.88);
+    transform: scale(0.82);
+  }
+
+  72% {
+    opacity: 0.24;
+    filter: blur(10px) brightness(1.08);
+    transform: scale(1.04);
+  }
+
+  100% {
+    opacity: 0.2;
+    filter: blur(11px) brightness(1);
+    transform: scale(1);
+  }
+}
+
+@keyframes oracleFirmwareUncover {
+  from {
+    opacity: 0;
+    clip-path: inset(8px 0 0 0);
+    transform: translateY(4px);
+  }
+
+  to {
+    opacity: 1;
+    clip-path: inset(0 0 0 0);
+    transform: translateY(0);
+  }
+}
+
+@keyframes oracleControlCapture {
+  0% {
+    filter: brightness(0.92);
+  }
+
+  76% {
+    filter: brightness(1.12);
+  }
+
+  100% {
+    filter: brightness(1);
   }
 }
 
@@ -294,6 +594,21 @@
     opacity: 0.4;
     filter: blur(16px) brightness(1.02);
     transform: scale(1.01);
+    animation: none;
+  }
+
+  [data-oracle-machine][data-cassette-variant='reveal']
+    [data-firmware-state]
+    > header,
+  [data-oracle-machine][data-cassette-variant='reveal']
+    [data-firmware-state]
+    > div,
+  [data-oracle-machine][data-cassette-variant='reveal']
+    [data-oracle-specimen][data-specimen-state='verdict']
+    [data-specimen-layer='right-rim'],
+  [data-oracle-machine][data-cassette-variant='reveal']
+    [data-oracle-amber-control]
+    > span {
     animation: none;
   }
 }
