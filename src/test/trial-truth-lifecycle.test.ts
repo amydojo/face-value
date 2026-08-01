@@ -146,15 +146,18 @@ describe('trial truth exactly-once lifecycle', () => {
   });
 
   it('creates one immutable Evidence Record across duplicate collection events', () => {
-    const compared = comparedState();
+    const finalized = buildDemoFixtureState(
+      'evidence_recorded',
+      'clear_favorable_change',
+    ) as TrialTruthFaceValueState;
     const readyToCollect: TrialTruthFaceValueState = {
-      ...compared,
-      assignedJob: compared.assignedJob ?? 'Reduce visible redness',
+      ...finalized,
+      stage: 'analysis',
+      record: null,
+      archive: [],
       oracleRevealState: 'dispensing',
       oracleEvidenceDispensed: true,
       oracleCollectionStarted: true,
-      oracleCommittedAt: '2026-08-01T19:45:00.000Z',
-      resultRevealed: true,
     };
 
     const collected = faceValueReducer(readyToCollect, {
