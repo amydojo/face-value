@@ -1,0 +1,189 @@
+/*
+ * Oracle verdict specimen choreography
+ *
+ * Sealed: the registered specimen is held at the true chamber center in a
+ * quiet, zero-gravity field. Opening: it docks magnetically to the right.
+ * Every resolved and persistence phase retains that same right-side lock so
+ * firmware copy remains unobstructed. The specimen itself never moves on the
+ * vertical axis, rotates, scales, or bobs.
+ */
+
+[data-oracle-machine][data-cassette-variant='reveal']
+  [data-oracle-specimen][data-specimen-state='verdict'] {
+  top: 18.5%;
+  right: auto;
+  left: 72%;
+  isolation: isolate;
+  transform: translateX(-50%);
+}
+
+[data-oracle-machine][data-cassette-variant='reveal'][data-oracle-state='sealed']
+  [data-oracle-specimen][data-specimen-state='verdict'] {
+  left: 50%;
+}
+
+[data-oracle-machine][data-cassette-variant='reveal'][data-oracle-state='opening']
+  [data-oracle-specimen][data-specimen-state='verdict'] {
+  left: 72%;
+  will-change: left;
+  animation: oracleSpecimenMagneticDock var(--oracle-opening-duration, 400ms)
+    cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+[data-oracle-machine][data-cassette-variant='reveal']:is(
+    [data-oracle-state='transmitting'],
+    [data-oracle-state='verdict_revealed'],
+    [data-oracle-state='committing'],
+    [data-oracle-state='dispensing'],
+    [data-oracle-state='collected']
+  )
+  [data-oracle-specimen][data-specimen-state='verdict'] {
+  left: 72%;
+}
+
+/* Replace the prior visible shelf with a contained magnetic field shadow. */
+[data-oracle-machine][data-cassette-variant='reveal']
+  [data-oracle-specimen][data-specimen-state='verdict']::before {
+  top: 97%;
+  left: -12%;
+  width: 124%;
+  height: 7%;
+  border: 0;
+  border-radius: 50%;
+  opacity: 0.7;
+  background: radial-gradient(
+    ellipse at center,
+    rgba(224, 139, 50, 0.1) 0%,
+    rgba(0, 0, 0, 0.42) 40%,
+    transparent 76%
+  );
+  box-shadow: none;
+  filter: blur(1px);
+}
+
+[data-oracle-machine][data-cassette-variant='reveal'][data-oracle-state='sealed']
+  [data-oracle-specimen][data-specimen-state='verdict']::before {
+  top: 103%;
+  left: -25%;
+  width: 150%;
+  height: 8%;
+  opacity: 0.48;
+  background: radial-gradient(
+    ellipse at center,
+    rgba(224, 139, 50, 0.09) 0%,
+    rgba(0, 0, 0, 0.34) 42%,
+    transparent 78%
+  );
+  filter: blur(2px);
+}
+
+/* The breathing completion field exists only while the result is sealed. */
+[data-oracle-machine][data-cassette-variant='reveal'][data-oracle-state='sealed']
+  [data-oracle-specimen][data-specimen-state='verdict']::after {
+  top: 4%;
+  left: -45%;
+  width: 190%;
+  height: 100%;
+  opacity: 0.2;
+  background: radial-gradient(
+    ellipse at 50% 58%,
+    rgba(230, 126, 26, 0.26) 0%,
+    rgba(207, 96, 18, 0.12) 33%,
+    rgba(178, 76, 14, 0.035) 52%,
+    transparent 74%
+  );
+  filter: blur(11px) brightness(0.86);
+  animation: oracleSealedHoldingGlow 3.6s ease-in-out infinite;
+}
+
+/* Once authorized, a quieter static field follows the right-side dock. */
+[data-oracle-machine][data-cassette-variant='reveal']:is(
+    [data-oracle-state='opening'],
+    [data-oracle-state='transmitting'],
+    [data-oracle-state='verdict_revealed'],
+    [data-oracle-state='committing'],
+    [data-oracle-state='dispensing'],
+    [data-oracle-state='collected']
+  )
+  [data-oracle-specimen][data-specimen-state='verdict']::after {
+  position: absolute;
+  top: 13%;
+  left: -12%;
+  z-index: 0;
+  width: 124%;
+  height: 82%;
+  border-radius: 50%;
+  opacity: 0.13;
+  background: radial-gradient(
+    ellipse at 50% 58%,
+    rgba(224, 119, 28, 0.2) 0%,
+    rgba(178, 76, 14, 0.06) 42%,
+    transparent 74%
+  );
+  filter: blur(12px);
+  animation: none;
+  content: '';
+  pointer-events: none;
+}
+
+[data-oracle-machine][data-cassette-variant='reveal'][data-oracle-state='sealed']
+  [data-oracle-specimen][data-specimen-state='verdict']
+  [data-specimen-layer='contact-shadow'] {
+  top: 100%;
+  opacity: 0.34;
+  filter: blur(1.2px);
+  transform: scale(0.82);
+}
+
+[data-oracle-machine][data-cassette-variant='reveal'][data-oracle-state='sealed']
+  [data-oracle-specimen][data-specimen-state='verdict']
+  [data-specimen-layer='amber-ground-bounce'] {
+  top: 98%;
+  opacity: 0.22;
+  transform: scale(0.82);
+}
+
+[data-oracle-machine][data-cassette-variant='reveal']:is(
+    [data-oracle-state='opening'],
+    [data-oracle-state='transmitting'],
+    [data-oracle-state='verdict_revealed'],
+    [data-oracle-state='committing'],
+    [data-oracle-state='dispensing'],
+    [data-oracle-state='collected']
+  )
+  [data-oracle-specimen][data-specimen-state='verdict']
+  [data-specimen-layer='contact-shadow'] {
+  top: 94.5%;
+  opacity: 0.62;
+  filter: blur(0.6px);
+  transform: scale(0.92);
+}
+
+@keyframes oracleSpecimenMagneticDock {
+  0% {
+    left: 50%;
+  }
+
+  74% {
+    left: 73.4%;
+  }
+
+  100% {
+    left: 72%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-oracle-machine][data-cassette-variant='reveal'][data-oracle-state='opening']
+    [data-oracle-specimen][data-specimen-state='verdict'] {
+    left: 72%;
+    animation: none;
+  }
+
+  [data-oracle-machine][data-cassette-variant='reveal'][data-oracle-state='sealed']
+    [data-oracle-specimen][data-specimen-state='verdict']::after {
+    opacity: 0.27;
+    filter: blur(10px) brightness(0.96);
+    animation: none;
+  }
+}
