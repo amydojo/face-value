@@ -8,4 +8,6 @@ Automated coverage includes canonical mappings, injected-clock timestamps, requi
 
 The Linux WebKit Evidence Record reference was refreshed only after inspecting the CI-generated actual and diff. The intentional visual change is the bounded trial-truth snapshot block: product use, skin response, reported symptoms, participant observation, participant report timestamp, and anchor relationship. No unrelated visual drift was accepted.
 
+The final verification handoff uses the ordinary read-only pull-request workflow. No temporary write permission or snapshot refresh mechanism remains in the branch tree.
+
 Physical iPhone and VoiceOver acceptance remains pending on the exact draft PR-head Vercel deployment. The pull request must remain draft and must not be merged until that checklist is completed.
