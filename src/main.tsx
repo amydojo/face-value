@@ -5,6 +5,7 @@ import { StageFocusManager } from './app/StageFocusManager';
 import { AppRouter } from './app/router/AppRouter';
 import './styles/foundations.css';
 import './styles/hidden-contract.css';
+import './styles/oracle-specimen-choreography.css';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
