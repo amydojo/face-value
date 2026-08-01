@@ -34,6 +34,7 @@ jobs:
           cat .github/trial-truth-payload/part-* | base64 --decode | gzip --decompress > /tmp/apply-trial-truth.mjs
           python .github/trial-truth-payload/patch_applicator.py
           node /tmp/apply-trial-truth.mjs
+          python .github/trial-truth-payload/fix_generated.py
       - name: Format implementation
         run: |
           npx prettier --write \
