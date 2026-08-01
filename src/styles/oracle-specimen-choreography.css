@@ -10,7 +10,7 @@
 
 [data-oracle-machine][data-cassette-variant='reveal']
   [data-oracle-specimen][data-specimen-state='verdict'] {
-  --oracle-specimen-dock-offset: clamp(46px, 14.6vw, 63px);
+  --oracle-specimen-dock-offset: clamp(54px, 16.5vw, 74px);
 
   top: 18.5%;
   right: auto;
