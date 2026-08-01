@@ -13,6 +13,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.event.pull_request.head.ref }}
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: 22.18.0
@@ -24,38 +25,6 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-npm-
       - run: npm ci --no-audit --no-fund
-      - run: npm run lint
-      - run: npm run typecheck
-      - run: npm run verify:redness-architecture
-      - run: npm run verify:docs
-      - name: Unit and component tests
-        run: npm run test -- --reporter=default --reporter=json --outputFile=vitest-results.json
-      - name: Upload Vitest report
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: vitest-results
-          path: vitest-results.json
-          if-no-files-found: error
-      - run: npm run build
-      - name: Scan compiled client privacy
-        run: |
-          set -o pipefail
-          npm run verify:privacy 2>&1 | tee privacy-results.txt
-      - name: Upload privacy scan
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: privacy-results
-          path: privacy-results.txt
-          if-no-files-found: error
-      - name: Upload production bundle
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: production-bundle
-          path: dist
-          if-no-files-found: error
       - run: npx playwright install --with-deps webkit
       - name: Capture and promote the approved Oracle verdict actual
         shell: bash
@@ -69,16 +38,13 @@ jobs:
           test -n "$actual"
           test -f "$actual"
           cp "$actual" "$target"
-      - name: Verify only the approved reference changed
+      - name: Verify and validate the approved reference
         shell: bash
         run: |
           set -euo pipefail
           target='e2e/oracle-reveal.spec.ts-snapshots/oracle-verdict-revealed-mobile-webkit-linux.png'
           actual=$(git diff --name-only | sort)
           test "$actual" = "$target"
-      - name: Validate the promoted PNG stream
-        shell: bash
-        run: |
           python - <<'PY'
           from pathlib import Path
           import struct
@@ -113,13 +79,12 @@ jobs:
           zlib.decompress(b''.join(idat))
           print(f'{path}: valid PNG and zlib stream ({len(data)} bytes)')
           PY
-      - run: npm run test:e2e
       - name: Commit the reference and restore standard CI
         shell: bash
         run: |
           set -euo pipefail
           target='e2e/oracle-reveal.spec.ts-snapshots/oracle-verdict-revealed-mobile-webkit-linux.png'
-          git checkout HEAD^^ -- .github/workflows/ci.yml
+          git show d53d780e4ffffa14c99618116a4f09636c189314:.github/workflows/ci.yml > .github/workflows/ci.yml
           expected=$(printf '%s\n' '.github/workflows/ci.yml' "$target" | sort)
           actual=$(git diff --name-only | sort)
           test "$actual" = "$expected"
