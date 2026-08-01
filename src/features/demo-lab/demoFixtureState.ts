@@ -145,6 +145,11 @@ function evaluatedState(resultFixture: DemoResultFixtureId): {
       recordedAt: fixtureInput.evaluatedAt,
     };
   }
+  if (resultFixture === 'legacy_trial_truth_not_collected') {
+    fixtureInput.patientAnchor = null;
+    fixtureInput.tolerance = null;
+    fixtureInput.adherence = { status: 'unknown' };
+  }
   const snapshot = evaluateRedness(fixtureInput);
   const baselineAt = firstCapturedAt(snapshot, 'baseline');
   const followUpAt = firstCapturedAt(snapshot, 'endpoint');
