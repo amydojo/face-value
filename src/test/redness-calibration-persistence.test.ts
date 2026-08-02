@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   REDNESS_CALIBRATION_ENVELOPE_SCHEMA,
   REDNESS_CALIBRATION_ORIGIN,
+  REDNESS_CALIBRATION_MAX_SERIALIZED_BYTES,
   REDNESS_CALIBRATION_STORAGE_KEY,
   appendRednessCalibrationObservation,
   clearRednessCalibrationData,
@@ -13,6 +14,7 @@ import {
 import {
   REDNESS_CALIBRATION_OBSERVATION_SCHEMA,
   REDNESS_CALIBRATION_UNAVAILABLE_METRICS,
+  REDNESS_CALIBRATION_MAX_FIELD_BYTES,
   canonicalJson,
   validateRednessCalibrationObservation,
   type RednessCalibrationObservation,
@@ -156,9 +158,7 @@ describe('redness calibration observation contract', () => {
 
     expect(result.valid).toBe(false);
     expect(result.issues).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ code: 'forbidden_private_material' }),
-      ]),
+      expect.arrayContaining([expect.objectContaining({ code: 'forbidden_private_material' })]),
     );
   });
 
@@ -217,9 +217,7 @@ describe('redness calibration observation contract', () => {
   });
 
   it('rejects a saved median that does not match its accepted raw scores', () => {
-    const result = validateRednessCalibrationObservation(
-      observation({ sessionRawMedian: 99 }),
-    );
+    const result = validateRednessCalibrationObservation(observation({ sessionRawMedian: 99 }));
 
     expect(result.valid).toBe(false);
     expect(result.issues).toEqual(
@@ -300,12 +298,11 @@ describe('isolated redness calibration persistence', () => {
         sessionId: 'P-001-session-02',
       },
     });
-    const exported = exportRednessCalibrationData(
-      [first, second],
-      '2026-08-01T20:00:00.000Z',
-    );
+    const exported = exportRednessCalibrationData([first, second], '2026-08-01T20:00:00.000Z');
 
-    expect(parseRednessCalibrationExport(exported)).toEqual([first, second]);
+    expect(parseRednessCalibrationExport(exported)).toEqual(
+      [first, second].map((item) => ({ ...item, collectionSource: 'imported_unverified' })),
+    );
     expect(exported).toBe(
       exportRednessCalibrationData([first, second], '2026-08-01T20:00:00.000Z'),
     );
@@ -318,10 +315,7 @@ describe('isolated redness calibration persistence', () => {
   });
 
   it('rejects malformed or extended export envelopes before replacement', () => {
-    const exported = exportRednessCalibrationData(
-      [observation()],
-      '2026-08-01T20:00:00.000Z',
-    );
+    const exported = exportRednessCalibrationData([observation()], '2026-08-01T20:00:00.000Z');
     const invalidTimestamp = JSON.parse(exported) as Record<string, unknown>;
     invalidTimestamp.exportedAt = 'not-a-timestamp';
     const unknownEnvelopeField = JSON.parse(exported) as Record<string, unknown>;
@@ -333,6 +327,88 @@ describe('isolated redness calibration persistence', () => {
     expect(() => parseRednessCalibrationExport(JSON.stringify(unknownEnvelopeField))).toThrow(
       /incompatible/,
     );
+  });
+
+  it('downgrades every imported provenance claim and never trusts imported live-provider labels', () => {
+    const liveClaim = observation({ collectionSource: 'live_provider' });
+    const exported = exportRednessCalibrationData([liveClaim], '2026-08-01T20:00:00.000Z');
+
+    expect(parseRednessCalibrationExport(exported)).toEqual([
+      expect.objectContaining({ collectionSource: 'imported_unverified' }),
+    ]);
+
+    const malformed = JSON.parse(exported) as {
+      observations: Array<Record<string, unknown>>;
+    };
+    malformed.observations[0].collectionSource = 'fabricated_provider_source';
+    expect(() => parseRednessCalibrationExport(JSON.stringify(malformed))).toThrow(
+      /invalid or private material/,
+    );
+  });
+
+  it('enforces UTF-8 field limits during validation and append before writing', () => {
+    const existing = observation();
+    saveRednessCalibrationData([existing], localStorage, '2026-08-01T20:00:00.000Z');
+    const before = localStorage.getItem(REDNESS_CALIBRATION_STORAGE_KEY);
+    const oversized = observation({
+      observationId: 'synthetic-observation-oversized',
+      deviceClass: '🙂'.repeat(Math.floor(REDNESS_CALIBRATION_MAX_FIELD_BYTES / 4) + 1),
+    });
+
+    expect(validateRednessCalibrationObservation(oversized)).toMatchObject({
+      valid: false,
+      issues: expect.arrayContaining([
+        expect.objectContaining({ code: 'oversized_field', path: '$.deviceClass' }),
+      ]),
+    });
+    expect(() => appendRednessCalibrationObservation(oversized)).toThrow(/validation/);
+    expect(localStorage.getItem(REDNESS_CALIBRATION_STORAGE_KEY)).toBe(before);
+  });
+
+  it('enforces the total serialized observation bound independently of field size', () => {
+    const candidate = observation();
+    candidate.captureQuality.reasons = Array.from(
+      { length: 100 },
+      (_, index) => `bounded-reason-${index}-${'x'.repeat(180)}`,
+    );
+
+    expect(validateRednessCalibrationObservation(candidate)).toMatchObject({
+      valid: false,
+      issues: expect.arrayContaining([
+        expect.objectContaining({ code: 'oversized_observation', path: '$' }),
+      ]),
+    });
+  });
+
+  it('rejects oversized hydration and import bytes before parsing', () => {
+    const oversized = 'x'.repeat(REDNESS_CALIBRATION_MAX_SERIALIZED_BYTES + 1);
+    localStorage.setItem(REDNESS_CALIBRATION_STORAGE_KEY, oversized);
+
+    expect(loadRednessCalibrationData()).toMatchObject({
+      status: 'corrupt',
+      quarantine: [
+        expect.objectContaining({
+          issues: [expect.objectContaining({ code: 'oversized_observation' })],
+        }),
+      ],
+    });
+    expect(() => parseRednessCalibrationExport(oversized)).toThrow(/byte bound/);
+    expect(localStorage.getItem(REDNESS_CALIBRATION_STORAGE_KEY)).toBe(oversized);
+  });
+
+  it('rejects oversized save and export envelopes before writing', () => {
+    const many = Array.from({ length: 130 }, (_, index) =>
+      observation({ observationId: `synthetic-observation-${String(index).padStart(3, '0')}` }),
+    );
+    localStorage.setItem(REDNESS_CALIBRATION_STORAGE_KEY, 'prior-calibration-bytes');
+
+    expect(() =>
+      saveRednessCalibrationData(many, localStorage, '2026-08-01T20:00:00.000Z'),
+    ).toThrow(/byte bound/);
+    expect(() => exportRednessCalibrationData(many, '2026-08-01T20:00:00.000Z')).toThrow(
+      /byte bound/,
+    );
+    expect(localStorage.getItem(REDNESS_CALIBRATION_STORAGE_KEY)).toBe('prior-calibration-bytes');
   });
 
   it('clears calibration data only', () => {

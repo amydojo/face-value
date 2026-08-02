@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import {
+  appendRednessCalibrationObservation,
   clearRednessCalibrationData,
   exportRednessCalibrationData,
   loadRednessCalibrationData,
@@ -16,6 +17,8 @@ import {
   buildRednessCalibrationInstrumentViewModel,
   buildRednessCalibrationRegistryExport,
 } from './rednessCalibrationViewModel';
+import { RednessCalibrationCollector } from './RednessCalibrationCollector';
+import type { RednessCalibrationCollectionDependencies } from './rednessCalibrationCollection';
 import styles from './RednessCalibration.module.css';
 
 type PendingReplacement = 'clear' | 'synthetic' | 'import' | null;
@@ -71,9 +74,11 @@ function BreakdownTable({
 export function RednessCalibration({
   storage = localStorage,
   now = browserClock,
+  collectionDependencies,
 }: {
   storage?: Storage;
   now?: () => string;
+  collectionDependencies?: RednessCalibrationCollectionDependencies;
 }) {
   const [hydration, setHydration] = useState(() => loadRednessCalibrationData(storage));
   const [status, setStatus] = useState(
@@ -95,9 +100,13 @@ export function RednessCalibration({
 
   const refresh = () => setHydration(loadRednessCalibrationData(storage));
   const persist = (next: RednessCalibrationObservation[], message: string) => {
-    saveRednessCalibrationData(next, storage, now());
-    refresh();
-    setStatus(message);
+    try {
+      saveRednessCalibrationData(next, storage, now());
+      refresh();
+      setStatus(message);
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : 'Calibration storage failed closed.');
+    }
   };
   const addSyntheticCondition = (conditionType: RednessCalibrationConditionType) => {
     const fixtureSet = syntheticRednessCalibrationFixtures();
@@ -134,8 +143,17 @@ export function RednessCalibration({
     );
   };
   const prepareObservationExport = () => {
-    setExportText(exportRednessCalibrationData(observations, now()));
-    setStatus('Prepared a canonical face-free observation export. No image or provider payload is included.');
+    try {
+      setExportText(exportRednessCalibrationData(observations, now()));
+      setStatus('Prepared a canonical face-free observation export. No image or provider payload is included.');
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : 'The observation export failed closed.');
+    }
+  };
+  const persistCompletedLiveObservation = (observation: RednessCalibrationObservation) => {
+    appendRednessCalibrationObservation(observation, storage, now());
+    refresh();
+    setSelectedObservationId(observation.observationId);
   };
   const prepareRegistryExport = async () => {
     try {
@@ -192,17 +210,12 @@ export function RednessCalibration({
         </p>
       </section>
 
-      <section className={styles.providerBlocker} aria-labelledby="provider-status-heading">
-        <p>PROVIDER-BLOCKED STATE</p>
-        <h2 id="provider-status-heading">Live collection unavailable</h2>
-        <p>
-          YouCam task creation currently returns HTTP 400 <code>CreditInsufficiency</code>. No
-          genuine calibration collection or physical provider gate is represented here.
-        </p>
-        <button type="button" disabled aria-describedby="provider-status-heading">
-          LIVE THREE-FRAME CAPTURE UNAVAILABLE
-        </button>
-      </section>
+      <RednessCalibrationCollector
+        dependencies={collectionDependencies}
+        disabled={hydration.status === 'corrupt'}
+        onCompleted={persistCompletedLiveObservation}
+        onStatus={setStatus}
+      />
 
       {hydration.status === 'corrupt' && (
         <section className={styles.quarantine} role="alert" aria-labelledby="quarantine-heading">
@@ -334,7 +347,7 @@ export function RednessCalibration({
 
           <section className={styles.sessionInstrument} aria-labelledby="capture-session-heading">
             <div className={styles.sectionHeading}>
-              <p>SYNTHETIC SESSION · NOT LIVE</p>
+              <p>SAVED FACE-FREE OBSERVATIONS</p>
               <h2 id="capture-session-heading">Capture session view</h2>
             </div>
             {viewModel.sessions.length === 0 ? (
@@ -384,7 +397,7 @@ export function RednessCalibration({
                         {selectedSession.unavailableMetrics.map((row) => (
                           <div key={row.label}><dt>{row.label}</dt><dd>{row.value}</dd></div>
                         ))}
-                        <div><dt>Measured skin-tone audit group</dt><dd>Not collected</dd></div>
+                        <div><dt>Measured skin-tone audit group</dt><dd>{selectedSession.measuredSkinToneAuditGroup}</dd></div>
                       </dl>
                     </details>
                   </article>
@@ -458,10 +471,22 @@ export function RednessCalibration({
             <BreakdownTable title="API version" rows={viewModel.breakdowns.apiVersions} />
             <BreakdownTable title="Analysis model version" rows={viewModel.breakdowns.modelVersions} />
             <BreakdownTable title="Standard vs degraded condition" rows={viewModel.breakdowns.conditions} />
-            <p className={styles.skinToneStatus}>
-              <strong>Measured skin-tone breakdown</strong>
-              {viewModel.breakdowns.measuredSkinTone}. No automated skin-tone inference is used.
-            </p>
+            {viewModel.breakdowns.measuredSkinTone.status === 'not_collected' ? (
+              <p className={styles.skinToneStatus}>
+                <strong>Measured skin-tone breakdown</strong>
+                Not collected. No automated skin-tone inference is used.
+              </p>
+            ) : (
+              <>
+                <BreakdownTable
+                  title="Validated measured skin-tone audit group"
+                  rows={viewModel.breakdowns.measuredSkinTone.groups}
+                />
+                <p className={styles.skinToneStatus}>
+                  Validated audit inputs only. No automated skin-tone inference is used.
+                </p>
+              </>
+            )}
           </section>
 
           <section className={styles.dataControls} aria-labelledby="data-controls-heading">

@@ -18,10 +18,12 @@ repeat-scan behavior from isolated, face-free observations. Its output is a
 validity. This does not establish clinical efficacy or a clinically meaningful
 change.
 
-The current YouCam account returns HTTP 400 `CreditInsufficiency` during task
-creation. Issue #65 therefore uses deterministic, explicitly synthetic,
-face-free fixtures for implementation and automated verification. No genuine
-calibration collection or physical provider gate is represented as complete.
+The instrument includes a real collection path that reuses the canonical
+three-frame camera adapter, bounded provider analysis, and signed engineering
+session. The current YouCam account returns HTTP 400 `CreditInsufficiency`
+during task creation, so automated verification uses injected camera/provider
+doubles and separate deterministic, explicitly synthetic, face-free fixtures.
+No genuine calibration collection or physical provider gate is represented as complete.
 
 ## Frozen production boundary
 
@@ -56,7 +58,9 @@ face-free. It records:
 
 - observation, participant, session, condition, and capture timestamps/IDs
 - `standard`, `no_treatment_longitudinal`, or `degraded` condition type
-- `live_provider` or `synthetic_face_free_fixture` collection source
+- `live_provider`, `synthetic_face_free_fixture`, or `imported_unverified`
+  collection source; only the completed internal camera/provider path creates
+  `live_provider`
 - front-camera device class and immutable app/API/model/mode/preprocessing/
   protocol versions
 - the existing bounded `RednessEvidenceBurst`, its saved session median,
@@ -81,14 +85,20 @@ Calibration persistence uses
 `face-value:calibration:redness:v1` and
 `face-value-redness-calibration-envelope-v1`, bounded to 240 observations. It
 is separate from ordinary trial, Evidence Record, and Demo Lab storage.
+Every text field is bounded to 256 UTF-8 bytes, every observation to 16 KiB,
+and every stored/imported/exported observation envelope to 512 KiB. Validation,
+hydration, import, export, save, and append check their applicable bounds before
+writing.
 
 Hydration validates the complete envelope and every observation
 deterministically. Invalid JSON, incompatible versions, duplicate immutable
 IDs, private fields, non-finite evidence, or any invalid observation quarantine
 the input and make the entire dataset unusable. Invalid bytes remain available
 for inspection; they are not silently coerced or partially analyzed. Import
-replaces data only after validation and explicit confirmation. Clear removes
-only the calibration key.
+replaces data only after validation and explicit confirmation. Imported
+observations are always relabeled `imported_unverified`, including JSON that
+claims `live_provider`, so imported provenance can never appear genuine. Clear
+removes only the calibration key.
 
 Exports are canonical, key-sorted JSON and contain non-image observations or a
 single exploratory registry entry. There is no cloud sync, analytics upload, or
@@ -125,11 +135,15 @@ explicit comparison anchor exists; otherwise it is `not_available`.
 
 ### Technical N95
 
-The predeclared pool is every unordered accepted-frame pair within each eligible
-standard or no-treatment burst. The point estimate is the empirical 95th
-percentile using named R-7 linear interpolation. Output includes difference,
-participant, session, and frame counts plus a deterministic participant-cluster
-bootstrap percentile interval or a reasoned `not_estimable` result.
+Within-burst frame differences remain agreement evidence only. The predeclared
+Technical N95 pool is every unordered pair of eligible standard formal-
+recapture burst medians grouped by participant, calibration session ID, and
+matched condition ID. Longitudinal observations never enter this pool. The
+point estimate is the empirical 95th percentile using named R-7 linear
+interpolation. Output includes formal-recapture comparison, participant,
+calibration-session, and participating-frame counts plus a deterministic
+participant-cluster bootstrap percentile interval or a reasoned
+`not_estimable` result.
 
 ### Longitudinal N95
 
@@ -166,11 +180,12 @@ It never treats frames from one participant as independent participants.
 
 ### False change, rejection, and candidates
 
-No-change comparisons comprise eligible signed within-burst pairs and matched
-no-treatment session-median pairs. A false change falls outside a candidate's
-no-detectable-change zone. Each candidate reports valid comparison count,
-false-change count/rate, Wilson interval where estimable, and saved
-worsened/no-change/directional/meaningful/strong classification counts.
+No-change comparisons comprise eligible signed matched-standard formal-
+recapture burst-median pairs and matched no-treatment session-median pairs. A
+false change falls outside a candidate's no-detectable-change zone. Each
+candidate reports valid comparison count, false-change count/rate, Wilson
+interval where estimable, and saved worsened/no-change/directional/meaningful/
+strong classification counts.
 
 Display-only candidates are:
 
@@ -189,7 +204,8 @@ invoke or replace the production evaluator.
 
 The dashboard also reports rejection rate using all attempted frames, repeated-
 capture median/maximum range, and device/API/model/condition strata. Measured
-skin-tone breakdown remains **Not collected**.
+skin-tone breakdown is **Not collected** when no validated audit input exists;
+otherwise the instrument renders the validated, non-inferred audit groups.
 
 ## Exploratory registry
 
@@ -211,9 +227,13 @@ Serialization rejects any entry that does not preserve those values.
 
 ## Internal views
 
-The instrument exposes a provider-blocked live state and synthetic controls for
+The instrument exposes structured participant/session/condition and confounder
+inputs, live quality/count state, the canonical camera/provider collection
+path, actual provider-blocked failures, and separate synthetic controls for
 standard recaptures, matched no-treatment sessions, degraded evidence, and the
-complete deterministic dataset. It renders:
+complete deterministic dataset. A live observation is appended only after all
+three distinct current frames are accepted and analyzed; failures and
+cancellation persist nothing. It renders:
 
 - answer-first preliminary metric cards
 - compact provisional-versus-exploratory candidate comparison
@@ -252,9 +272,9 @@ re-evaluated.
 
 Unit and component coverage exercises formulas, deterministic bootstrap,
 registry hashing/isolation, persistence quarantine, privacy rejection, signed
-route behavior, accessibility, snapshot fidelity, and legacy honesty. Mobile
-WebKit uses only the deterministic synthetic fixtures and verifies the full
-instrument workflow, isolated storage, export/import, Demo Lab continuity,
+route behavior, injected camera/provider collection, accessibility, snapshot
+fidelity, and legacy honesty. Mobile WebKit does not call YouCam and verifies
+the synthetic instrument mode, isolated storage, export/import, Demo Lab continuity,
 runtime errors, 5xx responses, provider-request absence, reduced motion, and
 horizontal overflow.
 

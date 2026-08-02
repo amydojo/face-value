@@ -17,6 +17,13 @@ import {
   type RednessCalibrationPreCaptureContext,
   type RednessCalibrationUnavailableMetrics,
 } from './types';
+import { canonicalJson } from './canonicalJson';
+
+export const REDNESS_CALIBRATION_MAX_FIELD_BYTES = 256 as const;
+export const REDNESS_CALIBRATION_MAX_OBSERVATION_BYTES = 16 * 1024;
+
+export const rednessCalibrationUtf8Bytes = (value: string): number =>
+  new TextEncoder().encode(value).byteLength;
 
 export type RednessCalibrationValidationCode =
   | 'forbidden_private_material'
@@ -33,6 +40,8 @@ export type RednessCalibrationValidationCode =
   | 'invalid_unavailable_metric'
   | 'invalid_skin_tone_audit_source'
   | 'invalid_session_median'
+  | 'oversized_field'
+  | 'oversized_observation'
   | 'invalid_observation';
 
 export interface RednessCalibrationValidationIssue {
@@ -218,6 +227,39 @@ function privateMaterialPath(value: unknown, path = '$', visited = new WeakSet<o
     if (found) return found;
   }
   return null;
+}
+
+export function rednessCalibrationOversizedStringPaths(
+  value: unknown,
+  path = '$',
+  visited = new WeakSet<object>(),
+): string[] {
+  if (typeof value === 'string') {
+    return rednessCalibrationUtf8Bytes(value) > REDNESS_CALIBRATION_MAX_FIELD_BYTES ? [path] : [];
+  }
+  if (typeof value !== 'object' || value === null) return [];
+  if (visited.has(value)) return [path];
+  visited.add(value);
+  let paths: string[];
+  if (Array.isArray(value)) {
+    paths = value.flatMap((item, index) =>
+      rednessCalibrationOversizedStringPaths(item, `${path}[${index}]`, visited),
+    );
+  } else {
+    paths = Object.entries(value as Record<string, unknown>).flatMap(([key, item]) =>
+      rednessCalibrationOversizedStringPaths(item, `${path}.${key}`, visited),
+    );
+  }
+  visited.delete(value);
+  return paths;
+}
+
+function serializedObservationBytes(value: unknown): number | null {
+  try {
+    return rednessCalibrationUtf8Bytes(canonicalJson(value));
+  } catch {
+    return null;
+  }
 }
 
 function cloneObservation(value: RednessCalibrationObservation): RednessCalibrationObservation {
@@ -421,6 +463,23 @@ export function validateRednessCalibrationObservation(
       'Calibration observations cannot contain image, URL, provider payload, or identity material.',
     );
   }
+  for (const path of rednessCalibrationOversizedStringPaths(value)) {
+    add(
+      'oversized_field',
+      path,
+      `Calibration text fields cannot exceed ${REDNESS_CALIBRATION_MAX_FIELD_BYTES} UTF-8 bytes.`,
+    );
+  }
+  const serializedBytes = serializedObservationBytes(value);
+  if (serializedBytes === null) {
+    add('invalid_observation', '$', 'Observation must be canonically serializable.');
+  } else if (serializedBytes > REDNESS_CALIBRATION_MAX_OBSERVATION_BYTES) {
+    add(
+      'oversized_observation',
+      '$',
+      `Calibration observations cannot exceed ${REDNESS_CALIBRATION_MAX_OBSERVATION_BYTES} serialized UTF-8 bytes.`,
+    );
+  }
   if (!isObject(value)) {
     add('invalid_observation', '$', 'Observation must be an object.');
     return { valid: false, observation: null, issues };
@@ -443,7 +502,11 @@ export function validateRednessCalibrationObservation(
   if (!conditions.has(value.conditionType as RednessCalibrationConditionType)) {
     add('invalid_condition', '$.conditionType', 'Condition type is not supported.');
   }
-  if (!['live_provider', 'synthetic_face_free_fixture'].includes(String(value.collectionSource))) {
+  if (
+    !['live_provider', 'synthetic_face_free_fixture', 'imported_unverified'].includes(
+      String(value.collectionSource),
+    )
+  ) {
     add('invalid_collection_source', '$.collectionSource', 'Collection source is not supported.');
   }
   if (!isIsoTimestamp(value.captureTimestamp)) {

@@ -15,14 +15,13 @@ import {
   type IccEstimate,
 } from './statistics';
 
-export const REDNESS_CALIBRATION_ANALYSIS_VERSION =
-  'redness-calibration-analysis-v1' as const;
+export const REDNESS_CALIBRATION_ANALYSIS_VERSION = 'redness-calibration-analysis-v1' as const;
 export const REDNESS_CALIBRATION_DEFAULT_BOOTSTRAP_SEED = 650_065 as const;
 export const REDNESS_CALIBRATION_DEFAULT_BOOTSTRAP_ITERATIONS = 2_000 as const;
 
 export const REDNESS_CALIBRATION_METHODS = Object.freeze({
   technicalPooling:
-    'All unordered accepted-frame pairs within each eligible standard or no-treatment burst.',
+    'All unordered matched standard burst-median pairs within participant, calibration session, and condition; longitudinal sessions are excluded.',
   longitudinalPairing:
     'All valid within-participant session-median pairs sharing one no-treatment condition ID.',
   withinPerson:
@@ -33,7 +32,7 @@ export const REDNESS_CALIBRATION_METHODS = Object.freeze({
   conservativeComposite:
     'Maximum finite Technical N95, Longitudinal N95, and repeatability-coefficient estimate; display only.',
   falseChange:
-    'Eligible signed within-burst frame pairs plus matched no-treatment session-median pairs classified outside the no-detectable-change zone.',
+    'Eligible signed matched standard formal-recapture burst-median pairs plus matched no-treatment session-median pairs classified outside the no-detectable-change zone.',
 });
 
 export interface RednessCalibrationAnalysisOptions {
@@ -115,15 +114,25 @@ export interface RepeatabilityCoefficientEstimate {
   confidenceInterval: EstimableInterval;
 }
 
-export interface NoChangeComparison {
+interface NoChangeComparisonBase {
   comparisonId: string;
   participantId: string;
-  kind: 'within_burst' | 'matched_longitudinal';
   earlierSessionId: string;
   laterSessionId: string;
   signedDifference: number;
   absoluteDifference: number;
 }
+
+export type NoChangeComparison = NoChangeComparisonBase &
+  (
+    | {
+        kind: 'matched_formal_recapture';
+        earlierObservationId: string;
+        laterObservationId: string;
+        conditionId: string;
+      }
+    | { kind: 'matched_longitudinal' }
+  );
 
 export interface ThresholdCandidateComparison {
   id:
@@ -216,7 +225,9 @@ const safeId = (value: unknown): string =>
 
 const uniqueCount = (values: string[]): number => new Set(values).size;
 
-function pairwise(values: number[]): Array<{ signed: number; absolute: number; left: number; right: number }> {
+function pairwise(
+  values: number[],
+): Array<{ signed: number; absolute: number; left: number; right: number }> {
   const differences: Array<{ signed: number; absolute: number; left: number; right: number }> = [];
   for (let left = 0; left < values.length; left += 1) {
     for (let right = left + 1; right < values.length; right += 1) {
@@ -418,9 +429,7 @@ function sessionPoints(observations: RednessCalibrationObservation[]): SessionPo
   });
 }
 
-function observationMedianPoints(
-  observations: RednessCalibrationObservation[],
-): SessionPoint[] {
+function observationMedianPoints(observations: RednessCalibrationObservation[]): SessionPoint[] {
   return observations
     .filter(
       (observation) =>
@@ -477,6 +486,57 @@ function longitudinalComparisons(points: SessionPoint[]): NoChangeComparison[] {
   return comparisons.sort((left, right) => left.comparisonId.localeCompare(right.comparisonId));
 }
 
+type FormalRecaptureComparison = Extract<NoChangeComparison, { kind: 'matched_formal_recapture' }>;
+
+function formalRecaptureComparisons(
+  observations: RednessCalibrationObservation[],
+): FormalRecaptureComparison[] {
+  const groups = new Map<string, RednessCalibrationObservation[]>();
+  for (const observation of observations.filter(
+    ({ conditionType }) => conditionType === 'standard',
+  )) {
+    const key = [observation.participantId, observation.sessionId, observation.conditionId].join(
+      '\u001f',
+    );
+    groups.set(key, [...(groups.get(key) ?? []), observation]);
+  }
+
+  const comparisons: FormalRecaptureComparison[] = [];
+  for (const group of groups.values()) {
+    const sorted = [...group]
+      .filter(
+        (observation) =>
+          typeof observation.sessionRawMedian === 'number' &&
+          Number.isFinite(observation.sessionRawMedian),
+      )
+      .sort((left, right) => {
+        const timestamp = left.captureTimestamp.localeCompare(right.captureTimestamp);
+        return timestamp === 0 ? left.observationId.localeCompare(right.observationId) : timestamp;
+      });
+    for (let left = 0; left < sorted.length; left += 1) {
+      for (let right = left + 1; right < sorted.length; right += 1) {
+        const earlier = sorted[left];
+        const later = sorted[right];
+        const signedDifference =
+          (later.sessionRawMedian as number) - (earlier.sessionRawMedian as number);
+        comparisons.push({
+          comparisonId: `formal:${earlier.participantId}:${earlier.sessionId}:${earlier.conditionId}:${earlier.observationId}:${later.observationId}`,
+          participantId: earlier.participantId,
+          kind: 'matched_formal_recapture',
+          earlierSessionId: earlier.sessionId,
+          laterSessionId: later.sessionId,
+          earlierObservationId: earlier.observationId,
+          laterObservationId: later.observationId,
+          conditionId: earlier.conditionId,
+          signedDifference,
+          absoluteDifference: Math.abs(signedDifference),
+        });
+      }
+    }
+  }
+  return comparisons.sort((left, right) => left.comparisonId.localeCompare(right.comparisonId));
+}
+
 function iccForSessionPoints(points: SessionPoint[]): IccEstimate {
   const participantGroups = new Map<string, SessionPoint[]>();
   for (const point of points) {
@@ -502,9 +562,7 @@ function iccForSessionPoints(points: SessionPoint[]): IccEstimate {
         [...conditionPoints]
           .sort((left, right) => {
             const timestamp = left.timestamp.localeCompare(right.timestamp);
-            return timestamp === 0
-              ? left.sessionId.localeCompare(right.sessionId)
-              : timestamp;
+            return timestamp === 0 ? left.sessionId.localeCompare(right.sessionId) : timestamp;
           })
           .map((point, index) => ({
             slot: `${conditionType}:${index + 1}`,
@@ -522,8 +580,7 @@ function iccForSessionPoints(points: SessionPoint[]): IccEstimate {
     return {
       status: 'not_estimable',
       variant: 'ICC(A,1)',
-      reason:
-        'ICC(A,1) requires the same ordered condition/occasion slots for every participant.',
+      reason: 'ICC(A,1) requires the same ordered condition/occasion slots for every participant.',
       participantCount: participants.length,
       repeatedObservationCount: null,
       totalObservationCount: points.length,
@@ -656,8 +713,7 @@ function candidateComparison(input: {
       classifyCandidate(comparison.signedDifference, input.detectable, input.strong, provisional)
     ] += 1;
   }
-  const falseChangeCount =
-    input.comparisons.length - counts.no_detectable_change;
+  const falseChangeCount = input.comparisons.length - counts.no_detectable_change;
   return {
     id: input.id,
     label: input.label,
@@ -701,7 +757,9 @@ function breakdownsFor(input: {
         0,
       );
       const ranges = observations
-        .map((observation) => range(observation.burst.acceptedFrames.map(({ signal }) => signal.rawScore)))
+        .map((observation) =>
+          range(observation.burst.acceptedFrames.map(({ signal }) => signal.rawScore)),
+        )
         .filter((value): value is number => value !== null);
       return {
         key,
@@ -712,8 +770,7 @@ function breakdownsFor(input: {
         acceptedFrameCount,
         rejectedFrameCount,
         attemptedFrameCount,
-        rejectionRate:
-          attemptedFrameCount === 0 ? null : rejectedFrameCount / attemptedFrameCount,
+        rejectionRate: attemptedFrameCount === 0 ? null : rejectedFrameCount / attemptedFrameCount,
         medianRepeatedCaptureRange: medianR7(ranges),
         maximumRepeatedCaptureRange: ranges.length === 0 ? null : Math.max(...ranges),
       };
@@ -770,18 +827,12 @@ export function analyzeRednessCalibration(
   exclusions.sort((left, right) => left.observationId.localeCompare(right.observationId));
   const eligibleIds = new Set(eligible.map(({ observationId }) => observationId));
   const agreement = observations.map(withinBurst);
-  const technicalDifferences = eligible.flatMap((observation) =>
-    pairwise(observation.burst.acceptedFrames.map(({ signal }) => signal.rawScore)).map(
-      ({ absolute }) => absolute,
-    ),
-  );
+  const technical = formalRecaptureComparisons(eligible);
+  const technicalDifferences = technical.map(({ absoluteDifference }) => absoluteDifference);
   const technicalClusters = participantClusters(
-    eligible,
+    technical,
     ({ participantId }) => participantId,
-    (observation) =>
-      pairwise(observation.burst.acceptedFrames.map(({ signal }) => signal.rawScore)).map(
-        ({ absolute }) => absolute,
-      ),
+    ({ absoluteDifference }) => [absoluteDifference],
   );
   const longitudinalPoints = sessionPoints(eligible);
   const longitudinal = longitudinalComparisons(longitudinalPoints);
@@ -797,12 +848,23 @@ export function analyzeRednessCalibration(
     seed: configuration.bootstrapSeed ^ 0x54454348,
     iterations: configuration.bootstrapIterations,
     method: `${REDNESS_CALIBRATION_METHODS.technicalPooling} ${REDNESS_CALIBRATION_QUANTILE_METHOD}.`,
-    participantCount: uniqueCount(eligible.map(({ participantId }) => participantId)),
-    sessionCount: uniqueCount(eligible.map(({ sessionId }) => sessionId)),
-    frameCount: eligible.reduce(
-      (total, observation) => total + observation.burst.acceptedFrames.length,
-      0,
+    participantCount: uniqueCount(technical.map(({ participantId }) => participantId)),
+    sessionCount: uniqueCount(
+      technical.map(({ participantId, earlierSessionId, conditionId }) =>
+        [participantId, earlierSessionId, conditionId].join('\u001f'),
+      ),
     ),
+    frameCount: (() => {
+      const participatingObservationIds = new Set(
+        technical.flatMap(({ earlierObservationId, laterObservationId }) => [
+          earlierObservationId,
+          laterObservationId,
+        ]),
+      );
+      return eligible
+        .filter(({ observationId }) => participatingObservationIds.has(observationId))
+        .reduce((total, observation) => total + observation.burst.acceptedFrames.length, 0);
+    })(),
   });
   const longitudinalN95 = metricEstimate({
     values: longitudinal.map(({ absoluteDifference }) => absoluteDifference),
@@ -812,7 +874,10 @@ export function analyzeRednessCalibration(
     method: `${REDNESS_CALIBRATION_METHODS.longitudinalPairing} ${REDNESS_CALIBRATION_QUANTILE_METHOD}.`,
     participantCount: uniqueCount(longitudinal.map(({ participantId }) => participantId)),
     sessionCount: uniqueCount(
-      longitudinal.flatMap(({ earlierSessionId, laterSessionId }) => [earlierSessionId, laterSessionId]),
+      longitudinal.flatMap(({ earlierSessionId, laterSessionId }) => [
+        earlierSessionId,
+        laterSessionId,
+      ]),
     ),
     frameCount: 0,
   });
@@ -865,21 +930,8 @@ export function analyzeRednessCalibration(
 
   const icc = iccForSessionPoints(repeatedObservationPoints);
 
-  const withinBurstComparisons: NoChangeComparison[] = eligible.flatMap((observation) =>
-    pairwise(observation.burst.acceptedFrames.map(({ signal }) => signal.rawScore)).map(
-      ({ signed, absolute, left, right }) => ({
-        comparisonId: `within:${observation.observationId}:${left + 1}:${right + 1}`,
-        participantId: observation.participantId,
-        kind: 'within_burst' as const,
-        earlierSessionId: observation.sessionId,
-        laterSessionId: observation.sessionId,
-        signedDifference: signed,
-        absoluteDifference: absolute,
-      }),
-    ),
-  );
-  const noChangeComparisons = [...withinBurstComparisons, ...longitudinal].sort((left, right) =>
-    left.comparisonId.localeCompare(right.comparisonId),
+  const noChangeComparisons: NoChangeComparison[] = [...technical, ...longitudinal].sort(
+    (left, right) => left.comparisonId.localeCompare(right.comparisonId),
   );
   const finiteCompositeParts = [
     technicalN95.value,

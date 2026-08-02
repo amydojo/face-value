@@ -1,6 +1,8 @@
 import {
   canonicalJson,
   migrateRednessCalibrationObservation,
+  rednessCalibrationUtf8Bytes,
+  REDNESS_CALIBRATION_MAX_FIELD_BYTES,
   type RednessCalibrationObservation,
   type RednessCalibrationValidationIssue,
 } from '../../domain/calibration/redness';
@@ -12,6 +14,7 @@ export const REDNESS_CALIBRATION_EXPORT_SCHEMA =
   'face-value-redness-calibration-export-v1' as const;
 export const REDNESS_CALIBRATION_ORIGIN = 'face-value-redness-calibration' as const;
 export const REDNESS_CALIBRATION_MAX_OBSERVATIONS = 240 as const;
+export const REDNESS_CALIBRATION_MAX_SERIALIZED_BYTES = 512 * 1024;
 
 export interface RednessCalibrationEnvelope {
   schemaVersion: typeof REDNESS_CALIBRATION_ENVELOPE_SCHEMA;
@@ -121,6 +124,18 @@ function validateObservationList(
 }
 
 function parseEnvelope(raw: string): RednessCalibrationHydration {
+  if (rednessCalibrationUtf8Bytes(raw) > REDNESS_CALIBRATION_MAX_SERIALIZED_BYTES) {
+    return {
+      status: 'corrupt',
+      envelope: null,
+      quarantine: [
+        envelopeIssue(
+          'oversized_observation',
+          `Stored calibration data exceeds the ${REDNESS_CALIBRATION_MAX_SERIALIZED_BYTES}-byte bound.`,
+        ),
+      ],
+    };
+  }
   let parsed: unknown;
   try {
     parsed = JSON.parse(raw);
@@ -137,6 +152,7 @@ function parseEnvelope(raw: string): RednessCalibrationHydration {
     parsed.schemaVersion !== REDNESS_CALIBRATION_ENVELOPE_SCHEMA ||
     parsed.origin !== REDNESS_CALIBRATION_ORIGIN ||
     typeof parsed.savedAt !== 'string' ||
+    rednessCalibrationUtf8Bytes(parsed.savedAt) > REDNESS_CALIBRATION_MAX_FIELD_BYTES ||
     !Number.isFinite(Date.parse(parsed.savedAt)) ||
     !Array.isArray(parsed.observations)
   ) {
@@ -185,7 +201,10 @@ export function saveRednessCalibrationData(
   if (!validated.valid) {
     throw new Error('Calibration observations failed closed validation.');
   }
-  if (!Number.isFinite(Date.parse(savedAt))) {
+  if (
+    !Number.isFinite(Date.parse(savedAt)) ||
+    rednessCalibrationUtf8Bytes(savedAt) > REDNESS_CALIBRATION_MAX_FIELD_BYTES
+  ) {
     throw new Error('Calibration storage requires an explicit valid timestamp.');
   }
   const envelope: RednessCalibrationEnvelope = {
@@ -194,7 +213,11 @@ export function saveRednessCalibrationData(
     savedAt,
     observations: validated.observations,
   };
-  storage.setItem(REDNESS_CALIBRATION_STORAGE_KEY, canonicalJson(envelope));
+  const serialized = canonicalJson(envelope);
+  if (rednessCalibrationUtf8Bytes(serialized) > REDNESS_CALIBRATION_MAX_SERIALIZED_BYTES) {
+    throw new Error('Calibration storage exceeds its serialized byte bound. Nothing was written.');
+  }
+  storage.setItem(REDNESS_CALIBRATION_STORAGE_KEY, serialized);
   return cloneEnvelope(envelope);
 }
 
@@ -223,7 +246,11 @@ export function exportRednessCalibrationData(
   exportedAt: string,
 ): string {
   const validated = validateObservationList(observations);
-  if (!validated.valid || !Number.isFinite(Date.parse(exportedAt))) {
+  if (
+    !validated.valid ||
+    !Number.isFinite(Date.parse(exportedAt)) ||
+    rednessCalibrationUtf8Bytes(exportedAt) > REDNESS_CALIBRATION_MAX_FIELD_BYTES
+  ) {
     throw new Error('Only valid face-free calibration observations can be exported.');
   }
   const envelope: RednessCalibrationExportEnvelope = {
@@ -232,10 +259,17 @@ export function exportRednessCalibrationData(
     exportedAt,
     observations: validated.observations,
   };
-  return canonicalJson(envelope);
+  const serialized = canonicalJson(envelope);
+  if (rednessCalibrationUtf8Bytes(serialized) > REDNESS_CALIBRATION_MAX_SERIALIZED_BYTES) {
+    throw new Error('Calibration export exceeds its serialized byte bound.');
+  }
+  return serialized;
 }
 
 export function parseRednessCalibrationExport(raw: string): RednessCalibrationObservation[] {
+  if (rednessCalibrationUtf8Bytes(raw) > REDNESS_CALIBRATION_MAX_SERIALIZED_BYTES) {
+    throw new Error('Calibration import exceeds its serialized byte bound.');
+  }
   let parsed: unknown;
   try {
     parsed = JSON.parse(raw);
@@ -248,12 +282,21 @@ export function parseRednessCalibrationExport(raw: string): RednessCalibrationOb
     parsed.schemaVersion !== REDNESS_CALIBRATION_EXPORT_SCHEMA ||
     parsed.origin !== REDNESS_CALIBRATION_ORIGIN ||
     typeof parsed.exportedAt !== 'string' ||
+    rednessCalibrationUtf8Bytes(parsed.exportedAt) > REDNESS_CALIBRATION_MAX_FIELD_BYTES ||
     !Number.isFinite(Date.parse(parsed.exportedAt)) ||
     !Array.isArray(parsed.observations)
   ) {
     throw new Error('Calibration import envelope is incompatible.');
   }
-  const validated = validateObservationList(parsed.observations);
+  const imported = validateObservationList(parsed.observations);
+  if (!imported.valid) {
+    throw new Error('Calibration import contains invalid or private material.');
+  }
+  const provenanceBounded = imported.observations.map((observation) => ({
+    ...observation,
+    collectionSource: 'imported_unverified' as const,
+  }));
+  const validated = validateObservationList(provenanceBounded);
   if (!validated.valid) {
     throw new Error('Calibration import contains invalid or private material.');
   }

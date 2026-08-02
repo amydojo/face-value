@@ -561,7 +561,7 @@ const calibrationRegistry = await readFile(
 );
 for (const frozenRegistryOutput of [
   "threshold_source: 'technical_calibration'",
-  "approved_by: null",
+  'approved_by: null',
   "status: 'exploratory'",
   'provisional: true',
   "entry.status !== 'exploratory'",
@@ -626,10 +626,7 @@ if (!calibrationContract.includes('includesFaceImage: false')) {
 }
 
 const registryIsolation = await readFile(
-  new URL(
-    '../src/domain/evidence/redness/calibrationRegistryIsolation.ts',
-    import.meta.url,
-  ),
+  new URL('../src/domain/evidence/redness/calibrationRegistryIsolation.ts', import.meta.url),
   'utf8',
 );
 for (const requiredIsolationMarker of [
@@ -656,19 +653,91 @@ for (const requiredExclusionMarker of [
   "'fewer_than_three_accepted_frames'",
 ]) {
   if (!calibrationAnalysis.includes(requiredExclusionMarker)) {
-    violations.push(`Calibration analysis can hide invalid evidence; missing ${requiredExclusionMarker}`);
+    violations.push(
+      `Calibration analysis can hide invalid evidence; missing ${requiredExclusionMarker}`,
+    );
   }
 }
 if (!calibrationComponent.includes('viewModel.exclusions.map')) {
   violations.push('Calibration instrument no longer renders excluded observations and reasons');
 }
-if ([
-  "({ conditionType }) => conditionType === 'no_treatment_longitudinal'",
-  '`${point.participantId}\\u001f${point.conditionId}`',
-  'participantId: earlier.participantId',
-  'within-participant',
-].some((marker) => !calibrationAnalysis.includes(marker))) {
+if (
+  [
+    "({ conditionType }) => conditionType === 'no_treatment_longitudinal'",
+    '`${point.participantId}\\u001f${point.conditionId}`',
+    'participantId: earlier.participantId',
+    'within-participant',
+  ].some((marker) => !calibrationAnalysis.includes(marker))
+) {
   violations.push('Longitudinal calibration no longer proves within-participant pairing');
+}
+for (const requiredTechnicalMarker of [
+  "conditionType }) => conditionType === 'standard'",
+  'observation.participantId',
+  'observation.sessionId',
+  'observation.conditionId',
+  "kind: 'matched_formal_recapture'",
+  'technical = formalRecaptureComparisons(eligible)',
+]) {
+  if (!calibrationAnalysis.includes(requiredTechnicalMarker)) {
+    violations.push(
+      `Technical N95 formal-recapture boundary is missing ${requiredTechnicalMarker}`,
+    );
+  }
+}
+if (
+  calibrationAnalysis.includes("kind: 'within_burst'") ||
+  calibrationAnalysis.includes('eligible signed within-burst frame pairs')
+) {
+  violations.push(
+    'Within-burst agreement evidence is being reused as a no-change threshold comparison',
+  );
+}
+
+const liveProvenanceOwners = [];
+for (const file of sourceFiles) {
+  const source = await readFile(file, 'utf8');
+  if (source.includes("collectionSource: 'live_provider'")) {
+    liveProvenanceOwners.push(relative(rootPath, file));
+  }
+}
+if (
+  liveProvenanceOwners.length !== 1 ||
+  liveProvenanceOwners[0] !== 'features/calibration-redness/rednessCalibrationCollection.ts'
+) {
+  violations.push(
+    `Genuine live calibration provenance must have one completed internal owner; found ${liveProvenanceOwners.join(', ') || 'none'}`,
+  );
+}
+for (const requiredImportBoundary of [
+  "collectionSource: 'imported_unverified'",
+  'REDNESS_CALIBRATION_MAX_SERIALIZED_BYTES',
+  'rednessCalibrationUtf8Bytes(raw)',
+]) {
+  if (!calibrationPersistence.includes(requiredImportBoundary)) {
+    violations.push(`Calibration persistence boundary is missing ${requiredImportBoundary}`);
+  }
+}
+for (const requiredObservationBound of [
+  'REDNESS_CALIBRATION_MAX_FIELD_BYTES',
+  'REDNESS_CALIBRATION_MAX_OBSERVATION_BYTES',
+  "'oversized_field'",
+  "'oversized_observation'",
+]) {
+  if (
+    !calibrationContract.includes(requiredObservationBound) &&
+    !calibrationAnalysis.includes(requiredObservationBound)
+  ) {
+    const calibrationValidation = await readFile(
+      new URL('../src/domain/calibration/redness/validation.ts', import.meta.url),
+      'utf8',
+    );
+    if (!calibrationValidation.includes(requiredObservationBound)) {
+      violations.push(
+        `Calibration observation byte boundary is missing ${requiredObservationBound}`,
+      );
+    }
+  }
 }
 
 const calibrationRouteOwners = [];
@@ -678,10 +747,7 @@ for (const file of sourceFiles) {
     calibrationRouteOwners.push(relative(rootPath, file));
   }
 }
-const allowedCalibrationRouteOwners = [
-  'app/router/AppRouter.tsx',
-  'features/demo-lab/DemoLab.tsx',
-];
+const allowedCalibrationRouteOwners = ['app/router/AppRouter.tsx', 'features/demo-lab/DemoLab.tsx'];
 if (
   calibrationRouteOwners.some((owner) => !allowedCalibrationRouteOwners.includes(owner)) ||
   !allowedCalibrationRouteOwners.every((owner) => calibrationRouteOwners.includes(owner))
@@ -696,7 +762,7 @@ const calibrationRoute = await readFile(
   'utf8',
 );
 const vercelRoutes = await readFile(new URL('../vercel.json', import.meta.url), 'utf8');
-if (!calibrationRoute.includes("serveProtectedDemo") || !calibrationRoute.includes("../demo.js")) {
+if (!calibrationRoute.includes('serveProtectedDemo') || !calibrationRoute.includes('../demo.js')) {
   violations.push('Calibration route does not reuse the signed Demo Lab engineering session');
 }
 if (

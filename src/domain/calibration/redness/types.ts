@@ -1,18 +1,13 @@
 import type { CaptureQuality } from '../../evidence/redness';
 import type { RednessEvidenceBurst } from '../../model';
 
-export const REDNESS_CALIBRATION_OBSERVATION_SCHEMA =
-  'redness-calibration-observation-v1' as const;
+export const REDNESS_CALIBRATION_OBSERVATION_SCHEMA = 'redness-calibration-observation-v1' as const;
 export const REDNESS_CALIBRATION_ANALYSIS_MODE = 'hd' as const;
 
-export type RednessCalibrationConditionType =
-  | 'standard'
-  | 'no_treatment_longitudinal'
-  | 'degraded';
+export type RednessCalibrationConditionType = 'standard' | 'no_treatment_longitudinal' | 'degraded';
 
 export type RednessCalibrationCollectionSource =
-  | 'live_provider'
-  | 'synthetic_face_free_fixture';
+  'live_provider' | 'synthetic_face_free_fixture' | 'imported_unverified';
 
 export type CalibrationReportedState = 'absent' | 'present' | 'not_reported';
 

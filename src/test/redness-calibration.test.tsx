@@ -11,15 +11,15 @@ const FIXED_NOW = '2026-08-01T12:00:00.000Z';
 const now = () => FIXED_NOW;
 
 describe('protected redness calibration instrument', () => {
-  it('renders an accessible provider-blocked and explicitly synthetic empty state', () => {
+  it('renders an accessible live collection flow and a separate synthetic empty state', () => {
     render(<RednessCalibration now={now} />);
 
     expect(screen.getByRole('heading', { name: 'Redness calibration' })).toBeVisible();
-    expect(screen.getByRole('heading', { name: 'Live collection unavailable' })).toBeVisible();
-    expect(screen.getByText(/HTTP 400/)).toHaveTextContent('CreditInsufficiency');
     expect(
-      screen.getByRole('button', { name: 'LIVE THREE-FRAME CAPTURE UNAVAILABLE' }),
-    ).toBeDisabled();
+      screen.getByRole('heading', { name: 'Collect a calibration observation' }),
+    ).toBeVisible();
+    expect(screen.getByRole('button', { name: 'START LIVE THREE-FRAME COLLECTION' })).toBeEnabled();
+    expect(screen.queryByText(/CreditInsufficiency/)).not.toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Deterministic verification data' })).toBeVisible();
     expect(screen.getByRole('heading', { name: 'Calibration dashboard' })).toBeVisible();
     expect(screen.getByText('No calibration observations stored.')).toBeVisible();
@@ -55,9 +55,7 @@ describe('protected redness calibration instrument', () => {
     expect(sessionQueries.getAllByText('Not available').length).toBeGreaterThanOrEqual(4);
     expect(sessionQueries.getByText('Measured skin-tone audit group')).toBeVisible();
 
-    await user.click(
-      screen.getByRole('button', { name: 'PREPARE FACE-FREE OBSERVATION EXPORT' }),
-    );
+    await user.click(screen.getByRole('button', { name: 'PREPARE FACE-FREE OBSERVATION EXPORT' }));
     const exported = (screen.getByLabelText('Canonical export') as HTMLTextAreaElement).value;
     expect(exported).toContain('face-value-redness-calibration-export-v1');
     expect(exported).toContain('synthetic_face_free_fixture');
@@ -93,7 +91,9 @@ describe('protected redness calibration instrument', () => {
     expect(localStorage.getItem(REDNESS_CALIBRATION_STORAGE_KEY)).toBeNull();
     expect(localStorage.getItem('face-value:phase-b5')).toBe('ordinary-byte-sentinel');
     expect(localStorage.getItem('face-value:demo-lab:v1')).toBe('demo-byte-sentinel');
-    expect(screen.getByRole('status')).toHaveTextContent('Consumer and Demo Lab storage were not changed');
+    expect(screen.getByRole('status')).toHaveTextContent(
+      'Consumer and Demo Lab storage were not changed',
+    );
   });
 
   it('fails closed on corrupt durable data and clears it only after confirmation', async () => {
@@ -105,14 +105,14 @@ describe('protected redness calibration instrument', () => {
 
     expect(screen.getByRole('alert')).toHaveTextContent('Calibration data quarantined');
     expect(screen.getByRole('alert')).toHaveTextContent('unsupported_schema_version');
-    expect(screen.queryByRole('heading', { name: 'Calibration dashboard' })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('heading', { name: 'Calibration dashboard' }),
+    ).not.toBeInTheDocument();
     expect(screen.queryByLabelText('Canonical export')).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'LOAD COMPLETE SYNTHETIC DATASET' })).toBeDisabled();
     expect(localStorage.getItem(REDNESS_CALIBRATION_STORAGE_KEY)).toBe(corruptBytes);
 
-    await user.click(
-      screen.getByRole('button', { name: 'CLEAR QUARANTINED CALIBRATION DATA' }),
-    );
+    await user.click(screen.getByRole('button', { name: 'CLEAR QUARANTINED CALIBRATION DATA' }));
     const dialog = screen.getByRole('dialog', { name: 'Clear all redness calibration data?' });
     expect(within(dialog).getByRole('button', { name: 'CANCEL' })).toHaveFocus();
     expect(localStorage.getItem(REDNESS_CALIBRATION_STORAGE_KEY)).toBe(corruptBytes);

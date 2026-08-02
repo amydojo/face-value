@@ -22,11 +22,13 @@ describe('redness calibration instrument view model', () => {
       'Capture rejection rate',
       'Eligible sample',
     ]);
-    expect(viewModel.metrics.every(({ preliminaryLabel }) => (
-      preliminaryLabel === 'PRELIMINARY INTERNAL ESTIMATE'
-    ))).toBe(true);
+    expect(
+      viewModel.metrics.every(
+        ({ preliminaryLabel }) => preliminaryLabel === 'PRELIMINARY INTERNAL ESTIMATE',
+      ),
+    ).toBe(true);
     expect(viewModel.metrics.find(({ id }) => id === 'technical-n95')).toMatchObject({
-      value: '3',
+      value: '0.9',
       status: 'estimated',
     });
     expect(viewModel.metrics.find(({ id }) => id === 'longitudinal-n95')).toMatchObject({
@@ -37,12 +39,12 @@ describe('redness calibration instrument view model', () => {
       status: 'estimated',
     });
     expect(viewModel.candidates.map(({ id }) => id)).toEqual([
-        'provisional_5_10',
-        'technical_n95',
-        'longitudinal_n95',
-        'repeatability_coefficient',
-        'conservative_composite',
-      ]);
+      'provisional_5_10',
+      'technical_n95',
+      'longitudinal_n95',
+      'repeatability_coefficient',
+      'conservative_composite',
+    ]);
     expect(viewModel.candidates[0]).toMatchObject({
       authority: expect.stringContaining('Currently used by consumer trials'),
       detectableBoundary: '5',
@@ -72,8 +74,9 @@ describe('redness calibration instrument view model', () => {
         { label: expect.stringMatching(/Segmentation/i), value: 'Not available' },
       ]),
     );
-    expect(viewModel.timeline.find(({ participantId }) => participantId === 'P-001'))
-      .toMatchObject({ longitudinalDifferences: [expect.stringContaining('points')] });
+    expect(viewModel.timeline.find(({ participantId }) => participantId === 'P-001')).toMatchObject(
+      { longitudinalDifferences: [expect.stringContaining('points')] },
+    );
     expect(viewModel.exclusions.map(({ observationId }) => observationId)).toEqual(
       expect.arrayContaining([
         'syn-p01-degraded',
@@ -86,7 +89,10 @@ describe('redness calibration instrument view model', () => {
     expect(viewModel.breakdowns.apiVersions.length).toBeGreaterThan(0);
     expect(viewModel.breakdowns.modelVersions.length).toBeGreaterThan(0);
     expect(viewModel.breakdowns.conditions.length).toBeGreaterThan(0);
-    expect(viewModel.breakdowns.measuredSkinTone).toBe('Not collected');
+    expect(viewModel.breakdowns.measuredSkinTone).toEqual({
+      status: 'not_collected',
+      groups: [],
+    });
   });
 
   it('exports only a canonical exploratory registry with no activation authority', async () => {
@@ -108,5 +114,40 @@ describe('redness calibration instrument view model', () => {
       provisional: true,
     });
     expect(registry.config_hash).toMatch(/^sha256:[a-f0-9]{64}$/);
+  });
+
+  it('renders validated non-inferred skin-tone audit groups and unverified import provenance', () => {
+    const fixtures = syntheticRednessCalibrationFixtures();
+    fixtures[0] = {
+      ...fixtures[0],
+      measuredSkinToneGroup: 'validated-group-a',
+      measuredSkinToneSource: 'validated_audit_input',
+      collectionSource: 'imported_unverified',
+    };
+    fixtures[1] = {
+      ...fixtures[1],
+      measuredSkinToneGroup: 'validated-group-a',
+      measuredSkinToneSource: 'validated_audit_input',
+    };
+
+    const viewModel = buildRednessCalibrationInstrumentViewModel(fixtures, {
+      bootstrapIterations: 400,
+    });
+
+    expect(viewModel.breakdowns.measuredSkinTone).toMatchObject({
+      status: 'available',
+      groups: [
+        expect.objectContaining({
+          key: 'validated-group-a',
+          observations: expect.stringContaining('2 observations'),
+        }),
+      ],
+    });
+    expect(
+      viewModel.sessions.find(({ observationId }) => observationId === fixtures[0].observationId),
+    ).toMatchObject({
+      collectionSource: 'Imported observation · Unverified provenance',
+      measuredSkinToneAuditGroup: 'validated-group-a',
+    });
   });
 });

@@ -48,6 +48,7 @@ export interface CalibrationSessionView {
   directionAgreement: string;
   rejectionReasons: string;
   confounders: string;
+  measuredSkinToneAuditGroup: string;
   versions: Array<{ label: string; value: string }>;
   unavailableMetrics: Array<{ label: string; value: 'Not available' }>;
 }
@@ -93,7 +94,10 @@ export interface RednessCalibrationInstrumentViewModel {
     apiVersions: CalibrationBreakdownView[];
     modelVersions: CalibrationBreakdownView[];
     conditions: CalibrationBreakdownView[];
-    measuredSkinTone: 'Not collected';
+    measuredSkinTone: {
+      status: 'not_collected' | 'available';
+      groups: CalibrationBreakdownView[];
+    };
   };
 }
 
@@ -139,7 +143,7 @@ const estimateCard = (input: {
   title: input.title,
   value: numberValue(input.value),
   status: input.value === null ? 'not_estimable' : 'estimated',
-  detail: input.value === null ? input.reason ?? 'Not estimable for this sample.' : input.detail,
+  detail: input.value === null ? (input.reason ?? 'Not estimable for this sample.') : input.detail,
   preliminaryLabel: 'PRELIMINARY INTERNAL ESTIMATE',
 });
 
@@ -151,7 +155,7 @@ function metricCards(analysis: RednessCalibrationAnalysis): CalibrationMetricCar
       title: 'Technical N95',
       value: analysis.technicalN95.value,
       reason: analysis.technicalN95.reason,
-      detail: `${analysis.technicalN95.sampleCount} within-burst differences · ${intervalLabel(analysis.technicalN95.confidenceInterval)}`,
+      detail: `${analysis.technicalN95.sampleCount} matched formal-recapture burst-median differences · ${intervalLabel(analysis.technicalN95.confidenceInterval)}`,
     }),
     estimateCard({
       id: 'longitudinal-n95',
@@ -188,9 +192,10 @@ function metricCards(analysis: RednessCalibrationAnalysis): CalibrationMetricCar
       id: 'false-change-rate',
       title: 'False-change rate · current 5-point boundary',
       value: percentValue(provisional?.falseChangeRate ?? null),
-      status: provisional?.falseChangeRate === null || provisional === undefined
-        ? 'not_estimable'
-        : 'estimated',
+      status:
+        provisional?.falseChangeRate === null || provisional === undefined
+          ? 'not_estimable'
+          : 'estimated',
       detail: provisional
         ? `${provisional.falseChangeCount} of ${provisional.validNoChangeComparisonCount} valid no-change comparisons · ${intervalLabel(provisional.uncertaintyInterval)}`
         : 'No valid no-change comparison is available.',
@@ -248,7 +253,9 @@ function sessionViews(
   observations: RednessCalibrationObservation[],
   analysis: RednessCalibrationAnalysis,
 ): CalibrationSessionView[] {
-  const agreements = new Map(analysis.observations.map((agreement) => [agreement.observationId, agreement]));
+  const agreements = new Map(
+    analysis.observations.map((agreement) => [agreement.observationId, agreement]),
+  );
   return [...observations]
     .sort((left, right) => {
       const timestamp = right.captureTimestamp.localeCompare(left.captureTimestamp);
@@ -266,7 +273,9 @@ function sessionViews(
         collectionSource:
           observation.collectionSource === 'synthetic_face_free_fixture'
             ? 'Synthetic face-free fixture · No physical capture'
-            : 'Live provider capture',
+            : observation.collectionSource === 'live_provider'
+              ? 'Completed internal live provider capture'
+              : 'Imported observation · Unverified provenance',
         captureTimestamp: timestampFormatter.format(new Date(observation.captureTimestamp)),
         deviceClass: observation.deviceClass,
         captureQuality:
@@ -308,6 +317,11 @@ function sessionViews(
           label: sentenceCase(key.replace(/([A-Z])/g, ' $1')),
           value: 'Not available' as const,
         })),
+        measuredSkinToneAuditGroup:
+          observation.measuredSkinToneSource === 'validated_audit_input' &&
+          observation.measuredSkinToneGroup !== null
+            ? observation.measuredSkinToneGroup
+            : 'Not collected',
       };
     });
 }
@@ -342,9 +356,10 @@ function timelineFor(
   }));
 }
 
-function breakdownView(row: CalibrationBreakdown): CalibrationBreakdownView {
+function breakdownView(row: CalibrationBreakdown, preserveKey = false): CalibrationBreakdownView {
   return {
-    key: row.key === 'not_reported' ? 'Not reported' : sentenceCase(row.key),
+    key:
+      row.key === 'not_reported' ? 'Not reported' : preserveKey ? row.key : sentenceCase(row.key),
     observations: `${row.observationCount} observations · ${row.acceptedFrameCount} accepted frames`,
     eligibility: `${row.eligibleObservationCount} eligible`,
     rejectionRate: percentValue(row.rejectionRate),
@@ -374,11 +389,14 @@ export function buildRednessCalibrationInstrumentViewModel(
       reasons: exclusion.reasons.map(sentenceCase),
     })),
     breakdowns: {
-      devices: analysis.breakdowns.byDeviceClass.map(breakdownView),
-      apiVersions: analysis.breakdowns.byApiVersion.map(breakdownView),
-      modelVersions: analysis.breakdowns.byAnalysisModelVersion.map(breakdownView),
-      conditions: analysis.breakdowns.byConditionType.map(breakdownView),
-      measuredSkinTone: 'Not collected',
+      devices: analysis.breakdowns.byDeviceClass.map((row) => breakdownView(row)),
+      apiVersions: analysis.breakdowns.byApiVersion.map((row) => breakdownView(row)),
+      modelVersions: analysis.breakdowns.byAnalysisModelVersion.map((row) => breakdownView(row)),
+      conditions: analysis.breakdowns.byConditionType.map((row) => breakdownView(row)),
+      measuredSkinTone: {
+        status: analysis.breakdowns.measuredSkinTone.status,
+        groups: analysis.breakdowns.measuredSkinTone.groups.map((row) => breakdownView(row, true)),
+      },
     },
   };
 }

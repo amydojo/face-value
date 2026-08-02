@@ -25,7 +25,8 @@ const analysis = () =>
 function assertFiniteNumbers(value: unknown, path = '$'): void {
   if (typeof value === 'number') {
     expect(Number.isFinite(value), `${path} must be finite`).toBe(true);
-    if (/count/i.test(path)) expect(value, `${path} must not be negative`).toBeGreaterThanOrEqual(0);
+    if (/count/i.test(path))
+      expect(value, `${path} must not be negative`).toBeGreaterThanOrEqual(0);
     return;
   }
   if (Array.isArray(value)) {
@@ -80,10 +81,7 @@ describe('calibration mathematical primitives', () => {
     });
     expect(known.status === 'estimated' && known.value).toBeCloseTo(2 / 3, 12);
 
-    const uneven = iccAbsoluteAgreementSingle([
-      [1, 2],
-      [2],
-    ]);
+    const uneven = iccAbsoluteAgreementSingle([[1, 2], [2]]);
     expect(uneven).toMatchObject({
       status: 'not_estimable',
       variant: 'ICC(A,1)',
@@ -93,7 +91,11 @@ describe('calibration mathematical primitives', () => {
 
   it('keeps participant clusters intact under a fixed deterministic bootstrap seed', () => {
     const input = {
-      clusters: [[1, 2], [10, 20], [100, 200]],
+      clusters: [
+        [1, 2],
+        [10, 20],
+        [100, 200],
+      ],
       statistic: (clusters: number[][]) => empiricalQuantileR7(clusters.flat(), 0.5),
       seed: 6500,
       iterations: 400,
@@ -126,9 +128,9 @@ describe('pure redness calibration analysis', () => {
     const fixtures = syntheticRednessCalibrationFixtures();
 
     expect(fixtures).toHaveLength(16);
-    expect(fixtures.every((fixture) => fixture.collectionSource === 'synthetic_face_free_fixture')).toBe(
-      true,
-    );
+    expect(
+      fixtures.every((fixture) => fixture.collectionSource === 'synthetic_face_free_fixture'),
+    ).toBe(true);
     expect(fixtures.every((fixture) => validateRednessCalibrationObservation(fixture).valid)).toBe(
       true,
     );
@@ -137,20 +139,98 @@ describe('pure redness calibration analysis', () => {
     );
   });
 
-  it('calculates Technical N95 from all eligible within-burst pairs', () => {
+  it('calculates Technical N95 from matched standard formal-recapture burst medians', () => {
     const result = analysis();
 
     expect(result.technicalN95).toMatchObject({
       status: 'estimated',
-      value: 3,
-      sampleCount: 36,
+      sampleCount: 3,
       participantCount: 3,
-      sessionCount: 9,
-      frameCount: 36,
-      method: expect.stringContaining('unordered accepted-frame pairs'),
+      sessionCount: 3,
+      frameCount: 18,
+      method: expect.stringContaining('matched standard burst-median pairs'),
       confidenceInterval: expect.objectContaining({ status: 'estimated' }),
     });
+    expect(result.technicalN95.value).toBeCloseTo(0.9, 12);
+    expect(
+      result.noChangeComparisons.filter(({ kind }) => kind === 'matched_formal_recapture'),
+    ).toEqual([
+      expect.objectContaining({ participantId: 'P-001', signedDifference: 1 }),
+      expect.objectContaining({ participantId: 'P-002', signedDifference: 0 }),
+      expect.objectContaining({ participantId: 'P-003', signedDifference: 0 }),
+    ]);
+    expect(result.observations[0].absolutePairwiseDifferences).toEqual([1, 2, 1]);
+    expect(result.noChangeComparisons.some(({ kind }) => String(kind) === 'within_burst')).toBe(
+      false,
+    );
   });
+
+  it('keeps within-burst agreement and longitudinal changes out of Technical N95', () => {
+    const fixtures = syntheticRednessCalibrationFixtures();
+    for (const fixture of fixtures) {
+      if (
+        fixture.conditionType === 'standard' &&
+        typeof fixture.sessionRawMedian === 'number' &&
+        fixture.burst.acceptedFrames.length === 3
+      ) {
+        const sessionMedian = fixture.sessionRawMedian;
+        fixture.burst.acceptedFrames[0].signal.rawScore = sessionMedian - 40;
+        fixture.burst.acceptedFrames[1].signal.rawScore = sessionMedian;
+        fixture.burst.acceptedFrames[2].signal.rawScore = sessionMedian + 40;
+      }
+      if (
+        fixture.conditionType === 'no_treatment_longitudinal' &&
+        typeof fixture.sessionRawMedian === 'number'
+      ) {
+        const shifted = fixture.sessionId.endsWith('02') ? 100 : 50;
+        fixture.sessionRawMedian = shifted;
+        fixture.burst.acceptedFrames.forEach((frame) => {
+          frame.signal.rawScore = shifted;
+        });
+      }
+    }
+
+    const result = analyzeRednessCalibration(fixtures, {
+      bootstrapSeed: 65,
+      bootstrapIterations: 400,
+    });
+
+    expect(result.technicalN95.value).toBeCloseTo(0.9, 12);
+    expect(
+      Math.max(
+        ...result.observations.flatMap(
+          ({ absolutePairwiseDifferences }) => absolutePairwiseDifferences,
+        ),
+      ),
+    ).toBe(80);
+    expect(result.longitudinalN95.value).toBe(50);
+  });
+
+  it.each(['participantId', 'sessionId', 'conditionId'] as const)(
+    'requires matched %s when forming standard formal-recapture comparisons',
+    (key) => {
+      const fixtures = syntheticRednessCalibrationFixtures();
+      const recapture = fixtures.find(
+        ({ observationId }) => observationId === 'syn-p01-standard-b',
+      );
+      if (!recapture) throw new Error('Synthetic formal recapture fixture is missing.');
+      recapture[key] = `${recapture[key]}-unmatched`;
+      if (key === 'sessionId') recapture.burst.sessionId = recapture.sessionId;
+
+      const result = analyzeRednessCalibration(fixtures, {
+        bootstrapSeed: 65,
+        bootstrapIterations: 400,
+      });
+
+      expect(result.technicalN95.sampleCount).toBe(2);
+      expect(
+        result.noChangeComparisons.some(
+          (comparison) =>
+            comparison.kind === 'matched_formal_recapture' && comparison.participantId === 'P-001',
+        ),
+      ).toBe(false);
+    },
+  );
 
   it('calculates Longitudinal N95 from matched within-participant session medians only', () => {
     const result = analysis();
@@ -163,7 +243,9 @@ describe('pure redness calibration analysis', () => {
       sessionCount: 6,
       method: expect.stringContaining('within-participant session-median pairs'),
     });
-    expect(result.noChangeComparisons.filter(({ kind }) => kind === 'matched_longitudinal')).toEqual(
+    expect(
+      result.noChangeComparisons.filter(({ kind }) => kind === 'matched_longitudinal'),
+    ).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ participantId: 'P-001', signedDifference: 1 }),
         expect.objectContaining({ participantId: 'P-002', signedDifference: 0 }),
@@ -220,15 +302,18 @@ describe('pure redness calibration analysis', () => {
     const withAnchor = analyzeRednessCalibration([anchoredFixture], {
       bootstrapIterations: 400,
     });
-    const contradictedNoChange = analyzeRednessCalibration([
-      {
-        ...fixtures[0],
-        comparisonAnchor: {
-          rawScore: 59,
-          expectedDirection: 'no_change' as const,
+    const contradictedNoChange = analyzeRednessCalibration(
+      [
+        {
+          ...fixtures[0],
+          comparisonAnchor: {
+            rawScore: 59,
+            expectedDirection: 'no_change' as const,
+          },
         },
-      },
-    ], { bootstrapIterations: 400 });
+      ],
+      { bootstrapIterations: 400 },
+    );
 
     expect(withoutAnchor.observations[0].directionAgreement).toEqual({
       status: 'not_available',
@@ -327,11 +412,11 @@ describe('pure redness calibration analysis', () => {
       detectableBoundary: 5,
       strongBoundary: 10,
       falseChangeCount: 0,
-      validNoChangeComparisonCount: 39,
+      validNoChangeComparisonCount: 6,
       falseChangeRate: 0,
       classificationCounts: {
         worsened: 0,
-        no_detectable_change: 39,
+        no_detectable_change: 6,
         directional_improvement: 0,
         meaningful_candidate: 0,
         strong_improvement: 0,
@@ -339,15 +424,23 @@ describe('pure redness calibration analysis', () => {
     });
     expect(technical).toMatchObject({
       authority: 'exploratory_only',
-      detectableBoundary: 3,
-      strongBoundary: 6,
-      falseChangeCount: 5,
-      validNoChangeComparisonCount: 39,
+      falseChangeCount: 3,
+      validNoChangeComparisonCount: 6,
+      classificationCounts: {
+        worsened: 0,
+        no_detectable_change: 3,
+        directional_improvement: 2,
+        meaningful_candidate: 0,
+        strong_improvement: 1,
+      },
     });
+    expect(technical?.detectableBoundary).toBeCloseTo(0.9, 12);
+    expect(technical?.strongBoundary).toBeCloseTo(1.8, 12);
     expect(composite).toMatchObject({
       authority: 'exploratory_only',
-      detectableBoundary: 3,
-      falseChangeCount: 5,
+      detectableBoundary: result.repeatabilityCoefficient.value,
+      falseChangeCount: 0,
+      validNoChangeComparisonCount: 6,
     });
   });
 
@@ -391,13 +484,15 @@ describe('pure redness calibration analysis', () => {
         }),
       ]),
     );
-    expect(result.technicalN95.sampleCount).toBe(33);
+    expect(result.technicalN95.sampleCount).toBe(2);
   });
 
   it('returns explicit not-estimable states for an empty or one-participant sample', () => {
     const empty = analyzeRednessCalibration([], { bootstrapIterations: 400 });
     const oneParticipant = analyzeRednessCalibration(
-      syntheticRednessCalibrationFixtures().filter(({ participantId }) => participantId === 'P-001'),
+      syntheticRednessCalibrationFixtures().filter(
+        ({ participantId }) => participantId === 'P-001',
+      ),
       { bootstrapIterations: 400 },
     );
 
@@ -437,7 +532,7 @@ describe('exploratory threshold registry isolation', () => {
       status: 'exploratory',
       approved_by: null,
       provisional: true,
-      technical_n95: 3,
+      technical_n95: expect.any(Number),
       longitudinal_n95: 1.9,
       participant_count: 3,
       session_count: 9,
@@ -445,11 +540,18 @@ describe('exploratory threshold registry isolation', () => {
       analysis_model_version: 'not_reported',
       config_hash: expect.stringMatching(/^sha256:[a-f0-9]{64}$/),
     });
+    expect(first.technical_n95).toBeCloseTo(0.9, 12);
     expect(serialized).toBe(serializeRednessCalibrationRegistry(second));
     expect(serialized.indexOf('"approved_by"')).toBeLessThan(
       serialized.indexOf('"threshold_source"'),
     );
     expect(serialized).not.toMatch(/NaN|Infinity|data:image|blob:|https?:\/\//);
+    expect(() =>
+      serializeRednessCalibrationRegistry({
+        ...first,
+        supported_device_classes: ['x'.repeat(257)],
+      }),
+    ).toThrow(/oversized text field/);
   });
 
   it('production loading ignores exploratory calibration output', async () => {
@@ -463,7 +565,9 @@ describe('exploratory threshold registry isolation', () => {
       reason: 'exploratory_not_approved',
       configuration: null,
     });
-    expect(loadRednessCalibrationRegistryForProduction({ ...registry, status: 'approved' })).toEqual({
+    expect(
+      loadRednessCalibrationRegistryForProduction({ ...registry, status: 'approved' }),
+    ).toEqual({
       status: 'rejected',
       reason: 'unsupported_registry',
       configuration: null,

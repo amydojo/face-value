@@ -135,6 +135,14 @@ const calibrationComponentSource = await readFile(
   new URL('../src/features/calibration-redness/RednessCalibration.tsx', import.meta.url),
   'utf8',
 );
+const calibrationCollectorSource = await readFile(
+  new URL('../src/features/calibration-redness/RednessCalibrationCollector.tsx', import.meta.url),
+  'utf8',
+);
+const calibrationCollectionSource = await readFile(
+  new URL('../src/features/calibration-redness/rednessCalibrationCollection.ts', import.meta.url),
+  'utf8',
+);
 const calibrationDurableSource = [
   calibrationContractSource,
   calibrationPersistenceSource,
@@ -194,7 +202,11 @@ for (const networkOrImagePrimitive of [
   'new Blob',
   'FileReader',
 ]) {
-  if (calibrationComponentSource.includes(networkOrImagePrimitive)) {
+  if (
+    [calibrationComponentSource, calibrationCollectorSource, calibrationCollectionSource].some(
+      (source) => source.includes(networkOrImagePrimitive),
+    )
+  ) {
     violations.push(
       `calibration instrument contains forbidden network/image primitive ${networkOrImagePrimitive}`,
     );

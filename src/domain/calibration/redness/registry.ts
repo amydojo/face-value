@@ -1,9 +1,14 @@
 import { canonicalJson } from './canonicalJson';
 import type { RednessCalibrationAnalysis } from './analysis';
 import type { EstimableInterval } from './statistics';
+import {
+  REDNESS_CALIBRATION_MAX_FIELD_BYTES,
+  rednessCalibrationOversizedStringPaths,
+  rednessCalibrationUtf8Bytes,
+} from './validation';
 
-export const REDNESS_CALIBRATION_REGISTRY_VERSION =
-  'redness-exploratory-calibration-v1' as const;
+export const REDNESS_CALIBRATION_REGISTRY_VERSION = 'redness-exploratory-calibration-v1' as const;
+export const REDNESS_CALIBRATION_MAX_REGISTRY_BYTES = 64 * 1024;
 
 export interface RednessCalibrationRegistryEntry {
   threshold_version: typeof REDNESS_CALIBRATION_REGISTRY_VERSION;
@@ -39,9 +44,7 @@ export interface RednessCalibrationRegistryEntry {
 
 type UnsignedRegistryEntry = Omit<RednessCalibrationRegistryEntry, 'config_hash'>;
 
-function versionSummary(
-  rows: Array<{ key: string; eligibleObservationCount: number }>,
-): string {
+function versionSummary(rows: Array<{ key: string; eligibleObservationCount: number }>): string {
   const versions = rows
     .filter(({ eligibleObservationCount }) => eligibleObservationCount > 0)
     .map(({ key }) => key)
@@ -62,7 +65,10 @@ export async function buildExploratoryRednessCalibrationRegistry(input: {
   analysis: RednessCalibrationAnalysis;
   createdAt: string;
 }): Promise<RednessCalibrationRegistryEntry> {
-  if (!Number.isFinite(Date.parse(input.createdAt))) {
+  if (
+    !Number.isFinite(Date.parse(input.createdAt)) ||
+    rednessCalibrationUtf8Bytes(input.createdAt) > REDNESS_CALIBRATION_MAX_FIELD_BYTES
+  ) {
     throw new Error('Exploratory registry export requires an explicit valid creation timestamp.');
   }
   const composite = input.analysis.thresholdCandidates.find(
@@ -95,9 +101,7 @@ export async function buildExploratoryRednessCalibrationRegistry(input: {
       .map(({ key }) => key)
       .sort(),
     api_version: versionSummary(input.analysis.breakdowns.byApiVersion),
-    analysis_model_version: versionSummary(
-      input.analysis.breakdowns.byAnalysisModelVersion,
-    ),
+    analysis_model_version: versionSummary(input.analysis.breakdowns.byAnalysisModelVersion),
     preprocessing_version: input.analysis.configuration.compatiblePreprocessingVersion,
     capture_protocol_version: input.analysis.configuration.compatibleCaptureProtocolVersion,
     created_at: input.createdAt,
@@ -120,5 +124,12 @@ export function serializeRednessCalibrationRegistry(
   ) {
     throw new Error('Issue 65 registry output must remain exploratory and provisional.');
   }
-  return canonicalJson(entry);
+  if (rednessCalibrationOversizedStringPaths(entry).length > 0) {
+    throw new Error('Exploratory registry export contains an oversized text field.');
+  }
+  const serialized = canonicalJson(entry);
+  if (rednessCalibrationUtf8Bytes(serialized) > REDNESS_CALIBRATION_MAX_REGISTRY_BYTES) {
+    throw new Error('Exploratory registry export exceeds its serialized byte bound.');
+  }
+  return serialized;
 }

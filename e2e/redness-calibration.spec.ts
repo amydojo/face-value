@@ -1,7 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import {
-  REDNESS_CALIBRATION_STORAGE_KEY,
-} from '../src/adapters/persistence/rednessCalibrationStore';
+import { REDNESS_CALIBRATION_STORAGE_KEY } from '../src/adapters/persistence/rednessCalibrationStore';
 import {
   DEMO_ENVELOPE_SCHEMA,
   DEMO_JOURNEY_STORAGE_KEY,
@@ -76,11 +74,13 @@ test('synthetic calibration workflow remains face-free, isolated, and reproducib
   await page.goto('/calibration/redness');
 
   await expect(page.getByRole('heading', { name: 'Redness calibration' })).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Live collection unavailable' })).toBeVisible();
-  await expect(page.getByText(/CreditInsufficiency/)).toBeVisible();
   await expect(
-    page.getByRole('button', { name: 'LIVE THREE-FRAME CAPTURE UNAVAILABLE' }),
-  ).toBeDisabled();
+    page.getByRole('heading', { name: 'Collect a calibration observation' }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole('button', { name: 'START LIVE THREE-FRAME COLLECTION' }),
+  ).toBeEnabled();
+  await expect(page.getByText(/CreditInsufficiency/)).toHaveCount(0);
   await expect(page.getByText('SYNTHETIC FACE-FREE FIXTURES', { exact: true })).toBeVisible();
 
   const ordinaryBefore = await page.evaluate((key) => localStorage.getItem(key), STORAGE_KEY);
@@ -96,13 +96,13 @@ test('synthetic calibration workflow remains face-free, isolated, and reproducib
   );
   await page.keyboard.press('Enter');
   await expect(page.getByRole('status')).toContainText('Added 2 explicitly synthetic');
-  await page
-    .getByRole('button', { name: 'ADD SYNTHETIC NO-TREATMENT SESSIONS' })
-    .click();
+  await page.getByRole('button', { name: 'ADD SYNTHETIC NO-TREATMENT SESSIONS' }).click();
   await expect(page.getByRole('status')).toContainText('no treatment longitudinal');
   await page.getByRole('button', { name: 'ADD SYNTHETIC DEGRADED SESSION' }).click();
   await expect(page.getByText('syn-p01-degraded')).toBeVisible();
-  await expect(page.getByText(/Degraded condition/)).toBeVisible();
+  await expect(
+    page.getByRole('region', { name: 'Exclusion inspection' }).getByText(/Degraded condition/),
+  ).toBeVisible();
 
   const incrementalObservationCount = await page.evaluate((key) => {
     const value = JSON.parse(localStorage.getItem(key) ?? '{}') as { observations?: unknown[] };
@@ -120,9 +120,7 @@ test('synthetic calibration workflow remains face-free, isolated, and reproducib
   await expect(replacement).toBeHidden();
   await page.getByRole('button', { name: 'LOAD COMPLETE SYNTHETIC DATASET' }).click();
   await expect(replacement).toBeVisible();
-  await replacement
-    .getByRole('button', { name: 'CONFIRM CALIBRATION DATA CHANGE' })
-    .click();
+  await replacement.getByRole('button', { name: 'CONFIRM CALIBRATION DATA CHANGE' }).click();
 
   await expect(page.getByText('PRELIMINARY INTERNAL ESTIMATE', { exact: true })).toHaveCount(8);
   for (const heading of [
@@ -157,9 +155,7 @@ test('synthetic calibration workflow remains face-free, isolated, and reproducib
     await assertNoHorizontalOverflow(page);
   }
 
-  await page
-    .getByRole('button', { name: 'PREPARE FACE-FREE OBSERVATION EXPORT' })
-    .click();
+  await page.getByRole('button', { name: 'PREPARE FACE-FREE OBSERVATION EXPORT' }).click();
   const exportField = page.getByLabel('Canonical export');
   const observationExport = await exportField.inputValue();
   const observationEnvelope = JSON.parse(observationExport) as {
@@ -173,9 +169,7 @@ test('synthetic calibration workflow remains face-free, isolated, and reproducib
     /data:image|blob:|https?:\/\/|provider.?task|raw.?payload|base64|image.?bytes|object.?url|email/i,
   );
 
-  await page
-    .getByRole('button', { name: 'PREPARE EXPLORATORY REGISTRY EXPORT' })
-    .click();
+  await page.getByRole('button', { name: 'PREPARE EXPLORATORY REGISTRY EXPORT' }).click();
   await expect(exportField).toHaveValue(/"threshold_source":"technical_calibration"/);
   const registry = JSON.parse(await exportField.inputValue()) as Record<string, unknown>;
   expect(registry).toMatchObject({
@@ -190,9 +184,7 @@ test('synthetic calibration workflow remains face-free, isolated, and reproducib
   const clearDialog = page.getByRole('dialog', { name: 'Clear all redness calibration data?' });
   await expect(clearDialog).toContainText('Consumer trials, Previous Trials, and Demo Lab');
   await expect(clearDialog.getByRole('button', { name: 'CANCEL' })).toBeFocused();
-  await clearDialog
-    .getByRole('button', { name: 'CONFIRM CALIBRATION DATA CHANGE' })
-    .click();
+  await clearDialog.getByRole('button', { name: 'CONFIRM CALIBRATION DATA CHANGE' }).click();
   expect(
     await page.evaluate((key) => localStorage.getItem(key), REDNESS_CALIBRATION_STORAGE_KEY),
   ).toBeNull();
@@ -211,6 +203,14 @@ test('synthetic calibration workflow remains face-free, isolated, and reproducib
     return value.observations?.length ?? 0;
   }, REDNESS_CALIBRATION_STORAGE_KEY);
   expect(importedObservationCount).toBe(16);
+  const importedSources = await page.evaluate((key) => {
+    const value = JSON.parse(localStorage.getItem(key) ?? '{}') as {
+      observations?: Array<{ collectionSource?: string }>;
+    };
+    return [...new Set(value.observations?.map(({ collectionSource }) => collectionSource) ?? [])];
+  }, REDNESS_CALIBRATION_STORAGE_KEY);
+  expect(importedSources).toEqual(['imported_unverified']);
+  await expect(page.getByText('Imported observation · Unverified provenance')).toBeVisible();
   expect(await page.evaluate((key) => localStorage.getItem(key), STORAGE_KEY)).toBe(ordinaryBefore);
   expect(await page.evaluate((key) => localStorage.getItem(key), DEMO_JOURNEY_STORAGE_KEY)).toBe(
     demoBefore,
