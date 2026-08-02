@@ -509,7 +509,11 @@ export function evaluateRedness(input: RednessEvaluationInput): RednessEvaluatio
         : 'No mask or registration evidence was available.',
   );
 
-  const anchorCorroborates = (input.patientAnchor?.visibleChange ?? 0) > 0;
+  const objectiveFavorable =
+    effectClassification === 'directional_improvement' ||
+    effectClassification === 'meaningful_candidate' ||
+    effectClassification === 'strong_improvement';
+  const anchorCorroborates = objectiveFavorable && (input.patientAnchor?.visibleChange ?? 0) > 0;
   if (!input.patientAnchor) {
     missingEvidence.push('A patient-observed visible-redness anchor was not collected.');
   } else if (input.patientAnchor.visibleChange < 0) {

@@ -5,14 +5,14 @@ export function DemoRuntimeBanner({ runtime }: { runtime: DemoRuntime }) {
   if (runtime.mode === 'ordinary') return null;
 
   return (
-    <aside className={styles.runtimeBanner} aria-label="Synthetic demo state">
-      <span>
-        <strong>SYNTHETIC DEMO DATA</strong>
-        <small>
-          {runtime.mode === 'preview' ? 'PREVIEW · RESETS ON RELOAD' : 'LOADED DEMO JOURNEY'}
-        </small>
-      </span>
-      <a href="/demo">LAB</a>
-    </aside>
+    <a
+      className={styles.runtimeBanner}
+      href="/demo"
+      aria-label="Synthetic demo state. Open Demo Lab controls."
+      data-demo-runtime-pill
+      data-demo-runtime-mode={runtime.mode}
+    >
+      LAB <span aria-hidden="true">·</span> SYNTHETIC
+    </a>
   );
 }

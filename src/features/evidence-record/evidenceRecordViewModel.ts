@@ -7,6 +7,7 @@ import type {
   ThresholdSource,
 } from '../../domain/evidence/redness';
 import type { EvidenceRecordData } from '../../domain/model';
+import type { TrialTruthEvidence } from '../../domain/trialTruth';
 import { oracleTrialIdentityForRecord } from '../../domain/oracleTrialIdentity';
 import {
   canonicalActionLabel,
@@ -451,6 +452,45 @@ const adherenceLabel = (value: RednessEvaluationSnapshot['adherence']['status'])
   }
 };
 
+const toleranceLabel = (evidence: TrialTruthEvidence | undefined): string => {
+  if (!evidence) return 'Not collected';
+  return sentenceCase(evidence.tolerance.severity);
+};
+
+const symptomLabel = (evidence: TrialTruthEvidence | undefined): string => {
+  if (!evidence) return 'Not collected';
+  if (evidence.tolerance.symptoms.length === 0) return 'None reported';
+  return evidence.tolerance.symptoms.map(humanizeCode).join(' · ');
+};
+
+const participantObservationLabel = (evidence: TrialTruthEvidence | undefined): string => {
+  if (!evidence) return 'Not collected';
+  switch (evidence.patientAnchor.visibleChange) {
+    case 1:
+    case 2:
+      return 'Less';
+    case 0:
+      return 'Same';
+    case -1:
+    case -2:
+      return 'More';
+  }
+};
+
+const anchorRelationshipLabel = (record: EvidenceRecordData): string => {
+  switch (record.anchorRelationship) {
+    case 'agreed':
+      return 'Agreed';
+    case 'neutral':
+      return 'Neutral';
+    case 'contradicted':
+      return 'Contradicted';
+    case 'not_collected':
+    case undefined:
+      return 'Not collected';
+  }
+};
+
 const thresholdSourceLabel = (value: ThresholdSource): string => {
   switch (value) {
     case 'provisional_fixture':
@@ -682,8 +722,38 @@ const fullRecordFor = (
           {
             id: 'adherence',
             label: 'Product use',
-            value: adherenceLabel(evaluation.adherence.status),
-            canonicalValue: evaluation.adherence.status,
+            value: adherenceLabel(record.trialTruth?.adherence.status ?? 'unknown'),
+            canonicalValue: record.trialTruth?.adherence.status ?? 'not_collected',
+          },
+          {
+            id: 'tolerance-severity',
+            label: 'Skin response',
+            value: toleranceLabel(record.trialTruth),
+            canonicalValue: record.trialTruth?.tolerance.severity ?? 'not_collected',
+          },
+          {
+            id: 'reported-symptoms',
+            label: 'Reported symptoms',
+            value: symptomLabel(record.trialTruth),
+          },
+          {
+            id: 'participant-observation',
+            label: 'Participant observation',
+            value: participantObservationLabel(record.trialTruth),
+          },
+          {
+            id: 'participant-report-timestamp',
+            label: 'Participant report timestamp',
+            value: record.trialTruth
+              ? savedTimestamp(record.trialTruth.recordedAt)
+              : 'Not collected',
+            canonicalValue: record.trialTruth?.recordedAt ?? 'not_collected',
+          },
+          {
+            id: 'anchor-relationship',
+            label: 'Anchor relationship',
+            value: anchorRelationshipLabel(record),
+            canonicalValue: record.anchorRelationship ?? 'not_collected',
           },
           {
             id: 'missing-evidence',

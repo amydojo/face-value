@@ -1,10 +1,10 @@
+import { STORAGE_KEY } from './localObservationStore';
 import {
-  loadStructuredDemoData,
-  STORAGE_KEY,
-  toPersistedDemoData,
-  type PersistedDemoData,
-} from './localObservationStore';
-import type { PhaseBFaceValueState } from '../../app/phaseBMachine';
+  loadTrialTruthStructuredData,
+  toPersistedTrialTruthData,
+  type PersistedTrialTruthData,
+} from './trialTruthObservationStore';
+import type { TrialTruthCompatibleState } from '../../app/trialTruthMachine';
 import {
   isDemoResultFixtureId,
   isDemoStartingPoint,
@@ -26,14 +26,14 @@ export interface DemoEnvelope {
   startingPoint: DemoStartingPoint;
   resultFixture: DemoResultFixtureId;
   savedAt: string;
-  state: PersistedDemoData;
+  state: PersistedTrialTruthData;
 }
 
 export interface DemoLaunch {
   mode: DemoLaunchMode;
   startingPoint: DemoStartingPoint;
   resultFixture: DemoResultFixtureId;
-  state: PhaseBFaceValueState;
+  state: TrialTruthCompatibleState;
 }
 
 const isObject = (value: unknown): value is Record<string, unknown> =>
@@ -71,7 +71,7 @@ class SingleStructuredStateStorage implements Storage {
   }
 }
 
-function recordsAreDemoOriginated(state: PhaseBFaceValueState): boolean {
+function recordsAreDemoOriginated(state: TrialTruthCompatibleState): boolean {
   const records = [...state.archive, ...(state.record ? [state.record] : [])];
   return records.every((record) => record.demoOriginated === true);
 }
@@ -88,7 +88,7 @@ function envelopeFor(launch: DemoLaunch, savedAt: string): DemoEnvelope {
     startingPoint: launch.startingPoint,
     resultFixture: launch.resultFixture,
     savedAt,
-    state: toPersistedDemoData(launch.state),
+    state: toPersistedTrialTruthData(launch.state),
   };
 }
 
@@ -109,7 +109,7 @@ function parseEnvelope(raw: string | null): DemoEnvelope | null {
       return null;
     }
 
-    const state = loadStructuredDemoData(new SingleStructuredStateStorage(value.state));
+    const state = loadTrialTruthStructuredData(new SingleStructuredStateStorage(value.state));
     if (!state) return null;
     const records = [...state.archive, ...(state.record ? [state.record] : [])];
     if (records.some((record) => record.demoOriginated !== true)) {

@@ -149,8 +149,10 @@ describe('Machine Continuity production projections', () => {
     );
 
     expect(state.stage).toBe('waiting_for_followup');
-    expect(state.longitudinalEvidence.baseline).not.toBeNull();
+    expect(state.longitudinalEvidence.baseline).toBeNull();
+    expect(state.longitudinalEvidence.baselineBurst?.acceptedFrames).toHaveLength(3);
     expect(state.longitudinalEvidence.followUp).toBeNull();
+    expect(state.longitudinalEvidence.followUpBurst).toBeNull();
     expect(state.demoTimelineAdvanced).toBe(false);
     expect(
       followUpIsEligible({

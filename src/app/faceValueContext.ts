@@ -1,14 +1,20 @@
 import { createContext, useContext, type Dispatch } from 'react';
 import { ordinaryDemoRuntime, type DemoRuntime } from '../domain/demoLab';
-import {
-  initialState,
-  type FaceValueEvent,
-  type PhaseBFaceValueState,
-} from './phaseBMachine';
+import { initialState, type FaceValueEvent, type PhaseBFaceValueState } from './phaseBMachine';
+import type { TrialTruthFaceValueEvent, TrialTruthFaceValueState } from './trialTruthMachine';
+
+type TrialTruthContextState = PhaseBFaceValueState &
+  Partial<
+    Pick<
+      TrialTruthFaceValueState,
+      'trialTruthDraft' | 'trialTruthEvidence' | 'trialTruthValidation'
+    >
+  >;
 
 export interface FaceValueContextValue {
-  state: PhaseBFaceValueState;
+  state: TrialTruthContextState;
   dispatch: Dispatch<FaceValueEvent>;
+  dispatchTrialTruth?: Dispatch<TrialTruthFaceValueEvent>;
   demoRuntime: DemoRuntime;
 }
 

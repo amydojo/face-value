@@ -304,3 +304,9 @@ Run `npm run verify:redness-architecture`, `npm run verify:privacy`, and `npm ru
 Each PR must update the authority index and affected contracts in the same change.
 
 See `state-model.md`, `production-journey-integration.md`, `camera-contract.md`, `redness-evidence-engine-v1.md`, `oracle-reveal-v1.md`, and `source-of-truth-manifest.md`.
+
+## Issue 64 · trial truth gate
+
+After a follow-up evidence burst is committed, the reducer requires one face-free trial truth commit before deterministic comparison creation. The commit binds canonical adherence, tolerance, irritation signals, and participant-observed redness to the current follow-up generation. React renders accessible inputs and validation only. The canonical redness evaluator remains the sole owner of effect, attribution, safety, confidence, action, audit rules, and verdict wording.
+
+Trial truth never changes `hd_redness.raw_score`, provisional boundaries, threshold configuration, or evaluator precedence. Legacy saved records without a committed trial truth snapshot remain readable and present these fields as **Not collected**.

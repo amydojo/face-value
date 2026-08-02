@@ -60,6 +60,12 @@ export const DEMO_STARTING_POINTS = [
     frequent: false,
   },
   {
+    id: 'trial_truth',
+    label: 'Trial truth',
+    description: 'Open the required evidence checkpoint after follow-up is secured.',
+    frequent: false,
+  },
+  {
     id: 'comparison_processing',
     label: 'Comparison processing',
     description: 'Hold the real comparison-processing state for review.',
@@ -128,6 +134,16 @@ export const DEMO_RESULT_FIXTURES = [
     id: 'safety_interruption',
     label: 'Safety interruption',
     canonicalKey: 'F',
+  },
+  {
+    id: 'contradictory_anchor',
+    label: 'Contradictory participant anchor',
+    canonicalKey: 'C',
+  },
+  {
+    id: 'legacy_trial_truth_not_collected',
+    label: 'Legacy · trial truth not collected',
+    canonicalKey: 'A',
   },
 ] as const;
 

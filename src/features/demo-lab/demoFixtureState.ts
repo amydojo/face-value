@@ -4,11 +4,12 @@ import {
   rednessComparisonFromEvaluation,
 } from '../../adapters/analysis/youcam/rednessEvidenceAdapter';
 import { HD_REDNESS_PROTOCOL } from '../../adapters/analysis/youcam/contracts';
+import { createOracleEvidenceRecord } from '../../app/phaseBMachine';
 import {
-  createOracleEvidenceRecord,
   initialState,
-  type PhaseBFaceValueState,
-} from '../../app/phaseBMachine';
+  normalizeTrialTruthState,
+  type TrialTruthFaceValueState,
+} from '../../app/trialTruthMachine';
 import {
   canonicalRednessFixtures,
   evaluateRedness,
@@ -17,9 +18,8 @@ import {
 import type {
   AnalysisResult,
   CaptureContext,
-  CaptureMetadata,
-  DurableSkinSignal,
   EvidenceRecordData,
+  RednessEvidenceBurst,
   RegisteredProduct,
 } from '../../domain/model';
 import { openCurrentSavedResultRoute } from './evidenceRecordDemoAdapter';
@@ -28,10 +28,8 @@ import {
   type DemoResultFixtureId,
   type DemoStartingPoint,
 } from '../../domain/demoLab';
-import {
-  FOLLOW_UP_INTERVAL_DAYS,
-  addCalendarDays,
-} from '../../domain/phaseB5';
+import { FOLLOW_UP_INTERVAL_DAYS, addCalendarDays } from '../../domain/phaseB5';
+import { anchorRelationshipFor, trialTruthEvidenceFromSnapshot } from '../../domain/trialTruth';
 
 const DEMO_PRODUCT = {
   accession: 'DEMO 01',
@@ -41,6 +39,8 @@ const DEMO_PRODUCT = {
   volume: '30 ml',
 } as const;
 
+const DEMO_CAPTURE_PROFILE = 'youcam-camera-kit-standard-720p' as const;
+
 const emptyContext: CaptureContext = {
   makeup: false,
   recentHeatOrExercise: false,
@@ -49,48 +49,64 @@ const emptyContext: CaptureContext = {
   note: 'Synthetic canonical fixture. No physical capture was used.',
 };
 
-function firstCapturedAt(
+function burstFromSnapshot(
   snapshot: RednessEvaluationSnapshot,
   period: 'baseline' | 'endpoint',
-): string {
+  role: 'baseline' | 'followup',
+): RednessEvidenceBurst {
   const session = snapshot[period].sessions[0];
   if (!session) {
     throw new Error(`Canonical fixture has no ${period} session.`);
   }
-  return session.capturedAt;
-}
-
-function requiredMedian(value: number | null, period: 'baseline' | 'follow-up'): number {
-  if (value === null) {
-    throw new Error(`Canonical fixture has no ${period} raw-score median.`);
+  const scores = session.rawScores.slice(0, 3);
+  if (scores.length !== 3 || scores.some((score) => !Number.isFinite(score))) {
+    throw new Error(`Canonical fixture ${period} session requires three finite raw scores.`);
   }
-  return value;
-}
 
-function signal(rawScore: number, capturedAt: string): DurableSkinSignal {
-  return {
-    provider: 'youcam',
-    apiVersion: '2.1',
-    mode: 'hd',
-    concern: 'hd_redness',
-    region: null,
-    scoreType: 'raw_score',
-    captureProtocolVersion: 'face-value-youcam-1',
-    rawScore,
-    capturedAt,
-    captureQuality: 'accepted',
-  };
-}
+  const acceptedFrames = scores.map((rawScore, index) => {
+    const frameId = `demo-${snapshot.trialId}-${role}-frame-${index + 1}`;
+    return {
+      frameId,
+      capture: {
+        id: frameId,
+        kind: role,
+        source: 'camera' as const,
+        mimeType: 'image/jpeg' as const,
+        createdAt: session.capturedAt,
+        orientationRule: 'analysis-unmirrored' as const,
+        cameraProfileId: DEMO_CAPTURE_PROFILE,
+      },
+      quality: {
+        currentFrame: 'accepted' as const,
+        exposure: 'accepted' as const,
+        movement: 'accepted' as const,
+      },
+      signal: {
+        provider: 'youcam' as const,
+        apiVersion: '2.1' as const,
+        mode: 'hd' as const,
+        concern: 'hd_redness' as const,
+        region: null,
+        scoreType: 'raw_score' as const,
+        captureProtocolVersion: 'face-value-youcam-1' as const,
+        rawScore,
+        capturedAt: session.capturedAt,
+        captureQuality: 'accepted' as const,
+      },
+      providerAttemptCount: 1 as const,
+    };
+  });
 
-function capture(kind: 'baseline' | 'followup', createdAt: string): CaptureMetadata {
   return {
-    id: `demo-synthetic-${kind}`,
-    kind,
-    source: 'file',
-    mimeType: 'image/unknown',
-    createdAt,
-    orientationRule: 'analysis-unmirrored',
-    cameraProfileId: null,
+    burstId: `demo-${snapshot.trialId}-${role}-burst`,
+    role,
+    sessionId: `demo-${session.sessionId}`,
+    captureProfileId: DEMO_CAPTURE_PROFILE,
+    startedAt: session.capturedAt,
+    completedAt: session.capturedAt,
+    attemptedFrameCount: 3,
+    acceptedFrames,
+    rejectedFrames: [],
   };
 }
 
@@ -111,7 +127,7 @@ function registeredProduct(
 }
 
 function demoRecord(
-  state: PhaseBFaceValueState,
+  state: TrialTruthFaceValueState,
   snapshot: RednessEvaluationSnapshot,
 ): EvidenceRecordData {
   const created = createOracleEvidenceRecord({
@@ -121,24 +137,41 @@ function demoRecord(
   if (!created) {
     throw new Error('Canonical demo state could not create a saved result.');
   }
+  const evidence = state.trialTruthEvidence;
   return {
     ...created,
     demoOriginated: true,
     includesFaceImage: false,
+    trialTruth: evidence ?? undefined,
+    anchorRelationship: evidence
+      ? anchorRelationshipFor(snapshot.effectClassification, evidence.patientAnchor)
+      : undefined,
   };
 }
 
 function evaluatedState(resultFixture: DemoResultFixtureId): {
-  state: PhaseBFaceValueState;
+  state: TrialTruthFaceValueState;
   snapshot: RednessEvaluationSnapshot;
   record: EvidenceRecordData;
 } {
   const canonicalKey = canonicalKeyForDemoFixture(resultFixture);
-  const snapshot = evaluateRedness(structuredClone(canonicalRednessFixtures[canonicalKey]));
-  const baselineAt = firstCapturedAt(snapshot, 'baseline');
-  const followUpAt = firstCapturedAt(snapshot, 'endpoint');
-  const baseline = signal(requiredMedian(snapshot.baselineRawMedian, 'baseline'), baselineAt);
-  const followUp = signal(requiredMedian(snapshot.endpointRawMedian, 'follow-up'), followUpAt);
+  const fixtureInput = structuredClone(canonicalRednessFixtures[canonicalKey]);
+  if (resultFixture === 'contradictory_anchor') {
+    fixtureInput.patientAnchor = {
+      visibleChange: -1,
+      recordedAt: fixtureInput.evaluatedAt,
+    };
+  }
+  if (resultFixture === 'legacy_trial_truth_not_collected') {
+    fixtureInput.patientAnchor = null;
+    fixtureInput.tolerance = null;
+    fixtureInput.adherence = { status: 'unknown' };
+  }
+  const snapshot = evaluateRedness(fixtureInput);
+  const baselineBurst = burstFromSnapshot(snapshot, 'baseline', 'baseline');
+  const followUpBurst = burstFromSnapshot(snapshot, 'endpoint', 'followup');
+  const baselineAt = baselineBurst.completedAt;
+  const followUpAt = followUpBurst.completedAt;
   const product = registeredProduct(snapshot, baselineAt);
   const analysis: AnalysisResult = {
     ...analysisResultFromRednessEvaluation(snapshot),
@@ -146,7 +179,12 @@ function evaluatedState(resultFixture: DemoResultFixtureId): {
     simulated: true,
   };
   const compatibilityComparison = rednessComparisonFromEvaluation(snapshot);
-  const state: PhaseBFaceValueState = {
+  const generationId = `${product.id}:${followUpAt}`;
+  const trialTruthEvidence =
+    resultFixture === 'legacy_trial_truth_not_collected'
+      ? null
+      : trialTruthEvidenceFromSnapshot(snapshot, generationId);
+  const state: TrialTruthFaceValueState = {
     ...initialState,
     stage: 'analysis',
     cabinet: 'open',
@@ -167,8 +205,8 @@ function evaluatedState(resultFixture: DemoResultFixtureId): {
         : analysis.comparison === 'not_available'
           ? null
           : analysis.comparison,
-    baselineCapture: capture('baseline', baselineAt),
-    followupCapture: capture('followup', followUpAt),
+    baselineCapture: { ...baselineBurst.acceptedFrames[0].capture },
+    followupCapture: { ...followUpBurst.acceptedFrames[0].capture },
     analysis,
     record: null,
     archive: [],
@@ -176,8 +214,10 @@ function evaluatedState(resultFixture: DemoResultFixtureId): {
     returnStage: null,
     longitudinalEvidence: {
       protocol: { ...HD_REDNESS_PROTOCOL },
-      baseline,
-      followUp,
+      baseline: null,
+      followUp: null,
+      baselineBurst,
+      followUpBurst,
       comparison: compatibilityComparison,
       evaluation: snapshot,
     },
@@ -192,6 +232,14 @@ function evaluatedState(resultFixture: DemoResultFixtureId): {
     oracleEvidenceDispensed: false,
     oracleCollectionStarted: false,
     oracleCommittedAt: null,
+    trialTruthDraft: {
+      adherence: null,
+      tolerance: null,
+      symptoms: [],
+      visibleChange: null,
+    },
+    trialTruthEvidence,
+    trialTruthValidation: null,
   };
 
   return {
@@ -201,7 +249,7 @@ function evaluatedState(resultFixture: DemoResultFixtureId): {
   };
 }
 
-function registeredState(state: PhaseBFaceValueState): PhaseBFaceValueState {
+function registeredState(state: TrialTruthFaceValueState): TrialTruthFaceValueState {
   return {
     ...state,
     stage: 'job',
@@ -225,6 +273,8 @@ function registeredState(state: PhaseBFaceValueState): PhaseBFaceValueState {
       protocol: null,
       baseline: null,
       followUp: null,
+      baselineBurst: null,
+      followUpBurst: null,
       comparison: null,
       evaluation: null,
     },
@@ -243,9 +293,9 @@ function registeredState(state: PhaseBFaceValueState): PhaseBFaceValueState {
 }
 
 function baselineOnlyState(
-  state: PhaseBFaceValueState,
+  state: TrialTruthFaceValueState,
   stage: 'baseline_locked' | 'waiting_for_followup' | 'followup_ready',
-): PhaseBFaceValueState {
+): TrialTruthFaceValueState {
   const followUpEligibleAt = state.baselineLockedAt
     ? addCalendarDays(state.baselineLockedAt, FOLLOW_UP_INTERVAL_DAYS)
     : state.followUpEligibleAt;
@@ -271,6 +321,7 @@ function baselineOnlyState(
     longitudinalEvidence: {
       ...state.longitudinalEvidence,
       followUp: null,
+      followUpBurst: null,
       comparison: null,
       evaluation: null,
     },
@@ -288,14 +339,14 @@ function baselineOnlyState(
         ? 'Synthetic follow-up state ready.'
         : stage === 'waiting_for_followup'
           ? 'Synthetic active trial is waiting for follow-up eligibility.'
-        : 'Synthetic baseline locked.',
+          : 'Synthetic baseline locked.',
   };
 }
 
 function completedState(
-  state: PhaseBFaceValueState,
+  state: TrialTruthFaceValueState,
   record: EvidenceRecordData,
-): PhaseBFaceValueState {
+): TrialTruthFaceValueState {
   return {
     ...state,
     stage: 'analysis',
@@ -312,7 +363,7 @@ function completedState(
   };
 }
 
-function homeWithSavedResult(record: EvidenceRecordData): PhaseBFaceValueState {
+function homeWithSavedResult(record: EvidenceRecordData): TrialTruthFaceValueState {
   return {
     ...initialState,
     stage: 'cabinet',
@@ -330,7 +381,7 @@ function homeWithSavedResult(record: EvidenceRecordData): PhaseBFaceValueState {
 export function buildDemoFixtureState(
   startingPoint: DemoStartingPoint,
   resultFixture: DemoResultFixtureId,
-): PhaseBFaceValueState {
+): TrialTruthFaceValueState {
   const evaluated = evaluatedState(resultFixture);
   const registered = registeredState(evaluated.state);
 
@@ -356,6 +407,24 @@ export function buildDemoFixtureState(
       return baselineOnlyState(evaluated.state, 'waiting_for_followup');
     case 'followup_ready':
       return baselineOnlyState(evaluated.state, 'followup_ready');
+    case 'trial_truth':
+      return {
+        ...evaluated.state,
+        stage: 'followup_context',
+        analysis: null,
+        comparison: 'not_available',
+        confidence: 'insufficient',
+        processing: 'idle',
+        longitudinalEvidence: {
+          ...evaluated.state.longitudinalEvidence,
+          comparison: null,
+          evaluation: null,
+        },
+        followUpContext: null,
+        trialTruthEvidence: null,
+        trialTruthValidation: null,
+        announcement: 'Synthetic follow-up secured. Trial truth is required.',
+      };
     case 'comparison_processing':
       return {
         ...evaluated.state,
@@ -393,6 +462,8 @@ export function buildDemoFixtureState(
     case 'saved_result':
     case 'evidence_record_reasoning_expanded':
     case 'evidence_record_full_technical_expanded':
-      return openCurrentSavedResultRoute(homeWithSavedResult(evaluated.record), evaluated.record);
+      return normalizeTrialTruthState(
+        openCurrentSavedResultRoute(homeWithSavedResult(evaluated.record), evaluated.record),
+      );
   }
 }

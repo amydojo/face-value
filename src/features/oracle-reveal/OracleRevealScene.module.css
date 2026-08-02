@@ -435,6 +435,29 @@
   font-family: var(--fv-font-mono);
 }
 
+.trialTruthFirmware {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  overflow: hidden;
+  color: #ebe4d7;
+  background:
+    linear-gradient(
+      90deg,
+      rgba(5, 5, 4, 0.95) 0%,
+      rgba(6, 6, 5, 0.88) 56%,
+      rgba(7, 7, 6, 0.72) 100%
+    ),
+    radial-gradient(circle at 50% 46%, rgba(133, 91, 45, 0.08), transparent 52%);
+  font-family: var(--fv-font-mono);
+}
+
+.machine[data-cassette-variant='trial-truth'] .displayGlass {
+  background:
+    radial-gradient(ellipse at 76% 42%, rgba(148, 101, 54, 0.14), transparent 34%),
+    linear-gradient(180deg, #050504, #15100c);
+}
+
 .machine[data-trial-machine-state='registration-preview'] .displayGlass {
   background:
     radial-gradient(ellipse at 72% 51%, rgba(113, 80, 45, 0.1), transparent 31%),
@@ -759,6 +782,64 @@
   cursor: pointer;
 }
 
+.trialTruthDeckAction {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  color: #c6beb0;
+  appearance: none;
+  background: transparent;
+  cursor: pointer;
+}
+
+.trialTruthDeckAction:disabled {
+  cursor: default;
+}
+
+.trialTruthActuator {
+  position: absolute;
+  right: 26.5%;
+  bottom: 6px;
+  width: 42%;
+  min-width: 128px;
+  height: 44px;
+  min-height: 44px;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 10px;
+  padding: 0 9px;
+  border: 1px solid;
+  border-color: rgba(187, 190, 184, 0.11) rgba(74, 72, 67, 0.08) rgba(0, 0, 0, 0.88);
+  border-radius: 5px 5px 9px 9px;
+  background: linear-gradient(180deg, #1a1917, #0b0c0b 48%, #070807), var(--fv-recess-black);
+  box-shadow:
+    inset 0 2px 3px rgba(225, 226, 219, 0.045),
+    inset 0 -4px 5px rgba(0, 0, 0, 0.44),
+    0 3px 4px rgba(0, 0, 0, 0.88);
+  pointer-events: auto;
+}
+
+.trialTruthDeckAction .amberControl {
+  pointer-events: auto;
+}
+
+.trialTruthDeckAction:disabled .trialTruthActuator {
+  opacity: 0.62;
+}
+
+.trialTruthDeckAction:focus-visible {
+  outline: none;
+}
+
+.trialTruthDeckAction:focus-visible .trialTruthActuator {
+  outline: 2px solid #e6a35e;
+  outline-offset: 2px;
+}
+
 .amberControl[data-amber-state='ready'] span {
   background:
     radial-gradient(circle at 42% 34%, rgba(255, 235, 203, 0.34), transparent 15%),
@@ -943,7 +1024,8 @@
     0 3px 4px rgba(0, 0, 0, 0.88);
 }
 
-.pullHandle i {
+.pullHandle i,
+.trialTruthActuator i {
   width: 100%;
   height: 3px;
   border-radius: 2px;
@@ -951,12 +1033,14 @@
   box-shadow: 0 1px rgba(0, 0, 0, 0.62);
 }
 
-.pullHandle b {
+.pullHandle b,
+.trialTruthActuator b {
   font: 650 7px var(--fv-font-mono);
   letter-spacing: 0.08em;
 }
 
-.pullHandle b:empty {
+.pullHandle b:empty,
+.trialTruthActuator b:empty {
   display: none;
 }
 
@@ -1709,6 +1793,10 @@
 }
 
 @media (max-width: 360px) {
+  .machine[data-cassette-variant='trial-truth'] .displayBezel {
+    padding: 3px;
+  }
+
   .firmware {
     padding-inline: 11px;
   }

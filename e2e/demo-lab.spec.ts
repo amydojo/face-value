@@ -27,7 +27,11 @@ async function openPreview(
   await page.getByRole('combobox', { name: /Result fixture/ }).selectOption(resultFixture);
   await page.getByRole('button', { name: /OPEN DEMO STATE/ }).click();
   await expect(page).toHaveURL(/\/$/);
-  await expect(page.getByLabel('Synthetic demo state')).toContainText('SYNTHETIC DEMO DATA');
+  await expect(page.getByLabel('Synthetic demo state')).toContainText('LAB · SYNTHETIC');
+  await expect(page.getByLabel('Synthetic demo state')).toHaveAttribute(
+    'data-demo-runtime-mode',
+    'preview',
+  );
 }
 
 async function openJourney(
@@ -47,8 +51,9 @@ async function openJourney(
   ).toBeVisible();
   await page.getByRole('button', { name: 'CONFIRM AND LOAD' }).click();
   await expect(page).toHaveURL(/\?fv-demo-journey=1$/);
-  await expect(page.getByLabel('Synthetic demo state')).toContainText(
-    'LOADED DEMO JOURNEY',
+  await expect(page.getByLabel('Synthetic demo state')).toHaveAttribute(
+    'data-demo-runtime-mode',
+    'journey',
   );
 }
 
@@ -115,7 +120,10 @@ test('preview state is one-shot and leaves ordinary trial persistence unchanged'
   await page.getByRole('combobox', { name: /Starting point/ }).selectOption('home_saved_result');
   await page.getByRole('button', { name: /OPEN DEMO STATE/ }).click();
 
-  await expect(page.getByLabel('Synthetic demo state')).toContainText('PREVIEW · RESETS ON RELOAD');
+  await expect(page.getByLabel('Synthetic demo state')).toHaveAttribute(
+    'data-demo-runtime-mode',
+    'preview',
+  );
   await expect(page.locator('[data-latest-verdict-record]')).toBeVisible();
   expect(await page.evaluate((key) => localStorage.getItem(key), STORAGE_KEY)).toBe(ordinaryBefore);
   await expect
@@ -145,7 +153,10 @@ test('persistent journey survives reload and keeps Home, Previous Trials, and sa
   await page.getByRole('button', { name: 'CONFIRM AND LOAD' }).click();
 
   await expect(page).toHaveURL(/\?fv-demo-journey=1$/);
-  await expect(page.getByLabel('Synthetic demo state')).toContainText('LOADED DEMO JOURNEY');
+  await expect(page.getByLabel('Synthetic demo state')).toHaveAttribute(
+    'data-demo-runtime-mode',
+    'journey',
+  );
   const latestRecord = page.locator('[data-latest-verdict-record]');
   await expect(latestRecord).toBeVisible();
   const recordId = await latestRecord.getAttribute('data-record-id');
@@ -162,7 +173,10 @@ test('persistent journey survives reload and keeps Home, Previous Trials, and sa
   await expect(latestRecord).toContainText(/retry(?: it)? alone/i);
 
   await page.reload();
-  await expect(page.getByLabel('Synthetic demo state')).toContainText('LOADED DEMO JOURNEY');
+  await expect(page.getByLabel('Synthetic demo state')).toHaveAttribute(
+    'data-demo-runtime-mode',
+    'journey',
+  );
   await expect(page.locator(`[data-record-id="${recordId}"]`)).toBeVisible();
 
   await page
@@ -177,9 +191,7 @@ test('persistent journey survives reload and keeps Home, Previous Trials, and sa
   expect((await archivedRecord.innerText()).toLowerCase()).toContain(finding.toLowerCase());
   await archivedRecord.click();
 
-  await expect(
-    page.getByRole('heading', { name: 'Evidence record', exact: true }),
-  ).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Evidence record', exact: true })).toBeVisible();
   await expect(page.locator('[data-fv-part="screen-header"]')).toContainText(identity);
   const evidenceRecord = page.locator(`[data-evidence-record][data-record-id="${recordId}"]`);
   await expect(evidenceRecord).toContainText(product);
@@ -298,9 +310,7 @@ test('Evidence Record summary, reasoning, and full technical states use producti
     },
   ] as const) {
     await openPreview(page, state.id);
-    await expect(
-      page.getByRole('heading', { name: 'Evidence record', exact: true }),
-    ).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Evidence record', exact: true })).toBeVisible();
     await expect(page.locator('[data-evidence-record]')).toHaveAttribute(
       'data-snapshot-kind',
       'canonical',
@@ -422,7 +432,7 @@ test('clear demo data removes only the isolated demo envelope', async ({ page })
   await page.getByRole('button', { name: 'CONFIRM AND LOAD' }).click();
   await expect(page.getByLabel('Synthetic demo state')).toBeVisible();
 
-  await page.getByRole('link', { name: 'LAB' }).click();
+  await page.getByRole('link', { name: /Synthetic demo state/i }).click();
   await expect(page.getByRole('heading', { name: 'Demo Lab' })).toBeVisible();
   const ordinaryBeforeClear = await page.evaluate((key) => localStorage.getItem(key), STORAGE_KEY);
   await page.getByRole('button', { name: 'CLEAR DEMO DATA' }).click();
