@@ -215,10 +215,10 @@ async function expectFirmwareFits(page: Page): Promise<void> {
     const identity = rect('[data-trial-truth-product-identity]')!;
     const question = rect('[data-motion-direction] h1')!;
     const answer = rect(
-      '[data-motion-direction] [data-segment-count], [data-motion-direction] [data-trial-truth-symptom-scroller]',
+      '[data-motion-direction] [data-segment-count], [data-motion-direction] [data-trial-truth-symptom-scroller], [data-motion-direction] [data-trial-truth-context-scroller], [data-motion-direction] [data-trial-truth-capture-choices]',
     );
     const footer = rect(
-      '[data-motion-direction] [aria-label="Add reported symptoms"], [data-motion-direction] [aria-label="Edit reported symptoms"], [data-motion-direction] p[class*="helper"]',
+      '[data-motion-direction] [aria-label="Add reported symptoms"], [data-motion-direction] [aria-label="Edit reported symptoms"], [data-motion-direction] [aria-label="Edit capture context"], [data-motion-direction] p[class*="helper"]',
     );
     return { panel, identity, question, answer, footer };
   });
@@ -321,6 +321,19 @@ async function submitTrialTruth(page: Page, scenario: TrialScenario): Promise<vo
   }
   await page.getByRole('button', { name: 'Continue to visible redness' }).click();
   await page.getByRole('radio', { name: scenario.visible.toUpperCase() }).click();
+  await page.getByRole('button', { name: 'Continue to capture check' }).click();
+
+  await expect(page.getByText('CAPTURE CHECK · OPTIONAL')).toBeVisible();
+  await expect(
+    page.getByRole('heading', { name: 'Anything different around today’s scan?' }),
+  ).toBeVisible();
+  await expect(page.locator('[data-fv-screen="followup-context"]')).toHaveCount(0);
+  const beforeContext = await readPersistedState(page);
+  expect(beforeContext.trialTruthEvidence).toBeNull();
+  expect(beforeContext.followUpContext).toBeNull();
+  expect(beforeContext.longitudinalEvidence.comparison).toBeNull();
+
+  await page.getByRole('button', { name: 'NOTHING DIFFERENT' }).click();
 
   const submit = page.getByRole('button', { name: 'See result' });
   await submit.evaluate((button) => {
@@ -328,17 +341,20 @@ async function submitTrialTruth(page: Page, scenario: TrialScenario): Promise<vo
     (button as HTMLButtonElement).click();
   });
 
-  await expect(page.locator('[data-fv-screen="followup-context"]')).toBeVisible();
-  const committed = await readPersistedState(page);
-  expect(committed.trialTruthEvidence).not.toBeNull();
-  expect(committed.longitudinalEvidence.comparison).toBeNull();
-  expect(committed.record).toBeNull();
-  expect(committed.archive).toHaveLength(0);
-
-  await page.getByRole('button', { name: 'NOTHING DIFFERENT' }).click();
   await expect(page.locator('[data-fv-screen="oracle-reveal"]')).toBeVisible();
   await expect(page.locator('[data-oracle-scene-state="sealed"]')).toBeVisible();
   await expect(page.locator('[data-oracle-specimen]')).toHaveCount(1);
+  await expect(page.locator('[data-fv-screen="followup-context"]')).toHaveCount(0);
+
+  const committed = await readPersistedState(page);
+  expect(committed.trialTruthEvidence).not.toBeNull();
+  expect(committed.followUpContext).toEqual({
+    makeup: false,
+    recentHeatOrExercise: false,
+    recentCleansingOrSkincare: false,
+    routineOrTreatmentChange: false,
+    note: null,
+  });
 }
 
 async function expectSealedOraclePrivacy(page: Page): Promise<void> {
@@ -526,6 +542,78 @@ for (const scenario of scenarios) {
   });
 }
 
+test('capture check preserves added context and finalizes exactly once', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 664 });
+  await launchFixture(page, 'trial_truth', 'clear_favorable_change');
+
+  await page.getByRole('radio', { name: 'YES' }).click();
+  await page.getByRole('button', { name: 'Continue to skin response' }).click();
+  await page.getByRole('radio', { name: 'NONE' }).click();
+  await page.getByRole('button', { name: 'Continue to visible redness' }).click();
+  await page.getByRole('radio', { name: 'LESS' }).click();
+  await page.getByRole('button', { name: 'Continue to capture check' }).click();
+
+  await expect(page.locator('[data-fv-screen="followup-context"]')).toHaveCount(0);
+  await page.getByRole('button', { name: 'ADD CONTEXT' }).click();
+  const contextViewport = await page.evaluate(() => ({
+    scrollY,
+    documentHeight: document.documentElement.scrollHeight,
+    viewportHeight: document.documentElement.clientHeight,
+    visualOffsetTop: window.visualViewport?.offsetTop ?? 0,
+    visualScale: window.visualViewport?.scale ?? 1,
+  }));
+  expect(contextViewport.documentHeight).toBeLessThanOrEqual(contextViewport.viewportHeight);
+  expect(contextViewport.scrollY).toBe(0);
+  expect(contextViewport.visualOffsetTop).toBe(0);
+  expect(contextViewport.visualScale).toBe(1);
+  await page.getByRole('checkbox', { name: 'Makeup' }).click();
+  await page.getByRole('checkbox', { name: 'Recent heat or exercise' }).click();
+  await page.getByRole('checkbox', { name: 'Routine or treatment change' }).click();
+  await page.getByRole('textbox', { name: 'Optional note' }).fill('Warm commute');
+
+  await page.getByRole('button', { name: 'Back to capture check' }).click();
+  await page.getByRole('button', { name: 'ADD CONTEXT' }).click();
+  await expect(page.getByRole('checkbox', { name: 'Makeup' })).toBeChecked();
+  await expect(page.getByRole('checkbox', { name: 'Recent heat or exercise' })).toBeChecked();
+  await expect(page.getByRole('checkbox', { name: 'Routine or treatment change' })).toBeChecked();
+  await expect(page.getByRole('textbox', { name: 'Optional note' })).toHaveValue('Warm commute');
+  await page.getByRole('button', { name: 'Save capture context' }).click();
+
+  await expect(page.getByRole('button', { name: 'Edit capture context' })).toContainText(
+    'Makeup · Recent heat or exercise · Routine or treatment change · Note added',
+  );
+  const staged = await readPersistedState(page);
+  expect(staged.trialTruthEvidence).toBeNull();
+  expect(staged.followUpContext).toBeNull();
+  expect(staged.longitudinalEvidence.comparison).toBeNull();
+
+  const submit = page.getByRole('button', { name: 'See result' });
+  await submit.evaluate((button) => {
+    (button as HTMLButtonElement).click();
+    (button as HTMLButtonElement).click();
+  });
+  await expect(page.locator('[data-oracle-scene-state="sealed"]')).toBeVisible();
+
+  const compared = await readPersistedState(page);
+  expect(compared.followUpContext).toEqual({
+    makeup: true,
+    recentHeatOrExercise: true,
+    recentCleansingOrSkincare: false,
+    routineOrTreatmentChange: true,
+    note: 'Warm commute',
+  });
+  expect(compared.trialTruthEvidence).not.toBeNull();
+  expect(compared.longitudinalEvidence.comparison).not.toBeNull();
+  expect(compared.archive).toHaveLength(0);
+
+  await advanceOracleToCollected(page);
+  const collected = await readPersistedState(page);
+  expect(collected.record).not.toBeNull();
+  expect(collected.archive).toHaveLength(1);
+  expect(collected.archive[0]?.id).toBe(collected.record?.id);
+  await expectNoHorizontalOverflow(page);
+});
+
 test('legacy saved result remains readable without fabricated trial truth', async ({ page }) => {
   const guards = await installRuntimeGuards(page);
   await launchFixture(page, 'saved_result', 'legacy_trial_truth_not_collected');
@@ -661,14 +749,61 @@ test('trial truth keeps one stationary machine across steps, symptoms, widths, a
       }),
     ).toBeFocused();
     expect(await geometry()).toEqual(initialGeometry);
-    await expect(page.getByRole('button', { name: 'See result' })).toBeDisabled();
+    await expect(page.getByRole('button', { name: 'Continue to capture check' })).toBeDisabled();
     await expect(page.locator('[data-trial-truth-visible-control-label]')).toHaveText('');
     await page.getByRole('radio', { name: 'LESS' }).click();
-    await expect(page.locator('[data-trial-truth-visible-control-label]')).toHaveText('SEE RESULT');
+    await expect(page.locator('[data-trial-truth-visible-control-label]')).toHaveText('CONTINUE');
     await expect(page.locator('[data-trial-truth-confirmation]')).toHaveAttribute(
       'data-amber-state',
       'ready',
     );
+    await expectFirmwareFits(page);
+    await page.getByRole('button', { name: 'Continue to capture check' }).click();
+    await expect(
+      page.getByRole('heading', { name: 'Anything different around today’s scan?' }),
+    ).toBeFocused();
+    expect(await geometry()).toEqual(initialGeometry);
+    await expect(page.locator('[data-fv-screen="followup-context"]')).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'See result' })).toBeDisabled();
+    await expect(page.locator('[data-trial-truth-visible-control-label]')).toHaveText('');
+
+    await page.getByRole('button', { name: 'ADD CONTEXT' }).click();
+    await expect(page.getByRole('heading', { name: 'What was different?' })).toBeFocused();
+    expect(await geometry()).toEqual(initialGeometry);
+    const contextViewport = await page.evaluate(() => ({
+      scrollY,
+      documentHeight: document.documentElement.scrollHeight,
+      viewportHeight: document.documentElement.clientHeight,
+      visualOffsetTop: window.visualViewport?.offsetTop ?? 0,
+      visualScale: window.visualViewport?.scale ?? 1,
+    }));
+    expect(contextViewport.documentHeight).toBeLessThanOrEqual(contextViewport.viewportHeight);
+    expect(contextViewport.scrollY).toBe(0);
+    expect(contextViewport.visualOffsetTop).toBe(0);
+    expect(contextViewport.visualScale).toBe(1);
+    await expect(page.locator('[data-trial-truth-visible-control-label]')).toHaveText(
+      'SAVE CONTEXT',
+    );
+    await page.getByRole('checkbox', { name: 'Makeup' }).click();
+    await page.getByRole('textbox', { name: 'Optional note' }).fill('Warm room');
+    await expectFirmwareFits(page);
+    await page.getByRole('button', { name: 'Save capture context' }).click();
+    await expect(page.getByRole('button', { name: 'Edit capture context' })).toContainText(
+      'Makeup · Note added',
+    );
+    await expect(page.locator('[data-trial-truth-visible-control-label]')).toHaveText('SEE RESULT');
+    await page.getByRole('button', { name: 'Back' }).click();
+    await expect(
+      page.getByRole('heading', {
+        name: /Compared with the start of this trial, your visible redness looks/i,
+      }),
+    ).toBeFocused();
+    await page.getByRole('button', { name: 'Continue to capture check' }).click();
+    await page.getByRole('button', { name: 'Edit capture context' }).click();
+    await expect(page.getByRole('checkbox', { name: 'Makeup' })).toBeChecked();
+    await expect(page.getByRole('textbox', { name: 'Optional note' })).toHaveValue('Warm room');
+    await page.getByRole('button', { name: 'Back to capture check' }).click();
+    await expect(page.locator('[data-trial-truth-visible-control-label]')).toHaveText('SEE RESULT');
     await expectFirmwareFits(page);
     await expectNoHorizontalOverflow(page);
 

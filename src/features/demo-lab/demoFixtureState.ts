@@ -420,6 +420,7 @@ export function buildDemoFixtureState(
           comparison: null,
           evaluation: null,
         },
+        followUpContext: null,
         trialTruthEvidence: null,
         trialTruthValidation: null,
         announcement: 'Synthetic follow-up secured. Trial truth is required.',

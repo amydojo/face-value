@@ -458,10 +458,10 @@ export type OracleTrialStateMachineProps =
 
 export type OracleTrialTruthMachineProps = {
   product: RegisteredProduct;
-  step: 1 | 2 | 3;
-  view: 'question' | 'symptoms';
+  step: 1 | 2 | 3 | 4;
+  view: 'question' | 'symptoms' | 'capture-context';
   firmware: ReactNode;
-  controlLabel: 'CONTINUE' | 'SAVE SIGNS' | 'SEE RESULT';
+  controlLabel: 'CONTINUE' | 'SAVE SIGNS' | 'SAVE CONTEXT' | 'SEE RESULT';
   controlAccessibleLabel: string;
   controlEnabled: boolean;
   onControl: () => void;

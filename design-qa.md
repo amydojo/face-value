@@ -141,3 +141,52 @@ synthetic frames and provider-shaped responses; it is not physical-iPhone or
 genuine-provider proof.
 
 Hackathon release still requires a separately recorded exact-head physical-iPhone golden-path pass. The repository must not represent that release gate as complete until the checklist in `docs/verification/face-value-specimen-acquisition/README.md` is executed and documented.
+
+---
+
+# Trial Truth capture-check design QA
+
+## Comparison target
+
+- **Source visual truth:** `/tmp/codex-remote-attachments/019fbf79-acf9-7fd3-b17f-a2fb7f21d127/85AFFC86-9952-4048-8B2E-30D619E603BB/5-Photo-5.jpg`, the attached physical-iPhone Trial Truth machine reference, plus the authored `CAPTURE CHECK · OPTIONAL` requirements in PR #69.
+- **Implementation evidence:** `/tmp/trial-truth-capture-check-qa/390-capture-check.png`, `/tmp/trial-truth-capture-check-qa/390-context-editor.png`, `/tmp/trial-truth-capture-check-qa/390-context-summary.png`, and the corresponding `320-*.png` captures.
+- **Viewport and density:** source is `588 × 1280` JPEG with physical Safari chrome. Implementation captures are `1170 × 1992` at a `390 × 664` CSS-pixel Mobile WebKit viewport and `960 × 1560` at a `320 × 520` viewport, both at device scale factor 3. The focused editor captures were normalized to `390 × 664` and `320 × 520` before comparison.
+- **States compared:** physical machine shell at Trial Truth Step 3; implemented capture-check choice, in-machine context editor, and saved context summary.
+
+## Full-view comparison evidence
+
+The source and implementation were opened in the same comparison input. The implementation preserves the warm laboratory page, one stationary Face Value machine, compact registered-product identity, firmware glass, lower deck, amber control, and continuous grounding shadow. The fourth checkpoint remains within the same machine and does not introduce the former standalone form page, a second card hierarchy, or document scrolling.
+
+At both widths, the active question, two choices, compact summary, machine deck, Back action, and continuous left/right shadow bleed remain within the viewport. The `320px` authored wrapping remains readable without horizontal overflow.
+
+## Focused comparison evidence
+
+Focused, density-normalized editor captures were inspected because the firmware labels and 44px controls were too small to judge reliably in the full-view images. The four canonical context fields remain legible in a two-column internal scroller; the optional bounded note remains reachable in that scroller. The physical deck and amber control do not move between choice, editor, and summary states.
+
+## Required fidelity surfaces
+
+- **Fonts and typography:** existing Face Value sans/mono roles, weights, tracking, hierarchy, product-identity truncation, and authored question wrapping are preserved. No cramped headline stack remains at 320px or 390px.
+- **Spacing and layout rhythm:** one firmware question occupies the display; answer controls and helper copy have balanced separation; the context editor scrolls internally while the document and machine stay fixed.
+- **Colors and tokens:** the implementation reuses the existing glass, graphite, muted text, dark-amber selection, and Oracle-ready amber hardware treatment. Disabled hardware remains dormant.
+- **Image quality and assets:** the active firmware flow intentionally contains no bottle render, matching the requested compact product identity. No replacement imagery or placeholder asset was introduced; the canonical bottle remains in the Oracle state.
+- **Copy and content:** checkpoint, question, choice, field, summary, Edit, Save Context, Continue, and See Result language match the requested flow and existing CaptureContext contract.
+- **Accessibility and interaction:** Mobile WebKit checks cover 44px targets, accessible names, focus transfer, disabled behavior, Back/Edit preservation, Reduce Motion, zero document scroll, visual-viewport scale 1, and no horizontal overflow.
+
+## Comparison history
+
+1. The first editor capture exposed a Reduce Motion specificity gap when returning Back from the context subview. The reduced-motion selector was strengthened so both forward and back firmware states have no animation or translation. The post-fix Mobile WebKit check passes.
+2. Initial screenshots were taken during the 320ms firmware transition and were not valid comparison evidence. They were replaced with post-transition captures at the same viewports and states; the revised evidence shows the complete firmware content.
+
+## Findings
+
+No actionable P0, P1, or P2 visual mismatch remains in the browser-rendered implementation. The optional note is below the internally scrollable four-option grid by design so all option targets remain at least 44px without changing the machine height.
+
+## Interaction and runtime evidence
+
+Primary choice, Add Context, checkbox, bounded note, Back, Edit, Save Context, Step 3 Continue, final See Result, duplicate submission, comparison, and Evidence Record interactions were exercised in Mobile WebKit. Browser console errors, page errors, and unhandled rejections are covered by the focused Trial Truth suite.
+
+## Remaining hardware gap
+
+Browser rendering cannot prove physical Safari toolbar behavior, keyboard contraction while editing the optional note, or the exact shadow appearance on a real iPhone. Those remain manual exact-head checks.
+
+final result: passed

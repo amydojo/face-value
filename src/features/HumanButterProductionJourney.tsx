@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useFaceValue } from '../app/faceValueContext';
-import { trialTruthRequired } from '../app/trialTruthMachine';
+import { trialTruthMatchesCurrentTrial, trialTruthRequired } from '../app/trialTruthMachine';
 import styles from '../styles/FaceValue.module.css';
 import { FaceValueApplication } from './FaceValueApplication';
 import { DemoRuntimeBanner } from './demo-lab/DemoRuntimeBanner';
@@ -55,7 +55,10 @@ function DemoSessionRecovery() {
 export function HumanButterProductionJourney() {
   const { state, dispatch, demoRuntime } = useFaceValue();
 
-  if (state.stage === 'followup_context' && trialTruthRequired(state)) {
+  if (
+    state.stage === 'followup_context' &&
+    (trialTruthRequired(state) || trialTruthMatchesCurrentTrial(state))
+  ) {
     return (
       <>
         <TrialTruthSurface />

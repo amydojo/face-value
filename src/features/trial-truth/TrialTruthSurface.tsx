@@ -12,11 +12,15 @@ import {
   type TrialTruthFaceValueEvent,
 } from '../../app/trialTruthMachine';
 import { EvidenceShell, ScreenHeader } from '../../components/hardware';
+import type { CaptureContext } from '../../domain/model';
+import { emptyCaptureContext } from '../../domain/phaseB5';
 import {
   IRRITATION_SIGNALS,
   type TrialTruthDraft,
   type TrialTruthToleranceAnswer,
 } from '../../domain/trialTruth';
+import { CaptureContextFields } from '../capture-context/CaptureContextSurface';
+import { CAPTURE_CONTEXT_OPTIONS } from '../capture-context/captureContextOptions';
 import { OracleTrialTruthMachine } from '../oracle-reveal/OracleRevealScene';
 import styles from './TrialTruthSurface.module.css';
 
@@ -52,9 +56,10 @@ const visibleChangeOptions = [
   ['more', 'MORE'],
 ] as const;
 
-type TrialTruthStep = 1 | 2 | 3;
-type FirmwareView = 'question' | 'symptoms';
+type TrialTruthStep = 1 | 2 | 3 | 4;
+type FirmwareView = 'question' | 'symptoms' | 'capture-context';
 type MotionDirection = 'forward' | 'back';
+type CaptureCheckChoice = 'nothing' | 'context' | null;
 
 const symptomsRequired = (tolerance: TrialTruthToleranceAnswer | null): boolean =>
   tolerance === 'moderate' || tolerance === 'severe';
@@ -73,20 +78,36 @@ export function TrialTruthSurface() {
   const state = normalizeTrialTruthState(context.state);
   const dispatch =
     context.dispatchTrialTruth ?? (context.dispatch as Dispatch<TrialTruthFaceValueEvent>);
+  const truthCommitted = trialTruthMatchesCurrentTrial(state);
   const [step, setStep] = useState<TrialTruthStep>(() =>
-    initialStepForDraft(state.trialTruthDraft),
+    truthCommitted ? 4 : initialStepForDraft(state.trialTruthDraft),
   );
   const [view, setView] = useState<FirmwareView>('question');
   const [motionDirection, setMotionDirection] = useState<MotionDirection>('forward');
+  const [captureContextDraft, setCaptureContextDraft] = useState<CaptureContext>(() =>
+    emptyCaptureContext(),
+  );
+  const [captureContext, setCaptureContext] = useState<CaptureContext>(() => emptyCaptureContext());
+  const [captureCheckChoice, setCaptureCheckChoice] = useState<CaptureCheckChoice>(null);
+  const [captureCheckComplete, setCaptureCheckComplete] = useState(false);
   const questionRef = useRef<HTMLHeadingElement>(null);
+  const finalSubmitRef = useRef(false);
   const generationId = trialTruthGenerationFor(state);
   const product = state.registeredProduct;
   const draft = state.trialTruthDraft;
   const selectedSymptomLabels = draft.symptoms.map((symptom) => symptomLabels[symptom]);
+  const selectedCaptureContextLabels = CAPTURE_CONTEXT_OPTIONS.filter(
+    (option) => captureContext[option.key],
+  ).map((option) => option.label);
+  if (captureContext.note) selectedCaptureContextLabels.push('Note added');
 
   const goBack = useCallback(() => {
     setMotionDirection('back');
     if (view === 'symptoms') {
+      setView('question');
+      return;
+    }
+    if (view === 'capture-context') {
       setView('question');
       return;
     }
@@ -111,7 +132,7 @@ export function TrialTruthSurface() {
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [goBack]);
 
-  if (trialTruthMatchesCurrentTrial(state) || !product) return null;
+  if (state.stage !== 'followup_context' || !product) return null;
 
   const productIdentity = oracleSpecimenIdentityFromRegisteredProduct(product);
   const compactProductIdentity = [
@@ -124,25 +145,47 @@ export function TrialTruthSurface() {
   const controlEnabled =
     view === 'symptoms'
       ? draft.tolerance === 'mild' || draft.symptoms.length > 0
-      : step === 1
-        ? draft.adherence !== null
-        : step === 2
-          ? toleranceReady(draft)
-          : draft.visibleChange !== null;
-  const controlLabel = view === 'symptoms' ? 'SAVE SIGNS' : step === 3 ? 'SEE RESULT' : 'CONTINUE';
+      : view === 'capture-context'
+        ? true
+        : step === 1
+          ? draft.adherence !== null
+          : step === 2
+            ? toleranceReady(draft)
+            : step === 3
+              ? draft.visibleChange !== null
+              : captureCheckComplete;
+  const controlLabel =
+    view === 'symptoms'
+      ? 'SAVE SIGNS'
+      : view === 'capture-context'
+        ? 'SAVE CONTEXT'
+        : step === 4
+          ? 'SEE RESULT'
+          : 'CONTINUE';
   const controlAccessibleLabel =
     view === 'symptoms'
       ? 'Save signs'
-      : step === 1
-        ? 'Continue to skin response'
-        : step === 2
-          ? 'Continue to visible redness'
-          : 'See result';
+      : view === 'capture-context'
+        ? 'Save capture context'
+        : step === 1
+          ? 'Continue to skin response'
+          : step === 2
+            ? 'Continue to visible redness'
+            : step === 3
+              ? 'Continue to capture check'
+              : 'See result';
 
   const advance = () => {
     if (!controlEnabled) return;
     setMotionDirection('forward');
     if (view === 'symptoms') {
+      setView('question');
+      return;
+    }
+    if (view === 'capture-context') {
+      setCaptureContext({ ...captureContextDraft });
+      setCaptureCheckChoice('context');
+      setCaptureCheckComplete(true);
       setView('question');
       return;
     }
@@ -154,11 +197,24 @@ export function TrialTruthSurface() {
       setStep(3);
       return;
     }
+    if (step === 3) {
+      setStep(4);
+      return;
+    }
     if (!generationId) return;
+    if (finalSubmitRef.current) return;
+    finalSubmitRef.current = true;
+    if (!truthCommitted) {
+      dispatch({
+        type: 'TRIAL_TRUTH_SUBMITTED',
+        generationId,
+        now: systemClock.now(),
+      });
+    }
     dispatch({
-      type: 'TRIAL_TRUTH_SUBMITTED',
-      generationId,
-      now: systemClock.now(),
+      type: 'CAPTURE_CONTEXT_RECORDED',
+      kind: 'followup',
+      context: captureContext,
     });
   };
 
@@ -170,8 +226,8 @@ export function TrialTruthSurface() {
       data-motion-direction={motionDirection}
     >
       <header className={styles.firmwareHeader}>
-        <span>FOLLOW-UP SECURED</span>
-        <span>{step} / 3</span>
+        <span>{step === 4 ? 'CAPTURE CHECK · OPTIONAL' : 'FOLLOW-UP SECURED'}</span>
+        {step !== 4 && <span>{step} / 3</span>}
       </header>
       <p
         className={styles.productIdentity}
@@ -209,6 +265,24 @@ export function TrialTruthSurface() {
               Choose at least one.
             </p>
           )}
+        </section>
+      ) : view === 'capture-context' ? (
+        <section className={styles.contextSubview} aria-labelledby="trial-truth-context-heading">
+          <div className={styles.contextSubviewHeading}>
+            <h1 id="trial-truth-context-heading" ref={questionRef} tabIndex={-1}>
+              What was different?
+            </h1>
+            <p>Choose any that apply.</p>
+          </div>
+          <div className={styles.contextScroller} data-trial-truth-context-scroller>
+            <CaptureContextFields
+              context={captureContextDraft}
+              onChange={setCaptureContextDraft}
+              optionsClassName={styles.contextOptions}
+              noteClassName={styles.contextNote}
+              noteLabel="Optional note"
+            />
+          </div>
         </section>
       ) : (
         <section
@@ -327,6 +401,69 @@ export function TrialTruthSurface() {
               <p className={styles.helper}>Face Value cannot diagnose a reaction.</p>
             </>
           )}
+
+          {step === 4 && (
+            <>
+              <h1 id="trial-truth-capture-check-heading" ref={questionRef} tabIndex={-1}>
+                Anything different around today’s scan?
+              </h1>
+              {captureCheckComplete && captureCheckChoice === 'context' ? (
+                <button
+                  type="button"
+                  className={styles.contextSummary}
+                  aria-label="Edit capture context"
+                  onClick={() => {
+                    setMotionDirection('forward');
+                    setView('capture-context');
+                  }}
+                >
+                  <span>
+                    <b>CAPTURE CONTEXT</b>
+                    <small>
+                      {selectedCaptureContextLabels.length > 0
+                        ? selectedCaptureContextLabels.join(' · ')
+                        : 'Nothing different'}
+                    </small>
+                  </span>
+                  <strong>EDIT</strong>
+                </button>
+              ) : (
+                <div
+                  className={styles.captureChoices}
+                  data-trial-truth-capture-choices
+                  role="group"
+                  aria-label="Anything different around today’s scan?"
+                >
+                  <button
+                    type="button"
+                    data-selected={captureCheckChoice === 'nothing' || undefined}
+                    onClick={() => {
+                      const emptyContext = emptyCaptureContext();
+                      setCaptureContextDraft(emptyContext);
+                      setCaptureContext(emptyContext);
+                      setCaptureCheckChoice('nothing');
+                      setCaptureCheckComplete(true);
+                    }}
+                  >
+                    NOTHING DIFFERENT
+                  </button>
+                  <button
+                    type="button"
+                    data-selected={captureCheckChoice === 'context' || undefined}
+                    onClick={() => {
+                      setMotionDirection('forward');
+                      setCaptureCheckChoice('context');
+                      setCaptureCheckComplete(false);
+                      setView('capture-context');
+                    }}
+                  >
+                    ADD CONTEXT
+                  </button>
+                </div>
+              )}
+              <p className={styles.helper}>Optional context the camera cannot see.</p>
+            </>
+          )}
         </section>
       )}
 
@@ -355,9 +492,13 @@ export function TrialTruthSurface() {
           />
         </div>
         <div className={styles.backSlot}>
-          {(step > 1 || view === 'symptoms') && (
+          {(view !== 'question' || (step > 1 && !(step === 4 && truthCommitted))) && (
             <button type="button" className={styles.back} onClick={goBack}>
-              {view === 'symptoms' ? 'Back to skin response' : 'Back'}
+              {view === 'symptoms'
+                ? 'Back to skin response'
+                : view === 'capture-context'
+                  ? 'Back to capture check'
+                  : 'Back'}
             </button>
           )}
         </div>

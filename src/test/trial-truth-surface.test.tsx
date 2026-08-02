@@ -37,6 +37,12 @@ async function reachStepThree(user: ReturnType<typeof userEvent.setup>): Promise
   await user.click(screen.getByRole('button', { name: 'Continue to visible redness' }));
 }
 
+async function reachCaptureCheck(user: ReturnType<typeof userEvent.setup>): Promise<void> {
+  await reachStepThree(user);
+  await user.click(screen.getByRole('radio', { name: 'LESS' }));
+  await user.click(screen.getByRole('button', { name: 'Continue to capture check' }));
+}
+
 describe('TrialTruthSurface firmware sequence', () => {
   it('starts as one stationary machine question without a favorable selection', () => {
     const { container } = render(<Harness />);
@@ -109,8 +115,22 @@ describe('TrialTruthSurface firmware sequence', () => {
     ).toBeVisible();
 
     await user.click(screen.getByRole('radio', { name: 'LESS' }));
-    expect(visibleLabel()).toHaveTextContent('SEE RESULT');
+    expect(visibleLabel()).toHaveTextContent('CONTINUE');
     expect(amber()).toHaveAttribute('data-amber-state', 'ready');
+    fireEvent.click(center());
+    expect(
+      screen.getByRole('group', { name: 'Anything different around today’s scan?' }),
+    ).toBeVisible();
+    expect(visibleLabel()).toHaveTextContent('');
+
+    await user.click(screen.getByRole('button', { name: 'ADD CONTEXT' }));
+    expect(screen.getByRole('button', { name: 'Save capture context' })).toContainElement(
+      visibleLabel(),
+    );
+    expect(visibleLabel()).toHaveTextContent('SAVE CONTEXT');
+    await user.click(screen.getByRole('button', { name: 'Back to capture check' }));
+    await user.click(screen.getByRole('button', { name: 'NOTHING DIFFERENT' }));
+    expect(visibleLabel()).toHaveTextContent('SEE RESULT');
   });
 
   it('does not skip a step across repeated amber-control presses and moves focus for VoiceOver', async () => {
@@ -214,12 +234,16 @@ describe('TrialTruthSurface firmware sequence', () => {
     expect(screen.queryByRole('group', { name: 'Did you use it as planned?' })).toBeNull();
   });
 
-  it('double-tapping See result commits once and does not create downstream state early', async () => {
+  it('records Nothing Different through the existing context contract and submits once', async () => {
     const clock = vi.spyOn(systemClock, 'now').mockReturnValue('2026-08-01T19:30:00.000Z');
     const user = userEvent.setup();
     render(<Harness />);
-    await reachStepThree(user);
-    await user.click(screen.getByRole('radio', { name: 'LESS' }));
+    await reachCaptureCheck(user);
+
+    expect(screen.queryByText('Anything meaningfully different today?')).toBeNull();
+    expect(renderedState().trialTruthEvidence).toBeNull();
+    expect(renderedState().followUpContext).toBeNull();
+    await user.click(screen.getByRole('button', { name: 'NOTHING DIFFERENT' }));
 
     const seeResult = screen.getByRole('button', { name: 'See result' });
     fireEvent.click(seeResult);
@@ -228,8 +252,58 @@ describe('TrialTruthSurface firmware sequence', () => {
     const state = renderedState();
     expect(clock).toHaveBeenCalledTimes(1);
     expect(state.trialTruthEvidence?.recordedAt).toBe('2026-08-01T19:30:00.000Z');
+    expect(state.followUpContext).toEqual({
+      makeup: false,
+      recentHeatOrExercise: false,
+      recentCleansingOrSkincare: false,
+      routineOrTreatmentChange: false,
+      note: null,
+    });
+    expect(state.stage).toBe('analysis');
     expect(state.longitudinalEvidence.comparison).toBeNull();
     expect(state.record).toBeNull();
     expect(state.archive).toHaveLength(0);
+  });
+
+  it('maps added context to CaptureContext and preserves Back and Edit answers', async () => {
+    const user = userEvent.setup();
+    render(<Harness />);
+    await reachCaptureCheck(user);
+
+    await user.click(screen.getByRole('button', { name: 'ADD CONTEXT' }));
+    await user.click(screen.getByRole('checkbox', { name: 'Makeup' }));
+    await user.click(screen.getByRole('checkbox', { name: 'Recent heat or exercise' }));
+    await user.type(screen.getByRole('textbox', { name: 'Optional note' }), 'Warm commute');
+
+    await user.click(screen.getByRole('button', { name: 'Back to capture check' }));
+    await user.click(screen.getByRole('button', { name: 'ADD CONTEXT' }));
+    expect(screen.getByRole('checkbox', { name: 'Makeup' })).toBeChecked();
+    expect(screen.getByRole('checkbox', { name: 'Recent heat or exercise' })).toBeChecked();
+    expect(screen.getByRole('textbox', { name: 'Optional note' })).toHaveValue('Warm commute');
+
+    await user.click(screen.getByRole('button', { name: 'Save capture context' }));
+    expect(screen.getByRole('button', { name: 'Edit capture context' })).toHaveTextContent(
+      'Makeup · Recent heat or exercise · Note added',
+    );
+    await user.click(screen.getByRole('button', { name: 'Back' }));
+    expect(
+      screen.getByRole('group', {
+        name: /Compared with the start of this trial, your visible redness looks/i,
+      }),
+    ).toBeVisible();
+    await user.click(screen.getByRole('button', { name: 'Continue to capture check' }));
+    await user.click(screen.getByRole('button', { name: 'Edit capture context' }));
+    expect(screen.getByRole('checkbox', { name: 'Makeup' })).toBeChecked();
+    expect(screen.getByRole('textbox', { name: 'Optional note' })).toHaveValue('Warm commute');
+    await user.click(screen.getByRole('button', { name: 'Save capture context' }));
+    await user.click(screen.getByRole('button', { name: 'See result' }));
+
+    expect(renderedState().followUpContext).toEqual({
+      makeup: true,
+      recentHeatOrExercise: true,
+      recentCleansingOrSkincare: false,
+      routineOrTreatmentChange: false,
+      note: 'Warm commute',
+    });
   });
 });
