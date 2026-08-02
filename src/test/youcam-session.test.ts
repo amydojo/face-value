@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { serveProtectedRednessCalibration } from '../../api/calibration/redness';
 import { serveProtectedDemo } from '../../api/demo';
 import {
   createYouCamDemoSession,
@@ -151,5 +152,32 @@ describe('YouCam demo authorization boundary', () => {
     expect(response.status).toBe(302);
     expect(response.headers.get('location')).toBe('/youcam-spike?next=demo');
     expect(loadAppShell).not.toHaveBeenCalled();
+  });
+
+  it('protects /calibration/redness with the same signed engineering session', async () => {
+    process.env.YOUCAM_SPIKE_TOKEN = 'phase-b-secret-value';
+    const loadAppShell = vi.fn(async () => new Response('<div id="root"></div>', {
+      headers: { 'content-type': 'text/html; charset=utf-8' },
+    }));
+
+    const unauthorized = await serveProtectedRednessCalibration(
+      new Request('https://face-value.test/calibration/redness'),
+      loadAppShell,
+    );
+    expect(unauthorized.status).toBe(302);
+    expect(unauthorized.headers.get('location')).toBe('/youcam-spike?next=demo');
+    expect(loadAppShell).not.toHaveBeenCalled();
+
+    const session = createYouCamDemoSession('phase-b-secret-value');
+    const cookie = (session.headers.get('set-cookie') ?? '').split(';')[0];
+    const authorized = await serveProtectedRednessCalibration(
+      new Request('https://face-value.test/calibration/redness', { headers: { cookie } }),
+      loadAppShell,
+    );
+    expect(authorized.status).toBe(200);
+    expect(authorized.headers.get('cache-control')).toContain('private');
+    expect(authorized.headers.get('x-robots-tag')).toContain('noindex');
+    expect(await authorized.text()).toBe('<div id="root"></div>');
+    expect(loadAppShell).toHaveBeenCalledOnce();
   });
 });

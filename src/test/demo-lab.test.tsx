@@ -368,6 +368,10 @@ describe('Demo Lab controls and production-screen reuse', () => {
       'Result fixture',
     );
     expect(screen.getByRole('button', { name: 'CLEAR DEMO DATA' })).toBeDisabled();
+    expect(screen.getByRole('link', { name: /OPEN REDNESS CALIBRATION/ })).toHaveAttribute(
+      'href',
+      '/calibration/redness',
+    );
 
     await user.click(screen.getByRole('button', { name: /OPEN DEMO STATE/ }));
     expect(navigate).toHaveBeenCalledWith('/');

@@ -235,6 +235,10 @@ export function DemoLab({ navigate = browserNavigate }: { navigate?: Navigate })
 
         <section className={styles.utilities} aria-labelledby="demo-utilities-heading">
           <h2 id="demo-utilities-heading">Utilities</h2>
+          <a className={styles.utilityLink} href="/calibration/redness">
+            <span>OPEN REDNESS CALIBRATION</span>
+            <span aria-hidden="true">↗</span>
+          </a>
           <button type="button" onClick={runRealCameraJourney}>
             <span>RUN REAL-CAMERA JOURNEY</span>
             <span aria-hidden="true">↗</span>
