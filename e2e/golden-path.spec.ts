@@ -519,11 +519,16 @@ for (const scenario of cases) {
     await expect(page.getByText('redness-provisional-v1', { exact: true })).toBeVisible();
     await expect(page.getByText('93.34 · 92.5 · 94.25', { exact: true })).toBeVisible();
     await expect(page.getByText('100 · 99 · 100', { exact: true })).toBeVisible();
+    await expect(page.locator('[data-evidence-row="direction-agreement"]')).toContainText(
+      'Agreeing',
+    );
+    await expect(page.locator('[data-evidence-row="assessed-endpoint-count"]')).toContainText(
+      '3',
+    );
     await expect(
-      page.getByText('Agreeing · 3 follow-up measurements', { exact: true }),
-    ).toBeVisible();
-    await expect(
-      page.getByText('Production thresholds require repeat-scan calibration.'),
+      page.getByText(
+        'Production thresholds remain provisional and require repeat-scan calibration.',
+      ),
     ).toBeVisible();
     const restoredArchive = await page.evaluate((key) => {
       return localStorage.getItem(key);

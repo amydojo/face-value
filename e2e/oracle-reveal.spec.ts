@@ -139,9 +139,16 @@ test('captures the canonical visual states without changing machine geometry', a
         oracleEvidenceDispensed: phase === 'dispensing',
       }),
     );
-    if (phase === 'opening') await pauseMachineAt(page, 80);
-    if (phase === 'transmitting') await pauseMachineAt(page, 500);
-    if (phase === 'committing') await pauseMachineAt(page, 130);
+    const canonicalAnimationTime = {
+      sealed: 0,
+      opening: 80,
+      transmitting: 500,
+      verdict_revealed: 0,
+      committing: 130,
+      dispensing: 0,
+      collected: 0,
+    }[phase];
+    await pauseMachineAt(page, canonicalAnimationTime);
 
     const chassis = await page.locator('[data-oracle-chassis]').boundingBox();
     const display = await page.locator('[data-oracle-display-opening]').boundingBox();

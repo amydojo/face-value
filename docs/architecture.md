@@ -1,11 +1,11 @@
 # Face Value architecture
 
 **Status:** Current architecture authority  
-**Effective date:** July 31, 2026  
-**Implementation base:** `main` at merged PR #67
-(`330f51975f162a2c15784114d7a448492973fcad`)
+**Effective date:** August 1, 2026
+**Implementation base:** `main` at merged PR #69
+(`f95b051f6c562919c23da0d08728fff124d27d48`)
 
-**Current change:** issue #63
+**Current change:** issue #65
 
 ## 1. Authority model
 
@@ -165,7 +165,11 @@ Production currently uses the immutable provisional configuration:
 
 These are operating thresholds, not clinical-significance boundaries.
 
-#65 may export exploratory calibration candidates. Production must reject or ignore any candidate that has not passed a future explicit approval path.
+#65 exports exploratory calibration candidates with
+`threshold_source: technical_calibration`, `status: exploratory`,
+`approved_by: null`, and `provisional: true`. Production rejects or ignores
+them; the active hashes, versions, boundaries, precedence, and classifications
+remain unchanged until a separate future approval path exists.
 
 ## 8. Persistence boundary
 
@@ -256,13 +260,19 @@ Historical save/placement event names remain compatibility paths only.
 
 Demo Lab uses typed synthetic state and isolated persistence. It cannot merge with ordinary trial records or author arbitrary verdicts.
 
-The planned `/calibration/redness` route in #65 must use:
+The implemented `/calibration/redness` route uses:
 
 - the existing protected engineering-session boundary
 - an isolated versioned calibration store
 - face-free observations
 - pure reproducible calculations
 - exploratory outputs that cannot load as production thresholds
+
+Calibration owns its own validated local-storage envelope and pure analysis
+module. React receives only presentation-ready results. The route exposes no
+consumer navigation, provider contract change, camera change, or network path;
+current automated evidence is explicitly synthetic because YouCam task
+creation is blocked by `CreditInsufficiency`.
 
 ## 13. Resource lifecycle
 
@@ -297,9 +307,9 @@ Run `npm run verify:redness-architecture`, `npm run verify:privacy`, and `npm ru
 
 ## 15. Phase C status
 
-- #63 extends capture, analysis orchestration, state, persistence, and evidence adapters with three-frame bursts in this change.
+- #63 extends capture, analysis orchestration, state, persistence, and evidence adapters with three-frame bursts.
 - #64 adds reducer-owned trial-truth evidence before comparison readiness.
-- #65 adds isolated calibration data and pure internal analysis without changing the production threshold.
+- #65 adds isolated calibration data, pure internal analysis, and a saved-snapshot Redness Response Signature without changing production thresholds.
 
 Each PR must update the authority index and affected contracts in the same change.
 

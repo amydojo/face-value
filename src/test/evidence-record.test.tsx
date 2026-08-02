@@ -291,7 +291,7 @@ describe('EvidenceRecord', () => {
 
     expect(screen.getByRole('heading', { name: 'Legacy saved finding.' })).toBeVisible();
     expect(
-      screen.getByText(/Redness Response Signature evidence was not collected/),
+      screen.getByText('Detailed measurements are not available for this earlier result.'),
     ).toBeVisible();
     expect(document.querySelector('[data-legacy-evidence-record]')).toBeVisible();
     expect(document.querySelector('[data-evidence-comparison]')).toBeNull();

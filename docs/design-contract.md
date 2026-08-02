@@ -1,11 +1,11 @@
 # Face Value design contract
 
 **Status:** Current visual and interaction authority  
-**Effective date:** July 31, 2026  
-**Implementation base:** `main` at merged PR #67
-(`330f51975f162a2c15784114d7a448492973fcad`)
+**Effective date:** August 1, 2026
+**Implementation base:** `main` at merged PR #69
+(`f95b051f6c562919c23da0d08728fff124d27d48`)
 
-**Current change:** issue #63
+**Current change:** issue #65
 
 ## 1. One persistent instrument
 
@@ -382,7 +382,7 @@ When Figma and merged implementation differ, use the manifest and exact PR verif
 ## 18. Phase C additions
 
 - #63 adds restrained burst progress without changing the camera’s physical grammar.
-- #64 may add compact evidence-question controls using the shared page hierarchy.
-- #65 adds an internal instrument, not a consumer visual redesign.
+- #64 adds compact evidence-question controls using the shared page hierarchy.
+- #65 adds an internal instrument and progressive saved-evidence detail, not a consumer visual redesign.
 
 No Phase C PR may redesign the machine, specimen, Home, or Oracle unless a correctness issue makes the change unavoidable and explicitly reviewed.

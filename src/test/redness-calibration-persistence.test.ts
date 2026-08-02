@@ -162,6 +162,43 @@ describe('redness calibration observation contract', () => {
     );
   });
 
+  it('rejects unknown contract fields and binary containers instead of serializing them', () => {
+    const unknownField = validateRednessCalibrationObservation({
+      ...observation(),
+      debugLabel: 'not part of the versioned contract',
+    });
+    const binaryField = validateRednessCalibrationObservation({
+      ...observation(),
+      burst: {
+        ...observation().burst,
+        privateBytes: new Uint8Array([1, 2, 3]),
+      },
+    });
+    const blobField = validateRednessCalibrationObservation({
+      ...observation(),
+      burst: {
+        ...observation().burst,
+        privateCapture: new Blob(['synthetic binary sentinel'], { type: 'image/jpeg' }),
+      },
+    });
+
+    expect(unknownField).toMatchObject({
+      valid: false,
+      issues: expect.arrayContaining([
+        expect.objectContaining({ code: 'invalid_observation', path: '$' }),
+      ]),
+    });
+    for (const result of [binaryField, blobField]) {
+      expect(result).toMatchObject({
+        valid: false,
+        issues: expect.arrayContaining([
+          expect.objectContaining({ code: 'forbidden_private_material' }),
+          expect.objectContaining({ code: 'invalid_burst' }),
+        ]),
+      });
+    }
+  });
+
   it('fails closed for an incompatible schema and a fabricated passing unavailable metric', () => {
     const candidate = {
       ...observation(),
@@ -278,6 +315,24 @@ describe('isolated redness calibration persistence', () => {
 
     appendRednessCalibrationObservation(first, localStorage, '2026-08-01T20:00:00.000Z');
     expect(() => appendRednessCalibrationObservation(first)).toThrow(/immutable/);
+  });
+
+  it('rejects malformed or extended export envelopes before replacement', () => {
+    const exported = exportRednessCalibrationData(
+      [observation()],
+      '2026-08-01T20:00:00.000Z',
+    );
+    const invalidTimestamp = JSON.parse(exported) as Record<string, unknown>;
+    invalidTimestamp.exportedAt = 'not-a-timestamp';
+    const unknownEnvelopeField = JSON.parse(exported) as Record<string, unknown>;
+    unknownEnvelopeField.privatePayload = { bytes: [1, 2, 3] };
+
+    expect(() => parseRednessCalibrationExport(JSON.stringify(invalidTimestamp))).toThrow(
+      /incompatible/,
+    );
+    expect(() => parseRednessCalibrationExport(JSON.stringify(unknownEnvelopeField))).toThrow(
+      /incompatible/,
+    );
   });
 
   it('clears calibration data only', () => {

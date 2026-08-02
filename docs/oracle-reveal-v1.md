@@ -1,11 +1,11 @@
 # Face Value Oracle Reveal v1
 
 **Status:** Current result-machine and collection authority  
-**Effective date:** July 31, 2026  
-**Implementation base:** `main` at merged PR #67
-(`330f51975f162a2c15784114d7a448492973fcad`)
+**Effective date:** August 1, 2026
+**Implementation base:** `main` at merged PR #69
+(`f95b051f6c562919c23da0d08728fff124d27d48`)
 
-**Current change:** issue #63
+**Current change:** issue #65
 
 The Oracle is the one current machine mounted from sealed result through explicit Evidence Record collection. It presents an already-authorized canonical result. It does not measure skin, evaluate redness, select thresholds, or create a second result model.
 
@@ -219,8 +219,10 @@ attempt summaries, and direction agreement to the saved immutable snapshot and
 full Evidence Record disclosure. Home, Previous Trials, Evidence Record detail,
 and reload render that same snapshot; none re-evaluates a burst.
 
-Issue #64 may later add trial-truth details. Neither issue creates a new paper
-or Oracle state machine.
+Issue #64 adds saved trial-truth details. Issue #65 groups those details and the
+saved canonical snapshot into the five-section Redness Response Signature in
+full Evidence Record disclosure. Neither issue creates a new paper, record,
+evaluator, or Oracle state machine.
 
 ## 11. Accessibility
 

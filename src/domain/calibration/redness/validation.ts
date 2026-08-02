@@ -55,6 +55,12 @@ const reportedStates = new Set<CalibrationReportedState>([
   'present',
   'not_reported',
 ]);
+const cameraCaptureProfiles = new Set([
+  'native-browser-camera-v1',
+  'youcam-camera-kit-standard-720p',
+  'youcam-camera-kit-hd-1080p',
+  'youcam-camera-kit-hd-1920p',
+]);
 const confounderCodes = new Set<RednessCalibrationConfounder['code']>([
   'makeup_or_tint',
   'filter_or_enhancement',
@@ -101,6 +107,36 @@ const contextStateKeys: Array<keyof RednessCalibrationPreCaptureContext> = [
   'medicationOrRoutineChange',
   'emotionalFlushing',
 ];
+const observationKeys = [
+  'schemaVersion',
+  'observationId',
+  'participantId',
+  'sessionId',
+  'conditionId',
+  'conditionType',
+  'collectionSource',
+  'captureTimestamp',
+  'deviceClass',
+  'cameraFacing',
+  'appBuildVersion',
+  'apiVersion',
+  'analysisModelVersion',
+  'analysisMode',
+  'preprocessingVersion',
+  'captureProtocolVersion',
+  'thresholdCandidateVersion',
+  'burst',
+  'sessionRawMedian',
+  'captureQuality',
+  'captureOutcome',
+  'preCaptureContext',
+  'confounders',
+  'comparisonAnchor',
+  'measuredSkinToneGroup',
+  'measuredSkinToneSource',
+  'unavailableMetrics',
+  'includesFaceImage',
+] as const;
 
 const forbiddenKeys = new Set([
   'name',
@@ -122,9 +158,21 @@ const forbiddenKeys = new Set([
   'thumbnail',
   'maskimage',
 ]);
+const forbiddenUriPrefixes = [
+  [100, 97, 116, 97, 58],
+  [98, 108, 111, 98, 58],
+].map((codes) => String.fromCharCode(...codes));
 
 const isObject = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
+
+const hasOnlyKeys = (value: Record<string, unknown>, allowed: readonly string[]): boolean => {
+  const allowedKeys = new Set(allowed);
+  return Object.keys(value).every((key) => allowedKeys.has(key));
+};
+
+const hasExactKeys = (value: Record<string, unknown>, expected: readonly string[]): boolean =>
+  Object.keys(value).length === expected.length && hasOnlyKeys(value, expected);
 
 const isNonEmptyString = (value: unknown): value is string =>
   typeof value === 'string' && value.trim().length > 0;
@@ -137,9 +185,23 @@ const isIsoTimestamp = (value: unknown): value is string =>
 
 function privateMaterialPath(value: unknown, path = '$', visited = new WeakSet<object>()): string | null {
   if (typeof value === 'string') {
-    return /(?:data:image|blob:|https?:\/\/|[^\s@]+@[^\s@]+)/i.test(value) ? path : null;
+    const lower = value.toLocaleLowerCase('en-US');
+    return forbiddenUriPrefixes.some((prefix) => lower.includes(prefix)) ||
+      /[a-z][a-z0-9+.-]*:\/\//i.test(value) ||
+      /[^\s@]+@[^\s@]+/.test(value) ||
+      /^[a-z0-9+/]{64,}={0,2}$/i.test(value)
+      ? path
+      : null;
   }
   if (typeof value !== 'object' || value === null) return null;
+  if (
+    (typeof Blob !== 'undefined' && value instanceof Blob) ||
+    value instanceof ArrayBuffer ||
+    ArrayBuffer.isView(value) ||
+    (typeof SharedArrayBuffer !== 'undefined' && value instanceof SharedArrayBuffer)
+  ) {
+    return path;
+  }
   if (visited.has(value)) return path;
   visited.add(value);
   if (Array.isArray(value)) {
@@ -176,12 +238,41 @@ function validAcceptedFrame(value: unknown): value is AcceptedRednessFrame {
     return false;
   }
   return (
+    hasExactKeys(value, ['frameId', 'capture', 'quality', 'signal', 'providerAttemptCount']) &&
+    hasOnlyKeys(value.capture, [
+      'id',
+      'kind',
+      'source',
+      'mimeType',
+      'createdAt',
+      'orientationRule',
+      'cameraProfileId',
+    ]) &&
+    hasExactKeys(value.quality, ['currentFrame', 'exposure', 'movement']) &&
+    hasExactKeys(value.signal, [
+      'provider',
+      'apiVersion',
+      'mode',
+      'concern',
+      'region',
+      'scoreType',
+      'captureProtocolVersion',
+      'rawScore',
+      'capturedAt',
+      'captureQuality',
+    ]) &&
     isNonEmptyString(value.frameId) &&
     value.capture.id === value.frameId &&
     (value.capture.kind === 'baseline' || value.capture.kind === 'followup') &&
     value.capture.source === 'camera' &&
+    ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/unknown'].includes(
+      String(value.capture.mimeType),
+    ) &&
     isIsoTimestamp(value.capture.createdAt) &&
     value.capture.orientationRule === 'analysis-unmirrored' &&
+    (value.capture.cameraProfileId === undefined ||
+      value.capture.cameraProfileId === null ||
+      cameraCaptureProfiles.has(String(value.capture.cameraProfileId))) &&
     value.quality.currentFrame === 'accepted' &&
     value.quality.exposure === 'accepted' &&
     value.quality.movement === 'accepted' &&
@@ -191,6 +282,7 @@ function validAcceptedFrame(value: unknown): value is AcceptedRednessFrame {
     value.signal.concern === 'hd_redness' &&
     value.signal.region === null &&
     value.signal.scoreType === 'raw_score' &&
+    value.signal.captureProtocolVersion === 'face-value-youcam-1' &&
     typeof value.signal.rawScore === 'number' &&
     Number.isFinite(value.signal.rawScore) &&
     isIsoTimestamp(value.signal.capturedAt) &&
@@ -202,6 +294,7 @@ function validAcceptedFrame(value: unknown): value is AcceptedRednessFrame {
 function validRejectedFrame(value: unknown): value is RejectedRednessFrame {
   return (
     isObject(value) &&
+    hasExactKeys(value, ['frameId', 'attemptedAt', 'stage', 'reasons']) &&
     isNonEmptyString(value.frameId) &&
     isIsoTimestamp(value.attemptedAt) &&
     (value.stage === 'capture' || value.stage === 'provider') &&
@@ -214,10 +307,21 @@ function validRejectedFrame(value: unknown): value is RejectedRednessFrame {
 function validBurst(value: unknown): value is RednessEvidenceBurst {
   if (!isObject(value)) return false;
   if (
+    !hasExactKeys(value, [
+      'burstId',
+      'role',
+      'sessionId',
+      'captureProfileId',
+      'startedAt',
+      'completedAt',
+      'attemptedFrameCount',
+      'acceptedFrames',
+      'rejectedFrames',
+    ]) ||
     !isNonEmptyString(value.burstId) ||
     !isNonEmptyString(value.sessionId) ||
     (value.role !== 'baseline' && value.role !== 'followup') ||
-    !(value.captureProfileId === null || isNonEmptyString(value.captureProfileId)) ||
+    !(value.captureProfileId === null || cameraCaptureProfiles.has(String(value.captureProfileId))) ||
     !isIsoTimestamp(value.startedAt) ||
     !isIsoTimestamp(value.completedAt) ||
     !Number.isInteger(value.attemptedFrameCount) ||
@@ -243,6 +347,17 @@ function validCaptureQuality(value: unknown): boolean {
   if (!isObject(value)) return false;
   const comparisons = ['fail', 'limited', 'pass'];
   return (
+    hasExactKeys(value, [
+      'accepted',
+      'lightingComparability',
+      'poseComparability',
+      'cropComparability',
+      'faceSizeComparability',
+      'colorCastComparability',
+      'obstructionPresent',
+      'enhancementDetected',
+      'reasons',
+    ]) &&
     typeof value.accepted === 'boolean' &&
     comparisons.includes(String(value.lightingComparability)) &&
     comparisons.includes(String(value.poseComparability)) &&
@@ -259,6 +374,7 @@ function validCaptureQuality(value: unknown): boolean {
 function validContext(value: unknown): boolean {
   if (!isObject(value)) return false;
   return (
+    hasExactKeys(value, [...contextStateKeys, 'timeOfDay', 'productRoutineState']) &&
     contextStateKeys.every((key) => reportedStates.has(value[key] as CalibrationReportedState)) &&
     isNonEmptyString(value.timeOfDay) &&
     ['no_intervention', 'explicit_change', 'not_reported'].includes(
@@ -270,6 +386,7 @@ function validContext(value: unknown): boolean {
 function validConfounder(value: unknown): boolean {
   return (
     isObject(value) &&
+    hasExactKeys(value, ['code', 'severity', 'source']) &&
     confounderCodes.has(value.code as RednessCalibrationConfounder['code']) &&
     ['downgrade', 'hard_failure', 'exclusion'].includes(String(value.severity)) &&
     ['capture', 'participant_report', 'protocol'].includes(String(value.source))
@@ -307,6 +424,13 @@ export function validateRednessCalibrationObservation(
   if (!isObject(value)) {
     add('invalid_observation', '$', 'Observation must be an object.');
     return { valid: false, observation: null, issues };
+  }
+  if (!hasExactKeys(value, observationKeys)) {
+    add(
+      'invalid_observation',
+      '$',
+      'Observation keys must exactly match the versioned face-free contract.',
+    );
   }
   if (value.schemaVersion !== REDNESS_CALIBRATION_OBSERVATION_SCHEMA) {
     add('unsupported_schema_version', '$.schemaVersion', 'Only the v1 observation schema is accepted.');
@@ -385,6 +509,7 @@ export function validateRednessCalibrationObservation(
     !(
       value.comparisonAnchor === 'not_available' ||
       (isObject(value.comparisonAnchor) &&
+        hasExactKeys(value.comparisonAnchor, ['rawScore', 'expectedDirection']) &&
         typeof value.comparisonAnchor.rawScore === 'number' &&
         Number.isFinite(value.comparisonAnchor.rawScore) &&
         ['no_change', 'improvement', 'worsening'].includes(
@@ -396,6 +521,13 @@ export function validateRednessCalibrationObservation(
   }
 
   if (validBurst(value.burst)) {
+    if (value.burst.sessionId !== value.sessionId) {
+      add(
+        'invalid_burst',
+        '$.burst.sessionId',
+        'Burst and calibration observation session IDs must match.',
+      );
+    }
     const scores = value.burst.acceptedFrames.map((frame) => frame.signal.rawScore);
     const expectedMedian = median(scores);
     const observedMedian = value.sessionRawMedian;

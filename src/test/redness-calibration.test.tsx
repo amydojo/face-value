@@ -78,8 +78,10 @@ describe('protected redness calibration instrument', () => {
     await user.click(screen.getByRole('button', { name: 'CLEAR CALIBRATION DATA' }));
     const dialog = screen.getByRole('dialog', { name: 'Clear all redness calibration data?' });
     expect(dialog).toBeVisible();
+    expect(within(dialog).getByRole('button', { name: 'CANCEL' })).toHaveFocus();
     expect(localStorage.getItem(REDNESS_CALIBRATION_STORAGE_KEY)).not.toBeNull();
-    await user.click(within(dialog).getByRole('button', { name: 'CANCEL' }));
+    await user.keyboard('{Escape}');
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     expect(localStorage.getItem(REDNESS_CALIBRATION_STORAGE_KEY)).not.toBeNull();
 
     await user.click(screen.getByRole('button', { name: 'CLEAR CALIBRATION DATA' }));
@@ -94,7 +96,8 @@ describe('protected redness calibration instrument', () => {
     expect(screen.getByRole('status')).toHaveTextContent('Consumer and Demo Lab storage were not changed');
   });
 
-  it('fails closed on corrupt durable data and leaves the original bytes quarantined', () => {
+  it('fails closed on corrupt durable data and clears it only after confirmation', async () => {
+    const user = userEvent.setup();
     const corruptBytes = '{"schemaVersion":"future-calibration-v99","observations":[]}';
     localStorage.setItem(REDNESS_CALIBRATION_STORAGE_KEY, corruptBytes);
 
@@ -106,5 +109,17 @@ describe('protected redness calibration instrument', () => {
     expect(screen.queryByLabelText('Canonical export')).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'LOAD COMPLETE SYNTHETIC DATASET' })).toBeDisabled();
     expect(localStorage.getItem(REDNESS_CALIBRATION_STORAGE_KEY)).toBe(corruptBytes);
+
+    await user.click(
+      screen.getByRole('button', { name: 'CLEAR QUARANTINED CALIBRATION DATA' }),
+    );
+    const dialog = screen.getByRole('dialog', { name: 'Clear all redness calibration data?' });
+    expect(within(dialog).getByRole('button', { name: 'CANCEL' })).toHaveFocus();
+    expect(localStorage.getItem(REDNESS_CALIBRATION_STORAGE_KEY)).toBe(corruptBytes);
+    await user.click(
+      within(dialog).getByRole('button', { name: 'CONFIRM CALIBRATION DATA CHANGE' }),
+    );
+    expect(localStorage.getItem(REDNESS_CALIBRATION_STORAGE_KEY)).toBeNull();
+    expect(screen.getByRole('heading', { name: 'Calibration dashboard' })).toBeVisible();
   });
 });

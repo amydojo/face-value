@@ -218,6 +218,13 @@ export function RednessCalibration({
               )),
             )}
           </ul>
+          <button
+            type="button"
+            className={styles.dangerAction}
+            onClick={() => setPendingReplacement('clear')}
+          >
+            CLEAR QUARANTINED CALIBRATION DATA
+          </button>
         </section>
       )}
 
@@ -499,7 +506,15 @@ export function RednessCalibration({
       )}
 
       {pendingReplacement && (
-        <section className={styles.confirmation} role="dialog" aria-modal="true" aria-labelledby="replacement-heading">
+        <section
+          className={styles.confirmation}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="replacement-heading"
+          onKeyDown={(event) => {
+            if (event.key === 'Escape') setPendingReplacement(null);
+          }}
+        >
           <p>CONFIRM ISOLATED DATA CHANGE</p>
           <h2 id="replacement-heading">
             {pendingReplacement === 'clear'
@@ -511,7 +526,7 @@ export function RednessCalibration({
             <button type="button" className={styles.dangerAction} onClick={confirmReplacement}>
               CONFIRM CALIBRATION DATA CHANGE
             </button>
-            <button type="button" onClick={() => setPendingReplacement(null)}>CANCEL</button>
+            <button type="button" autoFocus onClick={() => setPendingReplacement(null)}>CANCEL</button>
           </div>
         </section>
       )}

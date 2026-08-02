@@ -374,7 +374,7 @@ export function EvidenceRecord({
             <DisclosureButton
               disclosure="full"
               title="Full evidence record"
-              summary="Saved Redness Response Signature and system details"
+              summary="Scores, limits, and system details"
               expanded={openDisclosure === 'full'}
               onToggle={toggleDisclosure}
             />

@@ -26,7 +26,7 @@ export const REDNESS_CALIBRATION_METHODS = Object.freeze({
   longitudinalPairing:
     'All valid within-participant session-median pairs sharing one no-treatment condition ID.',
   withinPerson:
-    'Residual SD around participant means using unique eligible session medians and N minus participant residual degrees of freedom.',
+    'Residual SD around participant means using every eligible observation median, retaining formal recaptures, and N minus participant residual degrees of freedom.',
   repeatabilityCoefficient: '1.96 × sqrt(2) × within-person SD',
   quantile: REDNESS_CALIBRATION_QUANTILE_METHOD,
   bootstrap: REDNESS_CALIBRATION_BOOTSTRAP_ALGORITHM,
@@ -251,7 +251,12 @@ function directionAgreementFor(
   const expected = anchor.expectedDirection;
   if (expected === 'no_change') {
     return {
-      status: positive > 0 && negative > 0 ? 'mixed' : 'agreeing',
+      status:
+        positive > 0 && negative > 0
+          ? 'mixed'
+          : positive > 0 || negative > 0
+            ? 'contradicted'
+            : 'agreeing',
       assessedFrameCount: scores.length,
       expectedDirection: expected,
     };
@@ -263,12 +268,38 @@ function directionAgreementFor(
     status:
       contradicting > 0 && agreeing > 0
         ? 'mixed'
-        : contradicting > 0
+        : contradicting > 0 || agreeing === 0
           ? 'contradicted'
           : 'agreeing',
     assessedFrameCount: scores.length,
     expectedDirection: expected,
   };
+}
+
+function structuralEligibilityReasons(value: unknown): RednessCalibrationExclusionReason[] {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+    return ['missing_or_non_finite_raw_score', 'fewer_than_three_accepted_frames'];
+  }
+  const burst = (value as Record<string, unknown>).burst;
+  if (typeof burst !== 'object' || burst === null || Array.isArray(burst)) {
+    return ['missing_or_non_finite_raw_score', 'fewer_than_three_accepted_frames'];
+  }
+  const acceptedFrames = (burst as Record<string, unknown>).acceptedFrames;
+  if (!Array.isArray(acceptedFrames)) {
+    return ['missing_or_non_finite_raw_score', 'fewer_than_three_accepted_frames'];
+  }
+  const rawScores = acceptedFrames.map((frame) => {
+    if (typeof frame !== 'object' || frame === null || Array.isArray(frame)) return undefined;
+    const signal = (frame as Record<string, unknown>).signal;
+    if (typeof signal !== 'object' || signal === null || Array.isArray(signal)) return undefined;
+    return (signal as Record<string, unknown>).rawScore;
+  });
+  const reasons: RednessCalibrationExclusionReason[] = [];
+  if (rawScores.some((score) => typeof score !== 'number' || !Number.isFinite(score))) {
+    reasons.push('missing_or_non_finite_raw_score');
+  }
+  if (acceptedFrames.length < 3) reasons.push('fewer_than_three_accepted_frames');
+  return reasons;
 }
 
 function withinBurst(observation: RednessCalibrationObservation): WithinBurstAgreement {
@@ -387,6 +418,31 @@ function sessionPoints(observations: RednessCalibrationObservation[]): SessionPo
   });
 }
 
+function observationMedianPoints(
+  observations: RednessCalibrationObservation[],
+): SessionPoint[] {
+  return observations
+    .filter(
+      (observation) =>
+        typeof observation.sessionRawMedian === 'number' &&
+        Number.isFinite(observation.sessionRawMedian),
+    )
+    .map((observation) => ({
+      participantId: observation.participantId,
+      sessionId: `${observation.sessionId}:${observation.observationId}`,
+      conditionId: observation.conditionId,
+      conditionType: observation.conditionType,
+      timestamp: observation.captureTimestamp,
+      median: observation.sessionRawMedian as number,
+    }))
+    .sort((left, right) => {
+      const participant = left.participantId.localeCompare(right.participantId);
+      if (participant !== 0) return participant;
+      const timestamp = left.timestamp.localeCompare(right.timestamp);
+      return timestamp === 0 ? left.sessionId.localeCompare(right.sessionId) : timestamp;
+    });
+}
+
 function longitudinalComparisons(points: SessionPoint[]): NoChangeComparison[] {
   const groups = new Map<string, SessionPoint[]>();
   for (const point of points.filter(
@@ -419,6 +475,62 @@ function longitudinalComparisons(points: SessionPoint[]): NoChangeComparison[] {
     }
   }
   return comparisons.sort((left, right) => left.comparisonId.localeCompare(right.comparisonId));
+}
+
+function iccForSessionPoints(points: SessionPoint[]): IccEstimate {
+  const participantGroups = new Map<string, SessionPoint[]>();
+  for (const point of points) {
+    participantGroups.set(point.participantId, [
+      ...(participantGroups.get(point.participantId) ?? []),
+      point,
+    ]);
+  }
+  const participants = [...participantGroups.entries()].sort(([left], [right]) =>
+    left.localeCompare(right),
+  );
+  const rows = participants.map(([, participantPoints]) => {
+    const byCondition = new Map<SessionPoint['conditionType'], SessionPoint[]>();
+    for (const point of participantPoints) {
+      byCondition.set(point.conditionType, [
+        ...(byCondition.get(point.conditionType) ?? []),
+        point,
+      ]);
+    }
+    return [...byCondition.entries()]
+      .sort(([left], [right]) => left.localeCompare(right))
+      .flatMap(([conditionType, conditionPoints]) =>
+        [...conditionPoints]
+          .sort((left, right) => {
+            const timestamp = left.timestamp.localeCompare(right.timestamp);
+            return timestamp === 0
+              ? left.sessionId.localeCompare(right.sessionId)
+              : timestamp;
+          })
+          .map((point, index) => ({
+            slot: `${conditionType}:${index + 1}`,
+            value: point.median,
+          })),
+      );
+  });
+  const referenceSlots = rows[0]?.map(({ slot }) => slot) ?? [];
+  const aligned = rows.every(
+    (row) =>
+      row.length === referenceSlots.length &&
+      row.every(({ slot }, index) => slot === referenceSlots[index]),
+  );
+  if (!aligned) {
+    return {
+      status: 'not_estimable',
+      variant: 'ICC(A,1)',
+      reason:
+        'ICC(A,1) requires the same ordered condition/occasion slots for every participant.',
+      participantCount: participants.length,
+      repeatedObservationCount: null,
+      totalObservationCount: points.length,
+      method: 'two-way random-effects absolute agreement single measurement',
+    };
+  }
+  return iccAbsoluteAgreementSingle(rows.map((row) => row.map(({ value }) => value)));
 }
 
 function participantClusters<T>(
@@ -633,7 +745,7 @@ export function analyzeRednessCalibration(
         observationId: safeId((candidate as RednessCalibrationObservation).observationId),
         participantId: safeId((candidate as RednessCalibrationObservation).participantId),
         sessionId: safeId((candidate as RednessCalibrationObservation).sessionId),
-        reasons: ['corrupt_observation'],
+        reasons: ['corrupt_observation', ...structuralEligibilityReasons(candidate)],
         validationIssueCodes: [...new Set(validation.issues.map(({ code }) => code))],
       });
       continue;
@@ -671,8 +783,8 @@ export function analyzeRednessCalibration(
         ({ absolute }) => absolute,
       ),
   );
-  const points = sessionPoints(eligible);
-  const longitudinal = longitudinalComparisons(points);
+  const longitudinalPoints = sessionPoints(eligible);
+  const longitudinal = longitudinalComparisons(longitudinalPoints);
   const longitudinalClusters = participantClusters(
     longitudinal,
     ({ participantId }) => participantId,
@@ -705,8 +817,9 @@ export function analyzeRednessCalibration(
     frameCount: 0,
   });
 
+  const repeatedObservationPoints = observationMedianPoints(eligible);
   const pointsByParticipant = participantClusters(
-    points,
+    repeatedObservationPoints,
     ({ participantId }) => participantId,
     ({ median }) => [median],
   );
@@ -750,17 +863,7 @@ export function analyzeRednessCalibration(
           confidenceInterval: repeatabilityInterval,
         };
 
-  const sortedParticipants = [...new Set(points.map(({ participantId }) => participantId))].sort();
-  const iccMatrix = sortedParticipants.map((participantId) =>
-    points
-      .filter((point) => point.participantId === participantId)
-      .sort((left, right) => {
-        const time = left.timestamp.localeCompare(right.timestamp);
-        return time === 0 ? left.sessionId.localeCompare(right.sessionId) : time;
-      })
-      .map(({ median }) => median),
-  );
-  const icc = iccAbsoluteAgreementSingle(iccMatrix);
+  const icc = iccForSessionPoints(repeatedObservationPoints);
 
   const withinBurstComparisons: NoChangeComparison[] = eligible.flatMap((observation) =>
     pairwise(observation.burst.acceptedFrames.map(({ signal }) => signal.rawScore)).map(

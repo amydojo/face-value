@@ -220,6 +220,15 @@ describe('pure redness calibration analysis', () => {
     const withAnchor = analyzeRednessCalibration([anchoredFixture], {
       bootstrapIterations: 400,
     });
+    const contradictedNoChange = analyzeRednessCalibration([
+      {
+        ...fixtures[0],
+        comparisonAnchor: {
+          rawScore: 59,
+          expectedDirection: 'no_change' as const,
+        },
+      },
+    ], { bootstrapIterations: 400 });
 
     expect(withoutAnchor.observations[0].directionAgreement).toEqual({
       status: 'not_available',
@@ -231,6 +240,28 @@ describe('pure redness calibration analysis', () => {
       assessedFrameCount: 3,
       expectedDirection: 'improvement',
     });
+    expect(contradictedNoChange.observations[0].directionAgreement).toEqual({
+      status: 'contradicted',
+      assessedFrameCount: 3,
+      expectedDirection: 'no_change',
+    });
+  });
+
+  it('names missing or non-finite raw evidence even when the observation is corrupt', () => {
+    const candidate = syntheticRednessCalibrationFixtures()[0];
+    candidate.burst.acceptedFrames[1].signal.rawScore = Number.NaN;
+
+    const result = analyzeRednessCalibration([candidate], { bootstrapIterations: 400 });
+
+    expect(result.exclusions).toEqual([
+      expect.objectContaining({
+        observationId: candidate.observationId,
+        reasons: ['corrupt_observation', 'missing_or_non_finite_raw_score'],
+        validationIssueCodes: expect.arrayContaining(['invalid_burst']),
+      }),
+    ]);
+    expect(result.counts.eligibleObservationCount).toBe(0);
+    assertFiniteNumbers(result);
   });
 
   it('calculates residual within-person SD, exact repeatability coefficient, and balanced ICC', () => {
@@ -239,11 +270,11 @@ describe('pure redness calibration analysis', () => {
     expect(result.withinPersonSd).toMatchObject({
       status: 'estimated',
       value: expect.any(Number),
-      observationCount: 9,
+      observationCount: 12,
       participantCount: 3,
-      residualDegreesOfFreedom: 6,
+      residualDegreesOfFreedom: 9,
     });
-    expect(result.withinPersonSd.value).toBeCloseTo(Math.sqrt(0.75), 12);
+    expect(result.withinPersonSd.value).toBeCloseTo(Math.sqrt(2 / 3), 12);
     expect(result.repeatabilityCoefficient).toMatchObject({
       status: 'estimated',
       formula: '1.96 × sqrt(2) × within-person SD',
@@ -251,14 +282,37 @@ describe('pure redness calibration analysis', () => {
       confidenceInterval: expect.objectContaining({ status: 'estimated' }),
     });
     expect(result.repeatabilityCoefficient.value).toBeCloseTo(
-      1.96 * Math.sqrt(2) * Math.sqrt(0.75),
+      1.96 * Math.sqrt(2) * Math.sqrt(2 / 3),
       12,
     );
     expect(result.icc).toMatchObject({
       status: 'estimated',
       variant: 'ICC(A,1)',
       participantCount: 3,
-      repeatedObservationCount: 3,
+      repeatedObservationCount: 4,
+    });
+  });
+
+  it('returns not estimable when balanced row lengths hide incompatible ICC occasions', () => {
+    const fixtures = syntheticRednessCalibrationFixtures();
+    const incompatible = fixtures.map((fixture) =>
+      fixture.observationId === 'syn-p03-long-b'
+        ? {
+            ...fixture,
+            conditionType: 'standard' as const,
+            conditionId: 'P-003-standard-extra',
+          }
+        : fixture,
+    );
+
+    const result = analyzeRednessCalibration(incompatible, { bootstrapIterations: 400 });
+
+    expect(result.icc).toMatchObject({
+      status: 'not_estimable',
+      variant: 'ICC(A,1)',
+      participantCount: 3,
+      repeatedObservationCount: null,
+      reason: expect.stringContaining('condition/occasion slots'),
     });
   });
 

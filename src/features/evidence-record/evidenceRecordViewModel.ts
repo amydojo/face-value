@@ -1178,8 +1178,7 @@ const legacyViewModel = (record: EvidenceRecordData): EvidenceRecordViewModel =>
       tone: 'default',
     },
     atAGlance: [],
-    legacyMessage:
-      'Redness Response Signature evidence was not collected for this earlier result. Detailed burst measurements and trial-truth evidence are not available.',
+    legacyMessage: 'Detailed measurements are not available for this earlier result.',
     legacyNote: record.note?.trim() || undefined,
     privacyLabel: 'Private by default · Face image excluded',
   };

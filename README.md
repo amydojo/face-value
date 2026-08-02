@@ -10,9 +10,9 @@ The hackathon production slice is deliberately narrow:
 
 ## Current repository truth
 
-This implementation is based on `main` at merged PR #67
-(`330f51975f162a2c15784114d7a448492973fcad`) and includes issue #63.
-Issues #64 and #65 remain planned work.
+This implementation is based on `main` at merged PR #69
+(`f95b051f6c562919c23da0d08728fff124d27d48`) and implements issue #65 on top
+of merged issues #63 and #64.
 
 Current production behavior includes:
 
@@ -26,9 +26,12 @@ Current production behavior includes:
 - deterministic, versioned redness evaluation
 - provisional operating boundaries of 5 and 10 raw-score points
 - explicit measurement, attribution, evidence, safety, and action dimensions
+- reducer-owned adherence, tolerance, symptom, and participant-observed redness evidence
 - a sealed Oracle result reveal and exactly-once Evidence Record collection
-- face-free local persistence, Previous Trials, Evidence Record detail, and reload continuity
+- a saved-snapshot Redness Response Signature inside progressive Evidence Record detail
+- face-free local persistence, Previous Trials, and reload continuity
 - protected Demo Lab and provider engineering-session boundaries
+- a protected, isolated preliminary redness-calibration instrument
 
 Current limitations are equally important:
 
@@ -37,9 +40,10 @@ Current limitations are equally important:
 - measurement quality remains limited because cross-session pose, facial
   registration, segmentation, crop, face size, color cast, and skin-tone
   properties are not measured
-- adherence, tolerance, and participant-observed redness change are not yet collected in the ordinary path
+- mask, registration, segmentation, measured skin-tone, and provider model-version evidence remain unavailable
 - the 5/10 boundaries are provisional Face Value operating thresholds, not clinical significance thresholds
 - the provider does not currently report an analysis-model version
+- live calibration collection is blocked by YouCam `CreditInsufficiency`; only explicitly synthetic face-free calibration fixtures are verified
 - Face Value does not diagnose skin disease or establish clinical product efficacy
 
 See [`docs/README.md`](docs/README.md) for the authority and supersession index.
@@ -65,6 +69,7 @@ empty instrument
 follow-up ready
 → guided follow-up evidence burst
 → optional capture context
+→ trial truth: adherence, tolerance, symptoms, and participant-observed direction
 → deterministic comparison
 → sealed Oracle
 → reveal result and recommendation
@@ -84,6 +89,7 @@ three distinct in-memory frames
 → three independent YouCam Skin Analysis v2.1 requests
 → three normalized hd_redness.raw_score observations
 → frozen protocol and face-free capture metadata
+→ reducer-owned trial-truth evidence
 → canonical redness evidence adapter
 → deterministic median, direction agreement, and evaluation
 → immutable RednessEvaluationSnapshot
@@ -136,19 +142,22 @@ See [`docs/camera-contract.md`](docs/camera-contract.md).
 
 ## Phase C status
 
-1. **#63 — Evidence Burst (implemented in this change)**
+1. **#63 — Evidence Burst (merged)**
 
    Three independently analyzed current frames per baseline and follow-up,
    reducer-owned atomic period commit, evaluator-owned aggregation, bounded
    rejected-attempt evidence, and face-free persistence.
 
-2. **#64 — Trial Truth (planned)**
+2. **#64 — Trial Truth (merged)**
 
-   Explicit adherence, tolerance, and participant-observed redness direction mapped into the existing evaluator without UI-side verdict logic.
+   Explicit adherence, tolerance, symptoms, and participant-observed redness direction mapped into the existing evaluator without UI-side verdict logic.
 
-3. **#65 — Preliminary Calibration Harness (planned)**
+3. **#65 — Preliminary Calibration Harness (implemented in this change)**
 
-   A protected internal repeatability instrument and exploratory technical report. Production trials continue using the provisional 5/10 configuration unless a future separately reviewed graduation process approves otherwise.
+   A protected internal repeatability instrument, deterministic exploratory
+   report/registry, and saved-snapshot Redness Response Signature. Production
+   trials continue using the provisional 5/10 configuration unless a future
+   separately reviewed graduation process approves otherwise.
 
 Planned work does not become repository truth until its pull request is merged
 and the authority docs are updated in the same change.
@@ -192,15 +201,18 @@ Start with:
 - [`docs/state-model.md`](docs/state-model.md)
 - [`docs/camera-contract.md`](docs/camera-contract.md)
 - [`docs/redness-evidence-engine-v1.md`](docs/redness-evidence-engine-v1.md)
+- [`docs/redness-calibration-harness.md`](docs/redness-calibration-harness.md)
 - [`docs/oracle-reveal-v1.md`](docs/oracle-reveal-v1.md)
 - [`docs/source-of-truth-manifest.md`](docs/source-of-truth-manifest.md)
 
 ## Verification status
 
-Issue #63 automated, preview, and browser verification is recorded in
-[`docs/verification/redness-evidence-burst-63/README.md`](docs/verification/redness-evidence-burst-63/README.md)
-and the draft pull request for the exact head.
+Issue #65's method, synthetic verification boundary, and remaining physical
+checks are recorded in
+[`docs/redness-calibration-harness.md`](docs/redness-calibration-harness.md).
+Issue #63 acquisition evidence remains in
+[`docs/verification/redness-evidence-burst-63/README.md`](docs/verification/redness-evidence-burst-63/README.md).
 
-A final exact-head physical-iPhone acceptance pass remains a release gate and
-must be recorded explicitly rather than inferred from synthetic browser
-screenshots.
+A final exact-head provider-backed physical-iPhone acceptance pass remains
+blocked by `CreditInsufficiency` and must be recorded explicitly after credits
+return rather than inferred from synthetic browser evidence.

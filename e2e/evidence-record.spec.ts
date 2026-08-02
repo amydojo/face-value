@@ -147,11 +147,20 @@ test('disclosures are semantic, keyboard operable, mutually exclusive, and motio
   await expect(full).toHaveAttribute('aria-expanded', 'true');
   await expect(why).toHaveAttribute('aria-expanded', 'false');
   await expect(page.getByRole('region', { name: 'Full evidence record' })).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Evidence checks' })).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Measurements' })).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Trial details' })).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Comparison settings' })).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Technical methods' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Redness Response Signature' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Observed change' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Measurement support' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Trial truth' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Evidence boundaries' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Supported next action' })).toBeVisible();
+  for (const provenance of [
+    'Provider measurement',
+    'Face Value deterministic evaluation',
+    'Participant report',
+    'Unavailable evidence',
+  ]) {
+    await expect(page.locator(`[data-evidence-provenance="${provenance}"]`).first()).toBeVisible();
+  }
 
   const technical = page.locator('details').filter({ hasText: 'Technical metadata' });
   await technical.locator('summary').click();
@@ -275,10 +284,21 @@ test('complete saved-result journey retains one immutable snapshot and stable ve
   const full = page.getByRole('button', { name: /Full evidence record/i });
   await full.click();
   const configurationHash = page.locator('[data-evidence-row="configuration-hash"]');
-  await expect(configurationHash).toBeHidden();
-  await page.locator('details summary').click();
+  const metadataConfigurationHash = page.locator(
+    '[data-evidence-row="configuration-hash-metadata"]',
+  );
+  const baselineScores = page.locator('[data-evidence-row="baseline-raw-scores"]');
+  const followUpScores = page.locator('[data-evidence-row="follow-up-raw-scores"]');
+  const baselineMedian = page.locator('[data-evidence-row="baseline-median"]');
   await expect(configurationHash).toBeVisible();
   await expect(configurationHash).toContainText(snapshot.threshold.configHash);
+  await expect(metadataConfigurationHash).toBeHidden();
+  await expect(baselineScores).toContainText(snapshot.baseline.acceptedRawScores.join(' · '));
+  await expect(followUpScores).toContainText(snapshot.endpoint.acceptedRawScores.join(' · '));
+  await expect(baselineMedian).toContainText(String(snapshot.baselineRawMedian));
+  await page.locator('details summary').click();
+  await expect(metadataConfigurationHash).toBeVisible();
+  await expect(metadataConfigurationHash).toContainText(snapshot.threshold.configHash);
 
   await page.getByRole('button', { name: 'Back to previous view' }).click();
   await expect(page.getByRole('heading', { name: 'Previous trials' })).toBeVisible();
@@ -286,6 +306,10 @@ test('complete saved-result journey retains one immutable snapshot and stable ve
     .getByRole('button', { name: /Open saved result FV–035 for One Thing/i })
     .click();
   await expect(headline).toBeVisible();
+  await full.click();
+  await expect(baselineScores).toContainText(snapshot.baseline.acceptedRawScores.join(' · '));
+  await expect(followUpScores).toContainText(snapshot.endpoint.acceptedRawScores.join(' · '));
+  await full.click();
 
   const beforeReload = await page.evaluate((key) => {
     const stored = JSON.parse(localStorage.getItem(key) ?? '{}') as {
@@ -305,6 +329,11 @@ test('complete saved-result journey retains one immutable snapshot and stable ve
   await expect(page.locator('[data-evidence-comparison]')).toContainText('+12 points');
   await expect(page.getByRole('heading', { name: 'Keep using it' })).toBeVisible();
   await expect(full).toHaveAttribute('aria-expanded', 'false');
+  await full.click();
+  await expect(baselineScores).toContainText(snapshot.baseline.acceptedRawScores.join(' · '));
+  await expect(followUpScores).toContainText(snapshot.endpoint.acceptedRawScores.join(' · '));
+  await expect(configurationHash).toContainText(snapshot.threshold.configHash);
+  await full.click();
 
   await page.getByRole('button', { name: 'View previous trials' }).click();
   await expect(page.getByRole('heading', { name: 'Previous trials' })).toBeVisible();

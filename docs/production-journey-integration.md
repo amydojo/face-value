@@ -1,11 +1,11 @@
 # Face Value production journey integration
 
 **Status:** Current journey authority  
-**Effective date:** July 31, 2026  
-**Implementation base:** `main` at merged PR #67
-(`330f51975f162a2c15784114d7a448492973fcad`)
+**Effective date:** August 1, 2026
+**Implementation base:** `main` at merged PR #69
+(`f95b051f6c562919c23da0d08728fff124d27d48`)
 
-**Current change:** issue #63
+**Current change:** issue #65
 
 Face Value exposes one reducer-owned product journey. Development fixtures, diagnostics, and Demo Lab starting points project typed state into the same production components; they do not create an alternate consumer product.
 
@@ -117,7 +117,9 @@ After an accepted baseline or follow-up analysis, the current optional context s
 
 Capture context may create a limitation or confounder. It cannot increase confidence, change the deciding raw score, diagnose a condition, or manufacture attribution.
 
-Adherence, tolerance, symptoms, and participant-observed longitudinal redness direction are separate trial-level concepts planned in #64. They must not be silently inferred from current capture context.
+Adherence, tolerance, symptoms, and participant-observed longitudinal redness
+direction are separate reducer-owned trial-level evidence. They are never
+silently inferred from capture context.
 
 ## 6. Evidence processing
 
@@ -130,6 +132,7 @@ three accepted distinct baseline frames
 → three accepted distinct eligible follow-up frames
 → three independent requests under the identical YouCam protocol
 → atomic frozen follow-up burst
+→ reducer-owned trial-truth commit
 → canonical redness evidence adapter
 → evaluator-owned medians, direction agreement, and result
 → immutable RednessEvaluationSnapshot
@@ -173,7 +176,10 @@ milliseconds before advancing presentation. The hold does not delay reducer
 truth or durable evidence. There is no zero state, fake percentage, countdown,
 spinner, progress bar, or face-crossing scan line.
 
-A valid follow-up automatically requests comparison. There is no consumer action to author the verdict, choose a threshold, or call a language model.
+A valid follow-up enters Trial Truth. Once its required evidence is committed,
+the guarded application effect requests comparison automatically. There is no
+consumer action to author the verdict, choose a threshold, or call a language
+model.
 
 ## 7. Comparison and failure behavior
 
@@ -326,7 +332,10 @@ It may not:
 The Demo Lab banner is presentation only. It does not compete with the primary
 analysis status stack and cannot become a product-identity source.
 
-The planned calibration route in #65 must use the same protected boundary and an isolated calibration store.
+The calibration route in #65 uses the same protected boundary and an isolated,
+versioned, fail-closed calibration store. It is absent from consumer navigation,
+uses explicitly synthetic fixtures while YouCam returns
+`CreditInsufficiency`, and cannot alter production trial storage or thresholds.
 
 ## 13. Accessibility
 
@@ -373,23 +382,26 @@ Automated proof includes:
 - sealed-state DOM and accessibility checks
 - Oracle exactly-once collection
 - persistence and legacy hydration
+- reducer-owned trial-truth collection and legacy `Not collected` honesty
+- immutable five-section Redness Response Signature presentation
+- protected calibration routing, isolated fail-closed storage, and pure analysis
 - first-trial machine/specimen continuity
-- Mobile WebKit acquisition sequence and visual viewport behavior
+- Mobile WebKit acquisition, Evidence Record, and synthetic calibration behavior
 - compiled-client privacy scan
 
 Synthetic WebKit evidence is not physical-device proof. A final exact-head physical-iPhone golden-path pass remains a release gate and must record the tested commit, device, browser, conditions, and result.
 
 ## 16. Phase C journey status
 
-### #63 (current)
+### #63 (merged)
 
 The user still experiences one scan, while the system collects three genuine provider measurements and commits one burst-backed evidence period atomically.
 
-### #64 (planned)
+### #64 (merged)
 
 After follow-up evidence is secured, the journey collects adherence, tolerance, and participant-observed redness direction before comparison becomes ready.
 
-### #65 (planned)
+### #65 (current)
 
 A separate protected route collects calibration observations. It does not enter consumer navigation or replace the provisional production threshold.
 

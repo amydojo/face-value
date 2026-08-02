@@ -45,6 +45,14 @@ export type RednessCalibrationHydration =
 const isObject = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
 
+const hasExactKeys = (value: Record<string, unknown>, expected: readonly string[]): boolean => {
+  const expectedKeys = new Set(expected);
+  return (
+    Object.keys(value).length === expected.length &&
+    Object.keys(value).every((key) => expectedKeys.has(key))
+  );
+};
+
 const cloneEnvelope = (envelope: RednessCalibrationEnvelope): RednessCalibrationEnvelope =>
   structuredClone(envelope);
 
@@ -125,6 +133,7 @@ function parseEnvelope(raw: string): RednessCalibrationHydration {
   }
   if (
     !isObject(parsed) ||
+    !hasExactKeys(parsed, ['schemaVersion', 'origin', 'savedAt', 'observations']) ||
     parsed.schemaVersion !== REDNESS_CALIBRATION_ENVELOPE_SCHEMA ||
     parsed.origin !== REDNESS_CALIBRATION_ORIGIN ||
     typeof parsed.savedAt !== 'string' ||
@@ -235,8 +244,11 @@ export function parseRednessCalibrationExport(raw: string): RednessCalibrationOb
   }
   if (
     !isObject(parsed) ||
+    !hasExactKeys(parsed, ['schemaVersion', 'origin', 'exportedAt', 'observations']) ||
     parsed.schemaVersion !== REDNESS_CALIBRATION_EXPORT_SCHEMA ||
     parsed.origin !== REDNESS_CALIBRATION_ORIGIN ||
+    typeof parsed.exportedAt !== 'string' ||
+    !Number.isFinite(Date.parse(parsed.exportedAt)) ||
     !Array.isArray(parsed.observations)
   ) {
     throw new Error('Calibration import envelope is incompatible.');

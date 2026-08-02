@@ -3,12 +3,12 @@
 **Status:** Current provider authority  
 **Version:** 2.1
 
-**Effective date:** July 30, 2026
+**Effective date:** August 1, 2026
 
-**Implementation base:** `main` at merged PR #67
-(`330f51975f162a2c15784114d7a448492973fcad`)
+**Implementation base:** `main` at merged PR #69
+(`f95b051f6c562919c23da0d08728fff124d27d48`)
 
-**Current change:** issue #63
+**Current change:** issue #65
 
 This document governs the secure YouCam Skin Analysis integration, durable normalization, engineering-session authorization, provider failures, and image lifecycle.
 
@@ -350,15 +350,21 @@ Demo Lab uses the same signed engineering session and isolated synthetic storage
 
 ### Calibration
 
-The full calibration harness is planned in #65. The current repository does not yet implement the protected `/calibration/redness` route or persistent calibration observations.
+The preliminary calibration harness is implemented in #65 at protected
+`/calibration/redness` with isolated, persistent face-free observations.
 
-The future harness must:
+The harness:
 
-- reuse the real provider and burst boundary
-- persist face-free observations only
-- calculate exploratory repeatability estimates outside React
-- keep production thresholds provisional
-- prevent exploratory registry entries from loading as production threshold configurations
+- reuses the existing provider and burst contract boundary
+- persists face-free observations only
+- calculates exploratory repeatability estimates outside React
+- keeps production thresholds provisional
+- prevents exploratory registry entries from loading as production threshold configurations
+
+It does not alter credentials, provider retry behavior, provider contracts, or
+camera acquisition. Live collection remains honestly blocked because task
+creation returns HTTP 400 `CreditInsufficiency`; automated checks make no
+provider request and use only explicitly synthetic face-free fixtures.
 
 ## 16. Claims boundary
 
