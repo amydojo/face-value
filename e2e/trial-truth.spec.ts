@@ -203,6 +203,66 @@ async function expectNoHorizontalOverflow(page: Page): Promise<void> {
   expect(dimensions.bodyScroll).toBeLessThanOrEqual(dimensions.bodyClient + 1);
 }
 
+async function expectFirmwareFits(page: Page): Promise<void> {
+  const layout = await page.evaluate(() => {
+    const rect = (selector: string) => {
+      const element = document.querySelector<HTMLElement>(selector);
+      if (!element) return null;
+      const box = element.getBoundingClientRect();
+      return { top: box.top, right: box.right, bottom: box.bottom, left: box.left };
+    };
+    const panel = rect('[data-motion-direction]')!;
+    const identity = rect('[data-trial-truth-product-identity]')!;
+    const question = rect('[data-motion-direction] h1')!;
+    const answer = rect(
+      '[data-motion-direction] [data-segment-count], [data-motion-direction] [data-trial-truth-symptom-scroller]',
+    );
+    const footer = rect(
+      '[data-motion-direction] [aria-label="Add reported symptoms"], [data-motion-direction] [aria-label="Edit reported symptoms"], [data-motion-direction] p[class*="helper"]',
+    );
+    return { panel, identity, question, answer, footer };
+  });
+
+  for (const box of [layout.identity, layout.question, layout.answer, layout.footer]) {
+    if (!box) continue;
+    expect(box.top).toBeGreaterThanOrEqual(layout.panel.top - 0.5);
+    expect(box.left).toBeGreaterThanOrEqual(layout.panel.left - 0.5);
+    expect(box.right).toBeLessThanOrEqual(layout.panel.right + 0.5);
+    expect(box.bottom).toBeLessThanOrEqual(layout.panel.bottom + 0.5);
+  }
+  expect(layout.question.top).toBeGreaterThanOrEqual(layout.identity.bottom + 1);
+  if (layout.answer) {
+    expect(layout.answer.top).toBeGreaterThanOrEqual(layout.question.bottom + 1);
+  }
+  if (layout.answer && layout.footer) {
+    expect(layout.footer.top).toBeGreaterThanOrEqual(layout.answer.bottom + 1);
+  }
+}
+
+async function amberTreatment(page: Page) {
+  return page.locator('[data-oracle-amber-control][data-amber-state="ready"]').evaluate((amber) => {
+    const outer = getComputedStyle(amber);
+    const light = amber.querySelector<HTMLElement>(':scope > span');
+    if (!light) throw new Error('Amber control has no inner light.');
+    const inner = getComputedStyle(light);
+    return {
+      outer: {
+        backgroundImage: outer.backgroundImage,
+        borderTopColor: outer.borderTopColor,
+        borderRightColor: outer.borderRightColor,
+        borderBottomColor: outer.borderBottomColor,
+        borderLeftColor: outer.borderLeftColor,
+        boxShadow: outer.boxShadow,
+      },
+      inner: {
+        backgroundImage: inner.backgroundImage,
+        borderTopColor: inner.borderTopColor,
+        boxShadow: inner.boxShadow,
+      },
+    };
+  });
+}
+
 async function installRuntimeGuards(page: Page): Promise<{
   consoleErrors: string[];
   pageErrors: string[];
@@ -257,7 +317,7 @@ async function submitTrialTruth(page: Page, scenario: TrialScenario): Promise<vo
     await page.getByRole('checkbox', { name: symptom }).click();
   }
   if ((scenario.symptoms ?? []).length > 0) {
-    await page.getByRole('button', { name: 'Done choosing symptoms' }).click();
+    await page.getByRole('button', { name: 'Save signs' }).click();
   }
   await page.getByRole('button', { name: 'Continue to visible redness' }).click();
   await page.getByRole('radio', { name: scenario.visible.toUpperCase() }).click();
@@ -536,6 +596,7 @@ test('trial truth keeps one stationary machine across steps, symptoms, widths, a
         return {
           machine: box('[data-oracle-machine]'),
           identity: box('[data-trial-truth-product-identity]'),
+          actuator: box('[data-trial-truth-center-actuator]'),
           amber: box('[data-trial-truth-confirmation]'),
         };
       });
@@ -545,17 +606,36 @@ test('trial truth keeps one stationary machine across steps, symptoms, widths, a
       page.getByLabel('Registered product: Face Value Lab, One Thing Redness Trial, 10%, 30 ml'),
     ).toContainText('DEMO 01 · One Thing Redness Trial 10%');
 
-    await expect(page.getByRole('button', { name: 'Continue to skin response' })).toBeDisabled();
+    const disabledAction = page.getByRole('button', { name: 'Continue to skin response' });
+    await expect(disabledAction).toBeDisabled();
+    await expect(page.locator('[data-trial-truth-visible-control-label]')).toHaveText('');
+    await expect(page.locator('[data-trial-truth-confirmation]')).toHaveAttribute(
+      'data-amber-state',
+      'idle',
+    );
+    await page.locator('[data-trial-truth-center-actuator]').evaluate((actuator) => {
+      (actuator as HTMLElement).click();
+    });
+    await page.locator('[data-trial-truth-confirmation]').evaluate((amber) => {
+      (amber as HTMLElement).click();
+    });
+    await expect(page.getByRole('group', { name: 'Did you use it as planned?' })).toBeVisible();
+
     await page.getByRole('radio', { name: 'YES' }).click();
-    const amber = page.getByRole('button', { name: 'Continue to skin response' });
-    await amber.evaluate((button) => {
-      (button as HTMLButtonElement).click();
-      (button as HTMLButtonElement).click();
+    await expect(page.locator('[data-trial-truth-visible-control-label]')).toHaveText('CONTINUE');
+    await expect(page.locator('[data-trial-truth-confirmation]')).toHaveAttribute(
+      'data-amber-state',
+      'ready',
+    );
+    await page.locator('[data-trial-truth-visible-control-label]').evaluate((label) => {
+      (label as HTMLElement).click();
+      (label as HTMLElement).click();
     });
     await expect(page.getByRole('heading', { name: 'How did your skin respond?' })).toBeFocused();
     expect(await geometry()).toEqual(initialGeometry);
 
     await page.getByRole('radio', { name: 'MILD' }).click();
+    await expectFirmwareFits(page);
     const summary = page.getByRole('button', { name: 'Add reported symptoms' });
     await expect(summary).toContainText('WHAT DID YOU NOTICE?');
     await expect(summary).toContainText('ADD');
@@ -564,20 +644,55 @@ test('trial truth keeps one stationary machine across steps, symptoms, widths, a
     expect(await geometry()).toEqual(initialGeometry);
     await page.getByRole('checkbox', { name: 'Itching' }).click();
     await page.getByRole('checkbox', { name: 'Unusual sensitivity' }).click();
-    await page.getByRole('button', { name: 'Done choosing symptoms' }).click();
+    await expect(page.getByRole('button', { name: 'Save signs' })).toBeEnabled();
+    await expect(page.locator('[data-trial-truth-visible-control-label]')).toHaveText('SAVE SIGNS');
+    await expectFirmwareFits(page);
+    await page.locator('[data-trial-truth-confirmation]').click();
     await expect(page.getByRole('button', { name: 'Edit reported symptoms' })).toContainText(
       'Itching · Unusual sensitivity',
     );
+    await expect(page.locator('[data-trial-truth-visible-control-label]')).toHaveText('CONTINUE');
     expect(await geometry()).toEqual(initialGeometry);
 
-    await page.getByRole('button', { name: 'Continue to visible redness' }).click();
+    await page.locator('[data-trial-truth-center-actuator]').click();
     await expect(
       page.getByRole('heading', {
         name: /Compared with the start of this trial, your visible redness looks/i,
       }),
     ).toBeFocused();
     expect(await geometry()).toEqual(initialGeometry);
+    await expect(page.getByRole('button', { name: 'See result' })).toBeDisabled();
+    await expect(page.locator('[data-trial-truth-visible-control-label]')).toHaveText('');
+    await page.getByRole('radio', { name: 'LESS' }).click();
+    await expect(page.locator('[data-trial-truth-visible-control-label]')).toHaveText('SEE RESULT');
+    await expect(page.locator('[data-trial-truth-confirmation]')).toHaveAttribute(
+      'data-amber-state',
+      'ready',
+    );
+    await expectFirmwareFits(page);
     await expectNoHorizontalOverflow(page);
+
+    if (viewport.width === 390) {
+      const shadowBleed = await page.evaluate(() => {
+        const screen = document
+          .querySelector<HTMLElement>('[data-fv-screen="trial-truth"]')!
+          .getBoundingClientRect();
+        const chassis = document
+          .querySelector<HTMLElement>('[data-oracle-chassis]')!
+          .getBoundingClientRect();
+        return {
+          screenLeft: screen.left,
+          screenRight: screen.right,
+          chassisLeft: chassis.left,
+          chassisRight: chassis.right,
+          viewportWidth: document.documentElement.clientWidth,
+        };
+      });
+      expect(shadowBleed.screenLeft).toBeLessThanOrEqual(0.5);
+      expect(shadowBleed.screenRight).toBeGreaterThanOrEqual(shadowBleed.viewportWidth - 0.5);
+      expect(shadowBleed.chassisLeft).toBeGreaterThan(shadowBleed.screenLeft);
+      expect(shadowBleed.chassisRight).toBeLessThan(shadowBleed.screenRight);
+    }
 
     for (const control of await page
       .locator('[data-fv-screen="trial-truth"] input, [data-fv-screen="trial-truth"] button')
@@ -599,6 +714,23 @@ test('trial truth keeps one stationary machine across steps, symptoms, widths, a
     expect(viewportState.scrollY).toBe(0);
     expect(viewportState.animationName).toBe('none');
   }
+});
+
+test('Trial Truth enabled amber uses the verdict-ready control treatment', async ({ page }) => {
+  await launchFixture(page, 'trial_truth', 'clear_favorable_change');
+  await page.getByRole('radio', { name: 'YES' }).click();
+  await expect(page.locator('[data-trial-truth-confirmation]')).toHaveAttribute(
+    'data-amber-state',
+    'ready',
+  );
+  const trialTruthTreatment = await amberTreatment(page);
+
+  await launchFixture(page, 'cassette_revealed', 'clear_favorable_change');
+  await expect(page.locator('[data-oracle-amber-control]')).toHaveAttribute(
+    'data-amber-state',
+    'ready',
+  );
+  expect(await amberTreatment(page)).toEqual(trialTruthTreatment);
 });
 
 test('Demo Lab pill stays clear of the machine in expanded and collapsed Safari viewports', async ({

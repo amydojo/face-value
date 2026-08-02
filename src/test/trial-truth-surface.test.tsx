@@ -49,7 +49,20 @@ describe('TrialTruthSurface firmware sequence', () => {
       }),
     ).toBeNull();
     expect(screen.getByRole('radio', { name: 'YES' })).not.toBeChecked();
-    expect(screen.getByRole('button', { name: 'Continue to skin response' })).toBeDisabled();
+    const deckAction = screen.getByRole('button', { name: 'Continue to skin response' });
+    const centerActuator = container.querySelector<HTMLElement>(
+      '[data-trial-truth-center-actuator]',
+    );
+    const visibleLabel = container.querySelector<HTMLElement>(
+      '[data-trial-truth-visible-control-label]',
+    );
+    const amber = container.querySelector<HTMLElement>('[data-trial-truth-confirmation]');
+    expect(deckAction).toBeDisabled();
+    expect(deckAction).toContainElement(centerActuator);
+    expect(deckAction).toContainElement(visibleLabel);
+    expect(deckAction).toContainElement(amber);
+    expect(visibleLabel).toHaveTextContent('');
+    expect(amber).toHaveAttribute('data-amber-state', 'idle');
     expect(container.querySelectorAll('[data-oracle-machine]')).toHaveLength(1);
     expect(container.querySelectorAll('[data-specimen-renderer="identity-lock"]')).toHaveLength(0);
     expect(
@@ -60,12 +73,52 @@ describe('TrialTruthSurface firmware sequence', () => {
     expect(container.querySelectorAll('form')).toHaveLength(0);
   });
 
+  it('uses one accessible deck action for its center label, actuator, and amber control', async () => {
+    const user = userEvent.setup();
+    const { container } = render(<Harness />);
+
+    const center = () =>
+      container.querySelector<HTMLElement>('[data-trial-truth-center-actuator]')!;
+    const visibleLabel = () =>
+      container.querySelector<HTMLElement>('[data-trial-truth-visible-control-label]')!;
+    const amber = () => container.querySelector<HTMLElement>('[data-trial-truth-confirmation]')!;
+
+    fireEvent.click(center());
+    fireEvent.click(amber());
+    expect(screen.getByRole('group', { name: 'Did you use it as planned?' })).toBeVisible();
+
+    await user.click(screen.getByRole('radio', { name: 'YES' }));
+    expect(visibleLabel()).toHaveTextContent('CONTINUE');
+    expect(amber()).toHaveAttribute('data-amber-state', 'ready');
+    fireEvent.click(visibleLabel());
+    expect(screen.getByRole('group', { name: 'How did your skin respond?' })).toBeVisible();
+
+    await user.click(screen.getByRole('radio', { name: 'MILD' }));
+    await user.click(screen.getByRole('button', { name: 'Add reported symptoms' }));
+    expect(screen.getByRole('button', { name: 'Save signs' })).toContainElement(visibleLabel());
+    expect(visibleLabel()).toHaveTextContent('SAVE SIGNS');
+    fireEvent.click(amber());
+    expect(screen.getByRole('group', { name: 'How did your skin respond?' })).toBeVisible();
+
+    expect(visibleLabel()).toHaveTextContent('CONTINUE');
+    fireEvent.click(center());
+    expect(
+      screen.getByRole('group', {
+        name: /Compared with the start of this trial, your visible redness looks/i,
+      }),
+    ).toBeVisible();
+
+    await user.click(screen.getByRole('radio', { name: 'LESS' }));
+    expect(visibleLabel()).toHaveTextContent('SEE RESULT');
+    expect(amber()).toHaveAttribute('data-amber-state', 'ready');
+  });
+
   it('does not skip a step across repeated amber-control presses and moves focus for VoiceOver', async () => {
     const user = userEvent.setup();
-    render(<Harness />);
+    const { container } = render(<Harness />);
     await user.click(screen.getByRole('radio', { name: 'YES' }));
 
-    const amber = screen.getByRole('button', { name: 'Continue to skin response' });
+    const amber = container.querySelector<HTMLElement>('[data-trial-truth-confirmation]')!;
     fireEvent.click(amber);
     fireEvent.click(amber);
 
@@ -121,7 +174,7 @@ describe('TrialTruthSurface firmware sequence', () => {
     );
 
     await user.click(screen.getByRole('button', { name: 'Edit reported symptoms' }));
-    await user.click(screen.getByRole('button', { name: 'Done choosing symptoms' }));
+    await user.click(screen.getByRole('button', { name: 'Save signs' }));
     expect(screen.getByRole('button', { name: 'Edit reported symptoms' })).toHaveTextContent(
       'Itching',
     );
@@ -135,9 +188,9 @@ describe('TrialTruthSurface firmware sequence', () => {
     expect(screen.getByRole('button', { name: 'Continue to visible redness' })).toBeDisabled();
 
     await user.click(screen.getByRole('button', { name: 'Add reported symptoms' }));
-    expect(screen.getByRole('button', { name: 'Done choosing symptoms' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Save signs' })).toBeDisabled();
     await user.click(screen.getByRole('checkbox', { name: 'Itching' }));
-    await user.click(screen.getByRole('button', { name: 'Done choosing symptoms' }));
+    await user.click(screen.getByRole('button', { name: 'Save signs' }));
     expect(screen.getByRole('button', { name: 'Edit reported symptoms' })).toHaveTextContent(
       'Itching',
     );

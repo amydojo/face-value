@@ -461,7 +461,7 @@ export type OracleTrialTruthMachineProps = {
   step: 1 | 2 | 3;
   view: 'question' | 'symptoms';
   firmware: ReactNode;
-  controlLabel: 'CONTINUE' | 'DONE' | 'SEE RESULT';
+  controlLabel: 'CONTINUE' | 'SAVE SIGNS' | 'SEE RESULT';
   controlAccessibleLabel: string;
   controlEnabled: boolean;
   onControl: () => void;
@@ -648,7 +648,7 @@ function OracleMachine(props: OracleMachineProps) {
     null;
   const amberState = trialTruthMachine
     ? trialTruthMachine.controlEnabled
-      ? 'truth-ready'
+      ? 'ready'
       : 'idle'
     : trialMachine
       ? trialMachine.trialState === 'followup-ready'
@@ -832,65 +832,70 @@ function OracleMachine(props: OracleMachineProps) {
             <b className={styles.guideLeft} />
             <b className={styles.guideRight} />
           </div>
-          <button
-            type="button"
-            className={styles.amberControl}
-            data-amber-state={amberState}
-            data-oracle-amber-control
-            data-trial-truth-confirmation={trialTruthMachine ? '' : undefined}
-            data-trial-truth-control-label={trialTruthMachine?.controlLabel}
-            data-oracle-keep-action={
-              !trialMachine && !trialTruthMachine && !latestVerdict ? 'hardware' : undefined
-            }
-            aria-label={
-              trialTruthMachine
-                ? trialTruthMachine.controlAccessibleLabel
-                : !trialMachine && !latestVerdict && phase === 'verdict_revealed'
+          {trialTruthMachine && (
+            <button
+              type="button"
+              className={styles.trialTruthDeckAction}
+              data-trial-truth-deck-action
+              data-trial-truth-control-label={trialTruthMachine.controlLabel}
+              aria-label={trialTruthMachine.controlAccessibleLabel}
+              tabIndex={trialTruthMachine.controlEnabled ? 0 : -1}
+              disabled={!trialTruthMachine.controlEnabled}
+              onClick={trialTruthMachine.onControl}
+            >
+              <span
+                className={styles.trialTruthActuator}
+                data-trial-truth-center-actuator
+                aria-hidden="true"
+              >
+                <i />
+                <b data-trial-truth-visible-control-label>
+                  {trialTruthMachine.controlEnabled ? trialTruthMachine.controlLabel : ''}
+                </b>
+              </span>
+              <span
+                className={styles.amberControl}
+                data-amber-state={amberState}
+                data-oracle-amber-control
+                data-trial-truth-confirmation
+                aria-hidden="true"
+              >
+                <span />
+              </span>
+            </button>
+          )}
+          {!trialTruthMachine && (
+            <button
+              type="button"
+              className={styles.amberControl}
+              data-amber-state={amberState}
+              data-oracle-amber-control
+              data-oracle-keep-action={!trialMachine && !latestVerdict ? 'hardware' : undefined}
+              aria-label={
+                !trialMachine && !latestVerdict && phase === 'verdict_revealed'
                   ? 'Keep this result'
                   : undefined
-            }
-            aria-hidden={
-              trialTruthMachine
-                ? false
-                : Boolean(trialMachine || latestVerdict || phase !== 'verdict_revealed')
-            }
-            tabIndex={
-              trialTruthMachine
-                ? trialTruthMachine.controlEnabled
-                  ? 0
-                  : -1
-                : !trialMachine && !latestVerdict && phase === 'verdict_revealed'
-                  ? 0
-                  : -1
-            }
-            disabled={
-              trialTruthMachine
-                ? !trialTruthMachine.controlEnabled
-                : Boolean(trialMachine || latestVerdict || phase !== 'verdict_revealed')
-            }
-            onClick={trialTruthMachine?.onControl ?? onKeep}
-          >
-            <span aria-hidden="true" />
-          </button>
-          {trialTruthMachine && (
-            <span
-              className={styles.trialTruthControlLabel}
-              data-trial-truth-visible-control-label
-              aria-hidden="true"
+              }
+              aria-hidden={Boolean(trialMachine || latestVerdict || phase !== 'verdict_revealed')}
+              tabIndex={!trialMachine && !latestVerdict && phase === 'verdict_revealed' ? 0 : -1}
+              disabled={Boolean(trialMachine || latestVerdict || phase !== 'verdict_revealed')}
+              onClick={onKeep}
             >
-              {trialTruthMachine.controlEnabled ? trialTruthMachine.controlLabel : ''}
-            </span>
+              <span aria-hidden="true" />
+            </button>
           )}
-          <OraclePullHandle
-            active={!trialMachine && !trialTruthMachine && !latestVerdict && phase === 'sealed'}
-            phase={phase}
-            product={
-              trialMachine?.product?.productName ??
-              specimenIdentity?.productName ??
-              'Face Value product'
-            }
-            onReveal={onReveal}
-          />
+          {!trialTruthMachine && (
+            <OraclePullHandle
+              active={!trialMachine && !latestVerdict && phase === 'sealed'}
+              phase={phase}
+              product={
+                trialMachine?.product?.productName ??
+                specimenIdentity?.productName ??
+                'Face Value product'
+              }
+              onReveal={onReveal}
+            />
+          )}
           <div className={styles.bottomRail} data-oracle-bottom-rail aria-hidden="true" />
         </div>
 

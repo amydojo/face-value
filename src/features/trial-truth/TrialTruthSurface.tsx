@@ -129,10 +129,10 @@ export function TrialTruthSurface() {
         : step === 2
           ? toleranceReady(draft)
           : draft.visibleChange !== null;
-  const controlLabel = view === 'symptoms' ? 'DONE' : step === 3 ? 'SEE RESULT' : 'CONTINUE';
+  const controlLabel = view === 'symptoms' ? 'SAVE SIGNS' : step === 3 ? 'SEE RESULT' : 'CONTINUE';
   const controlAccessibleLabel =
     view === 'symptoms'
-      ? 'Done choosing symptoms'
+      ? 'Save signs'
       : step === 1
         ? 'Continue to skin response'
         : step === 2
@@ -211,7 +211,13 @@ export function TrialTruthSurface() {
           )}
         </section>
       ) : (
-        <section className={styles.questionView} data-trial-truth-question-step={step}>
+        <section
+          className={styles.questionView}
+          data-trial-truth-question-step={step}
+          data-trial-truth-has-summary={
+            step === 2 && draft.tolerance !== null && draft.tolerance !== 'none' ? '' : undefined
+          }
+        >
           {step === 1 && (
             <>
               <h1 id="trial-truth-adherence-heading" ref={questionRef} tabIndex={-1}>
@@ -291,9 +297,8 @@ export function TrialTruthSurface() {
           {step === 3 && (
             <>
               <h1 id="trial-truth-visible-change-heading" ref={questionRef} tabIndex={-1}>
-                Compared with the start of this trial,
-                <br />
-                your visible redness looks:
+                <span>Compared with the start of this trial,</span>
+                <span>your visible redness looks:</span>
               </h1>
               <fieldset className={styles.segmentedGroup}>
                 <legend className={styles.srOnly}>
