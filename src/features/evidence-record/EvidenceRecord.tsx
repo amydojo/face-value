@@ -28,6 +28,14 @@ function EvidenceRows({
           <dt>{row.label}</dt>
           <dd>
             <span>{row.value}</span>
+            {row.provenance && (
+              <small
+                className={styles.provenance}
+                data-evidence-provenance={row.provenance}
+              >
+                Provenance · {row.provenance}
+              </small>
+            )}
             {showCanonical && row.canonicalValue && row.canonicalValue !== row.value && (
               <code>{row.canonicalValue}</code>
             )}
@@ -184,21 +192,22 @@ function FullRecordPanel({
       id="full-disclosure-panel"
       className={styles.fullRecordSheet}
       data-disclosure-panel="full"
+      data-redness-response-signature
       role="region"
       aria-labelledby="full-disclosure-control"
     >
       <header>
-        <h3>Full evidence record</h3>
+        <h3>Redness Response Signature</h3>
         <p>
-          The result is shown first. These saved details explain what supported it, what was
-          missing, and how the comparison was made.
+          This read-only view groups the evidence already stored in the immutable result. It does
+          not re-evaluate the trial or replace the saved verdict.
         </p>
       </header>
       {full.sections.map((section) => (
         <section key={section.id} className={styles.fullRecordSection}>
           <h4>{section.title}</h4>
           <EvidenceRows rows={section.rows} showCanonical />
-          {section.id === 'comparison-settings' && full.technicalNote && (
+          {section.id === 'evidence-boundaries' && full.technicalNote && (
             <p className={styles.technicalNote}>{full.technicalNote}</p>
           )}
         </section>
@@ -218,6 +227,9 @@ function FullRecordPanel({
         <EvidenceRows rows={full.technicalMetadata} showCanonical />
         <div className={styles.auditTrace}>
           <h4>Audit trace</h4>
+          <p className={styles.auditProvenance}>
+            Provenance · Face Value deterministic evaluation
+          </p>
           {full.auditTrace.length > 0 ? (
             <ol>
               {full.auditTrace.map((entry, index) => (
@@ -362,7 +374,7 @@ export function EvidenceRecord({
             <DisclosureButton
               disclosure="full"
               title="Full evidence record"
-              summary="Scores, limits, and system details"
+              summary="Saved Redness Response Signature and system details"
               expanded={openDisclosure === 'full'}
               onToggle={toggleDisclosure}
             />

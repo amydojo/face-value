@@ -8,6 +8,7 @@ import {
 } from '../domain/evidence/redness';
 import type { EvidenceRecordData } from '../domain/model';
 import { EvidenceRecord } from '../features/evidence-record/EvidenceRecord';
+import { evidenceRecordViewModelFromRecord } from '../features/evidence-record/evidenceRecordViewModel';
 
 const recordFor = (
   evaluation?: RednessEvaluationSnapshot,
@@ -82,7 +83,18 @@ describe('EvidenceRecord', () => {
   it('opens, switches, and closes semantic disclosure panels with the keyboard', async () => {
     const user = userEvent.setup();
     const evaluation = evaluateRedness(structuredClone(canonicalRednessFixtures.C));
-    const { unmount } = renderRecord(recordFor(evaluation));
+    const record = recordFor(evaluation, {
+      trialTruth: {
+        generationId: 'keyboard-trial-truth',
+        adherence: { status: 'complete' },
+        tolerance: { collectionStatus: 'collected', severity: 'none', symptoms: [] },
+        patientAnchor: { visibleChange: 1, recordedAt: evaluation.evaluatedAt },
+        recordedAt: evaluation.evaluatedAt,
+      },
+      anchorRelationship: 'agreed',
+    });
+    const immutableBeforeDisclosure = structuredClone(record);
+    const { unmount } = renderRecord(record);
     const whyButton = screen.getByRole('button', {
       name: /Why Face Value reached this result/i,
     });
@@ -107,28 +119,155 @@ describe('EvidenceRecord', () => {
     expect(screen.queryByRole('region', { name: /Why Face Value reached/i })).not.toBeInTheDocument();
     expect(fullButton).toHaveAttribute('aria-expanded', 'true');
     const fullPanel = screen.getByRole('region', { name: /Full evidence record/i });
-    expect(within(fullPanel).getByRole('heading', { name: 'Evidence checks' })).toBeVisible();
-    expect(within(fullPanel).getByRole('heading', { name: 'Measurements' })).toBeVisible();
-    expect(within(fullPanel).getByRole('heading', { name: 'Trial details' })).toBeVisible();
-    expect(within(fullPanel).getByRole('heading', { name: 'Comparison settings' })).toBeVisible();
-    expect(within(fullPanel).getByRole('heading', { name: 'Technical methods' })).toBeVisible();
+    expect(within(fullPanel).getByRole('heading', { name: 'Redness Response Signature' })).toBeVisible();
+    expect(within(fullPanel).getByRole('heading', { name: 'Observed change' })).toBeVisible();
+    expect(within(fullPanel).getByRole('heading', { name: 'Measurement support' })).toBeVisible();
+    expect(within(fullPanel).getByRole('heading', { name: 'Trial truth' })).toBeVisible();
+    expect(within(fullPanel).getByRole('heading', { name: 'Evidence boundaries' })).toBeVisible();
+    expect(within(fullPanel).getByRole('heading', { name: 'Supported next action' })).toBeVisible();
     expect(
-      within(fullPanel).getByText('Production thresholds require repeat-scan calibration.'),
+      within(fullPanel).getByText(
+        'Production thresholds remain provisional and require repeat-scan calibration.',
+      ),
     ).toBeVisible();
+    expect(within(fullPanel).getAllByText(/Provenance · Provider measurement/).length)
+      .toBeGreaterThan(0);
+    expect(
+      within(fullPanel).getAllByText(/Provenance · Face Value deterministic evaluation/).length,
+    ).toBeGreaterThan(0);
+    expect(within(fullPanel).getAllByText(/Provenance · Unavailable evidence/).length)
+      .toBeGreaterThan(0);
+    expect(within(fullPanel).getAllByText(/Provenance · Participant report/).length)
+      .toBeGreaterThan(0);
 
     await user.click(within(fullPanel).getByText('Technical metadata'));
-    expect(within(fullPanel).getByText('Configuration hash')).toBeVisible();
+    expect(within(fullPanel).getAllByText('Configuration hash')).toHaveLength(2);
     expect(within(fullPanel).getByRole('heading', { name: 'Audit trace' })).toBeVisible();
 
     await user.click(fullButton);
     expect(fullButton).toHaveAttribute('aria-expanded', 'false');
     expect(screen.queryByRole('region', { name: /Full evidence record/i })).not.toBeInTheDocument();
+    expect(record).toEqual(immutableBeforeDisclosure);
 
     unmount();
     renderRecord(recordFor(evaluation));
     expect(
       screen.getByRole('button', { name: /Why Face Value reached this result/i }),
     ).toHaveAttribute('aria-expanded', 'false');
+  });
+
+  it('builds a deterministic Response Signature from deliberately inconsistent saved fields', () => {
+    const evaluation = structuredClone(evaluateRedness(canonicalRednessFixtures.A));
+    evaluation.baselineRawMedian = 123;
+    evaluation.endpointRawMedian = 7;
+    evaluation.rawScoreDelta = -42;
+    evaluation.effectClassification = 'strong_improvement';
+    evaluation.actualObservationIntervalDays = 13;
+    evaluation.observationWindowStatus = 'too_early';
+    evaluation.baseline.acceptedRawScores = [9, 1, 7];
+    evaluation.endpoint.acceptedRawScores = [88, 89, 87];
+    evaluation.baseline.rejectedFrameCount = 2;
+    evaluation.endpoint.rejectedFrameCount = 1;
+    evaluation.directionAgreement = {
+      status: 'contradicted',
+      assessedEndpointFrameCount: 9,
+      improvingEndpointFrameCount: 1,
+      contradictionDetected: true,
+    };
+    evaluation.measurementQuality = 'limited';
+    evaluation.evidenceQuality = 'possible';
+    evaluation.attributionQuality = 'weak';
+    evaluation.safetyStatus = 'check_required';
+    evaluation.threshold = {
+      ...evaluation.threshold,
+      version: 'saved-provisional-threshold-v-sentinel',
+      source: 'provisional_fixture',
+      provisionalDetectablePoints: 5,
+      provisionalStrongPoints: 10,
+      configHash: 'sha256:saved-consumer-config-sentinel',
+      provisional: true,
+    };
+    evaluation.interpretation = {
+      ...evaluation.interpretation,
+      recommendedAction: 'retry_alone',
+      explanation: 'Saved deterministic explanation sentinel.',
+    };
+    evaluation.triggeredRuleIds = ['SAVED_RULE_SENTINEL'];
+    evaluation.missingEvidence = ['Saved missing-evidence sentinel.'];
+    const record = recordFor(evaluation, {
+      trialTruth: {
+        generationId: 'saved-trial-truth-sentinel',
+        adherence: { status: 'partial' },
+        tolerance: {
+          collectionStatus: 'collected',
+          severity: 'mild',
+          symptoms: ['itching'],
+        },
+        patientAnchor: {
+          visibleChange: -1,
+          recordedAt: '2026-02-05T11:55:00.000Z',
+        },
+        recordedAt: '2026-02-05T11:55:00.000Z',
+      },
+      anchorRelationship: 'contradicted',
+    });
+    const immutableBeforePresentation = structuredClone(record);
+
+    const first = evidenceRecordViewModelFromRecord(record);
+    const second = evidenceRecordViewModelFromRecord(record);
+    const rows = new Map(
+      first.full?.sections.flatMap((section) => section.rows).map((row) => [row.id, row]),
+    );
+
+    expect(second).toEqual(first);
+    expect(record).toEqual(immutableBeforePresentation);
+    expect(first.full?.sections.map(({ title }) => title)).toEqual([
+      'Observed change',
+      'Measurement support',
+      'Trial truth',
+      'Evidence boundaries',
+      'Supported next action',
+    ]);
+    expect(rows.get('baseline-median')?.value).toBe('123');
+    expect(rows.get('follow-up-median')?.value).toBe('7');
+    expect(rows.get('saved-score-delta')?.value).toBe('-42 points');
+    expect(rows.get('saved-effect-classification')).toMatchObject({
+      value: 'Strong improvement',
+      canonicalValue: 'strong_improvement',
+    });
+    expect(rows.get('baseline-raw-scores')?.value).toBe('9 · 1 · 7');
+    expect(rows.get('follow-up-raw-scores')?.value).toBe('88 · 89 · 87');
+    expect(rows.get('baseline-frame-counts')?.value).toBe('Accepted 3 · rejected 2');
+    expect(rows.get('direction-agreement')).toMatchObject({
+      value: 'Contradicted',
+      canonicalValue: 'contradicted',
+    });
+    expect(rows.get('assessed-endpoint-count')?.value).toBe('9');
+    expect(rows.get('improving-endpoint-count')?.value).toBe('1');
+    expect(rows.get('saved-measurement-quality')?.canonicalValue).toBe('limited');
+    expect(rows.get('adherence')).toMatchObject({
+      canonicalValue: 'partial',
+      provenance: 'Participant report',
+    });
+    expect(rows.get('reported-symptoms')?.value).toBe('Itching');
+    expect(rows.get('participant-observation')?.value).toBe('More');
+    expect(rows.get('anchor-relationship')?.canonicalValue).toBe('contradicted');
+    expect(rows.get('evidence-quality')?.canonicalValue).toBe('possible');
+    expect(rows.get('attribution-quality')?.canonicalValue).toBe('weak');
+    expect(rows.get('safety-status')?.canonicalValue).toBe('check_required');
+    expect(rows.get('active-provisional-boundary')?.value).toBe('Detectable 5 · strong 10 points');
+    expect(rows.get('threshold-source')?.canonicalValue).toBe('provisional_fixture');
+    expect(rows.get('threshold-version')?.value).toBe('saved-provisional-threshold-v-sentinel');
+    expect(rows.get('configuration-hash')?.value).toBe('sha256:saved-consumer-config-sentinel');
+    expect(rows.get('recommended-action')?.canonicalValue).toBe('retry_alone');
+    expect(rows.get('deterministic-explanation')?.value)
+      .toBe('Saved deterministic explanation sentinel.');
+    expect(rows.get('rule-trace')?.value).toBe('SAVED_RULE_SENTINEL');
+    expect(rows.get('additional-evidence')?.value).toBe('Saved missing-evidence sentinel.');
+    expect(rows.get('facial-registration-quality')).toMatchObject({
+      value: 'Not available',
+      provenance: 'Unavailable evidence',
+    });
   });
 
   it('keeps safety interruption visually and semantically distinct without diagnosis', () => {
@@ -152,12 +291,13 @@ describe('EvidenceRecord', () => {
 
     expect(screen.getByRole('heading', { name: 'Legacy saved finding.' })).toBeVisible();
     expect(
-      screen.getByText('Detailed measurements are not available for this earlier result.'),
+      screen.getByText(/Redness Response Signature evidence was not collected/),
     ).toBeVisible();
     expect(document.querySelector('[data-legacy-evidence-record]')).toBeVisible();
     expect(document.querySelector('[data-evidence-comparison]')).toBeNull();
     expect(screen.queryByRole('button', { name: /Why Face Value reached/i })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Full evidence record/i })).not.toBeInTheDocument();
+    expect(document.body).not.toHaveTextContent(/Accepted baseline raw scores|Saved direction agreement/);
     expect(document.body).not.toHaveTextContent(/Baseline score|Follow-up score|Threshold source/);
 
     screen.getByRole('button', { name: 'View previous trials' }).click();

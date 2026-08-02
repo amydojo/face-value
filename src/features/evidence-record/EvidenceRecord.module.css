@@ -391,6 +391,16 @@
   overflow-wrap: anywhere;
 }
 
+.evidenceRows .provenance,
+.auditProvenance {
+  max-width: 100%;
+  color: #a59f96;
+  font: 500 9px/14px var(--fv-font-mono);
+  letter-spacing: 0.045em;
+  overflow-wrap: anywhere;
+  text-transform: uppercase;
+}
+
 .nextStepCard {
   min-width: 0;
   display: flex;
@@ -641,6 +651,11 @@
   color: #6f6b64;
 }
 
+.fullRecordSheet .evidenceRows .provenance,
+.auditProvenance {
+  color: #6f6b64;
+}
+
 .technicalNote {
   margin: 12px 0 6px;
   padding: 12px 0 0;
@@ -713,6 +728,10 @@
 .auditTrace {
   min-width: 0;
   padding-top: 18px;
+}
+
+.auditProvenance {
+  margin: -1px 0 12px;
 }
 
 .auditTrace ol {

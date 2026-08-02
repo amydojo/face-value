@@ -436,7 +436,7 @@ describe('Demo Lab controls and production-screen reuse', () => {
         expect(screen.getByText('Technical metadata').closest('details')).toHaveAttribute(
           'open',
         );
-        expect(screen.getByText('Configuration hash')).toBeVisible();
+        expect(screen.getAllByText('Configuration hash')).toHaveLength(2);
       }
       expect(screen.getByRole('button', { name: 'View previous trials' })).toBeVisible();
       expect(record.rednessEvaluation).toEqual(snapshotBeforeRender);
