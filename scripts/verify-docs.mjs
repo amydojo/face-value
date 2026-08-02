@@ -14,6 +14,7 @@ const currentAuthorityFiles = [
   'docs/production-journey-integration.md',
   'docs/camera-contract.md',
   'docs/redness-evidence-engine-v1.md',
+  'docs/redness-calibration-harness.md',
   'docs/youcam-evidence-engine-contract.md',
   'docs/youcam-evidence-engine-roadmap.md',
   'docs/oracle-reveal-v1.md',
@@ -24,6 +25,9 @@ const currentAuthorityFiles = [
 ];
 
 const staleAssertionFiles = currentAuthorityFiles.filter((file) => file !== 'docs/README.md');
+const currentNarrativeFiles = currentAuthorityFiles.filter(
+  (file) => !file.startsWith('docs/verification/'),
+);
 
 const requiredFiles = [
   ...currentAuthorityFiles,
@@ -70,6 +74,29 @@ const highRiskStaleAssertions = [
   },
 ];
 
+const stalePhaseAssertions = [
+  {
+    pattern: /\*\*Current change:\*\* issue #63/i,
+    explanation: 'Current authority documents must identify issue #65.',
+  },
+  {
+    pattern: /#64[^\n]*(?:planned|future)/i,
+    explanation: 'Issue #64 is merged repository truth.',
+  },
+  {
+    pattern: /#65[^\n]*(?:planned|future)/i,
+    explanation: 'Issue #65 is implemented by the current change.',
+  },
+  {
+    pattern: /planned[^\n]*\/calibration\/redness/i,
+    explanation: 'The protected calibration route is implemented.',
+  },
+  {
+    pattern: /does not yet implement[^\n]*\/calibration\/redness/i,
+    explanation: 'The protected calibration route is implemented.',
+  },
+];
+
 const requiredAssertions = [
   {
     file: 'README.md',
@@ -84,7 +111,17 @@ const requiredAssertions = [
   {
     file: 'README.md',
     pattern: /#63[\s\S]*#64[\s\S]*#65/,
-    explanation: 'README must distinguish implemented #63 from planned #64 and #65.',
+    explanation: 'README must distinguish merged #63/#64 from current #65.',
+  },
+  {
+    file: 'README.md',
+    pattern: /f95b051f6c562919c23da0d08728fff124d27d48/,
+    explanation: 'README must name the exact issue #65 base.',
+  },
+  {
+    file: 'README.md',
+    pattern: /CreditInsufficiency/,
+    explanation: 'README must disclose the live-provider calibration blocker.',
   },
   {
     file: 'README.md',
@@ -125,6 +162,41 @@ const requiredAssertions = [
     file: 'docs/youcam-evidence-engine-contract.md',
     pattern: /retry the failed provider request\s+once on the same captured frame/,
     explanation: 'The selected provider-failure policy must remain unambiguous.',
+  },
+  {
+    file: 'docs/redness-calibration-harness.md',
+    pattern: /Technical N95[\s\S]*Longitudinal N95[\s\S]*within-person SD[\s\S]*repeatability\s+coefficient[\s\S]*ICC\(A,1\)/i,
+    explanation: 'Calibration methods must remain explicitly predeclared.',
+  },
+  {
+    file: 'docs/redness-calibration-harness.md',
+    pattern: /participant-cluster-percentile-xorshift32-v1/,
+    explanation: 'The deterministic cluster-bootstrap algorithm must remain named.',
+  },
+  {
+    file: 'docs/redness-calibration-harness.md',
+    pattern: /threshold_source: technical_calibration[\s\S]*status: exploratory[\s\S]*approved_by: null[\s\S]*provisional: true/,
+    explanation: 'Exploratory registry status must remain frozen and unapproved.',
+  },
+  {
+    file: 'docs/redness-calibration-harness.md',
+    pattern: /detectable boundary: 5[\s\S]*strong boundary: 10[\s\S]*threshold source: `provisional_fixture`/,
+    explanation: 'The production threshold freeze must remain explicit.',
+  },
+  {
+    file: 'docs/redness-calibration-harness.md',
+    pattern: /CreditInsufficiency[\s\S]*No genuine[\s\S]*physical provider gate is represented as complete/,
+    explanation: 'Synthetic-only evidence and the provider blocker must remain honest.',
+  },
+  {
+    file: 'docs/redness-calibration-harness.md',
+    pattern: /images, face data[\s\S]*provider task IDs[\s\S]*names, emails/,
+    explanation: 'Calibration privacy exclusions must remain explicit.',
+  },
+  {
+    file: 'docs/redness-calibration-harness.md',
+    pattern: /Observed change[\s\S]*Measurement support[\s\S]*Trial truth[\s\S]*Evidence boundaries[\s\S]*Supported next action/,
+    explanation: 'The immutable five-section Response Signature must remain documented.',
   },
   {
     file: 'docs/verification/redness-evidence-burst-63/README.md',
@@ -209,6 +281,16 @@ for (const relativePath of staleAssertionFiles) {
   for (const { pattern, explanation } of highRiskStaleAssertions) {
     if (pattern.test(markdown)) {
       errors.push(`${relativePath}: stale assertion matched ${pattern}. ${explanation}`);
+    }
+  }
+}
+
+for (const relativePath of currentNarrativeFiles) {
+  const markdown = contents.get(relativePath);
+  if (markdown === undefined) continue;
+  for (const { pattern, explanation } of stalePhaseAssertions) {
+    if (pattern.test(markdown)) {
+      errors.push(`${relativePath}: stale phase assertion matched ${pattern}. ${explanation}`);
     }
   }
 }

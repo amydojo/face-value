@@ -1,4 +1,5 @@
 export * from './aggregateEvidence';
+export * from './calibrationRegistryIsolation';
 export * from './evaluateRedness';
 export * from './explanationTemplates';
 export * from './fixtures';

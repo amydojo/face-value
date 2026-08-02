@@ -1,11 +1,11 @@
 # Face Value state model
 
 **Status:** Current state authority  
-**Effective date:** July 31, 2026  
-**Implementation base:** `main` at merged PR #67
-(`330f51975f162a2c15784114d7a448492973fcad`)
+**Effective date:** August 1, 2026
+**Implementation base:** `main` at merged PR #69
+(`f95b051f6c562919c23da0d08728fff124d27d48`)
 
-**Current change:** issue #63
+**Current change:** issue #65
 
 Face Value uses one reducer-owned application state machine for product, evidence, navigation, persistence, and recovery. The Oracle uses a separate pure reducer for temporary mechanical phases. Events that fail their guards return the current model unchanged.
 
@@ -362,20 +362,26 @@ Repeated clicks, animation callbacks, collection callbacks, reload, Home renderi
 
 ## 14. Phase C state status
 
-### #63 (current)
+### #63 (merged)
 
 Typed burst generations, accepted/rejected frame evidence, atomic
 baseline/follow-up period commits, provider settlement guards, and
 stale-generation protection are implemented. Legacy single-signal records
 remain readable without re-evaluation.
 
-### #64 (planned)
+### #64 (merged)
 
-Adds reducer-owned committed adherence, tolerance, symptoms, and participant-observed direction before comparison readiness.
+Adds reducer-owned committed adherence, tolerance, symptoms, and
+participant-observed direction before comparison readiness.
 
-### #65 (planned)
+### #65 (current)
 
-Adds isolated calibration observations and an exploratory internal registry. Calibration state must not merge with ordinary trial state or become a production threshold without a future approval path.
+Adds isolated calibration observations and an exploratory internal registry.
+Calibration data lives outside the application reducer and ordinary trial
+envelope; it cannot become a production threshold without a future approval
+path. Evidence Record presentation derives the Redness Response Signature only
+from the immutable saved snapshot and trial-truth fields, never from new reducer
+state or re-evaluation.
 
 ## 15. Source files
 

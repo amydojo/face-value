@@ -6,6 +6,10 @@
   "outputDirectory": "dist",
   "routes": [
     {
+      "src": "/calibration/redness/?",
+      "dest": "/api/calibration/redness"
+    },
+    {
       "src": "/demo/?",
       "dest": "/api/demo"
     },

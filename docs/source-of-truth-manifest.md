@@ -1,11 +1,11 @@
 # Face Value source-of-truth manifest
 
 **Status:** Current visual-source and verification index  
-**Effective date:** July 31, 2026  
-**Implementation base:** `main` at merged PR #67
-(`330f51975f162a2c15784114d7a448492973fcad`)
+**Effective date:** August 1, 2026
+**Implementation base:** `main` at merged PR #69
+(`f95b051f6c562919c23da0d08728fff124d27d48`)
 
-**Current change:** issue #63
+**Current change:** issue #65
 
 This manifest identifies the current visual authorities, their intended role, and the checked-in evidence that proves implementation. A polished older Figma node or screenshot does not automatically override a newer merged system.
 
@@ -102,7 +102,22 @@ Current production components:
 - `src/features/evidence-record/EvidenceRecord.tsx`
 - `src/features/evidence-record/evidenceRecordViewModel.ts`
 
-Evidence Record detail renders the saved immutable snapshot. It does not re-run scientific interpretation.
+Evidence Record detail renders the saved immutable snapshot. Its full disclosure
+groups saved fields into the five-section Redness Response Signature and names
+the provenance of every row. It does not re-run scientific interpretation,
+infer unavailable evidence, or persist a second signature object.
+
+### Internal redness calibration
+
+Current internal components:
+
+- `src/features/redness-calibration/RednessCalibrationInstrument.tsx`
+- `src/features/redness-calibration/rednessCalibrationViewModel.ts`
+- `src/domain/calibration/redness/*`
+
+The protected route follows the existing Face Value engineering-instrument
+grammar without claiming consumer or Figma authority. Synthetic fixture states
+are clearly labeled and remain outside ordinary trial navigation and storage.
 
 ## 5. Verification evidence
 
@@ -135,6 +150,13 @@ These records support the one-machine, one-specimen continuity contract.
 
 `verification/machine-continuity-2026-07-28/` contains cross-state comparison evidence for the shared machine family.
 
+### Calibration and Response Signature
+
+`redness-calibration-harness.md` records the deterministic synthetic Mobile
+WebKit verification scope, immutable saved-evidence boundary, and remaining
+provider-backed physical checks. It is not genuine-provider or physical-device
+evidence.
+
 ### Physical-device evidence
 
 Physical source images that contain a real face remain local-only and must not be committed. A physical-device claim is valid only when a face-free verification note records:
@@ -153,19 +175,24 @@ release gate until such a record is checked in.
 
 ## 6. Phase C source status
 
-### #63 (current)
+### #63 (merged)
 
 Adds privacy-safe acquisition-state evidence for restrained three-measurement
 progress and burst recovery. The current Capture Sequence and Face Guide remain
 the visual source; no second camera composition was introduced.
 
-### #64 (planned)
+### #64 (merged)
 
-Should add a focused Figma or in-browser source for the three compact trial-truth groups only when visual decisions exceed the shared control system. It must not redesign the machine.
+Uses the merged in-browser Trial Truth checkpoint and shared control system; it
+does not redesign the machine.
 
-### #65 (planned)
+### #65 (current)
 
-Internal calibration UI may use an engineering-instrument layout. It is not a consumer visual source and must remain clearly labeled preliminary/internal.
+The internal calibration UI uses an engineering-instrument layout. It is not a
+consumer visual source and remains clearly labeled preliminary/internal.
+Evidence Record detail extends the existing progressive disclosure with a
+saved-snapshot Redness Response Signature; it does not introduce a second
+paper, Oracle, evaluator, or record type.
 
 ## 7. Change-control rule
 

@@ -3,17 +3,16 @@
 **Status:** Current product authority  
 **Version:** 2.1
 
-**Effective date:** July 31, 2026
+**Effective date:** August 1, 2026
 
-**Implementation base:** `main` at merged PR #67
-(`330f51975f162a2c15784114d7a448492973fcad`)
+**Implementation base:** `main` at merged PR #69
+(`f95b051f6c562919c23da0d08728fff124d27d48`)
 
-**Current change:** issue #63
+**Current change:** issue #65
 
 This document governs the current Face Value product experience. Product, API, scientific, design, demo, and submission changes must follow it or amend it explicitly in the same pull request.
 
-Issue #63 is implemented by this change. Issues #64 and #65 remain future
-work.
+Issues #63 and #64 are merged. Issue #65 is implemented by this change.
 
 ## 1. Product definition
 
@@ -147,6 +146,8 @@ An ordinary trial stores:
 - the provider attempt count for each accepted observation
 - one frozen protocol
 - optional capture context
+- one reducer-owned trial-truth snapshot containing adherence, tolerance,
+  symptoms, and participant-observed redness direction
 - one immutable redness evaluation snapshot after comparison
 
 Each period allows at most five capture attempts. The three accepted frames must
@@ -161,9 +162,10 @@ and rejected-frame evidence and exclusively calculates medians, direction
 agreement, delta, evidence quality, and result. A median is never stored as a
 synthetic provider signal.
 
-The system must name missing evidence rather than fabricate adherence,
-tolerance, patient anchors, masks, registration, segmentation, cross-session
-pose, crop, face-size, color-cast, skin-tone, or provider model metadata.
+Trial truth is explicitly reported and never inferred from camera or provider
+data. The system must name missing evidence rather than fabricate patient
+anchors, masks, registration, segmentation, cross-session pose, crop, face
+size, color cast, skin tone, or provider model metadata.
 
 ### Current operating boundaries
 
@@ -309,17 +311,21 @@ Internal reducer, migration, scientific, and adapter names may remain precise in
 
 ## 13. Phase C status
 
-### #63 — Evidence Burst (current)
+### #63 — Evidence Burst (merged)
 
 Three independently analyzed frames per baseline and follow-up, median aggregation, direction agreement, bounded attempts, rejection evidence, and face-free burst persistence.
 
-### #64 — Trial Truth (planned)
+### #64 — Trial Truth (merged)
 
 Explicit adherence, tolerance, symptoms, and participant-observed redness direction mapped into the existing canonical evaluator.
 
-### #65 — Preliminary Calibration Harness (planned)
+### #65 — Preliminary Calibration Harness (current)
 
-A protected internal repeatability instrument that produces exploratory estimates and a technical report. It must not silently promote a small hackathon sample into a production-approved threshold or clinical claim.
+A protected internal repeatability instrument that produces exploratory
+estimates and a technical report from isolated face-free observations. It does
+not promote the synthetic hackathon sample into a production-approved threshold
+or clinical claim. The ordinary Evidence Record adds a read-only Redness
+Response Signature derived exclusively from saved evidence.
 
 Each merged PR must update the current evidence-volume section, state model, journey, README, authority index, and tests.
 

@@ -119,6 +119,100 @@ if (serializerStart < 0 || serializerEnd <= serializerStart) {
   }
 }
 
+const calibrationContractSource = await readFile(
+  new URL('../src/domain/calibration/redness/types.ts', import.meta.url),
+  'utf8',
+);
+const calibrationPersistenceSource = await readFile(
+  new URL('../src/adapters/persistence/rednessCalibrationStore.ts', import.meta.url),
+  'utf8',
+);
+const calibrationRegistrySource = await readFile(
+  new URL('../src/domain/calibration/redness/registry.ts', import.meta.url),
+  'utf8',
+);
+const calibrationComponentSource = await readFile(
+  new URL('../src/features/calibration-redness/RednessCalibration.tsx', import.meta.url),
+  'utf8',
+);
+const calibrationCollectorSource = await readFile(
+  new URL('../src/features/calibration-redness/RednessCalibrationCollector.tsx', import.meta.url),
+  'utf8',
+);
+const calibrationCollectionSource = await readFile(
+  new URL('../src/features/calibration-redness/rednessCalibrationCollection.ts', import.meta.url),
+  'utf8',
+);
+const calibrationDurableSource = [
+  calibrationContractSource,
+  calibrationPersistenceSource,
+  calibrationRegistrySource,
+].join('\n');
+for (const marker of [
+  /\bBlob\b/,
+  /\bFile\b/,
+  /\bimageBytes\b/i,
+  /\bbase64\b/i,
+  /\bdataUrl\b/i,
+  /\bobjectUrl\b/i,
+  /\bsignedUrl\b/i,
+  /\bproviderTaskId\b/i,
+  /\brawProviderPayload\b/i,
+  /\bthumbnail\b/i,
+  /\bmaskImage\b/i,
+  /\bname\??\s*:/i,
+  /\bemail\??\s*:/i,
+]) {
+  if (marker.test(calibrationDurableSource)) {
+    violations.push(`calibration durable/export source contains ${String(marker)}`);
+  }
+}
+if (!calibrationContractSource.includes('includesFaceImage: false')) {
+  violations.push('calibration observation contract permits face-image persistence');
+}
+if (
+  !calibrationPersistenceSource.includes(
+    "REDNESS_CALIBRATION_STORAGE_KEY = 'face-value:calibration:redness:v1'",
+  ) ||
+  /\bSTORAGE_KEY\b/.test(calibrationPersistenceSource) ||
+  /\bDEMO_JOURNEY_STORAGE_KEY\b/.test(calibrationPersistenceSource)
+) {
+  violations.push('calibration persistence is not isolated behind its own storage key');
+}
+const clearStart = calibrationPersistenceSource.indexOf(
+  'export function clearRednessCalibrationData',
+);
+const clearEnd = calibrationPersistenceSource.indexOf(
+  'export function exportRednessCalibrationData',
+);
+const clearSource = calibrationPersistenceSource.slice(clearStart, clearEnd);
+if (
+  clearStart < 0 ||
+  clearEnd <= clearStart ||
+  !clearSource.includes('removeItem(REDNESS_CALIBRATION_STORAGE_KEY)') ||
+  /\.clear\s*\(/.test(clearSource)
+) {
+  violations.push('calibration clear operation is broader than its isolated storage key');
+}
+for (const networkOrImagePrimitive of [
+  'fetch(',
+  'navigator.sendBeacon',
+  'XMLHttpRequest',
+  'URL.createObjectURL',
+  'new Blob',
+  'FileReader',
+]) {
+  if (
+    [calibrationComponentSource, calibrationCollectorSource, calibrationCollectionSource].some(
+      (source) => source.includes(networkOrImagePrimitive),
+    )
+  ) {
+    violations.push(
+      `calibration instrument contains forbidden network/image primitive ${networkOrImagePrimitive}`,
+    );
+  }
+}
+
 if (violations.length) {
   console.error('Forbidden client-bundle markers detected:');
   for (const violation of violations) console.error(`- ${violation}`);

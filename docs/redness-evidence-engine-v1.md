@@ -2,7 +2,12 @@
 
 **Implementation issue:** #51
 
-**Effective date:** July 28, 2026
+**Effective date:** August 1, 2026
+
+**Implementation base:** `main` at merged PR #69
+(`f95b051f6c562919c23da0d08728fff124d27d48`)
+
+**Current change:** issue #65
 
 **Scope:** calm visible redness only
 
@@ -18,7 +23,7 @@ read in full at the revisions below.
 | 3              | FACE VALUE — Success Profile Registry v0.1 [CANON]        | `1RCNd_XuhkJxQw-yrbi8cKPI2s5dv050ZDhp1Ix6JumA` | `AIroW35vSEuGzTtjmc-jE3MLnu_KMj6lzz5wn2GupSkiAFIrD3HOpRGT2kmapcrDNK81jRu3x9Ma7CUUiwreWrxNBpT1WspwHs1rexpwRjk` | Shared evidence principles, provider signal roles, and future multi-concern compatibility             |
 | 4              | FACE VALUE — Evidence Engine Conversion Pack v0.1 [CANON] | `1dOuuA02Dmn7vcEA5lHJzSCPJM-PSNM8hAwacp-sTX1k` | `AIroW36-k4UXk21rfd3IwQb6oPPLCJBPL_x_mP9-55MuUgSrPRr0bWZ16xN-FxRleOsBj9ru9-i4PA5pEqGNm9d-Qna-HHF72ZYBVcul6HQ` | Portable deterministic architecture and shared implementation guidance                                |
 | 5              | FACE VALUE — Evidence Engine Source Manifest v0.1 [CANON] | `1tGhMqpmbEPEG3RjU0zzucjvgkXRRwyA9-6lI467Nd2M` | `AIroW35DZCQZ4ahhdK0Q8ikLrahEbb2EoEqpjc8HY_le0QYx8lvYWvBbhF0ElWf2SNCW6qzbxO7KZPrJXfrkWLT7UPgToO2U3ivjgs91e9E` | Provenance of the portable source bundle                                                              |
-| Reference only | FACE VALUE — Redness Calibration Harness v1 [BUILD SPEC]  | `1WLn5ccRvWGJUOazWkwhs-y0IYUuOjO_ezj8OaC0D7Xw` | `AIroW36cX1ynjxDZkROFxgL1CTBVwwClioNCU0AK99HLzr7LD7BP3KS4g5ylgYtf6M3jq2FrE0PUYc3VVNvVJWGcl_f7TmjzVEOemdQ0ZOg` | A later calibration phase; not implemented here                                                       |
+| 6              | FACE VALUE — Redness Calibration Harness v1 [BUILD SPEC]  | `1WLn5ccRvWGJUOazWkwhs-y0IYUuOjO_ezj8OaC0D7Xw` | `AIroW36cX1ynjxDZkROFxgL1CTBVwwClioNCU0AK99HLzr7LD7BP3KS4g5ylgYtf6M3jq2FrE0PUYc3VVNvVJWGcl_f7TmjzVEOemdQ0ZOg` | Isolated preliminary calibration contract, methods, registry, internal instrument, and claim boundary |
 
 When vocabulary differs, the table order is the conflict-resolution order. The
 redness contract remains narrow rather than blending concern-specific and
@@ -67,10 +72,11 @@ strong improvement. Product registration freezes its observation window;
 evaluation uses that window rather than replacing every product with a
 universal interval.
 
-Every provisional result displays: “Production thresholds require repeat-scan
-calibration.”
+Every provisional result preserves the limitation: “Production thresholds
+require repeat-scan calibration.” The exploratory issue #65 harness does not
+satisfy or remove that limitation.
 
-## Current MVP evidence honesty
+## Current evidence honesty
 
 The current capture flow collects one three-measurement baseline burst and one
 three-measurement endpoint burst. Each burst contains three genuinely distinct
@@ -84,8 +90,9 @@ agreement, delta, precedence, and result. No adapter or React component creates
 a synthetic `DurableSkinSignal` for a median.
 
 The implementation does not manufacture repeated sessions, masks,
-registration, patient-observed change, symptoms, adherence, or provider model
-metadata.
+registration, or provider model metadata. Trial truth is explicitly reported
+by the participant and remains separate from provider measurement; missing
+answers are never inferred.
 
 Missing inputs are named in the snapshot. Cross-session lighting, pose, crop,
 face-size, color-cast, and skin-tone metrics are not measured, so current MVP
@@ -139,14 +146,30 @@ or if scientific decision identifiers move into React components.
 
 ## Explicit exclusions
 
-This slice does not redesign any PR #48 or PR #50 surface, implement active
-breakouts or post-acne dark marks, build the calibration harness, make clinical
-claims, add an LLM decision, persist face images, or personalize thresholds by
-skin tone. The provider does not currently report its analysis-model version,
-and the snapshot records that absence explicitly.
+The current engine does not redesign any PR #48 or PR #50 surface, implement
+active breakouts or post-acne dark marks, make clinical claims, add an LLM
+decision, persist face images, or personalize thresholds by skin tone. The
+provider does not currently report its analysis-model version, and the snapshot
+records that absence explicitly.
 
 ## Issue 64 · trial truth gate
 
 After a follow-up evidence burst is committed, the reducer requires one face-free trial truth commit before deterministic comparison creation. The commit binds canonical adherence, tolerance, irritation signals, and participant-observed redness to the current follow-up generation. React renders accessible inputs and validation only. The canonical redness evaluator remains the sole owner of effect, attribution, safety, confidence, action, audit rules, and verdict wording.
 
 Trial truth never changes `hd_redness.raw_score`, provisional boundaries, threshold configuration, or evaluator precedence. Legacy saved records without a committed trial truth snapshot remain readable and present these fields as **Not collected**.
+
+## Issue 65 · exploratory calibration boundary
+
+The protected calibration harness consumes its own versioned, isolated,
+face-free observation contract and calls pure analysis functions outside
+React. It may compare exploratory candidates, but its canonical registry output
+is always `technical_calibration`, `exploratory`, unapproved, and provisional.
+Production threshold loading rejects or ignores it. The production 5/10
+configuration, hash, evaluator precedence, classifications, confidence, and
+safety behavior are unchanged.
+
+Full Evidence Record disclosure presents a five-section Redness Response
+Signature from the immutable saved snapshot and saved trial truth. It does not
+persist a second signature object, infer unavailable evidence, or re-run the
+evaluator. See `redness-calibration-harness.md` for the complete predeclared
+analysis and current `CreditInsufficiency` physical-gate status.

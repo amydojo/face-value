@@ -1,9 +1,9 @@
 # Face Value capture design QA
 
-**Scope:** PR #62 acquisition foundation plus issue #63 burst feedback
+**Scope:** Current acquisition, Trial Truth, Evidence Record, and issue #65 internal calibration surfaces
 
-**Implementation base:** `main` at merged PR #67
-(`330f51975f162a2c15784114d7a448492973fcad`)
+**Implementation base:** `main` at merged PR #69
+(`f95b051f6c562919c23da0d08728fff124d27d48`)
 
 **Issue #63 privacy-safe fixture result:** Pass on the exact Vercel preview
 recorded in the draft pull request
@@ -190,3 +190,49 @@ Primary choice, Add Context, checkbox, bounded note, Back, Edit, Save Context, S
 Browser rendering cannot prove physical Safari toolbar behavior, keyboard contraction while editing the optional note, or the exact shadow appearance on a real iPhone. Those remain manual exact-head checks.
 
 final result: passed
+
+---
+
+# Preliminary redness calibration design QA
+
+## Verification boundary
+
+The `/calibration/redness` instrument is an internal engineering surface, not
+a consumer redesign. Automated browser verification uses only deterministic,
+explicitly synthetic, face-free observations. It makes no provider request and
+does not stand in for genuine calibration collection: YouCam task creation is
+currently blocked by HTTP 400 `CreditInsufficiency`.
+
+## Responsive and accessible states
+
+Focused Mobile WebKit coverage exercises 320px and 430px mobile layouts plus a
+1280px desktop layout. It covers the provider-blocked state, synthetic standard,
+no-treatment, degraded, and complete datasets; answer-first metrics; candidate
+comparison; participant timelines; exclusions; raw session inspection;
+breakdowns; canonical export/import; confirmation-based isolated clearing;
+keyboard operation; visible focus; reduced motion; and document-level overflow.
+
+Status meaning is always present in text. Tables use semantic captions and
+headers, controls retain at least 44px targets on mobile, dialogs are named,
+and raw rows expose explicit unavailable fields without inferring skin tone or
+other missing evidence. The instrument remains reachable only from protected
+Demo Lab utilities.
+
+## Evidence Record extension
+
+Full Evidence Record disclosure uses the existing visual system and now groups
+the immutable saved snapshot into Observed change, Measurement support, Trial
+truth, Evidence boundaries, and Supported next action. Text provenance names
+provider measurement, deterministic Face Value evaluation, participant report,
+or unavailable evidence. Legacy records keep an honest missing-detail state.
+No new paper, Oracle machine, production route, or threshold-control surface is
+introduced.
+
+## Remaining physical checks
+
+After provider credits return, the exact deployed head still needs a physical
+iPhone pass for signed engineering authorization, one genuine three-frame
+burst, repositioned recapture, matched no-treatment collection, Safari viewport
+behavior, camera teardown, face-free persistence/reload, and ordinary-store
+isolation. Those checks are pending and are not implied by synthetic fixture
+QA.

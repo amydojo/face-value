@@ -217,7 +217,8 @@
 }
 
 .confirmation button,
-.utilities button {
+.utilities button,
+.utilityLink {
   width: 100%;
   min-height: 50px;
   padding: 0 14px;
@@ -230,6 +231,18 @@
   font-weight: 700;
   letter-spacing: 0.08em;
   cursor: pointer;
+}
+
+.utilityLink {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  text-decoration: none;
+}
+
+.utilityLink:focus-visible {
+  outline: 3px solid var(--fv-signal-active);
+  outline-offset: 2px;
 }
 
 .confirmation button:first-child {

@@ -368,6 +368,10 @@ describe('Demo Lab controls and production-screen reuse', () => {
       'Result fixture',
     );
     expect(screen.getByRole('button', { name: 'CLEAR DEMO DATA' })).toBeDisabled();
+    expect(screen.getByRole('link', { name: /OPEN REDNESS CALIBRATION/ })).toHaveAttribute(
+      'href',
+      '/calibration/redness',
+    );
 
     await user.click(screen.getByRole('button', { name: /OPEN DEMO STATE/ }));
     expect(navigate).toHaveBeenCalledWith('/');
@@ -432,7 +436,7 @@ describe('Demo Lab controls and production-screen reuse', () => {
         expect(screen.getByText('Technical metadata').closest('details')).toHaveAttribute(
           'open',
         );
-        expect(screen.getByText('Configuration hash')).toBeVisible();
+        expect(screen.getAllByText('Configuration hash')).toHaveLength(2);
       }
       expect(screen.getByRole('button', { name: 'View previous trials' })).toBeVisible();
       expect(record.rednessEvaluation).toEqual(snapshotBeforeRender);

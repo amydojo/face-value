@@ -20,7 +20,14 @@ export interface EvidenceRecordRow {
   label: string;
   value: string;
   canonicalValue?: string;
+  provenance?: EvidenceRecordProvenance;
 }
+
+export type EvidenceRecordProvenance =
+  | 'Provider measurement'
+  | 'Face Value deterministic evaluation'
+  | 'Participant report'
+  | 'Unavailable evidence';
 
 export interface EvidenceRecordSection {
   id: string;
@@ -147,12 +154,6 @@ const rejectedAttempts = (period: RednessEvaluationSnapshot['baseline']): string
   return reasons.length > 0 ? `${count} · ${reasons.join(' · ')}` : count;
 };
 
-const directionAgreement = (evaluation: RednessEvaluationSnapshot): string => {
-  const direction = humanizeCode(evaluation.directionAgreement.status);
-  const count = evaluation.directionAgreement.assessedEndpointFrameCount;
-  return `${direction} · ${count} follow-up ${count === 1 ? 'measurement' : 'measurements'}`;
-};
-
 const days = (value: number): string => {
   if (!Number.isFinite(value)) return 'Not available';
   const formatted = scoreFormatter.format(value);
@@ -198,6 +199,21 @@ const evidenceLabel = (value: EvidenceQuality): string => {
       return 'Early evidence';
     case 'likely':
       return 'Growing evidence';
+  }
+};
+
+const attributionQualityLabel = (
+  value: RednessEvaluationSnapshot['attributionQuality'],
+): string => humanizeCode(value);
+
+const safetyStatusLabel = (value: RednessEvaluationSnapshot['safetyStatus']): string => {
+  switch (value) {
+    case 'clear':
+      return 'No concerns noted';
+    case 'check_required':
+      return 'Review recommended';
+    case 'interrupted':
+      return 'Trial interrupted';
   }
 };
 
@@ -416,13 +432,6 @@ const limitationSummary = (evaluation: RednessEvaluationSnapshot): string => {
   return sentences.join(' ') || 'No additional limitation was recorded.';
 };
 
-const expectedWindow = (evaluation: RednessEvaluationSnapshot): string => {
-  const expected = evaluation.expectedObservationWindowDays;
-  return `${expected.minimum}–${expected.target} days${
-    expected.maximum === undefined ? '' : ` · maximum ${expected.maximum}`
-  }`;
-};
-
 const productOverlap = (evaluation: RednessEvaluationSnapshot): string => {
   switch (evaluation.secondProductStatus) {
     case 'none':
@@ -514,6 +523,37 @@ const comparisonSettingsDescription = (evaluation: RednessEvaluationSnapshot): s
   return 'Not available';
 };
 
+const frameCounts = (period: RednessEvaluationSnapshot['baseline']): string =>
+  `Accepted ${period.acceptedRawScores.length} · rejected ${period.rejectedFrameCount}`;
+
+const captureComparability = (period: RednessEvaluationSnapshot['baseline']): string => {
+  if (period.sessions.length === 0) return 'Not available';
+  return period.sessions
+    .map(({ sessionId, captureQuality }) => [
+      `${sessionId}: lighting ${humanizeCode(captureQuality.lightingComparability)}`,
+      `pose ${humanizeCode(captureQuality.poseComparability)}`,
+      `crop ${humanizeCode(captureQuality.cropComparability)}`,
+      `face size ${humanizeCode(captureQuality.faceSizeComparability)}`,
+      `color cast ${humanizeCode(captureQuality.colorCastComparability)}`,
+    ].join(' · '))
+    .join(' | ');
+};
+
+const optionalMeasurement = (value: number | boolean | undefined): string => {
+  if (value === undefined || (typeof value === 'number' && !Number.isFinite(value))) {
+    return 'Not available';
+  }
+  if (typeof value === 'boolean') return value ? 'Yes' : 'No';
+  return scoreFormatter.format(value);
+};
+
+const optionalMeasurementProvenance = (
+  value: number | boolean | undefined,
+): EvidenceRecordProvenance =>
+  value === undefined || (typeof value === 'number' && !Number.isFinite(value))
+    ? 'Unavailable evidence'
+    : 'Provider measurement';
+
 const unavailableVersion = (value: string): boolean =>
   value === 'not_available' || value.includes('not-reported') || value.includes('not_reported');
 
@@ -584,162 +624,267 @@ const fullRecordFor = (
       ? evaluation.missingEvidence.join(' ')
       : 'No missing evidence was recorded.';
   const technicalNote = evaluation.threshold.provisional
-    ? 'Production thresholds require repeat-scan calibration.'
+    ? 'Production thresholds remain provisional and require repeat-scan calibration.'
     : undefined;
+  const additionalEvidence = evaluation.missingEvidence.length > 0
+    ? evaluation.missingEvidence.join(' ')
+    : 'No additional missing evidence was identified in the saved snapshot.';
 
   return {
     sections: [
       {
-        id: 'evidence-checks',
-        title: 'Evidence checks',
-        rows: [
-          {
-            id: 'change-pattern',
-            label: 'Change pattern',
-            value: effectLabel(evaluation.effectClassification),
-            canonicalValue: evaluation.effectClassification ?? 'not_available',
-          },
-          {
-            id: 'scan-quality',
-            label: 'Scan quality',
-            value: measurementLabel(evaluation.measurementQuality),
-            canonicalValue: evaluation.measurementQuality,
-          },
-          {
-            id: 'product-isolation',
-            label: 'Product isolation',
-            value: attributionLabel(evaluation),
-            canonicalValue: evaluation.attributionQuality,
-          },
-          {
-            id: 'evidence-quality',
-            label: 'Evidence so far',
-            value: evidenceLabel(evaluation.evidenceQuality),
-            canonicalValue: evaluation.evidenceQuality,
-          },
-          {
-            id: 'safety-status',
-            label: 'Skin response',
-            value: safetyLabel(evaluation),
-            canonicalValue: evaluation.safetyStatus,
-          },
-        ],
-      },
-      {
-        id: 'measurements',
-        title: 'Measurements',
-        rows: [
-          {
-            id: 'baseline-score',
-            label: 'Baseline score',
-            value: score(evaluation.baselineRawMedian),
-          },
-          {
-            id: 'follow-up-score',
-            label: 'Follow-up score',
-            value: score(evaluation.endpointRawMedian),
-          },
-          {
-            id: 'baseline-measurements',
-            label: 'Baseline measurements',
-            value: acceptedMeasurements(evaluation.baseline.acceptedRawScores),
-          },
-          {
-            id: 'follow-up-measurements',
-            label: 'Follow-up measurements',
-            value: acceptedMeasurements(evaluation.endpoint.acceptedRawScores),
-          },
-          {
-            id: 'baseline-rejections',
-            label: 'Baseline replacements',
-            value: rejectedAttempts(evaluation.baseline),
-          },
-          {
-            id: 'follow-up-rejections',
-            label: 'Follow-up replacements',
-            value: rejectedAttempts(evaluation.endpoint),
-          },
-          {
-            id: 'direction-agreement',
-            label: 'Follow-up agreement',
-            value: directionAgreement(evaluation),
-            canonicalValue: evaluation.directionAgreement.status,
-          },
-          {
-            id: 'observed-change',
-            label: 'Observed change',
-            value: signedPoints(evaluation.rawScoreDelta),
-          },
-          {
-            id: 'time-between',
-            label: 'Time between scans',
-            value: days(evaluation.actualObservationIntervalDays),
-          },
-          {
-            id: 'baseline-sessions',
-            label: 'Baseline sessions',
-            value: scoreFormatter.format(evaluation.baseline.sessionCount),
-          },
-          {
-            id: 'follow-up-sessions',
-            label: 'Follow-up sessions',
-            value: scoreFormatter.format(evaluation.endpoint.sessionCount),
-          },
-        ],
-      },
-      {
-        id: 'trial-details',
-        title: 'Trial details',
+        id: 'observed-change',
+        title: 'Observed change',
         rows: [
           {
             id: 'assigned-job',
-            label: 'Assigned job',
-            value: 'Calm visible redness',
+            label: 'Assigned product job',
+            value: humanizeCode(evaluation.assignedJob),
             canonicalValue: evaluation.assignedJob,
+            provenance: 'Face Value deterministic evaluation',
           },
           {
-            id: 'expected-window',
-            label: 'Expected window',
-            value: expectedWindow(evaluation),
+            id: 'baseline-median',
+            label: 'Baseline median',
+            value: score(evaluation.baselineRawMedian),
+            provenance: 'Provider measurement',
           },
           {
-            id: 'actual-interval',
-            label: 'Actual interval',
+            id: 'follow-up-median',
+            label: 'Follow-up median',
+            value: score(evaluation.endpointRawMedian),
+            provenance: 'Provider measurement',
+          },
+          {
+            id: 'saved-score-delta',
+            label: 'Saved raw-score delta',
+            value: signedPoints(evaluation.rawScoreDelta),
+            provenance: 'Face Value deterministic evaluation',
+          },
+          {
+            id: 'saved-effect-classification',
+            label: 'Saved effect classification',
+            value: effectLabel(evaluation.effectClassification),
+            canonicalValue: evaluation.effectClassification ?? 'not_available',
+            provenance: 'Face Value deterministic evaluation',
+          },
+          {
+            id: 'elapsed-time',
+            label: 'Elapsed time',
             value: days(evaluation.actualObservationIntervalDays),
-            canonicalValue: evaluation.observationWindowStatus,
+            provenance: 'Face Value deterministic evaluation',
           },
+          {
+            id: 'observation-window-status',
+            label: 'Saved observation-window status',
+            value: humanizeCode(evaluation.observationWindowStatus),
+            canonicalValue: evaluation.observationWindowStatus,
+            provenance: 'Face Value deterministic evaluation',
+          },
+        ],
+      },
+      {
+        id: 'measurement-support',
+        title: 'Measurement support',
+        rows: [
+          {
+            id: 'baseline-raw-scores',
+            label: 'Accepted baseline raw scores',
+            value: acceptedMeasurements(evaluation.baseline.acceptedRawScores),
+            provenance: 'Provider measurement',
+          },
+          {
+            id: 'follow-up-raw-scores',
+            label: 'Accepted follow-up raw scores',
+            value: acceptedMeasurements(evaluation.endpoint.acceptedRawScores),
+            provenance: 'Provider measurement',
+          },
+          {
+            id: 'baseline-frame-counts',
+            label: 'Baseline frame counts',
+            value: frameCounts(evaluation.baseline),
+            provenance: 'Provider measurement',
+          },
+          {
+            id: 'follow-up-frame-counts',
+            label: 'Follow-up frame counts',
+            value: frameCounts(evaluation.endpoint),
+            provenance: 'Provider measurement',
+          },
+          {
+            id: 'measurement-baseline-median',
+            label: 'Baseline median',
+            value: score(evaluation.baselineRawMedian),
+            provenance: 'Provider measurement',
+          },
+          {
+            id: 'measurement-follow-up-median',
+            label: 'Follow-up median',
+            value: score(evaluation.endpointRawMedian),
+            provenance: 'Provider measurement',
+          },
+          {
+            id: 'baseline-rejections',
+            label: 'Baseline rejected attempts',
+            value: rejectedAttempts(evaluation.baseline),
+            provenance: 'Provider measurement',
+          },
+          {
+            id: 'follow-up-rejections',
+            label: 'Follow-up rejected attempts',
+            value: rejectedAttempts(evaluation.endpoint),
+            provenance: 'Provider measurement',
+          },
+          {
+            id: 'direction-agreement',
+            label: 'Saved direction agreement',
+            value: humanizeCode(evaluation.directionAgreement.status),
+            canonicalValue: evaluation.directionAgreement.status,
+            provenance: 'Face Value deterministic evaluation',
+          },
+          {
+            id: 'assessed-endpoint-count',
+            label: 'Assessed follow-up frame count',
+            value: String(evaluation.directionAgreement.assessedEndpointFrameCount),
+            provenance: 'Face Value deterministic evaluation',
+          },
+          {
+            id: 'improving-endpoint-count',
+            label: 'Improving follow-up frame count',
+            value: String(evaluation.directionAgreement.improvingEndpointFrameCount),
+            provenance: 'Face Value deterministic evaluation',
+          },
+          {
+            id: 'saved-measurement-quality',
+            label: 'Saved measurement quality',
+            value: measurementLabel(evaluation.measurementQuality),
+            canonicalValue: evaluation.measurementQuality,
+            provenance: 'Face Value deterministic evaluation',
+          },
+          {
+            id: 'baseline-capture-comparability',
+            label: 'Baseline capture comparability',
+            value: captureComparability(evaluation.baseline),
+            provenance: evaluation.baseline.sessions.length > 0
+              ? 'Provider measurement'
+              : 'Unavailable evidence',
+          },
+          {
+            id: 'follow-up-capture-comparability',
+            label: 'Follow-up capture comparability',
+            value: captureComparability(evaluation.endpoint),
+            provenance: evaluation.endpoint.sessions.length > 0
+              ? 'Provider measurement'
+              : 'Unavailable evidence',
+          },
+          {
+            id: 'facial-registration-quality',
+            label: 'Facial registration quality',
+            value: optionalMeasurement(evaluation.maskEvidence.facialRegistrationQuality),
+            provenance: optionalMeasurementProvenance(
+              evaluation.maskEvidence.facialRegistrationQuality,
+            ),
+          },
+          {
+            id: 'eligible-skin-pixel-count',
+            label: 'Eligible skin pixel count',
+            value: optionalMeasurement(evaluation.maskEvidence.eligibleSkinPixelCount),
+            provenance: optionalMeasurementProvenance(
+              evaluation.maskEvidence.eligibleSkinPixelCount,
+            ),
+          },
+          {
+            id: 'baseline-mask-area',
+            label: 'Baseline redness-mask area',
+            value: optionalMeasurement(evaluation.maskEvidence.baselineAreaPct),
+            provenance: optionalMeasurementProvenance(evaluation.maskEvidence.baselineAreaPct),
+          },
+          {
+            id: 'follow-up-mask-area',
+            label: 'Follow-up redness-mask area',
+            value: optionalMeasurement(evaluation.maskEvidence.endpointAreaPct),
+            provenance: optionalMeasurementProvenance(evaluation.maskEvidence.endpointAreaPct),
+          },
+          {
+            id: 'baseline-mask-pixel-count',
+            label: 'Baseline redness-mask pixel count',
+            value: optionalMeasurement(evaluation.maskEvidence.baselineMaskPixelCount),
+            provenance: optionalMeasurementProvenance(
+              evaluation.maskEvidence.baselineMaskPixelCount,
+            ),
+          },
+          {
+            id: 'follow-up-mask-pixel-count',
+            label: 'Follow-up redness-mask pixel count',
+            value: optionalMeasurement(evaluation.maskEvidence.endpointMaskPixelCount),
+            provenance: optionalMeasurementProvenance(
+              evaluation.maskEvidence.endpointMaskPixelCount,
+            ),
+          },
+          {
+            id: 'baseline-region-agreement',
+            label: 'Baseline region agreement',
+            value: optionalMeasurement(evaluation.maskEvidence.baselineRegionAgreement),
+            provenance: optionalMeasurementProvenance(
+              evaluation.maskEvidence.baselineRegionAgreement,
+            ),
+          },
+          {
+            id: 'spatial-consistency',
+            label: 'Spatial consistency',
+            value: optionalMeasurement(evaluation.maskEvidence.spatialConsistency),
+            provenance: optionalMeasurementProvenance(evaluation.maskEvidence.spatialConsistency),
+          },
+          {
+            id: 'segmentation-stability',
+            label: 'Segmentation stability',
+            value: optionalMeasurement(evaluation.maskEvidence.segmentationStable),
+            provenance: optionalMeasurementProvenance(evaluation.maskEvidence.segmentationStable),
+          },
+        ],
+      },
+      {
+        id: 'trial-truth',
+        title: 'Trial truth',
+        rows: [
           {
             id: 'product-overlap',
             label: 'Product overlap',
             value: productOverlap(evaluation),
             canonicalValue: evaluation.secondProductStatus,
+            provenance: 'Participant report',
           },
           {
             id: 'confounders',
             label: 'Confounders or overlap',
             value: confounderSummary(evaluation),
+            provenance: 'Participant report',
           },
           {
             id: 'adherence',
             label: 'Product use',
             value: adherenceLabel(record.trialTruth?.adherence.status ?? 'unknown'),
             canonicalValue: record.trialTruth?.adherence.status ?? 'not_collected',
+            provenance: record.trialTruth ? 'Participant report' : 'Unavailable evidence',
           },
           {
             id: 'tolerance-severity',
             label: 'Skin response',
             value: toleranceLabel(record.trialTruth),
             canonicalValue: record.trialTruth?.tolerance.severity ?? 'not_collected',
+            provenance: record.trialTruth ? 'Participant report' : 'Unavailable evidence',
           },
           {
             id: 'reported-symptoms',
             label: 'Reported symptoms',
             value: symptomLabel(record.trialTruth),
+            provenance: record.trialTruth ? 'Participant report' : 'Unavailable evidence',
           },
           {
             id: 'participant-observation',
-            label: 'Participant observation',
+            label: 'Participant-observed redness direction',
             value: participantObservationLabel(record.trialTruth),
+            provenance: record.trialTruth ? 'Participant report' : 'Unavailable evidence',
           },
           {
             id: 'participant-report-timestamp',
@@ -748,17 +893,16 @@ const fullRecordFor = (
               ? savedTimestamp(record.trialTruth.recordedAt)
               : 'Not collected',
             canonicalValue: record.trialTruth?.recordedAt ?? 'not_collected',
+            provenance: record.trialTruth ? 'Participant report' : 'Unavailable evidence',
           },
           {
             id: 'anchor-relationship',
-            label: 'Anchor relationship',
+            label: 'Saved objective/participant relationship',
             value: anchorRelationshipLabel(record),
             canonicalValue: record.anchorRelationship ?? 'not_collected',
-          },
-          {
-            id: 'missing-evidence',
-            label: 'Data not collected',
-            value: missingEvidence,
+            provenance: record.anchorRelationship && record.anchorRelationship !== 'not_collected'
+              ? 'Face Value deterministic evaluation'
+              : 'Unavailable evidence',
           },
           ...(record.note?.trim()
             ? [
@@ -766,93 +910,180 @@ const fullRecordFor = (
                   id: 'trial-note',
                   label: 'Trial note',
                   value: record.note.trim(),
+                  provenance: 'Participant report' as const,
                 },
               ]
             : []),
         ],
       },
       {
-        id: 'comparison-settings',
-        title: 'Comparison settings',
+        id: 'evidence-boundaries',
+        title: 'Evidence boundaries',
         rows: [
           {
-            id: 'threshold-description',
-            label: 'Preliminary settings',
+            id: 'evidence-quality',
+            label: 'Saved evidence quality',
+            value: evidenceLabel(evaluation.evidenceQuality),
+            canonicalValue: evaluation.evidenceQuality,
+            provenance: 'Face Value deterministic evaluation',
+          },
+          {
+            id: 'attribution-quality',
+            label: 'Saved attribution quality',
+            value: attributionQualityLabel(evaluation.attributionQuality),
+            canonicalValue: evaluation.attributionQuality,
+            provenance: 'Face Value deterministic evaluation',
+          },
+          {
+            id: 'safety-status',
+            label: 'Saved safety status',
+            value: safetyStatusLabel(evaluation.safetyStatus),
+            canonicalValue: evaluation.safetyStatus,
+            provenance: 'Face Value deterministic evaluation',
+          },
+          {
+            id: 'active-provisional-boundary',
+            label: 'Active provisional boundary',
             value: comparisonSettingsDescription(evaluation),
+            provenance: 'Face Value deterministic evaluation',
           },
           {
             id: 'threshold-source',
             label: 'Threshold source',
             value: thresholdSourceLabel(evaluation.threshold.source),
             canonicalValue: evaluation.threshold.source,
+            provenance: 'Face Value deterministic evaluation',
           },
           {
             id: 'threshold-version',
             label: 'Threshold version',
             value: evaluation.threshold.version,
+            provenance: 'Face Value deterministic evaluation',
           },
           {
             id: 'provisional-status',
             label: 'Provisional status',
             value: evaluation.threshold.provisional ? 'Yes — preliminary' : 'No',
+            canonicalValue: String(evaluation.threshold.provisional),
+            provenance: 'Face Value deterministic evaluation',
+          },
+          {
+            id: 'configuration-hash',
+            label: 'Configuration hash',
+            value: evaluation.threshold.configHash,
+            provenance: 'Face Value deterministic evaluation',
+          },
+          {
+            id: 'missing-evidence',
+            label: 'Missing or not-collected evidence',
+            value: missingEvidence,
+            provenance: 'Unavailable evidence',
           },
         ],
       },
       {
-        id: 'technical-methods',
-        title: 'Technical methods',
+        id: 'supported-next-action',
+        title: 'Supported next action',
         rows: [
           {
-            id: 'framework-version',
-            label: 'Framework version',
-            value: evaluation.frameworkVersion,
+            id: 'recommended-action',
+            label: 'Saved recommended action',
+            value: canonicalActionLabel(evaluation.interpretation.recommendedAction),
+            canonicalValue: evaluation.interpretation.recommendedAction,
+            provenance: 'Face Value deterministic evaluation',
           },
           {
-            id: 'schema-version',
-            label: 'Schema version',
-            value: evaluation.schemaVersion,
+            id: 'deterministic-explanation',
+            label: 'Saved deterministic explanation',
+            value: evaluation.interpretation.explanation,
+            provenance: 'Face Value deterministic evaluation',
           },
           {
-            id: 'engine-version',
-            label: 'Engine version',
-            value: evaluation.engineVersion,
+            id: 'rule-trace',
+            label: 'Saved rule trace',
+            value: evaluation.triggeredRuleIds.length > 0
+              ? evaluation.triggeredRuleIds.join(' · ')
+              : 'Not available',
+            provenance: evaluation.triggeredRuleIds.length > 0
+              ? 'Face Value deterministic evaluation'
+              : 'Unavailable evidence',
           },
           {
-            id: 'api-version',
-            label: 'Application programming interface',
-            value: evaluation.versions.apiVersion,
-          },
-          {
-            id: 'analysis-model',
-            label: 'Analysis model version',
-            value: versionValue(evaluation.versions.analysisModelVersion),
-            canonicalValue: unavailableVersion(evaluation.versions.analysisModelVersion)
-              ? evaluation.versions.analysisModelVersion
-              : undefined,
-          },
-          {
-            id: 'preprocessing-version',
-            label: 'Preprocessing version',
-            value: versionValue(evaluation.versions.preprocessingVersion),
-          },
-          {
-            id: 'capture-protocol',
-            label: 'Capture protocol version',
-            value: versionValue(evaluation.versions.captureProtocolVersion),
-          },
-          {
-            id: 'app-version',
-            label: 'App version',
-            value: versionValue(evaluation.versions.appBuildVersion),
+            id: 'additional-evidence',
+            label: 'Additional evidence that would strengthen this result',
+            value: additionalEvidence,
+            provenance: evaluation.missingEvidence.length > 0
+              ? 'Unavailable evidence'
+              : 'Face Value deterministic evaluation',
           },
         ],
       },
     ],
     technicalMetadata: [
       {
-        id: 'configuration-hash',
+        id: 'framework-version',
+        label: 'Framework version',
+        value: evaluation.frameworkVersion,
+        provenance: 'Face Value deterministic evaluation',
+      },
+      {
+        id: 'schema-version',
+        label: 'Schema version',
+        value: evaluation.schemaVersion,
+        provenance: 'Face Value deterministic evaluation',
+      },
+      {
+        id: 'engine-version',
+        label: 'Engine version',
+        value: evaluation.engineVersion,
+        provenance: 'Face Value deterministic evaluation',
+      },
+      {
+        id: 'api-version',
+        label: 'Application programming interface',
+        value: evaluation.versions.apiVersion,
+        provenance: 'Provider measurement',
+      },
+      {
+        id: 'analysis-model',
+        label: 'Analysis model version',
+        value: versionValue(evaluation.versions.analysisModelVersion),
+        canonicalValue: unavailableVersion(evaluation.versions.analysisModelVersion)
+          ? evaluation.versions.analysisModelVersion
+          : undefined,
+        provenance: unavailableVersion(evaluation.versions.analysisModelVersion)
+          ? 'Unavailable evidence'
+          : 'Provider measurement',
+      },
+      {
+        id: 'preprocessing-version',
+        label: 'Preprocessing version',
+        value: versionValue(evaluation.versions.preprocessingVersion),
+        provenance: unavailableVersion(evaluation.versions.preprocessingVersion)
+          ? 'Unavailable evidence'
+          : 'Provider measurement',
+      },
+      {
+        id: 'capture-protocol',
+        label: 'Capture protocol version',
+        value: versionValue(evaluation.versions.captureProtocolVersion),
+        provenance: unavailableVersion(evaluation.versions.captureProtocolVersion)
+          ? 'Unavailable evidence'
+          : 'Provider measurement',
+      },
+      {
+        id: 'app-version',
+        label: 'App version',
+        value: versionValue(evaluation.versions.appBuildVersion),
+        provenance: unavailableVersion(evaluation.versions.appBuildVersion)
+          ? 'Unavailable evidence'
+          : 'Provider measurement',
+      },
+      {
+        id: 'configuration-hash-metadata',
         label: 'Configuration hash',
         value: evaluation.threshold.configHash,
+        provenance: 'Face Value deterministic evaluation',
       },
       {
         id: 'triggered-rules',
@@ -861,23 +1092,29 @@ const fullRecordFor = (
           evaluation.triggeredRuleIds.length > 0
             ? evaluation.triggeredRuleIds.join(' · ')
             : 'Not available',
+        provenance: evaluation.triggeredRuleIds.length > 0
+          ? 'Face Value deterministic evaluation'
+          : 'Unavailable evidence',
       },
       {
         id: 'snapshot-identity',
         label: 'Immutable snapshot identity',
         value: `${evaluation.trialId} · ${evaluation.evaluatedAt}`,
+        provenance: 'Face Value deterministic evaluation',
       },
       {
         id: 'evaluated-at',
         label: 'Evaluated at',
         value: savedTimestamp(evaluation.evaluatedAt),
         canonicalValue: evaluation.evaluatedAt,
+        provenance: 'Face Value deterministic evaluation',
       },
       {
         id: 'privacy',
         label: 'Face image persistence',
         value: evaluation.privacy.includesFaceImage ? 'Included' : 'Excluded',
         canonicalValue: `includesFaceImage=${String(evaluation.privacy.includesFaceImage)}`,
+        provenance: 'Face Value deterministic evaluation',
       },
     ],
     auditTrace: evaluation.auditTrace.map((entry) => ({ ...entry })),

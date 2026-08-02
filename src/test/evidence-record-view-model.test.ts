@@ -43,6 +43,9 @@ const viewModelFor = (key: keyof typeof canonicalRednessFixtures): EvidenceRecor
 const fullRow = (viewModel: EvidenceRecordViewModel, id: string) =>
   viewModel.full?.sections.flatMap((section) => section.rows).find((row) => row.id === id);
 
+const technicalRow = (viewModel: EvidenceRecordViewModel, id: string) =>
+  viewModel.full?.technicalMetadata.find((row) => row.id === id);
+
 describe('EvidenceRecordViewModel', () => {
   it('presents a strong favorable snapshot without recalculating its saved measurements', () => {
     const evaluation = evaluateRedness(structuredClone(canonicalRednessFixtures.A));
@@ -84,24 +87,27 @@ describe('EvidenceRecordViewModel', () => {
       ]),
     );
     expect(viewModel.full?.technicalNote).toBe(
-      'Production thresholds require repeat-scan calibration.',
+      'Production thresholds remain provisional and require repeat-scan calibration.',
     );
-    expect(fullRow(viewModel, 'threshold-description')?.value).toBe(
+    expect(fullRow(viewModel, 'active-provisional-boundary')?.value).toBe(
       'Detectable 5 · strong 10 points',
     );
-    expect(fullRow(viewModel, 'baseline-measurements')?.value).toBe('59 · 60 · 61');
-    expect(fullRow(viewModel, 'follow-up-measurements')?.value).toBe('71 · 72 · 73');
+    expect(fullRow(viewModel, 'baseline-raw-scores')?.value).toBe('59 · 60 · 61');
+    expect(fullRow(viewModel, 'follow-up-raw-scores')?.value).toBe('71 · 72 · 73');
     expect(fullRow(viewModel, 'baseline-rejections')?.value).toBe('None');
     expect(fullRow(viewModel, 'follow-up-rejections')?.value).toBe('None');
     expect(fullRow(viewModel, 'direction-agreement')).toMatchObject({
-      value: 'Agreeing · 3 follow-up measurements',
+      value: 'Agreeing',
       canonicalValue: 'agreeing',
     });
-    expect(fullRow(viewModel, 'configuration-hash')).toBeUndefined();
+    expect(fullRow(viewModel, 'assessed-endpoint-count')?.value).toBe('3');
+    expect(fullRow(viewModel, 'configuration-hash')?.value).toBe(
+      evaluation.threshold.configHash,
+    );
     expect(viewModel.full?.technicalMetadata).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
-          id: 'configuration-hash',
+          id: 'configuration-hash-metadata',
           value: evaluation.threshold.configHash,
         }),
       ]),
@@ -189,7 +195,7 @@ describe('EvidenceRecordViewModel', () => {
     } satisfies RednessEvaluationSnapshot;
     const viewModel = evidenceRecordViewModelFromRecord(baseRecord(missingModelSnapshot));
 
-    expect(fullRow(viewModel, 'analysis-model')).toMatchObject({
+    expect(technicalRow(viewModel, 'analysis-model')).toMatchObject({
       value: 'Not reported',
       canonicalValue: 'youcam-hd-redness-model-version-not-reported',
     });

@@ -4,6 +4,10 @@ import {
   placementForRednessAction,
 } from '../src/adapters/analysis/youcam/rednessEvidenceAdapter';
 import type { RednessEvaluationSnapshot } from '../src/domain/evidence/redness';
+import {
+  anchorRelationshipFor,
+  trialTruthEvidenceFromSnapshot,
+} from '../src/domain/trialTruth';
 import type {
   EvidenceRecordData,
   RecommendedAction,
@@ -46,6 +50,10 @@ export function evidenceRecordForSnapshot(
   } = {},
 ): EvidenceRecordData {
   const action = snapshot.interpretation.recommendedAction;
+  const trialTruth = trialTruthEvidenceFromSnapshot(
+    snapshot,
+    `e2e-trial-truth-${snapshot.trialId}`,
+  );
   return {
     id: options.id ?? `ER-${snapshot.trialId}`,
     specimenId: snapshot.productId,
@@ -88,6 +96,11 @@ export function evidenceRecordForSnapshot(
     followUpContext: EMPTY_CONTEXT,
     demoOriginated: false,
     rednessEvaluation: snapshot,
+    trialTruth: trialTruth ?? undefined,
+    anchorRelationship: anchorRelationshipFor(
+      snapshot.effectClassification,
+      trialTruth?.patientAnchor ?? null,
+    ),
   };
 }
 
@@ -100,6 +113,8 @@ export function legacyEvidenceRecord(
   delete legacy.followUpRawScore;
   delete legacy.evidenceSource;
   delete legacy.limitations;
+  delete legacy.trialTruth;
+  delete legacy.anchorRelationship;
   return {
     ...legacy,
     id: 'ER-EARLIER-RESULT',

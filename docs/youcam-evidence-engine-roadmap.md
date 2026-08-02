@@ -1,11 +1,11 @@
 # Face Value evidence engine roadmap
 
 **Status:** Current execution roadmap  
-**Effective date:** July 30, 2026  
-**Implementation base:** `main` at merged PR #67
-(`330f51975f162a2c15784114d7a448492973fcad`)
+**Effective date:** August 1, 2026
+**Implementation base:** `main` at merged PR #69
+(`f95b051f6c562919c23da0d08728fff124d27d48`)
 
-**Current change:** issue #63
+**Current change:** issue #65
 
 This roadmap distinguishes completed repository behavior from the remaining dependency-ordered hackathon work. Historical implementation detail remains available in merged PRs and `youcam-phase-b5-implementation.md`.
 
@@ -90,25 +90,27 @@ At the current baseline:
 - ordinary follow-up uses three independently accepted YouCam raw scores
 - the evaluator receives the actual score arrays, rejected evidence, and one session per period
 - measurement quality remains limited by honest missing evidence
-- adherence, tolerance, and participant-observed change are not collected
+- adherence, tolerance, symptoms, and participant-observed change are collected as reducer-owned trial truth
 - production thresholds remain provisional 5/10 values
+- the protected calibration harness remains isolated and exploratory
+- only deterministic synthetic face-free calibration fixtures are verified while YouCam returns `CreditInsufficiency`
 - a final exact-head physical-iPhone golden-path pass remains a release gate
 
 ## Phase C sequence
 
-Issue #63 is implemented in this change. Remaining product work stays locked to
-issues #64 and #65.
+Issues #63 and #64 are merged. Issue #65 is implemented by this change; after
+review, work remains limited to exact-head release hardening and bug fixes.
 
 ```text
-#63 Evidence Burst (implemented)
-→ #64 Trial Truth (planned)
-→ #65 Preliminary Calibration Harness
+#63 Evidence Burst (merged)
+→ #64 Trial Truth (merged)
+→ #65 Preliminary Calibration Harness (implemented in this change)
 → exact-head release hardening
 → bug fixes only
 → submission
 ```
 
-## #63 — Evidence Burst (implemented in this change)
+## #63 — Evidence Burst (merged)
 
 Branch: `agent/redness-evidence-burst`
 
@@ -146,7 +148,7 @@ physical iPhone baseline and follow-up must still prove three genuine provider
 measurements through one guided ritual, with no duplicate work or image
 persistence. That hardware gate remains explicitly pending.
 
-## #64 — Trial Truth
+## #64 — Trial Truth (merged)
 
 Branch: `agent/redness-trial-truth-lite`
 
@@ -169,7 +171,7 @@ Exit gate:
 
 Every new follow-up records the three required evidence groups, severe symptoms reach the existing safety precedence, and legacy records remain `Not collected` without fabricated defaults.
 
-## #65 — Preliminary Calibration Harness
+## #65 — Preliminary Calibration Harness (current)
 
 Branch: `agent/redness-calibration-lite`
 
@@ -196,7 +198,9 @@ Minimum hackathon outputs:
 - explicit `not_available` or `not_estimable` states
 - exploratory registry hash
 
-ICC and bootstrap intervals should be implemented where sample structure supports them and must fail honestly to `not_estimable` when it does not.
+ICC(A,1) and participant-cluster bootstrap intervals are implemented where the
+sample structure supports them and fail honestly to `not_estimable` when it
+does not.
 
 Critical boundary:
 
@@ -208,7 +212,10 @@ Critical boundary:
 
 Exit gate:
 
-The harness can reproduce its preliminary calculations entirely from exported face-free observations while production trials continue using the unchanged provisional configuration.
+The harness reproduces its preliminary calculations entirely from exported
+face-free observations while production trials continue using the unchanged
+provisional configuration. Live provider-backed and physical-device evidence
+remain pending until credits return.
 
 ## Final release gate
 

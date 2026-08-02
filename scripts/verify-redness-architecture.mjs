@@ -506,6 +506,319 @@ for (const forbiddenPresentationDependency of [
   }
 }
 
+const calibrationComponent = await readFile(
+  new URL('../src/features/calibration-redness/RednessCalibration.tsx', import.meta.url),
+  'utf8',
+);
+for (const forbiddenCalibrationCalculation of [
+  'analyzeRednessCalibration',
+  'empiricalQuantileR7',
+  'participantClusterBootstrap',
+  'withinClusterResidualSd',
+  'repeatabilityCoefficient(',
+  'iccAbsoluteAgreementSingle',
+  'Math.',
+]) {
+  if (calibrationComponent.includes(forbiddenCalibrationCalculation)) {
+    violations.push(
+      `RednessCalibration.tsx performs scientific work through ${forbiddenCalibrationCalculation}`,
+    );
+  }
+}
+
+const calibrationAnalysisOwners = [];
+for (const file of sourceFiles) {
+  const source = await readFile(file, 'utf8');
+  if (/export function analyzeRednessCalibration\s*\(/.test(source)) {
+    calibrationAnalysisOwners.push(relative(rootPath, file));
+  }
+}
+if (
+  calibrationAnalysisOwners.length !== 1 ||
+  calibrationAnalysisOwners[0] !== 'domain/calibration/redness/analysis.ts'
+) {
+  violations.push(
+    `Calibration analysis must have one pure domain owner; found ${calibrationAnalysisOwners.join(', ') || 'none'}`,
+  );
+}
+
+const productionEvaluator = await readFile(
+  new URL('../src/domain/evidence/redness/evaluateRedness.ts', import.meta.url),
+  'utf8',
+);
+for (const [owner, source] of [
+  ['evaluateRedness.ts', productionEvaluator],
+  ['thresholds.ts', thresholdSource.toString('utf8')],
+]) {
+  if (/from\s+['"][^'"]*calibration|import\s*\([^)]*calibration/i.test(source)) {
+    violations.push(`${owner} imports calibration or exploratory registry authority`);
+  }
+}
+
+const calibrationRegistry = await readFile(
+  new URL('../src/domain/calibration/redness/registry.ts', import.meta.url),
+  'utf8',
+);
+for (const frozenRegistryOutput of [
+  "threshold_source: 'technical_calibration'",
+  'approved_by: null',
+  "status: 'exploratory'",
+  'provisional: true',
+  "entry.status !== 'exploratory'",
+  'entry.approved_by !== null',
+  'entry.provisional !== true',
+]) {
+  if (!calibrationRegistry.includes(frozenRegistryOutput)) {
+    violations.push(`Exploratory registry freeze is missing ${frozenRegistryOutput}`);
+  }
+}
+
+const calibrationFiles = sourceFiles.filter((file) => {
+  const path = relative(rootPath, file);
+  return (
+    path.startsWith('domain/calibration/redness/') ||
+    path.startsWith('features/calibration-redness/')
+  );
+});
+for (const file of calibrationFiles) {
+  const path = relative(rootPath, file);
+  const source = await readFile(file, 'utf8');
+  if (/provisional\s*:\s*false/.test(source)) {
+    violations.push(`${path} attempts to emit non-provisional hackathon calibration output`);
+  }
+  if (/infer\w*SkinTone|classify\w*SkinTone|skinToneClassifier/i.test(source)) {
+    violations.push(`${path} contains automated skin-tone inference`);
+  }
+}
+
+const calibrationContract = await readFile(
+  new URL('../src/domain/calibration/redness/types.ts', import.meta.url),
+  'utf8',
+);
+const calibrationPersistence = await readFile(
+  new URL('../src/adapters/persistence/rednessCalibrationStore.ts', import.meta.url),
+  'utf8',
+);
+const calibrationDurableSource = `${calibrationContract}\n${calibrationPersistence}`;
+for (const forbiddenCalibrationField of [
+  /\bBlob\b/,
+  /\bFile\b/,
+  /\bthumbnail\b/i,
+  /\bmaskImage\b/i,
+  /\bimageBytes\b/i,
+  /\bbase64\b/i,
+  /\bdataUrl\b/i,
+  /\bobjectUrl\b/i,
+  /\bsignedUrl\b/i,
+  /\bproviderTaskId\b/i,
+  /\brawProviderPayload\b/i,
+  /\bname\??\s*:/i,
+  /\bemail\??\s*:/i,
+]) {
+  if (forbiddenCalibrationField.test(calibrationDurableSource)) {
+    violations.push(
+      `Calibration durable contract contains forbidden field ${forbiddenCalibrationField}`,
+    );
+  }
+}
+if (!calibrationContract.includes('includesFaceImage: false')) {
+  violations.push('Calibration observations no longer freeze includesFaceImage to false');
+}
+
+const registryIsolation = await readFile(
+  new URL('../src/domain/evidence/redness/calibrationRegistryIsolation.ts', import.meta.url),
+  'utf8',
+);
+for (const requiredIsolationMarker of [
+  "value.status === 'exploratory'",
+  'value.approved_by === null',
+  "reason: 'exploratory_not_approved'",
+  'configuration: null',
+]) {
+  if (!registryIsolation.includes(requiredIsolationMarker)) {
+    violations.push(`Production registry isolation is missing ${requiredIsolationMarker}`);
+  }
+}
+
+const calibrationAnalysis = await readFile(
+  new URL('../src/domain/calibration/redness/analysis.ts', import.meta.url),
+  'utf8',
+);
+for (const requiredExclusionMarker of [
+  'exclusions.push',
+  "'hard_capture_failure'",
+  "'explicit_intervention'",
+  "'degraded_condition'",
+  "'missing_or_non_finite_raw_score'",
+  "'fewer_than_three_accepted_frames'",
+]) {
+  if (!calibrationAnalysis.includes(requiredExclusionMarker)) {
+    violations.push(
+      `Calibration analysis can hide invalid evidence; missing ${requiredExclusionMarker}`,
+    );
+  }
+}
+if (!calibrationComponent.includes('viewModel.exclusions.map')) {
+  violations.push('Calibration instrument no longer renders excluded observations and reasons');
+}
+if (
+  [
+    "({ conditionType }) => conditionType === 'no_treatment_longitudinal'",
+    '`${point.participantId}\\u001f${point.conditionId}`',
+    'participantId: earlier.participantId',
+    'within-participant',
+  ].some((marker) => !calibrationAnalysis.includes(marker))
+) {
+  violations.push('Longitudinal calibration no longer proves within-participant pairing');
+}
+for (const requiredTechnicalMarker of [
+  "conditionType }) => conditionType === 'standard'",
+  'observation.participantId',
+  'observation.sessionId',
+  'observation.conditionId',
+  "kind: 'matched_formal_recapture'",
+  'technical = formalRecaptureComparisons(eligible)',
+]) {
+  if (!calibrationAnalysis.includes(requiredTechnicalMarker)) {
+    violations.push(
+      `Technical N95 formal-recapture boundary is missing ${requiredTechnicalMarker}`,
+    );
+  }
+}
+if (
+  calibrationAnalysis.includes("kind: 'within_burst'") ||
+  calibrationAnalysis.includes('eligible signed within-burst frame pairs')
+) {
+  violations.push(
+    'Within-burst agreement evidence is being reused as a no-change threshold comparison',
+  );
+}
+
+const liveProvenanceOwners = [];
+for (const file of sourceFiles) {
+  const source = await readFile(file, 'utf8');
+  if (source.includes("collectionSource: 'live_provider'")) {
+    liveProvenanceOwners.push(relative(rootPath, file));
+  }
+}
+if (
+  liveProvenanceOwners.length !== 1 ||
+  liveProvenanceOwners[0] !== 'features/calibration-redness/rednessCalibrationCollection.ts'
+) {
+  violations.push(
+    `Genuine live calibration provenance must have one completed internal owner; found ${liveProvenanceOwners.join(', ') || 'none'}`,
+  );
+}
+for (const requiredImportBoundary of [
+  "collectionSource: 'imported_unverified'",
+  'REDNESS_CALIBRATION_MAX_SERIALIZED_BYTES',
+  'rednessCalibrationUtf8Bytes(raw)',
+]) {
+  if (!calibrationPersistence.includes(requiredImportBoundary)) {
+    violations.push(`Calibration persistence boundary is missing ${requiredImportBoundary}`);
+  }
+}
+for (const requiredObservationBound of [
+  'REDNESS_CALIBRATION_MAX_FIELD_BYTES',
+  'REDNESS_CALIBRATION_MAX_OBSERVATION_BYTES',
+  "'oversized_field'",
+  "'oversized_observation'",
+]) {
+  if (
+    !calibrationContract.includes(requiredObservationBound) &&
+    !calibrationAnalysis.includes(requiredObservationBound)
+  ) {
+    const calibrationValidation = await readFile(
+      new URL('../src/domain/calibration/redness/validation.ts', import.meta.url),
+      'utf8',
+    );
+    if (!calibrationValidation.includes(requiredObservationBound)) {
+      violations.push(
+        `Calibration observation byte boundary is missing ${requiredObservationBound}`,
+      );
+    }
+  }
+}
+
+const calibrationRouteOwners = [];
+for (const file of sourceFiles) {
+  const source = await readFile(file, 'utf8');
+  if (/['"]\/calibration\/redness/.test(source)) {
+    calibrationRouteOwners.push(relative(rootPath, file));
+  }
+}
+const allowedCalibrationRouteOwners = ['app/router/AppRouter.tsx', 'features/demo-lab/DemoLab.tsx'];
+if (
+  calibrationRouteOwners.some((owner) => !allowedCalibrationRouteOwners.includes(owner)) ||
+  !allowedCalibrationRouteOwners.every((owner) => calibrationRouteOwners.includes(owner))
+) {
+  violations.push(
+    `Calibration route must exist only in the router and protected Demo Lab utility; found ${calibrationRouteOwners.join(', ') || 'none'}`,
+  );
+}
+
+const calibrationRoute = await readFile(
+  new URL('../api/calibration/redness.ts', import.meta.url),
+  'utf8',
+);
+const vercelRoutes = await readFile(new URL('../vercel.json', import.meta.url), 'utf8');
+if (!calibrationRoute.includes('serveProtectedDemo') || !calibrationRoute.includes('../demo.js')) {
+  violations.push('Calibration route does not reuse the signed Demo Lab engineering session');
+}
+if (
+  !vercelRoutes.includes('"src": "/calibration/redness/?"') ||
+  !vercelRoutes.includes('"dest": "/api/calibration/redness"')
+) {
+  violations.push('Vercel does not route /calibration/redness through its protected handler');
+}
+
+for (const file of sourceFiles) {
+  const path = relative(rootPath, file);
+  const source = await readFile(file, 'utf8');
+  for (const forbiddenClaim of [
+    'Clinically validated',
+    'Scientifically proven threshold',
+    'Dermatologist approved',
+    'Medical-grade accuracy',
+    '95% clinically certain',
+    'This product works',
+    'Validated for all skin tones',
+  ]) {
+    if (source.toLocaleLowerCase('en-US').includes(forbiddenClaim.toLocaleLowerCase('en-US'))) {
+      violations.push(`${path} contains forbidden scientific or clinical claim ${forbiddenClaim}`);
+    }
+  }
+}
+
+for (const requiredSignatureMarker of [
+  "title: 'Observed change'",
+  "title: 'Measurement support'",
+  "title: 'Trial truth'",
+  "title: 'Evidence boundaries'",
+  "title: 'Supported next action'",
+  "'Provider measurement'",
+  "'Face Value deterministic evaluation'",
+  "'Participant report'",
+  "'Unavailable evidence'",
+]) {
+  if (!evidenceRecordAdapter.includes(requiredSignatureMarker)) {
+    violations.push(`Evidence Record response signature is missing ${requiredSignatureMarker}`);
+  }
+}
+if (!evidenceRecordComponent.includes('data-redness-response-signature')) {
+  violations.push('EvidenceRecord.tsx no longer exposes the progressive Response Signature panel');
+}
+for (const file of sourceFiles.filter((file) => {
+  const path = relative(rootPath, file);
+  return path.startsWith('adapters/persistence/') || path === 'domain/model.ts';
+})) {
+  const path = relative(rootPath, file);
+  const source = await readFile(file, 'utf8');
+  if (/ResponseSignature/.test(source)) {
+    violations.push(`${path} persists a parallel ResponseSignature authority`);
+  }
+}
+
 const trialTruthPresentationFiles = sourceFiles.filter((file) =>
   relative(rootPath, file).startsWith('features/trial-truth/'),
 );

@@ -1,11 +1,11 @@
 # Face Value documentation authority
 
 **Status:** Current repository index  
-**Effective date:** July 31, 2026  
-**Implementation base:** `main` at merged PR #67
-(`330f51975f162a2c15784114d7a448492973fcad`)
+**Effective date:** August 1, 2026
+**Implementation base:** `main` at merged PR #69
+(`f95b051f6c562919c23da0d08728fff124d27d48`)
 
-**Current change:** issue #63 — three-frame redness evidence bursts
+**Current change:** issue #65 — preliminary redness calibration harness
 
 This index separates current product truth, planned implementation, historical records, and verification evidence. A planned issue or historical document does not override merged code or a current authority document.
 
@@ -32,11 +32,12 @@ A pull request that changes product, scientific, camera, privacy, or Oracle beha
 | Journey           | [`production-journey-integration.md`](production-journey-integration.md)   | First trial, follow-up, result, Home, Previous Trials, failure, and recovery              |
 | Camera            | [`camera-contract.md`](camera-contract.md)                                 | Native production acquisition and Camera Kit diagnostic boundary                          |
 | Scientific engine | [`redness-evidence-engine-v1.md`](redness-evidence-engine-v1.md)           | Current redness evaluator, provisional thresholds, snapshot, and evidence limitations     |
+| Calibration       | [`redness-calibration-harness.md`](redness-calibration-harness.md)         | Isolated observations, deterministic methods, registry, internal UI, and physical gate     |
 | Provider/security | [`youcam-evidence-engine-contract.md`](youcam-evidence-engine-contract.md) | Current YouCam API, signed engineering session, normalization, errors, and privacy        |
 | Oracle            | [`oracle-reveal-v1.md`](oracle-reveal-v1.md)                               | Current mechanical reducer and exactly-once collection boundary                           |
 | Design            | [`design-contract.md`](design-contract.md)                                 | Current instrument grammar, material, interaction, accessibility, and responsive laws     |
 | Visual sources    | [`source-of-truth-manifest.md`](source-of-truth-manifest.md)               | Current Figma nodes and checked-in verification evidence                                  |
-| Execution         | [`youcam-evidence-engine-roadmap.md`](youcam-evidence-engine-roadmap.md)   | Completed phases and remaining #64–#65 sequence                                           |
+| Execution         | [`youcam-evidence-engine-roadmap.md`](youcam-evidence-engine-roadmap.md)   | Completed #63–#65 Phase C sequence and remaining exact-head physical gate                  |
 
 ## Current implementation truth
 
@@ -52,22 +53,21 @@ At the current baseline:
 - analysis uses stable copy, reducer-bounded progress, and a decorative non-scientific activity field
 - canonical redness evaluation uses provisional 5/10 raw-score operating boundaries
 - threshold source remains `provisional_fixture`
-- ordinary trial truth inputs are not yet collected
+- ordinary trials collect reducer-owned trial truth before comparison
 - the Oracle creates a durable Evidence Record only after explicit collection
 - the canonical registered specimen remains labeled and locked through Oracle reveal and saving
 - saved-result surfaces use one immutable product snapshot, including strength and volume when present
 - the archive is presented as **Previous Trials**
+- canonical Evidence Records expose a read-only five-group Redness Response Signature
+- `/calibration/redness` uses the signed engineering session and isolated face-free storage
+- calibration output is exploratory, provisional, and rejected or ignored by production loading
 - no clinical-validation claim is supported
 
 ## Phase C status
 
-Issue #63 is represented by the current implementation and authority updates:
+The Phase C implementation sequence is represented by current code and authority updates:
 
 - #63 — three-frame redness evidence bursts
-
-The remaining issues are authoritative implementation specifications for future
-changes, but their behavior is not current until merged:
-
 - #64 — adherence, tolerance, and participant-observed redness change
 - #65 — preliminary internal calibration harness and technical evidence report
 
@@ -89,6 +89,7 @@ Important current sets include:
 
 - [`verification/face-value-specimen-acquisition/README.md`](verification/face-value-specimen-acquisition/README.md)
 - [`verification/redness-evidence-burst-63/README.md`](verification/redness-evidence-burst-63/README.md)
+- [`redness-calibration-harness.md`](redness-calibration-harness.md)
 - `verification/first-trial-identity-lock-v2/`
 - `verification/machine-continuity-2026-07-28/`
 
@@ -103,7 +104,7 @@ Current authority documents must not:
 - describe Camera Kit `hdskincare` as the production camera
 - describe the old `SAVE_RESULT` screen flow as the current completion path
 - present Previous Trials as Past Results
-- present #64 or #65 behavior as already shipped
+- claim the provider-backed or physical issue #65 calibration gate passed
 - call provisional boundaries clinically meaningful or scientifically validated
 
 Run:
