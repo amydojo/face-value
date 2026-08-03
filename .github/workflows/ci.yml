@@ -2,6 +2,10 @@ name: CI
 
 on:
   pull_request:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -11,6 +15,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
       - uses: actions/setup-node@v4
         with:
           node-version: 22.18.0
@@ -55,7 +61,17 @@ jobs:
           path: dist
           if-no-files-found: error
       - run: npx playwright install --with-deps webkit
-      - run: npm run test:e2e
+      - name: Mobile WebKit
+        env:
+          PLAYWRIGHT_JSON_OUTPUT_NAME: playwright-results.json
+        run: npm run test:e2e -- --reporter=github,json
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-results
+          path: playwright-results.json
+          if-no-files-found: error
       - name: Upload Playwright evidence
         if: always()
         uses: actions/upload-artifact@v4
