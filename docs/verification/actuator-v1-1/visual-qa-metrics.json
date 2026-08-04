@@ -1,0 +1,263 @@
+{
+  "reference": {
+    "fileKey": "GKiVi4YJLm9WqozwAK3ThB",
+    "primaryNode": "682:128",
+    "supportingNodes": [
+      "701:40",
+      "683:128",
+      "686:198",
+      "681:102"
+    ]
+  },
+  "stateGeometry": {
+    "rest": {
+      "root": {
+        "x": 0,
+        "y": 0,
+        "width": 64,
+        "height": 64
+      },
+      "housing": {
+        "x": 0,
+        "y": 0,
+        "width": 64,
+        "height": 64
+      },
+      "bezel": {
+        "x": 6,
+        "y": 5,
+        "width": 52,
+        "height": 52
+      },
+      "recess": {
+        "x": 9,
+        "y": 8,
+        "width": 46,
+        "height": 46
+      },
+      "cap": {
+        "x": 12,
+        "y": 11,
+        "width": 40,
+        "height": 40
+      },
+      "glossCount": 1,
+      "ring": null,
+      "ringCount": 0,
+      "active": null
+    },
+    "ready": {
+      "root": {
+        "x": 0,
+        "y": 0,
+        "width": 64,
+        "height": 64
+      },
+      "housing": {
+        "x": 0,
+        "y": 0,
+        "width": 64,
+        "height": 64
+      },
+      "bezel": {
+        "x": 6,
+        "y": 5,
+        "width": 52,
+        "height": 52
+      },
+      "recess": {
+        "x": 9,
+        "y": 8,
+        "width": 46,
+        "height": 46
+      },
+      "cap": {
+        "x": 12,
+        "y": 11,
+        "width": 40,
+        "height": 40
+      },
+      "glossCount": 1,
+      "ring": {
+        "x": 10,
+        "y": 9,
+        "width": 44,
+        "height": 44
+      },
+      "ringCount": 1,
+      "active": null
+    },
+    "scanning": {
+      "root": {
+        "x": 0,
+        "y": 0,
+        "width": 64,
+        "height": 64
+      },
+      "housing": {
+        "x": 0,
+        "y": 0,
+        "width": 64,
+        "height": 64
+      },
+      "bezel": {
+        "x": 6,
+        "y": 5,
+        "width": 52,
+        "height": 52
+      },
+      "recess": {
+        "x": 9,
+        "y": 8,
+        "width": 46,
+        "height": 46
+      },
+      "cap": {
+        "x": 12,
+        "y": 11,
+        "width": 40,
+        "height": 40
+      },
+      "glossCount": 1,
+      "ring": {
+        "x": 8,
+        "y": 7,
+        "width": 48,
+        "height": 48
+      },
+      "ringCount": 1,
+      "active": "true"
+    },
+    "captured": {
+      "root": {
+        "x": 0,
+        "y": 0,
+        "width": 64,
+        "height": 64
+      },
+      "housing": {
+        "x": 0,
+        "y": 0,
+        "width": 64,
+        "height": 64
+      },
+      "bezel": {
+        "x": 6,
+        "y": 5,
+        "width": 52,
+        "height": 52
+      },
+      "recess": {
+        "x": 9,
+        "y": 8,
+        "width": 46,
+        "height": 46
+      },
+      "cap": {
+        "x": 14,
+        "y": 14,
+        "width": 36,
+        "height": 36
+      },
+      "glossCount": 1,
+      "ring": null,
+      "ringCount": 0,
+      "active": null
+    }
+  },
+  "lockups": [
+    {
+      "state": "rest",
+      "tone": "ink",
+      "ringCount": 0,
+      "text": "facevalue"
+    },
+    {
+      "state": "rest",
+      "tone": "reverse",
+      "ringCount": 0,
+      "text": "facevalue"
+    }
+  ],
+  "iconMetrics": [
+    {
+      "marker": "app-180",
+      "renderedWidth": 180,
+      "renderedHeight": 180,
+      "naturalWidth": 180,
+      "naturalHeight": 180
+    },
+    {
+      "marker": "favicon-32",
+      "renderedWidth": 32,
+      "renderedHeight": 32,
+      "naturalWidth": 32,
+      "naturalHeight": 32
+    },
+    {
+      "marker": "favicon-16",
+      "renderedWidth": 16,
+      "renderedHeight": 16,
+      "naturalWidth": 32,
+      "naturalHeight": 32
+    }
+  ],
+  "maskable": {
+    "canvas": 512,
+    "actuatorRatio": 0.688,
+    "actuatorSize": 352,
+    "leftPadding": 71.993,
+    "topPadding": 64,
+    "safeCircleDiameter": 409.6,
+    "criticalArtworkFits": true
+  },
+  "reducedMotion": {
+    "mediaMatches": true,
+    "ringAnimationName": "none",
+    "ringAnimationDuration": "0s",
+    "capTransitionDuration": "0s"
+  },
+  "machineMetrics": {
+    "viewport": {
+      "width": 390,
+      "height": 844,
+      "scrollWidth": 390,
+      "scrollHeight": 844
+    },
+    "control": {
+      "width": 48,
+      "height": 48,
+      "tagName": "BUTTON",
+      "disabled": true,
+      "tabIndex": "-1",
+      "amberState": "idle",
+      "actuatorState": "rest"
+    },
+    "headerLockup": {
+      "state": "rest",
+      "tone": "reverse"
+    }
+  },
+  "readyMachineMetrics": {
+    "width": 48,
+    "height": 48,
+    "amberState": "followup-ready",
+    "actuatorState": "ready",
+    "disabled": true,
+    "ringCount": 1
+  },
+  "enabledReadyMachineMetrics": {
+    "tagName": "BUTTON",
+    "amberState": "ready",
+    "actuatorState": "ready",
+    "disabled": false,
+    "tabIndex": "0",
+    "accessibleName": "Keep this result",
+    "ringCount": 1
+  },
+  "fontChecks": {
+    "geist": true,
+    "geistMono": true
+  },
+  "runtimeIssues": []
+}

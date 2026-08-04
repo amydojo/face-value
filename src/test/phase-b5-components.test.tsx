@@ -578,6 +578,7 @@ it('keeps one canonical machine through reveal, dispense, collection, and Done',
 
   const machine = document.querySelector('[data-oracle-machine]');
   const machineControl = document.querySelector('[data-oracle-handle]');
+  const amberControl = machine?.querySelector<HTMLButtonElement>('[data-oracle-amber-control]');
   const registeredSpecimen = machine?.querySelector('[data-oracle-specimen]');
   const thermalLabel = registeredSpecimen?.querySelector(
     '[data-specimen-layer="thermal-evidence-label"]',
@@ -610,6 +611,14 @@ it('keeps one canonical machine through reveal, dispense, collection, and Done',
     );
   };
   expect(machine).toHaveAttribute('data-oracle-state', 'sealed');
+  expect(amberControl).toHaveAttribute('data-amber-state', 'idle');
+  expect(amberControl).toBeDisabled();
+  expect(amberControl).toHaveAttribute('tabindex', '-1');
+  expect(amberControl).toHaveAttribute('aria-hidden', 'true');
+  expect(amberControl?.querySelector('[data-face-value-actuator]')).toHaveAttribute(
+    'data-actuator-state',
+    'rest',
+  );
   expect(machine).toHaveAccessibleName(
     /Registered specimen remains loaded: Naturium, Azelaic Topical Acid, 10%, 30 ml/i,
   );
@@ -629,6 +638,11 @@ it('keeps one canonical machine through reveal, dispense, collection, and Done',
   expect(machineControl).toHaveAttribute('data-oracle-control-busy', 'true');
   fireEvent.animationEnd(document.querySelector('[data-oracle-motion="opening"]')!);
   expect(machine).toHaveAttribute('data-oracle-state', 'transmitting');
+  expect(amberControl).toHaveAttribute('data-amber-state', 'transmitting');
+  expect(amberControl?.querySelector('[data-face-value-actuator]')).toHaveAttribute(
+    'data-actuator-state',
+    'scanning',
+  );
   assertRegisteredSpecimen();
   expect(machineControl).toHaveAttribute('data-oracle-control-label', 'none');
   expect(screen.queryByText('TEST LONGER')).not.toBeInTheDocument();
@@ -657,9 +671,34 @@ it('keeps one canonical machine through reveal, dispense, collection, and Done',
   const amber = screen.getByRole('button', {
     name: 'Keep this result',
   });
+  expect(amber).toBe(amberControl);
+  expect(amber).toHaveAttribute('data-oracle-amber-control');
+  expect(amber).toHaveAttribute('data-amber-state', 'ready');
+  expect(amber).toHaveAttribute('tabindex', '0');
+  expect(amber).not.toBeDisabled();
+  expect(amber).not.toHaveAttribute('aria-hidden', 'true');
+  expect(amber.querySelector('[data-face-value-actuator]')).toHaveAttribute(
+    'data-actuator-state',
+    'ready',
+  );
+  expect(amber.querySelector('[data-face-value-actuator]')).toHaveAttribute(
+    'aria-hidden',
+    'true',
+  );
+  amber.focus();
+  expect(amber).toHaveFocus();
   fireEvent.click(amber);
   fireEvent.click(amber);
   expect(machine).toHaveAttribute('data-oracle-state', 'committing');
+  expect(amber).toBe(amberControl);
+  expect(amber).toHaveAttribute('data-amber-state', 'committed');
+  expect(amber).toBeDisabled();
+  expect(amber).toHaveAttribute('tabindex', '-1');
+  expect(amber).toHaveAttribute('aria-hidden', 'true');
+  expect(amber.querySelector('[data-face-value-actuator]')).toHaveAttribute(
+    'data-actuator-state',
+    'captured',
+  );
   assertRegisteredSpecimen();
   expect(machineControl).toHaveAttribute('data-oracle-control-label', 'none');
   expect(screen.queryByText('EVIDENCE RECORDED')).not.toBeInTheDocument();

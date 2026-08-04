@@ -1,0 +1,14 @@
+<svg preserveAspectRatio="none" overflow="visible" style="display: block;" width="36" height="36" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g id="Actuator / Cap Gloss">
+<path id="Vector" d="M18 35C27.3888 35 35 27.3888 35 18C35 8.61116 27.3888 1 18 1C8.61116 1 1 8.61116 1 18C1 27.3888 8.61116 35 18 35Z" fill="url(#paint0_radial_0_4)"/>
+<path id="Vector_2" d="M7 10C12 4 20 3 26 7" stroke="white" stroke-opacity="0.2604" stroke-width="1.26" stroke-linecap="round"/>
+<path id="Vector_3" d="M9 28C16 32 25 32 30 25" stroke="#4A1600" stroke-opacity="0.1116" stroke-width="0.9" stroke-linecap="round"/>
+</g>
+<defs>
+<radialGradient id="paint0_radial_0_4" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(10.52 7.8) scale(25.84)">
+<stop stop-color="white" stop-opacity="0.2108"/>
+<stop offset="0.24" stop-color="white" stop-opacity="0.0806"/>
+<stop offset="0.62" stop-color="white" stop-opacity="0"/>
+</radialGradient>
+</defs>
+</svg>

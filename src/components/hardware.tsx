@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import headerStyles from './ScreenHeader.module.css';
+import { FaceValueBrandLockup } from './FaceValueBrandLockup';
 import styles from '../styles/FaceValue.module.css';
 
 export function EvidenceShell({
@@ -34,7 +35,11 @@ export function ScreenHeader({ code = 'FV–014', dark = false }: { code?: strin
       data-fv-part="screen-header"
     >
       <div className={headerStyles.brandBar} data-fv-part="brand-bar">
-        <strong>FACE VALUE</strong>
+        <FaceValueBrandLockup
+          className={headerStyles.brandLockup}
+          state="rest"
+          tone={dark ? 'reverse' : 'ink'}
+        />
         <span data-oracle-trial-identity>{code}</span>
       </div>
     </header>

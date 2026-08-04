@@ -722,6 +722,8 @@
 }
 
 .amberControl {
+  --fv-actuator-size: 48px;
+
   position: absolute;
   top: 10px;
   right: 4.8%;
@@ -730,55 +732,14 @@
   height: 48px;
   min-height: 48px;
   padding: 0;
-  border: 1px solid;
-  border-color: rgba(181, 160, 126, 0.24) rgba(68, 56, 42, 0.76) rgba(7, 6, 5, 0.96);
+  border: 0;
   border-radius: 50%;
-  background: radial-gradient(circle at 50% 44%, #282017 0 44%, #0c0b09 72%), #11100d;
-  box-shadow:
-    inset 0 1px 2px rgba(235, 221, 196, 0.07),
-    inset 0 -4px 7px rgba(0, 0, 0, 0.82),
-    0 1px 1px rgba(219, 205, 180, 0.04),
-    0 3px 5px rgba(0, 0, 0, 0.72);
+  appearance: none;
+  background: transparent;
   cursor: default;
 }
 
-.amberControl span {
-  position: absolute;
-  inset: 9px;
-  border-radius: 50%;
-  overflow: hidden;
-  border: 1px solid rgba(236, 182, 112, 0.06);
-  background:
-    radial-gradient(circle at 42% 34%, rgba(255, 213, 154, 0.08), transparent 16%),
-    radial-gradient(circle at 50% 52%, #503118, var(--fv-amber-deep) 64%, #20140c);
-  box-shadow:
-    inset 0 1px rgba(255, 225, 183, 0.09),
-    inset 0 -4px 6px rgba(17, 7, 1, 0.44);
-}
-
-.amberControl span::before {
-  position: absolute;
-  top: 16%;
-  left: 23%;
-  width: 28%;
-  height: 12%;
-  border-radius: 50%;
-  opacity: 0.42;
-  background: rgba(255, 231, 196, 0.28);
-  content: '';
-  filter: blur(0.5px);
-}
-
-.amberControl span::after {
-  position: absolute;
-  inset: 2px;
-  border: 1px solid rgba(255, 194, 112, 0.08);
-  border-radius: 50%;
-  content: '';
-}
-
 .amberControl[data-amber-state='ready'] {
-  border-color: #74552f;
   cursor: pointer;
 }
 
@@ -840,85 +801,12 @@
   outline-offset: 2px;
 }
 
-.amberControl[data-amber-state='ready'] span {
-  background:
-    radial-gradient(circle at 42% 34%, rgba(255, 235, 203, 0.34), transparent 15%),
-    radial-gradient(circle at 50% 54%, #ed8424, var(--oracle-amber) 62%, #8d4311);
-  box-shadow:
-    inset 0 1px rgba(255, 237, 203, 0.34),
-    inset 0 -4px 6px rgba(94, 32, 4, 0.28),
-    0 0 9px var(--fv-amber-bloom);
-}
-
-.amberControl[data-amber-state='committed'] span {
-  background: #d9892d;
-  transform: translateY(2px);
-}
-
-.amberControl[data-amber-state='transmitting'] span {
-  background: #765021;
-}
-
-.amberControl[data-amber-state='trial-pending'] span {
-  background:
-    radial-gradient(circle at 42% 34%, rgba(255, 225, 183, 0.14), transparent 15%),
-    radial-gradient(circle at 50% 54%, #7e4b1e, #503018 66%, #29180e);
-  box-shadow:
-    inset 0 1px rgba(255, 237, 203, 0.18),
-    0 0 8px rgba(200, 121, 32, 0.16);
-}
-
-.amberControl[data-amber-state='followup-ready'] span {
-  background:
-    radial-gradient(circle at 42% 34%, rgba(255, 235, 203, 0.32), transparent 15%),
-    radial-gradient(circle at 50% 54%, #ed8424, var(--oracle-amber) 62%, #8d4311);
-  box-shadow:
-    inset 0 1px rgba(255, 237, 203, 0.36),
-    0 0 10px rgba(231, 118, 22, 0.3);
-}
-
-.amberControl[data-amber-state='baseline-ready'] span {
-  background:
-    radial-gradient(circle at 42% 34%, rgba(255, 226, 185, 0.2), transparent 15%),
-    radial-gradient(circle at 50% 54%, #ad641f, #7d451a 66%, #3b2312);
-  box-shadow:
-    inset 0 1px rgba(255, 237, 203, 0.24),
-    0 0 8px rgba(200, 121, 32, 0.18);
-}
-
-.amberControl[data-amber-state='specimen-preparing'] span {
-  background:
-    radial-gradient(circle at 42% 34%, rgba(255, 230, 194, 0.18), transparent 15%),
-    radial-gradient(circle at 50% 54%, #8e551f, #633817 66%, #2d1b0f);
-  box-shadow:
-    inset 0 1px rgba(255, 237, 203, 0.2),
-    0 0 7px rgba(231, 118, 22, 0.14);
+.amberControl[data-amber-state='specimen-preparing'] [data-actuator-ring] {
   animation: specimenLedPrepare 300ms linear both;
 }
 
-.amberControl[data-amber-state='specimen-registering'] span {
-  background:
-    radial-gradient(circle at 42% 34%, rgba(255, 235, 203, 0.3), transparent 15%),
-    radial-gradient(circle at 50% 54%, #c87920, #8d4d18 64%, #3f250f);
-  box-shadow:
-    inset 0 1px rgba(255, 237, 203, 0.3),
-    0 0 7px rgba(200, 121, 32, 0.22);
-}
-
-.amberControl[data-amber-state='specimen-processing'] span {
-  background:
-    radial-gradient(circle at 42% 34%, rgba(255, 235, 203, 0.28), transparent 15%),
-    radial-gradient(circle at 50% 54%, #bc6d20, #814717 64%, #3a220f);
+.amberControl[data-amber-state='specimen-processing'] [data-actuator-ring] {
   animation: specimenLedProcess var(--fv-registration-processing-duration) ease-in-out both;
-}
-
-.amberControl[data-amber-state='specimen-verified'] span {
-  background:
-    radial-gradient(circle at 42% 34%, rgba(255, 235, 203, 0.34), transparent 15%),
-    radial-gradient(circle at 50% 54%, #d07820, #914e18 64%, #40250f);
-  box-shadow:
-    inset 0 1px rgba(255, 237, 203, 0.32),
-    0 0 8px rgba(231, 118, 22, 0.24);
 }
 
 @keyframes specimenLedPrepare {
@@ -944,41 +832,8 @@
   }
 }
 
-.amberControl[data-amber-state='dispensing'] span {
-  background: #6d491f;
-}
-
-.amberControl[data-amber-state='complete'] span {
-  background:
-    radial-gradient(circle at 42% 34%, rgba(255, 226, 185, 0.06), transparent 15%),
-    radial-gradient(circle at 50% 54%, #49301a, #2e2014 68%, #18110c);
-}
-
-.amberControl[data-amber-state='idle'] span {
-  background:
-    radial-gradient(circle at 42% 34%, rgba(255, 226, 185, 0.11), transparent 15%),
-    radial-gradient(circle at 50% 54%, #49301a, #2e2014 68%, #18110c);
-}
-
-.amberControl[data-amber-state='idle'] span::before {
-  top: 5px;
-  left: 6px;
-  width: 2px;
-  height: 2px;
-  opacity: 0.47;
-  background: rgba(255, 231, 196, 0.46);
-  filter: none;
-}
-
 .latestMachine .amberControl:disabled {
   opacity: 1;
-}
-
-.latestMachine .amberControl[data-amber-state='latest'] span {
-  background: #b66c1c;
-  box-shadow:
-    inset 0 1px rgba(255, 237, 203, 0.24),
-    0 0 10px rgba(200, 121, 32, 0.18);
 }
 
 .pullHandle {
@@ -1082,7 +937,7 @@
   animation: handleTravel var(--oracle-opening-duration) var(--oracle-ease-accelerate) both;
 }
 
-.machine[data-oracle-state='committing'] .amberControl span {
+.machine[data-oracle-state='committing'] .amberControl [data-actuator-cap] {
   animation: amberCommit var(--oracle-commit-duration) var(--oracle-ease-mechanical) both;
 }
 
@@ -1836,7 +1691,7 @@
   .commitMechanism,
   .machine[data-oracle-state='opening'] .chassis,
   .machine[data-oracle-state='opening'] .pullHandle > span,
-  .machine[data-oracle-state='committing'] .amberControl span,
+  .machine[data-oracle-state='committing'] .amberControl [data-actuator-cap],
   .firmware[data-firmware-state='transmitting'],
   .firmware[data-firmware-state='transmitting'] .syncLine,
   .paper[data-paper-position='feeding'],
@@ -1861,7 +1716,7 @@
       [data-amber-state='specimen-preparing'],
       [data-amber-state='specimen-processing']
     )
-    span {
+    [data-actuator-ring] {
     animation: none;
   }
 
