@@ -1,0 +1,157 @@
+.actuator {
+  --fv-actuator-render-size: var(--fv-actuator-size, 64px);
+
+  position: relative;
+  isolation: isolate;
+  display: block;
+  flex: 0 0 auto;
+  width: var(--fv-actuator-render-size);
+  height: var(--fv-actuator-render-size);
+  overflow: visible;
+  pointer-events: none;
+  user-select: none;
+}
+
+.layer,
+.capArtwork,
+.ringArtwork {
+  position: absolute;
+  display: block;
+}
+
+.artwork {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  pointer-events: none;
+}
+
+.housing {
+  inset: 0;
+  border-radius: 50%;
+  background: var(--fv-actuator-housing);
+}
+
+.bezel {
+  top: 7.8125%;
+  left: 9.375%;
+  width: 81.25%;
+  height: 81.25%;
+  border-radius: 50%;
+  background: var(--fv-actuator-bezel);
+}
+
+.recess {
+  top: 12.5%;
+  left: 14.0625%;
+  width: 71.875%;
+  height: 71.875%;
+  border-radius: 50%;
+  background: var(--fv-actuator-recess);
+}
+
+.cap,
+.capGloss {
+  top: 17.1875%;
+  left: 18.75%;
+  width: 62.5%;
+  height: 62.5%;
+  border-radius: 50%;
+  transition:
+    top 160ms var(--fv-ease-damped),
+    left 160ms var(--fv-ease-damped),
+    width 160ms var(--fv-ease-damped),
+    height 160ms var(--fv-ease-damped);
+}
+
+.cap {
+  background: var(--fv-actuator-signal);
+}
+
+.capCaptured {
+  top: 21.875%;
+  left: 21.875%;
+  width: 56.25%;
+  height: 56.25%;
+}
+
+.capArtworkRest {
+  inset: -7.5% -12.5% -17.5%;
+}
+
+.capArtworkReady {
+  inset: -15% -15% -17.5%;
+}
+
+.capArtworkScanning {
+  inset: -57.5%;
+}
+
+.capArtworkCaptured {
+  inset: -11.11% -13.89% -20.83%;
+}
+
+.readyRing {
+  top: 14.0625%;
+  left: 15.625%;
+  width: 68.75%;
+  height: 68.75%;
+  transform-origin: 50% 50%;
+  animation: readyRingSettle 180ms var(--fv-ease-damped) both;
+}
+
+.readyRingArtwork {
+  inset: -7.4%;
+}
+
+.scanningRing {
+  top: 10.9375%;
+  left: 12.5%;
+  width: 75%;
+  height: 75%;
+  transform-origin: 50% 50%;
+  animation: scanningRingBloom 300ms var(--fv-ease-damped) both;
+}
+
+.scanningRingArtwork {
+  inset: -31.26%;
+}
+
+@keyframes readyRingSettle {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes scanningRingBloom {
+  from {
+    opacity: 0;
+    transform: scale(0.94);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cap,
+  .capGloss {
+    transition: none;
+  }
+
+  .readyRing,
+  .scanningRing {
+    animation: none;
+  }
+}

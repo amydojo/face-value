@@ -1,0 +1,71 @@
+<svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<rect width="32" height="32" fill="#F5F5F5"/>
+<g id="Canonical Brand System / Actuator V1.1">
+<rect x="-1211.5" y="-417.5" width="1639" height="2071" rx="23.5" fill="#F7F7F3"/>
+<rect x="-1211.5" y="-417.5" width="1639" height="2071" rx="23.5" stroke="#E5E5E2"/>
+<g id="Actuator Board / Row 1">
+<g id="Actuator Board / Digital Scale">
+<rect x="-379.5" y="-179.5" width="767" height="519" rx="19.5" fill="#F7F7F3"/>
+<rect x="-379.5" y="-179.5" width="767" height="519" rx="19.5" stroke="#E5E5E2"/>
+<g id="Actuator Board / Digital Slot">
+<g id="Digital / 32 PX">
+<g id="Favicon / 32 PX">
+<rect x="0.25" y="0.25" width="31.5" height="31.5" rx="6.75" fill="#F7F7F3"/>
+<rect x="0.25" y="0.25" width="31.5" height="31.5" rx="6.75" stroke="#E5E5E2" stroke-width="0.5"/>
+<g id="Favicon / Actuator">
+<g id="Actuator / Housing" clip-path="url(#clip0_695_160)">
+<path id="Vector" d="M16 5.1875C21.6959 5.1875 26.3125 9.80406 26.3125 15.5C26.3125 20.6734 22.4969 24.9875 17.4953 25.6578L16.9625 26.5H15.0375L14.5047 25.6578C9.50312 24.9875 5.6875 20.6734 5.6875 15.5C5.6875 9.80406 10.3041 5.1875 16 5.1875Z" fill="#0A0A0A"/>
+</g>
+<circle id="Actuator / Bezel" cx="16" cy="15.1562" r="8.9375" fill="#1C1C1C"/>
+<circle id="Actuator / Recess" cx="16" cy="15.1562" r="7.90625" fill="#0A0A0A"/>
+<g id="Actuator / Amber Cap" filter="url(#filter0_dii_695_160)">
+<circle cx="16" cy="15.1562" r="6.875" fill="#F47721"/>
+<circle cx="16" cy="15.1562" r="6.70312" stroke="#731F03" stroke-opacity="0.32" stroke-width="0.34375"/>
+</g>
+<g id="Actuator / Cap Gloss" clip-path="url(#clip1_695_160)">
+<path id="Vector_2" d="M16 21.6875C19.6071 21.6875 22.5312 18.7634 22.5312 15.1562C22.5312 11.5491 19.6071 8.625 16 8.625C12.3929 8.625 9.46875 11.5491 9.46875 15.1562C9.46875 18.7634 12.3929 21.6875 16 21.6875Z" fill="url(#paint0_radial_695_160)"/>
+<path id="Vector_3" d="M11.875 12.0625C13.5938 9.99999 16.6875 9.31249 19.0938 11.0312" stroke="white" stroke-opacity="0.3024" stroke-width="0.48125" stroke-linecap="round"/>
+<path id="Vector_4" d="M12.5625 18.9375C15.3125 20.6562 18.75 20.3125 20.4688 17.9062" stroke="#4A1600" stroke-opacity="0.1296" stroke-width="0.34375" stroke-linecap="round"/>
+</g>
+</g>
+</g>
+</g>
+</g>
+</g>
+</g>
+</g>
+<defs>
+<filter id="filter0_dii_695_160" x="7.40625" y="7.25" width="17.1875" height="17.1875" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+<feFlood flood-opacity="0" result="BackgroundImageFix"/>
+<feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha"/>
+<feOffset dy="0.6875"/>
+<feGaussianBlur stdDeviation="0.859375"/>
+<feColorMatrix type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.28 0"/>
+<feBlend mode="normal" in2="BackgroundImageFix" result="effect1_dropShadow_695_160"/>
+<feBlend mode="normal" in="SourceGraphic" in2="effect1_dropShadow_695_160" result="shape"/>
+<feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha"/>
+<feOffset dy="1.03125"/>
+<feGaussianBlur stdDeviation="0.859375"/>
+<feComposite in2="hardAlpha" operator="arithmetic" k2="-1" k3="1"/>
+<feColorMatrix type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.36 0"/>
+<feBlend mode="normal" in2="shape" result="effect2_innerShadow_695_160"/>
+<feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha"/>
+<feOffset dy="-0.515625"/>
+<feGaussianBlur stdDeviation="0.429688"/>
+<feComposite in2="hardAlpha" operator="arithmetic" k2="-1" k3="1"/>
+<feColorMatrix type="matrix" values="0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.18 0"/>
+<feBlend mode="normal" in2="effect2_innerShadow_695_160" result="effect3_innerShadow_695_160"/>
+</filter>
+<radialGradient id="paint0_radial_695_160" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(13.1263 11.2375) scale(9.9275)">
+<stop stop-color="white" stop-opacity="0.2448"/>
+<stop offset="0.24" stop-color="white" stop-opacity="0.0936"/>
+<stop offset="0.62" stop-color="white" stop-opacity="0"/>
+</radialGradient>
+<clipPath id="clip0_695_160">
+<rect width="22" height="22" fill="white" transform="translate(5 4.5)"/>
+</clipPath>
+<clipPath id="clip1_695_160">
+<rect width="13.75" height="13.75" fill="white" transform="translate(9.125 8.28125)"/>
+</clipPath>
+</defs>
+</svg>

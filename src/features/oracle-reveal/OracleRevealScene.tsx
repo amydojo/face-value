@@ -19,6 +19,7 @@ import {
 import { systemClock } from '../../adapters/clock/clock';
 import { useFaceValue } from '../../app/faceValueContext';
 import { createOracleEvidenceRecord } from '../../app/phaseBMachine';
+import { FaceValueActuator } from '../../components/FaceValueActuator';
 import { ScreenHeader } from '../../components/hardware';
 import type { EvidenceRecordData, ProductPlacement, RegisteredProduct } from '../../domain/model';
 import { oracleMotionDuration, type OracleRevealState } from '../../domain/oracleRevealMachine';
@@ -43,7 +44,11 @@ import {
   type OracleSpecimenIdentity,
   type OracleTrialState,
 } from './IdentityLockSpecimen';
-import { oracleMachineControlLabel } from './oraclePresentation';
+import {
+  faceValueActuatorStateForOracleAmber,
+  oracleMachineControlLabel,
+  type OracleAmberState,
+} from './oraclePresentation';
 import styles from './OracleRevealScene.module.css';
 
 export type { OracleSpecimenIdentity, OracleTrialState } from './IdentityLockSpecimen';
@@ -646,7 +651,7 @@ function OracleMachine(props: OracleMachineProps) {
     trialTruthMachine?.specimenIdentity ??
     verdictMachine?.specimenIdentity ??
     null;
-  const amberState = trialTruthMachine
+  const amberState: OracleAmberState = trialTruthMachine
     ? trialTruthMachine.controlEnabled
       ? 'ready'
       : 'idle'
@@ -860,7 +865,7 @@ function OracleMachine(props: OracleMachineProps) {
                 data-trial-truth-confirmation
                 aria-hidden="true"
               >
-                <span />
+                <FaceValueActuator state={faceValueActuatorStateForOracleAmber(amberState)} />
               </span>
             </button>
           )}
@@ -881,7 +886,7 @@ function OracleMachine(props: OracleMachineProps) {
               disabled={Boolean(trialMachine || latestVerdict || phase !== 'verdict_revealed')}
               onClick={onKeep}
             >
-              <span aria-hidden="true" />
+              <FaceValueActuator state={faceValueActuatorStateForOracleAmber(amberState)} />
             </button>
           )}
           {!trialTruthMachine && (
