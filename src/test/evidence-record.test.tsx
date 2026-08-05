@@ -54,7 +54,7 @@ function renderRecord(record = recordFor(evaluateRedness(structuredClone(canonic
 }
 
 async function openEvidence(user: ReturnType<typeof userEvent.setup>) {
-  const action = screen.getByRole('button', { name: 'View evidence' });
+  const action = screen.getByRole('button', { name: /View evidence/ });
   await user.click(action);
   return screen.getByRole('dialog', { name: 'Evidence' });
 }
@@ -81,14 +81,14 @@ describe('EvidenceRecord updated result experience', () => {
     expect(document.querySelectorAll('[data-primary-action]')).toHaveLength(1);
     expect(screen.queryByText('Technical record')).not.toBeInTheDocument();
 
-    screen.getByRole('button', { name: 'Back to previous view' }).click();
+    screen.getByRole('button', { name: /Back to previous view/ }).click();
     expect(onBack).toHaveBeenCalledOnce();
   });
 
   it('opens and closes the accessible evidence sheet and restores focus', async () => {
     const user = userEvent.setup();
     renderRecord();
-    const action = screen.getByRole('button', { name: 'View evidence' });
+    const action = screen.getByRole('button', { name: /View evidence/ });
     const dialog = await openEvidence(user);
 
     expect(dialog).toHaveAttribute('aria-modal', 'true');
