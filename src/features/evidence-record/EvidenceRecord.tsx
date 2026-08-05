@@ -5,6 +5,7 @@ import {
   type MutableRefObject,
   type RefObject,
 } from 'react';
+import { oracleSpecimenIdentityFromEvidenceRecord } from '../../adapters/product/specimenFromRegisteredProduct';
 import type { EvidenceRecordData } from '../../domain/model';
 import {
   collapsedEvidenceRecordDisclosureState,
@@ -29,6 +30,22 @@ const initialLayerFor = (state: EvidenceRecordDisclosureState): ResultLayer => {
 
 const isTechnicalGroup = (layer: ResultLayer): layer is TechnicalGroupId =>
   ['provider', 'capture', 'evaluation', 'exclusions'].includes(layer);
+
+const resultVerdictFor = (
+  direction: ReturnType<typeof resultExperienceViewModelFromRecord>['direction'],
+  savedVerdict: string,
+): string => {
+  switch (direction) {
+    case 'favorable':
+      return 'Favorable direction';
+    case 'unfavorable':
+      return 'Unfavorable direction';
+    case 'unchanged':
+      return 'No detected change';
+    case 'unavailable':
+      return savedVerdict;
+  }
+};
 
 function Arrow({ direction = 'right' }: { direction?: 'left' | 'right' }) {
   return <span aria-hidden="true">{direction === 'left' ? '←' : '›'}</span>;
@@ -219,7 +236,9 @@ export function EvidenceRecord({
   initialDisclosureState?: EvidenceRecordDisclosureState;
 }) {
   void onArchive;
+  const specimenIdentity = oracleSpecimenIdentityFromEvidenceRecord(record);
   const viewModel = resultExperienceViewModelFromRecord(record);
+  const resultVerdict = resultVerdictFor(viewModel.direction, viewModel.verdict);
   const [layer, setLayer] = useState<ResultLayer>(() =>
     initialLayerFor(initialDisclosureState),
   );
@@ -316,11 +335,18 @@ export function EvidenceRecord({
   return (
     <article
       className={styles.experience}
+      data-fv-screen="saved-result"
       data-evidence-record
       data-redness-response-signature
       data-record-id={viewModel.recordId}
       data-snapshot-kind={viewModel.canonical ? 'canonical' : 'legacy'}
       data-current-layer={layer}
+      data-specimen-id={specimenIdentity.productId ?? ''}
+      data-specimen-accession={specimenIdentity.accession ?? ''}
+      data-specimen-brand={specimenIdentity.brand}
+      data-specimen-product={specimenIdentity.productName}
+      data-specimen-strength={specimenIdentity.strength ?? ''}
+      data-specimen-volume={specimenIdentity.volume ?? ''}
       aria-label="Face Value saved result"
     >
       {resultVisible && (
@@ -348,7 +374,7 @@ export function EvidenceRecord({
             <h1 id="result-concern" data-stage-focus tabIndex={-1}>
               {viewModel.concern}
             </h1>
-            <p>{viewModel.verdict}</p>
+            <p>{resultVerdict}</p>
           </div>
           <section
             className={styles.evidenceCassette}
