@@ -317,6 +317,7 @@ export function EvidenceRecord({
     <article
       className={styles.experience}
       data-evidence-record
+      data-redness-response-signature
       data-record-id={viewModel.recordId}
       data-snapshot-kind={viewModel.canonical ? 'canonical' : 'legacy'}
       data-current-layer={layer}
