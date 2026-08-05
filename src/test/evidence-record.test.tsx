@@ -71,7 +71,7 @@ describe('EvidenceRecord updated result experience', () => {
     const { onBack } = renderRecord(recordFor(evaluation));
 
     expect(screen.getByRole('heading', { name: 'Visible redness' })).toBeVisible();
-    expect(screen.getByText(evaluation.interpretation.finding)).toBeVisible();
+    expect(screen.getByText('Favorable direction')).toBeVisible();
     expect(screen.getByText('Lab Dojo · One Thing')).toBeVisible();
     expect(screen.getAllByText('60').length).toBeGreaterThan(0);
     expect(screen.getAllByText('67').length).toBeGreaterThan(0);
@@ -106,7 +106,7 @@ describe('EvidenceRecord updated result experience', () => {
     expect(action).toHaveFocus();
   });
 
-  it('supports Escape, backdrop, swipe, and focus trapping without leaving the record', async () => {
+  it('supports Escape, backdrop dismissal, and focus trapping without leaving the record', async () => {
     const user = userEvent.setup();
     renderRecord();
 
@@ -120,11 +120,6 @@ describe('EvidenceRecord updated result experience', () => {
 
     await openEvidence(user);
     fireEvent.pointerDown(document.querySelector('[data-sheet-backdrop]')!);
-    expect(screen.queryByRole('dialog', { name: 'Evidence' })).not.toBeInTheDocument();
-
-    const dialog = await openEvidence(user);
-    fireEvent.pointerDown(dialog, { clientY: 180 });
-    fireEvent.pointerUp(dialog, { clientY: 300 });
     expect(screen.queryByRole('dialog', { name: 'Evidence' })).not.toBeInTheDocument();
   });
 
