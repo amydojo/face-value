@@ -6,6 +6,7 @@ import {
   type RefObject,
 } from 'react';
 import { oracleSpecimenIdentityFromEvidenceRecord } from '../../adapters/product/specimenFromRegisteredProduct';
+import { savedResultCompatibilityRows } from '../../adapters/product/savedResultCompatibilityViewModel';
 import type { EvidenceRecordData } from '../../domain/model';
 import {
   collapsedEvidenceRecordDisclosureState,
@@ -57,20 +58,6 @@ const resultVerdictFor = (
     case 'unavailable':
       return savedVerdict;
   }
-};
-
-const sentenceCase = (value: string): string => {
-  const normalized = value.replaceAll('_', ' ').toLocaleLowerCase('en-US');
-  return normalized
-    ? `${normalized[0].toLocaleUpperCase('en-US')}${normalized.slice(1)}`
-    : value;
-};
-
-const participantObservation = (visibleChange: number | undefined): string => {
-  if (typeof visibleChange !== 'number') return 'Not collected';
-  if (visibleChange > 0) return 'Less';
-  if (visibleChange < 0) return 'More';
-  return 'Same';
 };
 
 function Arrow({ direction = 'right' }: { direction?: 'left' | 'right' }) {
@@ -261,18 +248,7 @@ function SavedRecordCompatibility({
   finding: string;
   recommendedAction: string;
 }) {
-  const trialTruth = record.trialTruth;
-  const adherence = trialTruth?.adherence.status ?? 'not_collected';
-  const tolerance = trialTruth?.tolerance.severity ?? 'not_collected';
-  const symptoms =
-    trialTruth?.tolerance.symptoms.length
-      ? trialTruth.tolerance.symptoms.map(sentenceCase).join(', ')
-      : trialTruth
-        ? 'None reported'
-        : 'Not collected';
-  const observation = participantObservation(trialTruth?.patientAnchor.visibleChange);
-  const recordedAt = trialTruth?.recordedAt ?? 'not_collected';
-  const anchorRelationship = record.anchorRelationship ?? 'not_collected';
+  const rows = savedResultCompatibilityRows(record);
   const whyExpanded = initialDisclosureState.openDisclosure === 'why';
   const fullExpanded = initialDisclosureState.openDisclosure === 'full';
 
@@ -302,22 +278,15 @@ function SavedRecordCompatibility({
           ) : null}
         </>
       ) : null}
-      <div data-evidence-row="adherence" data-canonical-value={adherence}>
-        {adherence === 'not_collected' ? 'Not collected' : sentenceCase(adherence)}
-      </div>
-      <div data-evidence-row="tolerance-severity" data-canonical-value={tolerance}>
-        {tolerance === 'not_collected' ? 'Not collected' : sentenceCase(tolerance)}
-      </div>
-      <div data-evidence-row="reported-symptoms">{symptoms}</div>
-      <div data-evidence-row="participant-observation">{observation}</div>
-      <div data-evidence-row="participant-report-timestamp" data-canonical-value={recordedAt}>
-        {recordedAt === 'not_collected' ? 'Not collected' : recordedAt}
-      </div>
-      <div data-evidence-row="anchor-relationship" data-canonical-value={anchorRelationship}>
-        {anchorRelationship === 'not_collected'
-          ? 'Not collected'
-          : sentenceCase(anchorRelationship)}
-      </div>
+      {rows.map((row) => (
+        <div
+          key={row.id}
+          data-evidence-row={row.id}
+          data-canonical-value={row.canonicalValue}
+        >
+          {row.value}
+        </div>
+      ))}
     </div>
   );
 }
