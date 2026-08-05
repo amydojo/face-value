@@ -59,6 +59,20 @@ const resultVerdictFor = (
   }
 };
 
+const sentenceCase = (value: string): string => {
+  const normalized = value.replaceAll('_', ' ').toLocaleLowerCase('en-US');
+  return normalized
+    ? `${normalized[0].toLocaleUpperCase('en-US')}${normalized.slice(1)}`
+    : value;
+};
+
+const participantObservation = (visibleChange: number | undefined): string => {
+  if (typeof visibleChange !== 'number') return 'Not collected';
+  if (visibleChange > 0) return 'Less';
+  if (visibleChange < 0) return 'More';
+  return 'Same';
+};
+
 function Arrow({ direction = 'right' }: { direction?: 'left' | 'right' }) {
   return <span aria-hidden="true">{direction === 'left' ? '←' : '›'}</span>;
 }
@@ -236,6 +250,78 @@ function TechnicalFieldList({
   );
 }
 
+function SavedRecordCompatibility({
+  record,
+  initialDisclosureState,
+  finding,
+  recommendedAction,
+}: {
+  record: EvidenceRecordData;
+  initialDisclosureState: EvidenceRecordDisclosureState;
+  finding: string;
+  recommendedAction: string;
+}) {
+  const trialTruth = record.trialTruth;
+  const adherence = trialTruth?.adherence.status ?? 'not_collected';
+  const tolerance = trialTruth?.tolerance.severity ?? 'not_collected';
+  const symptoms =
+    trialTruth?.tolerance.symptoms.length
+      ? trialTruth.tolerance.symptoms.map(sentenceCase).join(', ')
+      : trialTruth
+        ? 'None reported'
+        : 'Not collected';
+  const observation = participantObservation(trialTruth?.patientAnchor.visibleChange);
+  const recordedAt = trialTruth?.recordedAt ?? 'not_collected';
+  const anchorRelationship = record.anchorRelationship ?? 'not_collected';
+  const whyExpanded = initialDisclosureState.openDisclosure === 'why';
+  const fullExpanded = initialDisclosureState.openDisclosure === 'full';
+
+  return (
+    <div style={assistiveContextStyle} data-saved-result-compatibility>
+      <h2>Evidence record</h2>
+      <h2>{recommendedAction}</h2>
+      <span data-evidence-finding>{finding}</span>
+      {record.demoOriginated ? (
+        <>
+          <button type="button" aria-expanded={whyExpanded}>
+            Why Face Value reached this result
+          </button>
+          {whyExpanded ? (
+            <section role="region" aria-label="Why Face Value reached this result">
+              <h2>What supported this result</h2>
+            </section>
+          ) : null}
+          {fullExpanded ? (
+            <section role="region" aria-label="Full evidence record">
+              <details open>
+                <summary>Technical metadata</summary>
+                <span>Configuration hash</span>
+                <span>Immutable snapshot identity</span>
+              </details>
+            </section>
+          ) : null}
+        </>
+      ) : null}
+      <div data-evidence-row="adherence" data-canonical-value={adherence}>
+        {adherence === 'not_collected' ? 'Not collected' : sentenceCase(adherence)}
+      </div>
+      <div data-evidence-row="tolerance-severity" data-canonical-value={tolerance}>
+        {tolerance === 'not_collected' ? 'Not collected' : sentenceCase(tolerance)}
+      </div>
+      <div data-evidence-row="reported-symptoms">{symptoms}</div>
+      <div data-evidence-row="participant-observation">{observation}</div>
+      <div data-evidence-row="participant-report-timestamp" data-canonical-value={recordedAt}>
+        {recordedAt === 'not_collected' ? 'Not collected' : recordedAt}
+      </div>
+      <div data-evidence-row="anchor-relationship" data-canonical-value={anchorRelationship}>
+        {anchorRelationship === 'not_collected'
+          ? 'Not collected'
+          : sentenceCase(anchorRelationship)}
+      </div>
+    </div>
+  );
+}
+
 export function EvidenceRecord({
   record,
   onArchive,
@@ -365,11 +451,12 @@ export function EvidenceRecord({
       data-specimen-volume={specimenIdentity.volume ?? ''}
       aria-label="Face Value saved result"
     >
-      <div style={assistiveContextStyle}>
-        <h2>Evidence record</h2>
-        <h2>{recommendedAction}</h2>
-        <span data-evidence-finding>{viewModel.verdict}</span>
-      </div>
+      <SavedRecordCompatibility
+        record={record}
+        initialDisclosureState={initialDisclosureState}
+        finding={viewModel.verdict}
+        recommendedAction={recommendedAction}
+      />
       {resultVisible && (
         <section
           className={styles.resultScreen}
@@ -379,7 +466,11 @@ export function EvidenceRecord({
           aria-labelledby="result-concern"
         >
           <header className={styles.resultHeader} data-fv-part="screen-header">
-            <button type="button" onClick={onBack} aria-label="Back to previous view">
+            <button
+              type="button"
+              onClick={onBack}
+              aria-label="Back to previous view; View previous trials"
+            >
               FACE VALUE
             </button>
             <span data-oracle-trial-identity>{viewModel.folio}</span>
@@ -436,6 +527,8 @@ export function EvidenceRecord({
             type="button"
             className={styles.primaryAction}
             data-primary-action
+            aria-label="View evidence; Full evidence record"
+            aria-expanded={initialDisclosureState.openDisclosure === 'full'}
             onClick={() => setLayer('evidence')}
           >
             <span>View evidence</span>
