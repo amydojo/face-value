@@ -368,6 +368,7 @@ export function EvidenceRecord({
       <div style={assistiveContextStyle}>
         <h2>Evidence record</h2>
         <h2>{recommendedAction}</h2>
+        <span data-evidence-finding>{viewModel.verdict}</span>
       </div>
       {resultVisible && (
         <section
@@ -377,11 +378,11 @@ export function EvidenceRecord({
           aria-hidden={layer === 'evidence' || undefined}
           aria-labelledby="result-concern"
         >
-          <header className={styles.resultHeader}>
+          <header className={styles.resultHeader} data-fv-part="screen-header">
             <button type="button" onClick={onBack} aria-label="Back to previous view">
               FACE VALUE
             </button>
-            <span>{viewModel.folio}</span>
+            <span data-oracle-trial-identity>{viewModel.folio}</span>
           </header>
           <div className={styles.resultRule} />
           <div className={styles.trialIdentity}>
@@ -398,8 +399,10 @@ export function EvidenceRecord({
           </div>
           <section
             className={styles.evidenceCassette}
+            data-evidence-comparison
             aria-label="Saved visible redness comparison"
           >
+            <span style={assistiveContextStyle}>{viewModel.change}</span>
             <div className={styles.cassetteLabels}>
               <span>BASELINE</span>
               <span>FOLLOW-UP</span>
