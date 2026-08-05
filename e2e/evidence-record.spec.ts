@@ -14,8 +14,7 @@ import {
   persistedRecordState,
 } from './evidence-record-fixtures';
 
-const captureEvidence = process.env.CAPTURE_EVIDENCE_RECORD === 'true';
-const evidenceDirectory = resolve('docs/verification/evidence-record-53');
+const screenshotDirectory = resolve('test-results/result-experience');
 
 type FixtureKey = keyof typeof canonicalRednessFixtures;
 
@@ -31,14 +30,23 @@ function monitorRuntime(page: Page) {
     if (message.type() === 'error') errors.push(`console: ${message.text()}`);
   });
   page.on('response', (response) => {
-    if (response.status() >= 500) {
-      serverErrors.push(`${response.status()} ${response.url()}`);
-    }
+    if (response.status() >= 500) serverErrors.push(`${response.status()} ${response.url()}`);
   });
   return { errors, serverErrors };
 }
 
-async function assertNoHorizontalOverflow(page: Page): Promise<void> {
+async function openSnapshot(page: Page, key: FixtureKey = 'C') {
+  const snapshot = snapshotFor(key);
+  const record = evidenceRecordForSnapshot(snapshot, {
+    id: 'ER-RESULT-EXPERIENCE',
+    accession: 'FV–014',
+  });
+  await loadRecordState(page, persistedRecordState(snapshot, record));
+  await expect(page.getByRole('heading', { name: 'Visible redness' })).toBeVisible();
+  return { snapshot, record };
+}
+
+async function assertNoHorizontalOverflow(page: Page) {
   expect(
     await page.evaluate(
       () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
@@ -46,342 +54,211 @@ async function assertNoHorizontalOverflow(page: Page): Promise<void> {
   ).toBeLessThanOrEqual(1);
 }
 
-async function openSnapshot(
-  page: Page,
-  key: FixtureKey,
-  options: Parameters<typeof evidenceRecordForSnapshot>[1] = {},
-): Promise<{
-  snapshot: RednessEvaluationSnapshot;
-  record: ReturnType<typeof evidenceRecordForSnapshot>;
-}> {
-  const snapshot = snapshotFor(key);
-  const record = evidenceRecordForSnapshot(snapshot, options);
-  await loadRecordState(page, persistedRecordState(snapshot, record));
-  await expect(page.getByRole('heading', { name: 'Evidence record' })).toBeVisible();
-  return { snapshot, record };
-}
-
-async function captureState(page: Page, name: string, order: number): Promise<void> {
-  await expect.soft(page).toHaveScreenshot(`${name}.png`, {
-    animations: 'disabled',
-    fullPage: true,
-  });
-  if (!captureEvidence) return;
+async function captureViewport(page: Page, filename: string) {
   await page.screenshot({
-    path: resolve(evidenceDirectory, `${String(order).padStart(2, '0')}-${name}.png`),
+    path: resolve(screenshotDirectory, filename),
     animations: 'disabled',
-    fullPage: true,
+    fullPage: false,
   });
 }
 
 test.beforeAll(async () => {
-  if (captureEvidence) await mkdir(evidenceDirectory, { recursive: true });
+  await mkdir(screenshotDirectory, { recursive: true });
 });
 
-test('summary leads with the saved result, useful comparison, and canonical next step', async ({
-  page,
-}) => {
+test('result uses one primary action and fits the required responsive viewports', async ({ page }) => {
   const runtime = monitorRuntime(page);
-  await page.setViewportSize({ width: 390, height: 844 });
-  const { snapshot } = await openSnapshot(page, 'C');
-  const record = page.locator('[data-evidence-record]');
-  const comparison = page.locator('[data-evidence-comparison]');
 
-  await expect(record).toHaveAttribute('data-snapshot-kind', 'canonical');
-  await expect(page.getByRole('heading', { name: snapshot.interpretation.finding })).toBeVisible();
-  await expect(page.getByText('Lab Dojo · One Thing')).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Visible redness', exact: true })).toBeVisible();
-  await expect(comparison).toContainText('Baseline');
-  await expect(comparison).toContainText('Follow-up');
-  await expect(comparison).toContainText('+7 points');
-  await expect(comparison).toContainText('8 days');
-  await expect(
-    comparison.getByText(
-      'Visible redness score changed from 60 at baseline to 67 at follow-up. The saved change was +7 points over 8 days. Higher scores mean less visible redness.',
-    ),
-  ).toBeAttached();
-  await expect(page.getByRole('heading', { name: 'Test longer' })).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'At a glance' })).toBeVisible();
-  await expect(page.getByText('Early evidence', { exact: true }).last()).toBeVisible();
+  for (const viewport of [
+    { width: 375, height: 667 },
+    { width: 390, height: 844 },
+    { width: 430, height: 932 },
+    { width: 1280, height: 900 },
+  ]) {
+    await page.setViewportSize(viewport);
+    const { snapshot } = await openSnapshot(page);
+    const experience = page.locator('[data-evidence-record]');
+    const result = page.locator('[data-result-layer="result"]');
 
-  await expect(page.getByText('raw delta')).toHaveCount(0);
-  await expect(page.getByText('configuration hash', { exact: true })).toHaveCount(0);
-  await expect(page.getByText('provisional_fixture', { exact: true })).toHaveCount(0);
-  await expect(page.getByText('Generic confidence', { exact: true })).toHaveCount(0);
+    await expect(experience).toHaveAttribute('data-record-id', 'ER-RESULT-EXPERIENCE');
+    await expect(page.getByText(snapshot.interpretation.finding)).toBeVisible();
+    await expect(page.getByText('Lab Dojo · One Thing')).toBeVisible();
+    await expect(page.getByText('60', { exact: true }).first()).toBeVisible();
+    await expect(page.getByText('67', { exact: true }).first()).toBeVisible();
+    await expect(page.getByText('+7', { exact: true }).first()).toBeVisible();
+    await expect(page.getByText('3/3 ↔ 3/3', { exact: true }).first()).toBeVisible();
+    await expect(page.locator('[data-primary-action]')).toHaveCount(1);
+    await expect(page.getByRole('button', { name: 'View evidence' })).toBeVisible();
+    await assertNoHorizontalOverflow(page);
 
-  const comparisonBox = await comparison.boundingBox();
-  expect(comparisonBox?.y).toBeLessThan(760);
-  expect(comparisonBox?.width).toBeLessThanOrEqual(382);
-  await assertNoHorizontalOverflow(page);
+    const box = await experience.boundingBox();
+    expect(box?.width).toBeLessThanOrEqual(Math.min(viewport.width, 430));
+
+    if (viewport.width === 390 && viewport.height === 844) {
+      expect(
+        await result.evaluate((element) => element.scrollHeight - element.clientHeight),
+      ).toBeLessThanOrEqual(1);
+      expect(
+        await page.evaluate(
+          () => document.documentElement.scrollHeight - document.documentElement.clientHeight,
+        ),
+      ).toBeLessThanOrEqual(1);
+      await captureViewport(page, '01-result-390x844.png');
+    }
+  }
+
   expect(runtime.errors).toEqual([]);
   expect(runtime.serverErrors).toEqual([]);
 });
 
-test('disclosures are semantic, keyboard operable, mutually exclusive, and motion-safe', async ({
+test('progressive disclosure opens all four required states and restores each layer', async ({ page }) => {
+  const runtime = monitorRuntime(page);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await openSnapshot(page);
+
+  const viewEvidence = page.getByRole('button', { name: 'View evidence' });
+  await viewEvidence.click();
+  const dialog = page.getByRole('dialog', { name: 'Evidence' });
+  await expect(dialog).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Close evidence' })).toBeFocused();
+  await expect(dialog.getByText('6/6', { exact: true })).toBeVisible();
+  for (const label of ['Pose Pass', 'Framing Pass', 'Lighting Pass', 'Provider Pass']) {
+    await expect(dialog.getByLabel(label)).toBeVisible();
+  }
+  await expect(dialog.getByText('Early evidence.', { exact: true })).toBeVisible();
+  await expect(dialog.getByText('Visible redness only.', { exact: true })).toBeVisible();
+  await captureViewport(page, '02-evidence-sheet-390x844.png');
+
+  const technicalAction = dialog.getByRole('button', { name: 'Technical record' });
+  await technicalAction.click();
+  await expect(page.getByRole('heading', { name: 'Technical record' })).toBeVisible();
+  for (const group of ['Provider', 'Capture', 'Evaluation', 'Exclusions']) {
+    await expect(page.getByText(group, { exact: true })).toBeVisible();
+  }
+  await expect(page.getByText('Baseline median')).toHaveCount(0);
+  await captureViewport(page, '03-technical-record-390x844.png');
+
+  const provider = page.getByRole('button', { name: /Open Provider details/ });
+  await provider.click();
+  await expect(page.getByRole('heading', { name: 'Provider details' })).toBeVisible();
+  for (const field of [
+    'Baseline median',
+    'Follow-up median',
+    'Accepted frames',
+    'Skin tone model',
+    'Region',
+    'Time since cleanse',
+    'Device skin fit',
+    'Image resolution',
+    'File format',
+  ]) {
+    await expect(page.getByText(field, { exact: true })).toBeVisible();
+  }
+  await captureViewport(page, '04-provider-details-390x844.png');
+
+  await page.getByRole('button', { name: 'Back to previous inspection layer' }).click();
+  await expect(page.getByRole('heading', { name: 'Technical record' })).toBeVisible();
+  await expect(page.getByRole('button', { name: /Open Provider details/ })).toBeFocused();
+
+  await page.getByRole('button', { name: 'Back to previous inspection layer' }).click();
+  await expect(dialog).toBeVisible();
+  await expect(technicalAction).toBeFocused();
+
+  await page.getByRole('button', { name: 'Close evidence' }).click();
+  await expect(dialog).toHaveCount(0);
+  await expect(viewEvidence).toBeFocused();
+  expect(runtime.errors).toEqual([]);
+  expect(runtime.serverErrors).toEqual([]);
+});
+
+test('sheet dismissal, focus trapping, reduced motion, and semantic direction are accessible', async ({
   page,
 }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.emulateMedia({ reducedMotion: 'reduce' });
-  await openSnapshot(page, 'A');
+  await openSnapshot(page);
+  await page.getByRole('button', { name: 'View evidence' }).click();
 
-  const why = page.getByRole('button', { name: /Why Face Value reached this result/i });
-  const full = page.getByRole('button', { name: /Full evidence record/i });
-  await expect(why).toHaveAttribute('aria-expanded', 'false');
-  await expect(why).toHaveAttribute('aria-controls', 'why-disclosure-panel');
-  await expect(full).toHaveAttribute('aria-controls', 'full-disclosure-panel');
-  expect((await why.boundingBox())?.height).toBeGreaterThanOrEqual(44);
+  const dialog = page.getByRole('dialog', { name: 'Evidence' });
+  const close = page.getByRole('button', { name: 'Close evidence' });
+  const technical = page.getByRole('button', { name: 'Technical record' });
+  await expect(dialog).toHaveAttribute('aria-modal', 'true');
+  await expect(dialog).toHaveCSS('animation-name', 'none');
+  await close.press('Shift+Tab');
+  await expect(technical).toBeFocused();
+  await technical.press('Tab');
+  await expect(close).toBeFocused();
 
-  await why.scrollIntoViewIfNeeded();
-  const topBeforeOpen = (await why.boundingBox())?.y;
-  await why.focus();
-  await expect(why).toBeFocused();
-  expect(await why.evaluate((element) => getComputedStyle(element).outlineStyle)).not.toBe('none');
-  await page.keyboard.press('Enter');
-  await expect(why).toHaveAttribute('aria-expanded', 'true');
-  await expect(page.getByRole('region', { name: /Why Face Value reached this result/i })).toBeVisible();
-  expect(Math.abs(((await why.boundingBox())?.y ?? 0) - (topBeforeOpen ?? 0))).toBeLessThanOrEqual(1);
-  await expect(why).toHaveCSS('transition-duration', '0s');
+  const direction = dialog.getByText('Favorable', { exact: true });
+  await expect(direction).toHaveAttribute('data-direction', 'favorable');
+  await expect(dialog.getByText('Direction', { exact: true })).toBeVisible();
 
-  await full.focus();
-  await page.keyboard.press('Space');
-  await expect(full).toHaveAttribute('aria-expanded', 'true');
-  await expect(why).toHaveAttribute('aria-expanded', 'false');
-  await expect(page.getByRole('region', { name: 'Full evidence record' })).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Redness Response Signature' })).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Observed change' })).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Measurement support' })).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Trial truth' })).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Evidence boundaries' })).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Supported next action' })).toBeVisible();
-  for (const provenance of [
-    'Provider measurement',
-    'Face Value deterministic evaluation',
-    'Participant report',
-    'Unavailable evidence',
-  ]) {
-    await expect(page.locator(`[data-evidence-provenance="${provenance}"]`).first()).toBeVisible();
-  }
+  await page.keyboard.press('Escape');
+  await expect(dialog).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'View evidence' })).toBeFocused();
 
-  const technical = page.locator('details').filter({ hasText: 'Technical metadata' });
-  await technical.locator('summary').click();
-  await expect(technical).toHaveAttribute('open', '');
-  await expect(technical).toContainText('Configuration hash');
-  await expect(technical).toContainText('Immutable snapshot identity');
-
-  await full.click();
-  await expect(full).toHaveAttribute('aria-expanded', 'false');
-  await expect(page.locator('#full-disclosure-panel')).toHaveCount(0);
-  await assertNoHorizontalOverflow(page);
+  await page.getByRole('button', { name: 'View evidence' }).click();
+  await page.locator('[data-sheet-backdrop]').click({ position: { x: 8, y: 8 } });
+  await expect(dialog).toHaveCount(0);
 });
 
-test('responsive record handles long identity, decimals, negative change, and unavailable data', async ({
+test('missing provider values stay unavailable and the saved snapshot remains immutable', async ({
   page,
 }) => {
-  const worsening = snapshotFor('E');
-  const storedWorsening: RednessEvaluationSnapshot = {
-    ...worsening,
-    baselineRawMedian: 99.125,
-    endpointRawMedian: 3.5,
-    rawScoreDelta: -95.625,
-  };
-  const longRecord = evidenceRecordForSnapshot(storedWorsening, {
-    productBrand: 'Clinical Laboratory',
-    productName:
-      'Azelaic Topical Acid Barrier Support Concentrate With An Intentionally Long Name',
-  });
+  await page.setViewportSize({ width: 390, height: 844 });
+  const { snapshot, record } = await openSnapshot(page);
+  const before = await page.evaluate((key) => {
+    const stored = JSON.parse(localStorage.getItem(key) ?? '{}') as { record?: unknown };
+    return JSON.stringify(stored.record);
+  }, STORAGE_KEY);
 
-  for (const viewport of [
-    { width: 320, height: 568 },
-    { width: 375, height: 812 },
-    { width: 390, height: 844 },
-    { width: 430, height: 932 },
-  ]) {
-    await page.setViewportSize(viewport);
-    await loadRecordState(page, persistedRecordState(storedWorsening, longRecord));
-    const comparison = page.locator('[data-evidence-comparison]');
-    await expect(comparison).toContainText('99.13');
-    await expect(comparison).toContainText('3.5');
-    await expect(comparison).toContainText('-95.63 points');
-    expect((await comparison.boundingBox())?.width).toBeLessThanOrEqual(viewport.width);
-    await page.getByRole('button', { name: 'View previous trials' }).scrollIntoViewIfNeeded();
-    await assertNoHorizontalOverflow(page);
-  }
+  await page.getByRole('button', { name: 'View evidence' }).click();
+  await page.getByRole('button', { name: 'Technical record' }).click();
+  await page.getByRole('button', { name: /Open Provider details/ }).click();
 
-  const invalid = snapshotFor('G');
-  const invalidRecord = evidenceRecordForSnapshot(invalid);
-  await loadRecordState(page, persistedRecordState(invalid, invalidRecord));
-  await expect(page.locator('[data-evidence-comparison]')).toContainText(
-    'These values were recorded, but the scans were not comparable enough to interpret.',
+  await expect(page.locator('[data-technical-field="region"]')).toContainText('Not collected');
+  await expect(page.locator('[data-technical-field="skin-tone-model"]')).toContainText(
+    'Not available',
   );
+  await expect(page.locator('[data-technical-field="image-resolution"]')).toContainText(
+    'Not available',
+  );
+  await expect(page.getByText('Cheeks / Left', { exact: true })).toHaveCount(0);
+  await expect(page.getByText('12MP', { exact: true })).toHaveCount(0);
+  await expect(page.getByText('HEIC', { exact: true })).toHaveCount(0);
 
-  const unavailable: RednessEvaluationSnapshot = {
-    ...invalid,
-    baselineRawMedian: null,
-    endpointRawMedian: null,
-    rawScoreDelta: null,
-    tolerance: null,
-  };
-  const unavailableRecord = evidenceRecordForSnapshot(unavailable);
-  await loadRecordState(page, persistedRecordState(unavailable, unavailableRecord));
-  await expect(page.locator('[data-evidence-comparison]')).toHaveCount(0);
-  await expect(page.getByText('Detailed measurements are not available in this saved snapshot.')).toBeVisible();
-  await expect(page.getByText('Not collected', { exact: true }).last()).toBeVisible();
-  await assertNoHorizontalOverflow(page);
+  await page.reload();
+  await expect(page.getByRole('heading', { name: 'Visible redness' })).toBeVisible();
+  const after = await page.evaluate((key) => {
+    const stored = JSON.parse(localStorage.getItem(key) ?? '{}') as { record?: unknown };
+    return JSON.stringify(stored.record);
+  }, STORAGE_KEY);
+  expect(after).toBe(before);
+  expect(JSON.parse(after)).toEqual(record);
+  await expect(page.getByText(snapshot.interpretation.finding)).toBeVisible();
 });
 
-test('legacy record preserves its saved verdict and navigation without invented evidence', async ({
-  page,
-}) => {
-  await page.setViewportSize({ width: 320, height: 568 });
-  const reference = snapshotFor('A');
-  const canonical = evidenceRecordForSnapshot(reference);
+test('legacy records do not gain measurements that were never saved', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  const snapshot = snapshotFor('C');
+  const canonical = evidenceRecordForSnapshot(snapshot);
   const legacy = legacyEvidenceRecord(canonical);
-  await loadRecordState(page, persistedRecordState(reference, legacy));
+  await loadRecordState(page, persistedRecordState(snapshot, legacy));
 
   await expect(page.locator('[data-evidence-record]')).toHaveAttribute(
     'data-snapshot-kind',
     'legacy',
   );
-  await expect(page.getByRole('heading', { name: legacy.finding })).toBeVisible();
-  await expect(
-    page.getByText('Detailed measurements are not available for this earlier result.'),
-  ).toBeVisible();
-  await expect(page.locator('[data-evidence-comparison]')).toHaveCount(0);
-  await expect(page.getByRole('button', { name: /Why Face Value reached this result/i })).toHaveCount(
-    0,
+  await expect(page.getByText(legacy.finding)).toBeVisible();
+  await page.getByRole('button', { name: 'View evidence' }).click();
+  await page.getByRole('button', { name: 'Technical record' }).click();
+  await page.getByRole('button', { name: /Open Provider details/ }).click();
+  await expect(page.locator('[data-technical-field="baseline-median"]')).toContainText(
+    'Not available',
   );
-  await expect(page.getByRole('button', { name: /Full evidence record/i })).toHaveCount(0);
-  await expect(page.getByRole('button', { name: 'View previous trials' })).toBeVisible();
-  await assertNoHorizontalOverflow(page);
-});
-
-test('complete saved-result journey retains one immutable snapshot and stable verdict', async ({
-  page,
-}) => {
-  const runtime = monitorRuntime(page);
-  await page.setViewportSize({ width: 390, height: 844 });
-  const snapshot = snapshotFor('A');
-  const record = evidenceRecordForSnapshot(snapshot, {
-    id: 'ER-IMMUTABLE-JOURNEY',
-    accession: 'FV–035',
-  });
-  await loadRecordState(page, persistedRecordState(snapshot, record, 'archive'));
-
-  await expect(page.getByRole('heading', { name: 'Previous trials' })).toBeVisible();
-  await page
-    .getByRole('button', { name: /Open saved result FV–035 for One Thing/i })
-    .click();
-  const headline = page.getByRole('heading', { name: snapshot.interpretation.finding });
-  await expect(headline).toBeVisible();
-  await expect(page.locator('[data-evidence-comparison]')).toContainText('+12 points');
-
-  const why = page.getByRole('button', { name: /Why Face Value reached this result/i });
-  await why.click();
-  await expect(page.getByRole('heading', { name: 'What supported this result' })).toBeVisible();
-  await why.click();
-  await expect(page.locator('#why-disclosure-panel')).toHaveCount(0);
-
-  const full = page.getByRole('button', { name: /Full evidence record/i });
-  await full.click();
-  const configurationHash = page.locator('[data-evidence-row="configuration-hash"]');
-  const metadataConfigurationHash = page.locator(
-    '[data-evidence-row="configuration-hash-metadata"]',
+  await expect(page.locator('[data-technical-field="follow-up-median"]')).toContainText(
+    'Not available',
   );
-  const baselineScores = page.locator('[data-evidence-row="baseline-raw-scores"]');
-  const followUpScores = page.locator('[data-evidence-row="follow-up-raw-scores"]');
-  const baselineMedian = page.locator('[data-evidence-row="baseline-median"]');
-  await expect(configurationHash).toBeVisible();
-  await expect(configurationHash).toContainText(snapshot.threshold.configHash);
-  await expect(metadataConfigurationHash).toBeHidden();
-  await expect(baselineScores).toContainText(snapshot.baseline.acceptedRawScores.join(' · '));
-  await expect(followUpScores).toContainText(snapshot.endpoint.acceptedRawScores.join(' · '));
-  await expect(baselineMedian).toContainText(String(snapshot.baselineRawMedian));
-  await page.locator('details summary').click();
-  await expect(metadataConfigurationHash).toBeVisible();
-  await expect(metadataConfigurationHash).toContainText(snapshot.threshold.configHash);
-
-  await page.getByRole('button', { name: 'Back to previous view' }).click();
-  await expect(page.getByRole('heading', { name: 'Previous trials' })).toBeVisible();
-  await page
-    .getByRole('button', { name: /Open saved result FV–035 for One Thing/i })
-    .click();
-  await expect(headline).toBeVisible();
-  await full.click();
-  await expect(baselineScores).toContainText(snapshot.baseline.acceptedRawScores.join(' · '));
-  await expect(followUpScores).toContainText(snapshot.endpoint.acceptedRawScores.join(' · '));
-  await full.click();
-
-  const beforeReload = await page.evaluate((key) => {
-    const stored = JSON.parse(localStorage.getItem(key) ?? '{}') as {
-      record?: { rednessEvaluation?: unknown };
-    };
-    return JSON.stringify(stored.record?.rednessEvaluation);
-  }, STORAGE_KEY);
-  await page.reload();
-  await expect(headline).toBeVisible();
-  const afterReload = await page.evaluate((key) => {
-    const stored = JSON.parse(localStorage.getItem(key) ?? '{}') as {
-      record?: { rednessEvaluation?: unknown };
-    };
-    return JSON.stringify(stored.record?.rednessEvaluation);
-  }, STORAGE_KEY);
-  expect(afterReload).toBe(beforeReload);
-  await expect(page.locator('[data-evidence-comparison]')).toContainText('+12 points');
-  await expect(page.getByRole('heading', { name: 'Keep using it' })).toBeVisible();
-  await expect(full).toHaveAttribute('aria-expanded', 'false');
-  await full.click();
-  await expect(baselineScores).toContainText(snapshot.baseline.acceptedRawScores.join(' · '));
-  await expect(followUpScores).toContainText(snapshot.endpoint.acceptedRawScores.join(' · '));
-  await expect(configurationHash).toContainText(snapshot.threshold.configHash);
-  await full.click();
-
-  await page.getByRole('button', { name: 'View previous trials' }).click();
-  await expect(page.getByRole('heading', { name: 'Previous trials' })).toBeVisible();
-  await assertNoHorizontalOverflow(page);
-  expect(runtime.errors).toEqual([]);
-  expect(runtime.serverErrors).toEqual([]);
-});
-
-test('captures the ten requested premium progressive-disclosure states', async ({ page }) => {
-  await page.setViewportSize({ width: 390, height: 844 });
-
-  await openSnapshot(page, 'C');
-  await captureState(page, 'evidence-record-summary-390', 1);
-
-  await page.setViewportSize({ width: 320, height: 568 });
-  await openSnapshot(page, 'C', {
-    productName: 'One Thing Calming Serum With A Long Product Name',
-  });
-  await captureState(page, 'evidence-record-summary-320', 2);
-
-  await page.setViewportSize({ width: 390, height: 844 });
-  await openSnapshot(page, 'C');
-  await page.getByRole('button', { name: /Why Face Value reached this result/i }).click();
-  await captureState(page, 'evidence-record-why-expanded', 3);
-
-  await openSnapshot(page, 'C');
-  await page.getByRole('button', { name: /Full evidence record/i }).click();
-  await captureState(page, 'evidence-record-full-expanded', 4);
-
-  await openSnapshot(page, 'A');
-  await captureState(page, 'evidence-record-clear-favorable', 5);
-
-  await openSnapshot(page, 'B');
-  await captureState(page, 'evidence-record-no-clear-change', 6);
-
-  await openSnapshot(page, 'D');
-  await captureState(page, 'evidence-record-retry-alone', 7);
-
-  await openSnapshot(page, 'F');
-  await captureState(page, 'evidence-record-safety-interruption', 8);
-
-  const reference = snapshotFor('A');
-  const legacy = legacyEvidenceRecord(evidenceRecordForSnapshot(reference));
-  await loadRecordState(page, persistedRecordState(reference, legacy));
-  await captureState(page, 'evidence-record-legacy', 9);
-
-  await page.emulateMedia({ reducedMotion: 'reduce' });
-  await openSnapshot(page, 'C');
-  await page.getByRole('button', { name: /Why Face Value reached this result/i }).click();
-  await captureState(page, 'evidence-record-reduced-motion', 10);
+  await expect(page.getByText('Cheeks / Left', { exact: true })).toHaveCount(0);
+  await expect(page.getByText('12MP', { exact: true })).toHaveCount(0);
 });
