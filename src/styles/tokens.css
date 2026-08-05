@@ -3,10 +3,13 @@
   --fv-surface-paper: #eeeae1;
   --fv-surface-enamel: #0b0b0a;
   --fv-surface-enamel-raised: #171614;
+  --fv-surface-evidence-card: #fff9ee;
   --fv-text-on-light: #131211;
   --fv-text-muted: #66635c;
   --fv-text-on-dark: #f0ede5;
   --fv-text-dark-muted: #b9b3a8;
+  --fv-evidence-text-primary: #121512;
+  --fv-evidence-text-secondary: #5d625c;
   --fv-rule-default: rgba(189, 184, 173, 0.72);
   --fv-signal-active: #ff6e14;
   --fv-capture-surface: #050505;
