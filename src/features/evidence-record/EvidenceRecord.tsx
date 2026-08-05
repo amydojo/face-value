@@ -21,6 +21,18 @@ import styles from './EvidenceRecord.module.css';
 
 type ResultLayer = 'result' | 'evidence' | 'technical' | TechnicalGroupId;
 
+const assistiveContextStyle = {
+  position: 'absolute',
+  width: '1px',
+  height: '1px',
+  padding: 0,
+  margin: '-1px',
+  overflow: 'hidden',
+  clip: 'rect(0 0 0 0)',
+  whiteSpace: 'nowrap',
+  border: 0,
+} as const;
+
 const initialLayerFor = (state: EvidenceRecordDisclosureState): ResultLayer => {
   if (state.openDisclosure === 'why') return 'evidence';
   if (state.openDisclosure === 'full' && state.technicalMetadataOpen) return 'provider';
@@ -239,6 +251,10 @@ export function EvidenceRecord({
   const specimenIdentity = oracleSpecimenIdentityFromEvidenceRecord(record);
   const viewModel = resultExperienceViewModelFromRecord(record);
   const resultVerdict = resultVerdictFor(viewModel.direction, viewModel.verdict);
+  const recommendedAction =
+    viewModel.groups
+      .find(({ id }) => id === 'evaluation')
+      ?.fields.find(({ id }) => id === 'recommended-action')?.value ?? 'Not available';
   const [layer, setLayer] = useState<ResultLayer>(() =>
     initialLayerFor(initialDisclosureState),
   );
@@ -349,6 +365,10 @@ export function EvidenceRecord({
       data-specimen-volume={specimenIdentity.volume ?? ''}
       aria-label="Face Value saved result"
     >
+      <div style={assistiveContextStyle}>
+        <h2>Evidence record</h2>
+        <h2>{recommendedAction}</h2>
+      </div>
       {resultVisible && (
         <section
           className={styles.resultScreen}
