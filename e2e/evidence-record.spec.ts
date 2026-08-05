@@ -76,12 +76,12 @@ test('result uses one primary action and fits the required responsive viewports'
     { width: 1280, height: 900 },
   ]) {
     await page.setViewportSize(viewport);
-    const { snapshot } = await openSnapshot(page);
+    await openSnapshot(page);
     const experience = page.locator('[data-evidence-record]');
     const result = page.locator('[data-result-layer="result"]');
 
     await expect(experience).toHaveAttribute('data-record-id', 'ER-RESULT-EXPERIENCE');
-    await expect(page.getByText(snapshot.interpretation.finding)).toBeVisible();
+    await expect(page.getByText('Favorable direction', { exact: true })).toBeVisible();
     await expect(page.getByText('Lab Dojo · One Thing')).toBeVisible();
     await expect(page.getByText('60', { exact: true }).first()).toBeVisible();
     await expect(page.getByText('67', { exact: true }).first()).toBeVisible();
@@ -200,6 +200,15 @@ test('sheet dismissal, focus trapping, reduced motion, and semantic direction ar
   await page.getByRole('button', { name: 'View evidence' }).click();
   await page.locator('[data-sheet-backdrop]').click({ position: { x: 8, y: 8 } });
   await expect(dialog).toHaveCount(0);
+
+  await page.getByRole('button', { name: 'View evidence' }).click();
+  const sheetBox = await dialog.boundingBox();
+  if (!sheetBox) throw new Error('Expected an evidence sheet bounding box.');
+  await page.mouse.move(sheetBox.x + sheetBox.width / 2, sheetBox.y + 20);
+  await page.mouse.down();
+  await page.mouse.move(sheetBox.x + sheetBox.width / 2, sheetBox.y + 130, { steps: 4 });
+  await page.mouse.up();
+  await expect(dialog).toHaveCount(0);
 });
 
 test('missing provider values stay unavailable and the saved snapshot remains immutable', async ({
@@ -235,7 +244,8 @@ test('missing provider values stay unavailable and the saved snapshot remains im
   }, STORAGE_KEY);
   expect(after).toBe(before);
   expect(JSON.parse(after)).toEqual(record);
-  await expect(page.getByText(snapshot.interpretation.finding)).toBeVisible();
+  await expect(page.getByText('Favorable direction', { exact: true })).toBeVisible();
+  expect(snapshot.rawScoreDelta).toBe(7);
 });
 
 test('legacy records do not gain measurements that were never saved', async ({ page }) => {
