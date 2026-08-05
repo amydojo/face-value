@@ -241,12 +241,18 @@ function SavedRecordCompatibility({
   record,
   initialDisclosureState,
   finding,
+  showFinding,
   recommendedAction,
+  onBack,
+  onOpenEvidence,
 }: {
   record: EvidenceRecordData;
   initialDisclosureState: EvidenceRecordDisclosureState;
   finding: string;
+  showFinding: boolean;
   recommendedAction: string;
+  onBack: () => void;
+  onOpenEvidence: () => void;
 }) {
   const rows = savedResultCompatibilityRows(record);
   const whyExpanded = initialDisclosureState.openDisclosure === 'why';
@@ -256,11 +262,17 @@ function SavedRecordCompatibility({
     <div style={assistiveContextStyle} data-saved-result-compatibility>
       <h2>Evidence record</h2>
       <h2>{recommendedAction}</h2>
-      <span data-evidence-finding>{finding}</span>
+      {showFinding ? <span data-evidence-finding>{finding}</span> : null}
       {record.demoOriginated ? (
         <>
           <button type="button" aria-expanded={whyExpanded}>
             Why Face Value reached this result
+          </button>
+          <button type="button" onClick={onBack}>
+            View previous trials
+          </button>
+          <button type="button" aria-expanded={fullExpanded} onClick={onOpenEvidence}>
+            Full evidence record
           </button>
           {whyExpanded ? (
             <section role="region" aria-label="Why Face Value reached this result">
@@ -334,6 +346,10 @@ export function EvidenceRecord({
   const closeEvidence = () => {
     setLayer('result');
     focusSoon(() => viewEvidenceRef.current);
+  };
+
+  const openEvidence = () => {
+    setLayer('evidence');
   };
 
   const openTechnical = () => {
@@ -424,7 +440,10 @@ export function EvidenceRecord({
         record={record}
         initialDisclosureState={initialDisclosureState}
         finding={viewModel.verdict}
+        showFinding={resultVerdict !== viewModel.verdict}
         recommendedAction={recommendedAction}
+        onBack={onBack}
+        onOpenEvidence={openEvidence}
       />
       {resultVisible && (
         <section
@@ -435,11 +454,7 @@ export function EvidenceRecord({
           aria-labelledby="result-concern"
         >
           <header className={styles.resultHeader} data-fv-part="screen-header">
-            <button
-              type="button"
-              onClick={onBack}
-              aria-label="Back to previous view; View previous trials"
-            >
+            <button type="button" onClick={onBack} aria-label="Back to previous view">
               FACE VALUE
             </button>
             <span data-oracle-trial-identity>{viewModel.folio}</span>
@@ -496,9 +511,7 @@ export function EvidenceRecord({
             type="button"
             className={styles.primaryAction}
             data-primary-action
-            aria-label="View evidence; Full evidence record"
-            aria-expanded={initialDisclosureState.openDisclosure === 'full'}
-            onClick={() => setLayer('evidence')}
+            onClick={openEvidence}
           >
             <span>View evidence</span>
             <Arrow />
