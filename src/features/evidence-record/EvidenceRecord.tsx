@@ -1,276 +1,155 @@
-import { useState } from 'react';
-import { oracleSpecimenIdentityFromEvidenceRecord } from '../../adapters/product/specimenFromRegisteredProduct';
+import { useEffect, useRef, useState } from 'react';
 import type { EvidenceRecordData } from '../../domain/model';
-import { ScreenHeader } from '../../components/hardware';
-import {
-  evidenceRecordViewModelFromRecord,
-  type EvidenceRecordRow,
-  type EvidenceRecordViewModel,
-} from './evidenceRecordViewModel';
 import {
   collapsedEvidenceRecordDisclosureState,
-  type EvidenceRecordDisclosure,
   type EvidenceRecordDisclosureState,
 } from './evidenceRecordDisclosure';
+import {
+  resultExperienceViewModelFromRecord,
+  type EvidenceCheckViewModel,
+  type TechnicalGroupId,
+  type TechnicalGroupViewModel,
+} from './resultExperienceViewModel';
 import styles from './EvidenceRecord.module.css';
 
-function EvidenceRows({
-  rows,
-  showCanonical = false,
-}: {
-  rows: EvidenceRecordRow[];
-  showCanonical?: boolean;
-}) {
+type ResultLayer = 'result' | 'evidence' | 'technical' | TechnicalGroupId;
+
+const initialLayerFor = (state: EvidenceRecordDisclosureState): ResultLayer => {
+  if (state.openDisclosure === 'why') return 'evidence';
+  if (state.openDisclosure === 'full' && state.technicalMetadataOpen) return 'provider';
+  if (state.openDisclosure === 'full') return 'technical';
+  return 'result';
+};
+
+const isTechnicalGroup = (layer: ResultLayer): layer is TechnicalGroupId =>
+  ['provider', 'capture', 'evaluation', 'exclusions'].includes(layer);
+
+function Arrow({ direction = 'right' }: { direction?: 'left' | 'right' }) {
+  return <span aria-hidden="true">{direction === 'left' ? '←' : '›'}</span>;
+}
+
+function ResultMetric({ value, label, accent = false }: { value: string; label: string; accent?: boolean }) {
   return (
-    <dl className={styles.evidenceRows}>
-      {rows.map((row) => (
-        <div key={row.id} data-evidence-row={row.id} data-canonical-value={row.canonicalValue}>
-          <dt>{row.label}</dt>
-          <dd>
-            <span>{row.value}</span>
-            {row.provenance && (
-              <small
-                className={styles.provenance}
-                data-evidence-provenance={row.provenance}
-              >
-                Provenance · {row.provenance}
-              </small>
-            )}
-            {showCanonical && row.canonicalValue && row.canonicalValue !== row.value && (
-              <code>{row.canonicalValue}</code>
-            )}
-          </dd>
-        </div>
-      ))}
-    </dl>
+    <div className={styles.resultMetric} data-accent={accent || undefined}>
+      <strong>{value}</strong>
+      <span>{label}</span>
+    </div>
   );
 }
 
-function ComparisonCard({
-  comparison,
+function EvidenceCheck({ check }: { check: EvidenceCheckViewModel }) {
+  const symbol = check.tone === 'pass' ? '✓' : check.tone === 'limited' ? '!' : check.tone === 'fail' ? '×' : '—';
+  return (
+    <div className={styles.checkRow} data-check={check.id} data-check-tone={check.tone}>
+      <span>{check.label}</span>
+      <strong aria-label={`${check.label} ${check.value}`}>
+        <i aria-hidden="true">{symbol}</i>
+        <span>{check.value}</span>
+      </strong>
+    </div>
+  );
+}
+
+function TechnicalHeader({ title, onBack }: { title: string; onBack: () => void }) {
+  return (
+    <header className={styles.inspectionHeader}>
+      <button type="button" onClick={onBack} aria-label="Back to previous inspection layer">
+        <Arrow direction="left" />
+      </button>
+      <h1 data-stage-focus tabIndex={-1}>{title}</h1>
+      <span aria-hidden="true" />
+    </header>
+  );
+}
+
+function TechnicalRecordList({
+  groups,
+  onBack,
+  onOpen,
+  buttonRefs,
 }: {
-  comparison: NonNullable<EvidenceRecordViewModel['comparison']>;
+  groups: TechnicalGroupViewModel[];
+  onBack: () => void;
+  onOpen: (group: TechnicalGroupId) => void;
+  buttonRefs: React.MutableRefObject<Partial<Record<TechnicalGroupId, HTMLButtonElement | null>>>;
 }) {
   return (
-    <section
-      className={styles.comparisonCard}
-      data-evidence-comparison
-      data-comparison-tone={comparison.tone}
-      aria-labelledby="visible-redness-title"
-    >
-      <h3 id="visible-redness-title">Visible redness</h3>
-      <p className={styles.srOnly}>{comparison.accessibleSummary}</p>
-      <div className={styles.scoreRow} aria-hidden="true">
-        <div>
-          <span>Baseline</span>
-          <strong>{comparison.baseline}</strong>
-        </div>
-        <b>→</b>
-        <div>
-          <span>Follow-up</span>
-          <strong>{comparison.followUp}</strong>
-        </div>
+    <section className={styles.technicalScreen} data-result-layer="technical" aria-labelledby="technical-record-title">
+      <TechnicalHeader title="Technical record" onBack={onBack} />
+      <div className={styles.technicalIntro}>
+        <p>READ-ONLY RECORD</p>
+        <span>Grouped for inspection, not scrolling.</span>
       </div>
-      <div className={styles.changeRail} aria-hidden="true">
-        <i />
-        <span />
-        <b />
+      <div className={styles.technicalGroups}>
+        {groups.map((group) => (
+          <button
+            type="button"
+            key={group.id}
+            className={styles.technicalGroup}
+            data-technical-group={group.id}
+            ref={(node) => {
+              buttonRefs.current[group.id] = node;
+            }}
+            onClick={() => onOpen(group.id)}
+            aria-label={`Open ${group.title} details, ${group.fields.length} fields`}
+          >
+            <span className={styles.groupIndex}>{group.index}</span>
+            <span className={styles.groupCopy}>
+              <strong>{group.title}</strong>
+              <small>{group.description}</small>
+            </span>
+            <span className={styles.groupMeta}>
+              <small>{group.fields.length} {group.fields.length === 1 ? 'field' : 'fields'}</small>
+              <Arrow />
+            </span>
+          </button>
+        ))}
       </div>
-      <div className={styles.comparisonMetrics} aria-hidden="true">
-        <div>
-          <span>Change</span>
-          <strong>{comparison.change}</strong>
-        </div>
-        <div>
-          <span>Time between scans</span>
-          <strong>{comparison.interval}</strong>
-        </div>
-      </div>
-      <p className={styles.directionNote}>Higher scores mean less visible redness.</p>
-      {comparison.interpretationNote && (
-        <p className={styles.comparisonCaution}>{comparison.interpretationNote}</p>
-      )}
+      <p className={styles.technicalFootnote}>Tap a category to inspect only the relevant fields.</p>
     </section>
   );
 }
 
-function NextStepCard({ nextStep }: { nextStep: EvidenceRecordViewModel['nextStep'] }) {
-  return (
-    <section
-      className={styles.nextStepCard}
-      data-next-step
-      data-next-step-action={nextStep.canonicalAction}
-      data-tone={nextStep.tone}
-      aria-labelledby="next-step-title"
-    >
-      <div>
-        <p>Next step</p>
-        <h3 id="next-step-title">{nextStep.title}</h3>
-        <span>{nextStep.body}</span>
-      </div>
-      <b aria-hidden="true">→</b>
-    </section>
-  );
-}
-
-function DisclosureButton({
-  disclosure,
-  title,
-  summary,
-  expanded,
-  onToggle,
+function TechnicalFieldList({
+  group,
+  onBack,
 }: {
-  disclosure: EvidenceRecordDisclosure;
-  title: string;
-  summary: string;
-  expanded: boolean;
-  onToggle: (disclosure: EvidenceRecordDisclosure) => void;
+  group: TechnicalGroupViewModel;
+  onBack: () => void;
 }) {
-  const controlId = `${disclosure}-disclosure-control`;
-  const panelId = `${disclosure}-disclosure-panel`;
-  return (
-    <button
-      type="button"
-      id={controlId}
-      className={styles.disclosureButton}
-      data-disclosure={disclosure}
-      data-expanded={expanded}
-      aria-expanded={expanded}
-      aria-controls={panelId}
-      onClick={() => onToggle(disclosure)}
-    >
-      <span>
-        <strong>{title}</strong>
-        <small>{expanded ? `Hide ${summary.toLocaleLowerCase('en-US')}` : summary}</small>
-      </span>
-      <b aria-hidden="true">{expanded ? '⌃' : '›'}</b>
-    </button>
-  );
-}
-
-function WhyPanel({ viewModel }: { viewModel: EvidenceRecordViewModel }) {
-  const why = viewModel.why;
-  if (!why) return null;
+  const title = `${group.title} details`;
   return (
     <section
-      id="why-disclosure-panel"
-      className={styles.whyPanel}
-      data-disclosure-panel="why"
-      role="region"
-      aria-labelledby="why-disclosure-control"
+      className={styles.detailScreen}
+      data-result-layer={group.id}
+      data-technical-detail={group.id}
+      aria-labelledby={`${group.id}-details-title`}
     >
-      <div>
-        <h3>What supported this result</h3>
-        <ul>
-          {why.supportingPoints.map((point) => (
-            <li key={point}>{point}</li>
-          ))}
-        </ul>
+      <TechnicalHeader title={title} onBack={onBack} />
+      <div className={styles.detailGroupHeader}>
+        <h2 id={`${group.id}-details-title`}>{group.description}</h2>
+        <span>{group.fields.length} {group.fields.length === 1 ? 'FIELD' : 'FIELDS'}</span>
       </div>
-      <div className={styles.keepInMind}>
-        <h3>What to keep in mind</h3>
-        <p>{why.limitation}</p>
-        <p>{why.claimBoundary}</p>
-      </div>
-    </section>
-  );
-}
-
-function FullRecordPanel({
-  viewModel,
-  technicalMetadataOpen,
-  onTechnicalMetadataToggle,
-}: {
-  viewModel: EvidenceRecordViewModel;
-  technicalMetadataOpen: boolean;
-  onTechnicalMetadataToggle: (open: boolean) => void;
-}) {
-  const full = viewModel.full;
-  if (!full) return null;
-  return (
-    <section
-      id="full-disclosure-panel"
-      className={styles.fullRecordSheet}
-      data-disclosure-panel="full"
-      data-redness-response-signature
-      role="region"
-      aria-labelledby="full-disclosure-control"
-    >
-      <header>
-        <h3>Redness Response Signature</h3>
-        <p>
-          This read-only view groups the evidence already stored in the immutable result. It does
-          not re-evaluate the trial or replace the saved verdict.
-        </p>
-      </header>
-      {full.sections.map((section) => (
-        <section key={section.id} className={styles.fullRecordSection}>
-          <h4>{section.title}</h4>
-          <EvidenceRows rows={section.rows} showCanonical />
-          {section.id === 'evidence-boundaries' && full.technicalNote && (
-            <p className={styles.technicalNote}>{full.technicalNote}</p>
-          )}
-        </section>
-      ))}
-      <details
-        className={styles.technicalDisclosure}
-        open={technicalMetadataOpen}
-        onToggle={(event) => onTechnicalMetadataToggle(event.currentTarget.open)}
-      >
-        <summary>
-          <span>
-            <strong>Technical metadata</strong>
-            <small>Configuration, rule identifiers, and audit trace</small>
-          </span>
-          <b aria-hidden="true">⌄</b>
-        </summary>
-        <EvidenceRows rows={full.technicalMetadata} showCanonical />
-        <div className={styles.auditTrace}>
-          <h4>Audit trace</h4>
-          <p className={styles.auditProvenance}>
-            Provenance · Face Value deterministic evaluation
-          </p>
-          {full.auditTrace.length > 0 ? (
-            <ol>
-              {full.auditTrace.map((entry, index) => (
-                <li key={`${entry.ruleId}-${index}`}>
-                  <strong>{entry.ruleId}</strong>
-                  <span>{entry.outcome}</span>
-                  <p>{entry.detail}</p>
-                </li>
-              ))}
-            </ol>
-          ) : (
-            <p>Audit trace not available.</p>
-          )}
-        </div>
-      </details>
-    </section>
-  );
-}
-
-function LegacyNotice({ viewModel }: { viewModel: EvidenceRecordViewModel }) {
-  return (
-    <section
-      className={styles.legacyNotice}
-      data-legacy-evidence-record
-      aria-labelledby="earlier-result-details"
-    >
-      <h3 id="earlier-result-details">Earlier result</h3>
-      <p>{viewModel.legacyMessage}</p>
-      {viewModel.legacyNote && (
-        <p>
-          <strong>Saved note</strong>
-          {viewModel.legacyNote}
-        </p>
-      )}
+      <dl className={styles.technicalFields}>
+        {group.fields.map((item) => (
+          <div
+            key={item.id}
+            data-technical-field={item.id}
+            data-unavailable={item.unavailable || undefined}
+            data-accent={item.accent || undefined}
+          >
+            <dt>{item.label}</dt>
+            <dd>{item.value}</dd>
+          </div>
+        ))}
+      </dl>
     </section>
   );
 }
 
 export function EvidenceRecord({
   record,
-  onArchive,
+  onArchive: _onArchive,
   onBack,
   initialDisclosureState = collapsedEvidenceRecordDisclosureState,
 }: {
@@ -279,130 +158,224 @@ export function EvidenceRecord({
   onBack: () => void;
   initialDisclosureState?: EvidenceRecordDisclosureState;
 }) {
-  const [openDisclosure, setOpenDisclosure] = useState<EvidenceRecordDisclosure | null>(
-    initialDisclosureState.openDisclosure,
-  );
-  const [technicalMetadataOpen, setTechnicalMetadataOpen] = useState(
-    initialDisclosureState.openDisclosure === 'full' &&
-      initialDisclosureState.technicalMetadataOpen,
-  );
-  const viewModel = evidenceRecordViewModelFromRecord(record);
-  const specimenIdentity = oracleSpecimenIdentityFromEvidenceRecord(record);
-  const optionalProductDetails = [specimenIdentity.strength, specimenIdentity.volume]
-    .filter((value): value is string => Boolean(value))
-    .join(' · ');
-  const toggleDisclosure = (disclosure: EvidenceRecordDisclosure) => {
-    setOpenDisclosure((current) => (current === disclosure ? null : disclosure));
+  const viewModel = resultExperienceViewModelFromRecord(record);
+  const [layer, setLayer] = useState<ResultLayer>(() => initialLayerFor(initialDisclosureState));
+  const viewEvidenceRef = useRef<HTMLButtonElement>(null);
+  const closeSheetRef = useRef<HTMLButtonElement>(null);
+  const technicalActionRef = useRef<HTMLButtonElement>(null);
+  const technicalHeadingRef = useRef<HTMLHeadingElement>(null);
+  const groupButtonRefs = useRef<Partial<Record<TechnicalGroupId, HTMLButtonElement | null>>>({});
+  const activeGroupRef = useRef<TechnicalGroupId>('provider');
+  const pointerStartY = useRef<number | null>(null);
+
+  const selectedGroup = isTechnicalGroup(layer)
+    ? viewModel.groups.find(({ id }) => id === layer) ?? null
+    : null;
+
+  const focusSoon = (read: () => HTMLElement | null | undefined) => {
+    window.setTimeout(() => read()?.focus(), 0);
   };
 
+  const closeEvidence = () => {
+    setLayer('result');
+    focusSoon(() => viewEvidenceRef.current);
+  };
+
+  const openTechnical = () => {
+    setLayer('technical');
+    focusSoon(() => technicalHeadingRef.current);
+  };
+
+  const backToEvidence = () => {
+    setLayer('evidence');
+    focusSoon(() => technicalActionRef.current);
+  };
+
+  const openGroup = (group: TechnicalGroupId) => {
+    activeGroupRef.current = group;
+    setLayer(group);
+  };
+
+  const backToTechnical = () => {
+    const group = activeGroupRef.current;
+    setLayer('technical');
+    focusSoon(() => groupButtonRefs.current[group]);
+  };
+
+  useEffect(() => {
+    if (layer === 'evidence') closeSheetRef.current?.focus();
+    if (layer === 'technical') technicalHeadingRef.current?.focus();
+  }, [layer]);
+
+  useEffect(() => {
+    if (layer === 'result') return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        event.stopPropagation();
+        event.stopImmediatePropagation();
+        if (layer === 'evidence') closeEvidence();
+        else if (layer === 'technical') backToEvidence();
+        else backToTechnical();
+        return;
+      }
+      if (event.key !== 'Tab' || layer !== 'evidence') return;
+      const dialog = document.querySelector<HTMLElement>('[data-evidence-dialog]');
+      const focusable = dialog
+        ? [...dialog.querySelectorAll<HTMLElement>('button:not([disabled]), [href], [tabindex]:not([tabindex="-1"])')]
+        : [];
+      if (focusable.length === 0) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+    document.addEventListener('keydown', onKeyDown, true);
+    return () => document.removeEventListener('keydown', onKeyDown, true);
+  });
+
   return (
-    <>
-      <ScreenHeader code={viewModel.folio} dark />
-      <article
-        className={styles.recordScreen}
-        data-fv-screen="saved-result"
-        data-evidence-record
-        data-record-id={viewModel.recordId}
-        data-snapshot-kind={viewModel.canonical ? 'canonical' : 'legacy'}
-        data-specimen-id={specimenIdentity.productId ?? ''}
-        data-specimen-accession={specimenIdentity.accession ?? ''}
-        data-specimen-brand={specimenIdentity.brand}
-        data-specimen-product={specimenIdentity.productName}
-        data-specimen-strength={specimenIdentity.strength ?? ''}
-        data-specimen-volume={specimenIdentity.volume ?? ''}
-        aria-labelledby="evidence-record-heading"
-      >
-        <div className={styles.recordNavigation}>
-          <button type="button" onClick={onBack} aria-label="Back to previous view">
-            <span aria-hidden="true">←</span> Back
-          </button>
-          <h1 id="evidence-record-heading" data-stage-focus tabIndex={-1}>
-            Evidence record
-          </h1>
-        </div>
-
-        <section className={styles.resultHero} aria-labelledby="evidence-result-heading">
-          <p className={styles.productIdentity}>{viewModel.product}</p>
-          {optionalProductDetails && (
-            <p className={styles.trialMetadata} data-record-specimen-details>
-              {optionalProductDetails}
-            </p>
-          )}
-          <p className={styles.trialMetadata}>{viewModel.trialMetadata}</p>
-          <p className={styles.resultLabel}>Result</p>
-          <h2 id="evidence-result-heading">{viewModel.headline}</h2>
-          <p className={styles.resultInterpretation}>{viewModel.interpretation}</p>
-          <div className={styles.statusStrip}>
-            <span>Next · {viewModel.nextStep.statusLabel}</span>
-            {viewModel.evidenceStatus && <span>{viewModel.evidenceStatus}</span>}
+    <article
+      className={styles.experience}
+      data-evidence-record
+      data-record-id={viewModel.recordId}
+      data-snapshot-kind={viewModel.canonical ? 'canonical' : 'legacy'}
+      data-current-layer={layer}
+      aria-label="Face Value saved result"
+    >
+      {layer === 'result' && (
+        <section className={styles.resultScreen} data-result-layer="result" aria-labelledby="result-concern">
+          <header className={styles.resultHeader}>
+            <button type="button" onClick={onBack} aria-label="Back to previous view">FACE VALUE</button>
+            <span>{viewModel.folio}</span>
+          </header>
+          <div className={styles.resultRule} />
+          <div className={styles.trialIdentity}>
+            <p>{viewModel.product}</p>
+            <span>{viewModel.durationCompact} · {viewModel.trialNumber}</span>
           </div>
-        </section>
-
-        {viewModel.comparison ? (
-          <ComparisonCard comparison={viewModel.comparison} />
-        ) : viewModel.canonical ? (
-          <section
-            className={styles.comparisonUnavailable}
-            aria-labelledby="comparison-unavailable"
+          <div className={styles.verdict} data-result-direction={viewModel.direction}>
+            <h1 id="result-concern" data-stage-focus tabIndex={-1}>{viewModel.concern}</h1>
+            <p>{viewModel.verdict}</p>
+          </div>
+          <section className={styles.evidenceCassette} aria-label="Saved visible redness comparison">
+            <div className={styles.cassetteLabels}>
+              <span>BASELINE</span>
+              <span>FOLLOW-UP</span>
+            </div>
+            <div className={styles.cassetteScores}>
+              <strong>{viewModel.baseline}</strong>
+              <span aria-hidden="true">→</span>
+              <strong>{viewModel.followUp}</strong>
+            </div>
+            <div className={styles.cassetteMeta}>
+              <span>{viewModel.changeCompact === 'Not available' ? 'NOT AVAILABLE' : `${viewModel.changeCompact} POINTS`}</span>
+              <span>{viewModel.durationCompact}</span>
+            </div>
+            <p>{viewModel.comparison === 'Not available' ? 'NOT AVAILABLE' : `COMPARABLE · ${viewModel.evidenceLevel.toLocaleUpperCase('en-US')}`}</p>
+          </section>
+          <div className={styles.summaryMetrics} aria-label="Result summary">
+            <ResultMetric value={viewModel.changeCompact} label="Change" accent />
+            <ResultMetric value={viewModel.comparison} label="Comparable" />
+            <ResultMetric value={viewModel.evidenceLevel} label="Evidence" />
+          </div>
+          <button
+            ref={viewEvidenceRef}
+            type="button"
+            className={styles.primaryAction}
+            data-primary-action
+            onClick={() => setLayer('evidence')}
           >
-            <h3 id="comparison-unavailable">Visible redness</h3>
-            <p>{viewModel.comparisonUnavailableMessage}</p>
+            <span>View evidence</span>
+            <Arrow />
+          </button>
+        </section>
+      )}
+
+      {layer === 'evidence' && (
+        <>
+          <div
+            className={styles.sheetBackdrop}
+            data-sheet-backdrop
+            onPointerDown={(event) => {
+              if (event.target === event.currentTarget) closeEvidence();
+            }}
+            aria-hidden="true"
+          />
+          <section
+            className={styles.evidenceSheet}
+            data-result-layer="evidence"
+            data-evidence-dialog
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="evidence-sheet-title"
+            onPointerDown={(event) => {
+              pointerStartY.current = event.clientY;
+            }}
+            onPointerUp={(event) => {
+              if (pointerStartY.current !== null && event.clientY - pointerStartY.current > 80) {
+                closeEvidence();
+              }
+              pointerStartY.current = null;
+            }}
+          >
+            <div className={styles.sheetHandle} aria-hidden="true" />
+            <header className={styles.sheetHeader}>
+              <h1 id="evidence-sheet-title">Evidence</h1>
+              <button ref={closeSheetRef} type="button" onClick={closeEvidence} aria-label="Close evidence">×</button>
+            </header>
+            <dl className={styles.evidenceRows}>
+              <div>
+                <dt>Change</dt>
+                <dd data-accent>{viewModel.changeCompact}</dd>
+              </div>
+              <div>
+                <dt>Direction</dt>
+                <dd data-accent data-direction={viewModel.direction}>{viewModel.directionLabel}</dd>
+              </div>
+              <div>
+                <dt>Agreement</dt>
+                <dd>{viewModel.agreement}</dd>
+              </div>
+            </dl>
+            <p className={styles.sectionLabel}>CAPTURE</p>
+            <div className={styles.checks}>
+              {viewModel.checks.map((check) => <EvidenceCheck key={check.id} check={check} />)}
+            </div>
+            <div className={styles.evidenceBoundary}>
+              <i aria-hidden="true" />
+              <p>{viewModel.evidenceBoundary.map((line) => <span key={line}>{line}</span>)}</p>
+            </div>
+            <button
+              ref={technicalActionRef}
+              type="button"
+              className={styles.secondaryAction}
+              onClick={openTechnical}
+            >
+              <span>Technical record</span>
+              <Arrow />
+            </button>
           </section>
-        ) : null}
+        </>
+      )}
 
-        {viewModel.canonical && viewModel.atAGlance.length > 0 && (
-          <section className={styles.atAGlance} aria-labelledby="at-a-glance-heading">
-            <h3 id="at-a-glance-heading">At a glance</h3>
-            <EvidenceRows rows={viewModel.atAGlance} />
-          </section>
-        )}
+      {layer === 'technical' && (
+        <div ref={technicalHeadingRef as React.RefObject<HTMLDivElement>}>
+          <TechnicalRecordList
+            groups={viewModel.groups}
+            onBack={backToEvidence}
+            onOpen={openGroup}
+            buttonRefs={groupButtonRefs}
+          />
+        </div>
+      )}
 
-        {!viewModel.canonical && <LegacyNotice viewModel={viewModel} />}
-
-        <NextStepCard nextStep={viewModel.nextStep} />
-
-        {viewModel.canonical && (
-          <div className={styles.disclosures}>
-            <DisclosureButton
-              disclosure="why"
-              title="Why Face Value reached this result"
-              summary="See the useful evidence"
-              expanded={openDisclosure === 'why'}
-              onToggle={toggleDisclosure}
-            />
-            {openDisclosure === 'why' && <WhyPanel viewModel={viewModel} />}
-            <DisclosureButton
-              disclosure="full"
-              title="Full evidence record"
-              summary="Scores, limits, and system details"
-              expanded={openDisclosure === 'full'}
-              onToggle={toggleDisclosure}
-            />
-            {openDisclosure === 'full' && (
-              <FullRecordPanel
-                viewModel={viewModel}
-                technicalMetadataOpen={technicalMetadataOpen}
-                onTechnicalMetadataToggle={setTechnicalMetadataOpen}
-              />
-            )}
-          </div>
-        )}
-
-        <button
-          type="button"
-          className={styles.previousTrials}
-          aria-label="View previous trials"
-          onClick={onArchive}
-        >
-          <span>
-            <strong>Previous trials</strong>
-            <small>View your saved evidence</small>
-          </span>
-          <b aria-hidden="true">›</b>
-        </button>
-
-        <p className={styles.privacyLabel}>{viewModel.privacyLabel}</p>
-      </article>
-    </>
+      {selectedGroup && <TechnicalFieldList group={selectedGroup} onBack={backToTechnical} />}
+    </article>
   );
 }
