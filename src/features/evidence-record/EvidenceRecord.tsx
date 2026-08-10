@@ -290,6 +290,10 @@ export function EvidenceRecord({
     viewModel.agreement === 'Not available' ? 'CHECKS UNAVAILABLE' : `${viewModel.agreement} CHECKS`;
   const passedSummary =
     viewModel.agreement === 'Not available' ? 'Not available' : `${viewModel.agreement} passed`;
+  const verificationSummary =
+    viewModel.agreement === 'Not available'
+      ? 'Not available'
+      : `${viewModel.agreement} checks passed`;
   const recommendedAction =
     viewModel.groups
       .find(({ id }) => id === 'evaluation')
@@ -478,7 +482,7 @@ export function EvidenceRecord({
           >
             <strong>{comparisonVerified ? 'COMPARISON VERIFIED' : comparisonLabel}</strong>
             <span>
-              {passedSummary} · {viewModel.evidenceLevel.toLocaleLowerCase('en-US')} evidence
+              {verificationSummary} · {viewModel.evidenceLevel.toLocaleLowerCase('en-US')} evidence
             </span>
           </div>
           <button
