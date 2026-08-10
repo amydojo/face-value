@@ -172,11 +172,12 @@ test('home keeps one hierarchy and the exact verdict across home, detail, and hi
   await viewTrial.click();
 
   const savedResult = page.locator('[data-fv-screen="saved-result"]');
-  await expect(page.getByRole('heading', { name: 'Evidence record' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Visible redness', exact: true })).toBeVisible();
   await expect(page.locator('[data-oracle-trial-identity]')).toHaveText('FV–014');
   await expect(savedResult).toContainText('Naturium · Azelaic Topical Acid');
   await expect(savedResult).toContainText('A small favorable shift showed up.');
-  await expect(savedResult).toContainText('TEST LONGER');
+  await expect(savedResult).toContainText('Favorable direction');
+  await expect(savedResult.getByRole('button', { name: 'Open evidence record' })).toBeVisible();
   await expect(savedResult).toHaveAttribute('data-specimen-brand', 'Naturium');
   await expect(savedResult).toHaveAttribute('data-specimen-product', 'Azelaic Topical Acid');
   await expect(savedResult).toHaveAttribute('data-specimen-strength', '10%');
@@ -235,7 +236,7 @@ test('home keeps one hierarchy and the exact verdict across home, detail, and hi
   await expect(page.locator('[data-oracle-trial-identity]')).toHaveText('FV–014');
   await expect(savedResult).toContainText('Naturium · Azelaic Topical Acid');
   await page.reload();
-  await expect(page.getByRole('heading', { name: 'Evidence record' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Visible redness', exact: true })).toBeVisible();
   await expect(savedResult).toHaveAttribute('data-specimen-brand', 'Naturium');
   await expect(savedResult).toHaveAttribute('data-specimen-product', 'Azelaic Topical Acid');
   await expect(savedResult).toHaveAttribute('data-specimen-strength', '10%');
