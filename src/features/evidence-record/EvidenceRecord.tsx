@@ -14,7 +14,6 @@ import {
 } from './evidenceRecordDisclosure';
 import {
   resultExperienceViewModelFromRecord,
-  type EvidenceCheckViewModel,
   type TechnicalGroupId,
   type TechnicalGroupViewModel,
 } from './resultExperienceViewModel';
@@ -60,45 +59,14 @@ const resultVerdictFor = (
   }
 };
 
+const comparisonLabelFor = (record: EvidenceRecordData): string =>
+  record.comparison === 'comparable' ? 'COMPARABLE' : 'NOT COMPARABLE';
+
+const trialValueFor = (trialNumber: string): string =>
+  trialNumber.replace(/^TRIAL\s+/i, '');
+
 function Arrow({ direction = 'right' }: { direction?: 'left' | 'right' }) {
   return <span aria-hidden="true">{direction === 'left' ? '←' : '›'}</span>;
-}
-
-function ResultMetric({
-  value,
-  label,
-  accent = false,
-}: {
-  value: string;
-  label: string;
-  accent?: boolean;
-}) {
-  return (
-    <div className={styles.resultMetric} data-accent={accent || undefined}>
-      <strong>{value}</strong>
-      <span>{label}</span>
-    </div>
-  );
-}
-
-function EvidenceCheck({ check }: { check: EvidenceCheckViewModel }) {
-  const symbol =
-    check.tone === 'pass'
-      ? '✓'
-      : check.tone === 'limited'
-        ? '!'
-        : check.tone === 'fail'
-          ? '×'
-          : '—';
-  return (
-    <div className={styles.checkRow} data-check={check.id} data-check-tone={check.tone}>
-      <span>{check.label}</span>
-      <strong aria-label={`${check.label} ${check.value}`}>
-        <i aria-hidden="true">{symbol}</i>
-        <span>{check.value}</span>
-      </strong>
-    </div>
-  );
 }
 
 function TechnicalHeader({
@@ -136,9 +104,7 @@ function TechnicalRecordList({
   headingRef: RefObject<HTMLHeadingElement | null>;
   onBack: () => void;
   onOpen: (group: TechnicalGroupId) => void;
-  buttonRefs: MutableRefObject<
-    Partial<Record<TechnicalGroupId, HTMLButtonElement | null>>
-  >;
+  buttonRefs: MutableRefObject<Partial<Record<TechnicalGroupId, HTMLButtonElement | null>>>;
 }) {
   return (
     <section
@@ -318,20 +284,22 @@ export function EvidenceRecord({
   const specimenIdentity = oracleSpecimenIdentityFromEvidenceRecord(record);
   const viewModel = resultExperienceViewModelFromRecord(record);
   const resultVerdict = resultVerdictFor(viewModel.direction, viewModel.verdict);
+  const comparisonLabel = comparisonLabelFor(record);
+  const comparisonVerified = record.comparison === 'comparable';
+  const checkSummary =
+    viewModel.agreement === 'Not available' ? 'CHECKS UNAVAILABLE' : `${viewModel.agreement} CHECKS`;
+  const passedSummary =
+    viewModel.agreement === 'Not available' ? 'Not available' : `${viewModel.agreement} passed`;
   const recommendedAction =
     viewModel.groups
       .find(({ id }) => id === 'evaluation')
       ?.fields.find(({ id }) => id === 'recommended-action')?.value ?? 'Not available';
-  const [layer, setLayer] = useState<ResultLayer>(() =>
-    initialLayerFor(initialDisclosureState),
-  );
+  const [layer, setLayer] = useState<ResultLayer>(() => initialLayerFor(initialDisclosureState));
   const viewEvidenceRef = useRef<HTMLButtonElement>(null);
   const closeSheetRef = useRef<HTMLButtonElement>(null);
   const technicalActionRef = useRef<HTMLButtonElement>(null);
   const inspectionHeadingRef = useRef<HTMLHeadingElement>(null);
-  const groupButtonRefs = useRef<
-    Partial<Record<TechnicalGroupId, HTMLButtonElement | null>>
-  >({});
+  const groupButtonRefs = useRef<Partial<Record<TechnicalGroupId, HTMLButtonElement | null>>>({});
   const activeGroupRef = useRef<TechnicalGroupId>('provider');
   const pointerStartY = useRef<number | null>(null);
 
@@ -496,15 +464,22 @@ export function EvidenceRecord({
               <span>{viewModel.durationCompact}</span>
             </div>
             <p>
-              {viewModel.comparison === 'Not available'
-                ? 'NOT AVAILABLE'
-                : `COMPARABLE · ${viewModel.evidenceLevel.toLocaleUpperCase('en-US')}`}
+              <span>{comparisonLabel}</span>
+              <span aria-hidden="true">·</span>
+              <span>{checkSummary}</span>
+              <span aria-hidden="true">·</span>
+              <span>{viewModel.evidenceLevel.toLocaleUpperCase('en-US')}</span>
             </p>
           </section>
-          <div className={styles.summaryMetrics} aria-label="Result summary">
-            <ResultMetric value={viewModel.changeCompact} label="Change" accent />
-            <ResultMetric value={viewModel.comparison} label="Comparable" />
-            <ResultMetric value={viewModel.evidenceLevel} label="Evidence" />
+          <div
+            className={styles.comparisonVerification}
+            data-comparison-verified={comparisonVerified || undefined}
+            aria-label="Comparison verification"
+          >
+            <strong>{comparisonVerified ? 'COMPARISON VERIFIED' : comparisonLabel}</strong>
+            <span>
+              {passedSummary} · {viewModel.evidenceLevel.toLocaleLowerCase('en-US')} evidence
+            </span>
           </div>
           <button
             ref={viewEvidenceRef}
@@ -513,7 +488,7 @@ export function EvidenceRecord({
             data-primary-action
             onClick={openEvidence}
           >
-            <span>View evidence</span>
+            <span>Open evidence record</span>
             <Arrow />
           </button>
         </section>
@@ -554,20 +529,25 @@ export function EvidenceRecord({
           >
             <div className={styles.sheetHandle} aria-hidden="true" />
             <header className={styles.sheetHeader}>
-              <h1 id="evidence-sheet-title">Evidence</h1>
+              <h1 id="evidence-sheet-title">Evidence record</h1>
+              <span>{viewModel.folio}</span>
               <button
                 ref={closeSheetRef}
                 type="button"
                 onClick={closeEvidence}
-                aria-label="Close evidence"
+                aria-label="Close evidence record"
               >
                 ×
               </button>
             </header>
             <dl className={styles.evidenceRows}>
               <div>
+                <dt>Concern</dt>
+                <dd>{viewModel.concern}</dd>
+              </div>
+              <div>
                 <dt>Change</dt>
-                <dd data-accent>{viewModel.changeCompact}</dd>
+                <dd data-accent>{viewModel.change}</dd>
               </div>
               <div>
                 <dt>Direction</dt>
@@ -575,23 +555,38 @@ export function EvidenceRecord({
                   {viewModel.directionLabel}
                 </dd>
               </div>
+            </dl>
+            <p className={styles.sectionLabel}>RECORD</p>
+            <dl className={styles.evidenceRows} data-record-summary>
               <div>
-                <dt>Agreement</dt>
-                <dd>{viewModel.agreement}</dd>
+                <dt>Trial</dt>
+                <dd>{trialValueFor(viewModel.trialNumber)}</dd>
+              </div>
+              <div>
+                <dt>Duration</dt>
+                <dd>{viewModel.duration}</dd>
+              </div>
+              <div>
+                <dt>Baseline → follow-up</dt>
+                <dd>
+                  {viewModel.baseline} → {viewModel.followUp}
+                </dd>
+              </div>
+              <div>
+                <dt>Comparability</dt>
+                <dd>{passedSummary}</dd>
               </div>
             </dl>
-            <p className={styles.sectionLabel}>CAPTURE</p>
-            <div className={styles.checks}>
-              {viewModel.checks.map((check) => (
-                <EvidenceCheck key={check.id} check={check} />
-              ))}
-            </div>
-            <div className={styles.evidenceBoundary}>
-              <i aria-hidden="true" />
+            <div className={styles.interpretation}>
+              <p className={styles.interpretationLabel}>
+                <i aria-hidden="true" />
+                <span>INTERPRETATION</span>
+              </p>
               <p>
-                {viewModel.evidenceBoundary.map((line) => (
-                  <span key={line}>{line}</span>
-                ))}
+                <span>
+                  {viewModel.evidenceLevel} evidence · {viewModel.concern.toLocaleLowerCase('en-US')} only.
+                </span>
+                <span>This record supports the comparison above.</span>
               </p>
             </div>
             <button
