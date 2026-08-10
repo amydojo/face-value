@@ -66,43 +66,48 @@ test.beforeAll(async () => {
   await mkdir(screenshotDirectory, { recursive: true });
 });
 
-test('result uses one primary action and fits the required responsive viewports', async ({ page }) => {
+test('result matches the approved hierarchy edge-to-edge with one primary action', async ({ page }) => {
   const runtime = monitorRuntime(page);
 
   for (const viewport of [
     { width: 375, height: 667 },
     { width: 390, height: 844 },
     { width: 430, height: 932 },
-    { width: 1280, height: 900 },
   ]) {
     await page.setViewportSize(viewport);
     await openSnapshot(page);
     const experience = page.locator('[data-evidence-record]');
     const result = page.locator('[data-result-layer="result"]');
+    const cassette = page.locator('[data-evidence-comparison]');
 
     await expect(experience).toHaveAttribute('data-record-id', 'ER-RESULT-EXPERIENCE');
     await expect(page.getByText('Favorable direction', { exact: true })).toBeVisible();
     await expect(page.getByText('Lab Dojo · One Thing')).toBeVisible();
     await expect(page.getByText('60', { exact: true }).first()).toBeVisible();
     await expect(page.getByText('67', { exact: true }).first()).toBeVisible();
-    await expect(page.getByText('+7', { exact: true }).first()).toBeVisible();
-    await expect(page.getByText('3/3 ↔ 3/3', { exact: true }).first()).toBeVisible();
+    await expect(page.getByText('COMPARISON VERIFIED', { exact: true })).toBeVisible();
+    await expect(page.getByText('6/6 checks passed · early evidence', { exact: true })).toBeVisible();
     await expect(page.locator('[data-primary-action]')).toHaveCount(1);
-    await expect(page.getByRole('button', { name: 'View evidence' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Open evidence record' })).toBeVisible();
     await assertNoHorizontalOverflow(page);
 
     const box = await experience.boundingBox();
-    expect(box?.width).toBeLessThanOrEqual(Math.min(viewport.width, 430));
+    expect(box?.x).toBe(0);
+    expect(box?.y).toBe(0);
+    expect(box?.width).toBe(viewport.width);
+    expect(box?.height).toBe(viewport.height);
+    await expect(experience).toHaveCSS('border-radius', '0px');
+    await expect(experience).toHaveCSS('border-top-width', '0px');
+    await expect(experience).toHaveCSS('box-shadow', 'none');
 
     if (viewport.width === 390 && viewport.height === 844) {
       expect(
         await result.evaluate((element) => element.scrollHeight - element.clientHeight),
       ).toBeLessThanOrEqual(1);
-      expect(
-        await page.evaluate(
-          () => document.documentElement.scrollHeight - document.documentElement.clientHeight,
-        ),
-      ).toBeLessThanOrEqual(1);
+      const cassetteBox = await cassette.boundingBox();
+      expect(cassetteBox?.width).toBe(342);
+      expect(cassetteBox?.height).toBe(246);
+      await expect(cassette).toHaveCSS('border-radius', '22px');
       await captureViewport(page, '01-result-390x844.png');
     }
   }
@@ -111,23 +116,39 @@ test('result uses one primary action and fits the required responsive viewports'
   expect(runtime.serverErrors).toEqual([]);
 });
 
-test('progressive disclosure opens all four required states and restores each layer', async ({ page }) => {
+test('progressive disclosure matches evidence, technical, and detail states and restores each layer', async ({
+  page,
+}) => {
   const runtime = monitorRuntime(page);
   await page.setViewportSize({ width: 390, height: 844 });
   await openSnapshot(page);
 
-  const viewEvidence = page.getByRole('button', { name: 'View evidence' });
-  await viewEvidence.click();
-  const dialog = page.getByRole('dialog', { name: 'Evidence' });
+  const openEvidence = page.getByRole('button', { name: 'Open evidence record' });
+  await openEvidence.click();
+  const dialog = page.getByRole('dialog', { name: 'Evidence record' });
   await expect(dialog).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Close evidence' })).toBeFocused();
-  await expect(dialog.getByText('6/6', { exact: true })).toBeVisible();
-  for (const label of ['Pose Pass', 'Framing Pass', 'Lighting Pass', 'Provider Pass']) {
-    await expect(dialog.getByLabel(label)).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Close evidence record' })).toBeFocused();
+  for (const label of [
+    'Concern',
+    'Change',
+    'Direction',
+    'Trial',
+    'Duration',
+    'Baseline → follow-up',
+    'Comparability',
+  ]) {
+    await expect(dialog.getByText(label, { exact: true })).toBeVisible();
   }
-  await expect(dialog.getByText('Early evidence.', { exact: true })).toBeVisible();
-  await expect(dialog.getByText('Visible redness only.', { exact: true })).toBeVisible();
-  await captureViewport(page, '02-evidence-sheet-390x844.png');
+  await expect(dialog.getByText('6/6 passed', { exact: true })).toBeVisible();
+  await expect(dialog.getByText('Early evidence · visible redness only.', { exact: true })).toBeVisible();
+  await expect(
+    dialog.getByText('This record supports the comparison above.', { exact: true }),
+  ).toBeVisible();
+  await expect(dialog.getByText('Baseline median', { exact: true })).toHaveCount(0);
+  const sheetBox = await dialog.boundingBox();
+  expect(sheetBox?.y).toBe(160);
+  await expect(dialog).toHaveCSS('border-top-left-radius', '28px');
+  await captureViewport(page, '02-evidence-record-390x844.png');
 
   const technicalAction = dialog.getByRole('button', { name: 'Technical record' });
   await technicalAction.click();
@@ -164,9 +185,9 @@ test('progressive disclosure opens all four required states and restores each la
   await expect(dialog).toBeVisible();
   await expect(technicalAction).toBeFocused();
 
-  await page.getByRole('button', { name: 'Close evidence' }).click();
+  await page.getByRole('button', { name: 'Close evidence record' }).click();
   await expect(dialog).toHaveCount(0);
-  await expect(viewEvidence).toBeFocused();
+  await expect(openEvidence).toBeFocused();
   expect(runtime.errors).toEqual([]);
   expect(runtime.serverErrors).toEqual([]);
 });
@@ -177,10 +198,10 @@ test('sheet dismissal, focus trapping, reduced motion, and semantic direction ar
   await page.setViewportSize({ width: 390, height: 844 });
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await openSnapshot(page);
-  await page.getByRole('button', { name: 'View evidence' }).click();
+  await page.getByRole('button', { name: 'Open evidence record' }).click();
 
-  const dialog = page.getByRole('dialog', { name: 'Evidence' });
-  const close = page.getByRole('button', { name: 'Close evidence' });
+  const dialog = page.getByRole('dialog', { name: 'Evidence record' });
+  const close = page.getByRole('button', { name: 'Close evidence record' });
   const technical = page.getByRole('button', { name: 'Technical record' });
   await expect(dialog).toHaveAttribute('aria-modal', 'true');
   await expect(dialog).toHaveCSS('animation-name', 'none');
@@ -195,13 +216,13 @@ test('sheet dismissal, focus trapping, reduced motion, and semantic direction ar
 
   await page.keyboard.press('Escape');
   await expect(dialog).toHaveCount(0);
-  await expect(page.getByRole('button', { name: 'View evidence' })).toBeFocused();
+  await expect(page.getByRole('button', { name: 'Open evidence record' })).toBeFocused();
 
-  await page.getByRole('button', { name: 'View evidence' }).click();
+  await page.getByRole('button', { name: 'Open evidence record' }).click();
   await page.locator('[data-sheet-backdrop]').click({ position: { x: 8, y: 8 } });
   await expect(dialog).toHaveCount(0);
 
-  await page.getByRole('button', { name: 'View evidence' }).click();
+  await page.getByRole('button', { name: 'Open evidence record' }).click();
   const sheetBox = await dialog.boundingBox();
   if (!sheetBox) throw new Error('Expected an evidence sheet bounding box.');
   await page.mouse.move(sheetBox.x + sheetBox.width / 2, sheetBox.y + 20);
@@ -221,7 +242,7 @@ test('missing provider values stay unavailable and the saved snapshot remains im
     return JSON.stringify(stored.record);
   }, STORAGE_KEY);
 
-  await page.getByRole('button', { name: 'View evidence' }).click();
+  await page.getByRole('button', { name: 'Open evidence record' }).click();
   await page.getByRole('button', { name: 'Technical record' }).click();
   await page.getByRole('button', { name: /Open Provider details/ }).click();
 
@@ -260,7 +281,7 @@ test('legacy records do not gain measurements that were never saved', async ({ p
     'legacy',
   );
   await expect(page.getByText(legacy.finding)).toBeVisible();
-  await page.getByRole('button', { name: 'View evidence' }).click();
+  await page.getByRole('button', { name: 'Open evidence record' }).click();
   await page.getByRole('button', { name: 'Technical record' }).click();
   await page.getByRole('button', { name: /Open Provider details/ }).click();
   await expect(page.locator('[data-technical-field="baseline-median"]')).toContainText(
