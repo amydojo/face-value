@@ -54,9 +54,9 @@ function renderRecord(record = recordFor(evaluateRedness(structuredClone(canonic
 }
 
 async function openEvidence(user: ReturnType<typeof userEvent.setup>) {
-  const action = screen.getByRole('button', { name: /View evidence/ });
+  const action = screen.getByRole('button', { name: /Open evidence record/ });
   await user.click(action);
-  return screen.getByRole('dialog', { name: 'Evidence' });
+  return screen.getByRole('dialog', { name: 'Evidence record' });
 }
 
 async function openTechnical(user: ReturnType<typeof userEvent.setup>) {
@@ -66,7 +66,7 @@ async function openTechnical(user: ReturnType<typeof userEvent.setup>) {
 }
 
 describe('EvidenceRecord updated result experience', () => {
-  it('renders the one viewport result from the saved immutable payload', () => {
+  it('renders the approved one-viewport result from the saved immutable payload', () => {
     const evaluation = evaluateRedness(structuredClone(canonicalRednessFixtures.C));
     const { onBack } = renderRecord(recordFor(evaluation));
 
@@ -75,9 +75,10 @@ describe('EvidenceRecord updated result experience', () => {
     expect(screen.getByText('Lab Dojo · One Thing')).toBeVisible();
     expect(screen.getAllByText('60').length).toBeGreaterThan(0);
     expect(screen.getAllByText('67').length).toBeGreaterThan(0);
-    expect(screen.getAllByText('+7').length).toBeGreaterThan(0);
-    expect(screen.getAllByText('3/3 ↔ 3/3').length).toBeGreaterThan(0);
-    expect(screen.getAllByText('Early').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('+7 points').length).toBeGreaterThan(0);
+    expect(screen.getByText('COMPARISON VERIFIED')).toBeVisible();
+    expect(screen.getByText('6/6 checks passed · early evidence')).toBeVisible();
+    expect(screen.getByRole('button', { name: 'Open evidence record' })).toBeVisible();
     expect(document.querySelectorAll('[data-primary-action]')).toHaveLength(1);
     expect(screen.queryByText('Technical record')).not.toBeInTheDocument();
 
@@ -85,24 +86,33 @@ describe('EvidenceRecord updated result experience', () => {
     expect(onBack).toHaveBeenCalledOnce();
   });
 
-  it('opens and closes the accessible evidence sheet and restores focus', async () => {
+  it('opens the human-readable evidence record sheet and restores focus', async () => {
     const user = userEvent.setup();
     renderRecord();
-    const action = screen.getByRole('button', { name: /View evidence/ });
+    const action = screen.getByRole('button', { name: 'Open evidence record' });
     const dialog = await openEvidence(user);
 
     expect(dialog).toHaveAttribute('aria-modal', 'true');
-    expect(screen.getByRole('button', { name: 'Close evidence' })).toHaveFocus();
-    expect(within(dialog).getByText('Agreement')).toBeVisible();
-    expect(within(dialog).getByText('6/6')).toBeVisible();
-    for (const label of ['Pose Pass', 'Framing Pass', 'Lighting Pass', 'Provider Pass']) {
-      expect(within(dialog).getByLabelText(label)).toBeVisible();
+    expect(screen.getByRole('button', { name: 'Close evidence record' })).toHaveFocus();
+    for (const label of [
+      'Concern',
+      'Change',
+      'Direction',
+      'Trial',
+      'Duration',
+      'Baseline → follow-up',
+      'Comparability',
+    ]) {
+      expect(within(dialog).getByText(label, { exact: true })).toBeVisible();
     }
-    expect(within(dialog).getByText('Early evidence.')).toBeVisible();
-    expect(within(dialog).getByText('Visible redness only.')).toBeVisible();
+    expect(within(dialog).getByText('6/6 passed')).toBeVisible();
+    expect(within(dialog).getByText('Early evidence · visible redness only.')).toBeVisible();
+    expect(within(dialog).getByText('This record supports the comparison above.')).toBeVisible();
+    expect(within(dialog).queryByText('Pose', { exact: true })).not.toBeInTheDocument();
+    expect(within(dialog).queryByText('Baseline median', { exact: true })).not.toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: 'Close evidence' }));
-    expect(screen.queryByRole('dialog', { name: 'Evidence' })).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Close evidence record' }));
+    expect(screen.queryByRole('dialog', { name: 'Evidence record' })).not.toBeInTheDocument();
     expect(action).toHaveFocus();
   });
 
@@ -114,13 +124,13 @@ describe('EvidenceRecord updated result experience', () => {
     await user.keyboard('{Shift>}{Tab}{/Shift}');
     expect(screen.getByRole('button', { name: 'Technical record' })).toHaveFocus();
     await user.tab();
-    expect(screen.getByRole('button', { name: 'Close evidence' })).toHaveFocus();
+    expect(screen.getByRole('button', { name: 'Close evidence record' })).toHaveFocus();
     await user.keyboard('{Escape}');
-    expect(screen.queryByRole('dialog', { name: 'Evidence' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('dialog', { name: 'Evidence record' })).not.toBeInTheDocument();
 
     await openEvidence(user);
     fireEvent.pointerDown(document.querySelector('[data-sheet-backdrop]')!);
-    expect(screen.queryByRole('dialog', { name: 'Evidence' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('dialog', { name: 'Evidence record' })).not.toBeInTheDocument();
   });
 
   it('opens the grouped technical record and provider detail from real fields', async () => {
@@ -165,7 +175,7 @@ describe('EvidenceRecord updated result experience', () => {
     expect(screen.getByRole('button', { name: /Open Provider details/ })).toHaveFocus();
 
     await user.click(screen.getByRole('button', { name: 'Back to previous inspection layer' }));
-    expect(screen.getByRole('dialog', { name: 'Evidence' })).toBeVisible();
+    expect(screen.getByRole('dialog', { name: 'Evidence record' })).toBeVisible();
     expect(screen.getByRole('button', { name: 'Technical record' })).toHaveFocus();
   });
 
@@ -184,12 +194,15 @@ describe('EvidenceRecord updated result experience', () => {
     expect(document.body).not.toHaveTextContent(/Cheeks \/ Left|12MP|HEIC|Skin tone model\s+True/i);
   });
 
-  it('uses text and semantic state in addition to orange for direction', async () => {
+  it('uses text and semantic state in addition to orange for direction and verification', async () => {
     const user = userEvent.setup();
     renderRecord();
     const resultDirection = document.querySelector('[data-result-direction="favorable"]');
     expect(resultDirection).toBeVisible();
     expect(resultDirection).toHaveTextContent('Favorable direction');
+    expect(document.querySelector('[data-comparison-verified="true"]')).toHaveTextContent(
+      'COMPARISON VERIFIED',
+    );
 
     const dialog = await openEvidence(user);
     const direction = within(dialog).getByText('Favorable', { exact: true });
