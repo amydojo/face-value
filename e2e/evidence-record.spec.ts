@@ -95,7 +95,7 @@ test('result matches the approved hierarchy edge-to-edge with one primary action
     expect(box?.x).toBe(0);
     expect(box?.y).toBe(0);
     expect(box?.width).toBe(viewport.width);
-    expect(box?.height).toBe(viewport.height);
+    expect(Math.round(box?.height ?? -1)).toBe(viewport.height);
     await expect(experience).toHaveCSS('border-radius', '0px');
     await expect(experience).toHaveCSS('border-top-width', '0px');
     await expect(experience).toHaveCSS('box-shadow', 'none');
@@ -145,8 +145,11 @@ test('progressive disclosure matches evidence, technical, and detail states and 
     dialog.getByText('This record supports the comparison above.', { exact: true }),
   ).toBeVisible();
   await expect(dialog.getByText('Baseline median', { exact: true })).toHaveCount(0);
+  await dialog.evaluate(async (element) => {
+    await Promise.all(element.getAnimations().map((animation) => animation.finished));
+  });
   const sheetBox = await dialog.boundingBox();
-  expect(sheetBox?.y).toBe(160);
+  expect(Math.round(sheetBox?.y ?? -1)).toBe(160);
   await expect(dialog).toHaveCSS('border-top-left-radius', '28px');
   await captureViewport(page, '02-evidence-record-390x844.png');
 
