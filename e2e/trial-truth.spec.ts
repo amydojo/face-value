@@ -431,7 +431,7 @@ async function expectEvidenceRecordRows(
   scenario: TrialScenario,
   recordedAt: string,
 ): Promise<void> {
-  await page.getByRole('button', { name: 'Full evidence record' }).click();
+  await expect(page.getByRole('button', { name: 'Open evidence record' })).toBeVisible();
   const row = (id: string) => page.locator(`[data-evidence-row="${id}"]`);
   await expect(row('adherence')).toHaveAttribute('data-canonical-value', 'complete');
   await expect(row('tolerance-severity')).toHaveAttribute(
@@ -627,7 +627,7 @@ test('legacy saved result remains readable without fabricated trial truth', asyn
 
   const recordId = record?.id as string;
   await expect(page.locator('[data-evidence-record]')).toHaveAttribute('data-record-id', recordId);
-  await page.getByRole('button', { name: 'Full evidence record' }).click();
+  await expect(page.getByRole('button', { name: 'Open evidence record' })).toBeVisible();
   const row = (id: string) => page.locator(`[data-evidence-row="${id}"]`);
   await expect(row('adherence')).toHaveAttribute('data-canonical-value', 'not_collected');
   await expect(row('tolerance-severity')).toHaveAttribute('data-canonical-value', 'not_collected');
