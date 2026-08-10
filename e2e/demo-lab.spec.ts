@@ -191,11 +191,11 @@ test('persistent journey survives reload and keeps Home, Previous Trials, and sa
   expect((await archivedRecord.innerText()).toLowerCase()).toContain(finding.toLowerCase());
   await archivedRecord.click();
 
-  await expect(page.getByRole('heading', { name: 'Evidence record', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Visible redness', exact: true })).toBeVisible();
   await expect(page.locator('[data-fv-part="screen-header"]')).toContainText(identity);
   const evidenceRecord = page.locator(`[data-evidence-record][data-record-id="${recordId}"]`);
   await expect(evidenceRecord).toContainText(product);
-  await expect(evidenceRecord).toContainText(/retry it alone/i);
+  await expect(evidenceRecord).toContainText(/retry(?: it)? alone/i);
   expect((await evidenceRecord.innerText()).toLowerCase()).toContain(finding.toLowerCase());
   const comparison = evidenceRecord.locator('[data-evidence-comparison]');
   await expect(comparison).toContainText(String(snapshotBeforeNavigation.baselineRawMedian));
@@ -271,7 +271,7 @@ test('pending and ready machine journeys preserve timing and chassis geometry ac
   await expect(page.getByRole('heading', { name: 'Position your face' })).toBeVisible();
 });
 
-test('Evidence Record summary, reasoning, and full technical states use production disclosure controls', async ({
+test('Evidence Record starting points resolve to the approved production inspection layers', async ({
   page,
 }) => {
   const runtimeErrors: string[] = [];
@@ -289,56 +289,38 @@ test('Evidence Record summary, reasoning, and full technical states use producti
   for (const state of [
     {
       id: 'saved_result',
-      whyExpanded: 'false',
-      fullExpanded: 'false',
-      technicalMetadataOpen: false,
+      layer: 'result',
       screenshot: '01-evidence-record-summary.png',
     },
     {
       id: 'evidence_record_reasoning_expanded',
-      whyExpanded: 'true',
-      fullExpanded: 'false',
-      technicalMetadataOpen: false,
+      layer: 'evidence',
       screenshot: '02-evidence-record-reasoning-expanded.png',
     },
     {
       id: 'evidence_record_full_technical_expanded',
-      whyExpanded: 'false',
-      fullExpanded: 'true',
-      technicalMetadataOpen: true,
+      layer: 'provider',
       screenshot: '03-evidence-record-full-technical-expanded.png',
     },
   ] as const) {
     await openPreview(page, state.id);
-    await expect(page.getByRole('heading', { name: 'Evidence record', exact: true })).toBeVisible();
-    await expect(page.locator('[data-evidence-record]')).toHaveAttribute(
-      'data-snapshot-kind',
-      'canonical',
-    );
+    const record = page.locator('[data-evidence-record]');
+    await expect(record).toHaveAttribute('data-snapshot-kind', 'canonical');
+    await expect(record).toHaveAttribute('data-current-layer', state.layer);
 
-    const why = page.getByRole('button', {
-      name: /Why Face Value reached this result/i,
-    });
-    const full = page.getByRole('button', { name: /Full evidence record/i });
-    await expect(why).toHaveAttribute('aria-expanded', state.whyExpanded);
-    await expect(full).toHaveAttribute('aria-expanded', state.fullExpanded);
-    await expect(page.locator('[data-evidence-comparison]')).toContainText('+12 points');
-
-    if (state.id === 'evidence_record_reasoning_expanded') {
-      await expect(
-        page.getByRole('region', { name: /Why Face Value reached this result/i }),
-      ).toBeVisible();
-      await expect(page.getByRole('heading', { name: 'What supported this result' })).toBeVisible();
-    }
-
-    const technicalMetadata = page.locator('details').filter({ hasText: 'Technical metadata' });
-    if (state.technicalMetadataOpen) {
-      await expect(page.getByRole('region', { name: 'Full evidence record' })).toBeVisible();
-      await expect(technicalMetadata).toHaveAttribute('open', '');
-      await expect(technicalMetadata).toContainText('Configuration hash');
-      await expect(technicalMetadata).toContainText('Immutable snapshot identity');
+    if (state.layer === 'result') {
+      await expect(page.getByRole('heading', { name: 'Visible redness', exact: true })).toBeVisible();
+      await expect(record.locator('[data-evidence-comparison]')).toContainText('+12 points');
+      await expect(page.getByRole('button', { name: 'Open evidence record' })).toBeVisible();
+    } else if (state.layer === 'evidence') {
+      const dialog = page.getByRole('dialog', { name: 'Evidence record' });
+      await expect(dialog).toBeVisible();
+      await expect(dialog.getByText('+12 points', { exact: true })).toBeVisible();
+      await expect(dialog.getByRole('button', { name: 'Technical record' })).toBeVisible();
     } else {
-      await expect(technicalMetadata).toHaveCount(0);
+      await expect(page.getByRole('heading', { name: 'Provider details' })).toBeVisible();
+      await expect(page.getByText('Baseline median', { exact: true })).toBeVisible();
+      await expect(page.getByText('Accepted frames', { exact: true })).toBeVisible();
     }
 
     await assertNoHorizontalOverflow(page);
@@ -409,7 +391,7 @@ test('core synthetic starting points open real production screens', async ({ pag
 
   await openPreview(page, 'saved_result');
   await expect(page.locator('[data-fv-screen="saved-result"]')).toBeVisible();
-  await expect(page.getByRole('button', { name: 'View previous trials' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Open evidence record' })).toBeVisible();
 });
 
 test('real-camera utility opens the ordinary journey without synthetic state', async ({ page }) => {
