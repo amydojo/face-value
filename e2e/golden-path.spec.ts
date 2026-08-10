@@ -353,9 +353,6 @@ for (const scenario of cases) {
     await expect(machine).toHaveAttribute(
       'data-oracle-state',
       'verdict_revealed',
-      // WebKit may defer animation events on a constrained CI runner.
-      // This changes only the assertion budget; product motion still uses the
-      // centralized oracle timing contract (1 ms in reduced-motion mode).
       { timeout: scenario.reducedMotion ? 3_000 : 15_000 },
     );
     expect(
@@ -510,30 +507,43 @@ for (const scenario of cases) {
       .getByLabel('Previous trials')
       .getByRole('button', { name: /Open saved result/i })
       .click();
-    await expect(page.getByRole('heading', { name: 'Evidence record' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Visible redness', exact: true })).toBeVisible();
     await expect(page.getByText('Visible redness moved in a favorable direction.')).not.toHaveCount(
       0,
     );
     await expect(page.getByText('redness-provisional-v1')).toHaveCount(0);
-    await page.getByRole('button', { name: /Full evidence record/i }).click();
-    await expect(page.getByText('redness-provisional-v1', { exact: true })).toBeVisible();
-    await expect(page.getByText('93.34 · 92.5 · 94.25', { exact: true })).toBeVisible();
-    await expect(page.getByText('100 · 99 · 100', { exact: true })).toBeVisible();
-    await expect(page.locator('[data-evidence-row="direction-agreement"]')).toContainText(
+
+    await page.getByRole('button', { name: 'Open evidence record' }).click();
+    const evidenceDialog = page.getByRole('dialog', { name: 'Evidence record' });
+    await expect(evidenceDialog).toBeVisible();
+    await evidenceDialog.getByRole('button', { name: 'Technical record' }).click();
+    await expect(page.getByRole('heading', { name: 'Technical record' })).toBeVisible();
+
+    await page.getByRole('button', { name: /Open Provider details/ }).click();
+    await expect(page.locator('[data-technical-field="baseline-median"]')).toContainText('93.34');
+    await expect(page.locator('[data-technical-field="follow-up-median"]')).toContainText('100');
+    await expect(page.locator('[data-technical-field="accepted-frames"]')).toContainText(
+      '3/3 ↔ 3/3',
+    );
+
+    await page.getByRole('button', { name: 'Back to previous inspection layer' }).click();
+    await page.getByRole('button', { name: /Open Evaluation details/ }).click();
+    await expect(page.locator('[data-technical-field="direction-agreement"]')).toContainText(
       'Agreeing',
     );
-    await expect(page.locator('[data-evidence-row="assessed-endpoint-count"]')).toContainText(
-      '3',
+    await expect(page.locator('[data-technical-field="measurement-quality"]')).toContainText(
+      'Limited',
     );
-    await expect(
-      page.getByText(
-        'Production thresholds remain provisional and require repeat-scan calibration.',
-      ),
-    ).toBeVisible();
+    await expect(page.locator('[data-technical-field="evidence-quality"]')).toContainText('Early');
+    await expect(page.locator('[data-technical-field="recommended-action"]')).toContainText(
+      'Test longer',
+    );
+
     const restoredArchive = await page.evaluate((key) => {
       return localStorage.getItem(key);
     }, STORAGE_KEY);
     expect(restoredArchive).toContain(recordId);
+    expect(restoredArchive).toContain('redness-provisional-v1');
     assertFaceFreeStorage(restoredArchive);
 
     await expect(page).toHaveURL(/\/$/);
