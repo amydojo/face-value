@@ -428,9 +428,9 @@ describe('Demo Lab controls and production-screen reuse', () => {
       );
       if (expectedLayer === 'result') {
         expect(screen.getByRole('heading', { name: 'Visible redness' })).toBeVisible();
-        expect(screen.getByRole('button', { name: 'View evidence' })).toBeVisible();
+        expect(screen.getByRole('button', { name: 'Open evidence record' })).toBeVisible();
       } else if (expectedLayer === 'evidence') {
-        expect(screen.getByRole('dialog', { name: 'Evidence' })).toBeVisible();
+        expect(screen.getByRole('dialog', { name: 'Evidence record' })).toBeVisible();
       } else {
         expect(screen.getByRole('heading', { name: 'Provider details' })).toBeVisible();
         expect(screen.getByText('Baseline median')).toBeVisible();
