@@ -8,13 +8,34 @@ The hackathon production slice is deliberately narrow:
 
 > **One product. One job: reduce visible redness. One honest result.**
 
-## Current repository truth
+## Current status
 
-This implementation is based on `main` at merged PR #69
-(`f95b051f6c562919c23da0d08728fff124d27d48`) and implements issue #65 on top
-of merged issues #63 and #64.
+Face Value is in **hackathon pre-submission hardening**.
 
-Current production behavior includes:
+The core evidence architecture is implemented and protected. The active work is not another scientific or provider rewrite. It is turning the already-verified pieces into one coherent submission candidate, validating the full flow without wasting provider credits, and then completing one deliberate physical-device acceptance run.
+
+### Repository truth vs active submission work
+
+`main` contains the currently merged production path and remains the authority for behavior that has actually landed.
+
+Two active draft pull requests are the current submission integration candidates:
+
+- **PR #73 · canonical Face Value Actuator V1.1**
+  - open, draft, mergeable
+  - preserves the existing machine control behavior while replacing its visual actuator and adding the current brand/icon surface
+  - previously passed its full validation set, including strict TypeScript, unit tests, production build, privacy verification, and targeted mobile WebKit checks
+- **PR #74 · updated Result Experience**
+  - open, draft, mergeable
+  - current head: `346f17aaa7c3f715ee9ffded4775f772b8d8bd38`
+  - implements the approved Result → Evidence sheet → Technical record → detail hierarchy
+  - includes Demo Lab wiring for the new result experience
+  - does not change provider behavior, evaluator logic, thresholds, camera acquisition, persistence semantics, privacy behavior, or authentication
+
+If the production-style `main` deployment still shows the older large Evidence Record, that is expected until PR #74 is integrated. Validate the new result experience on the PR #74 preview rather than judging it from stale `main` UI.
+
+## Current production behavior
+
+The merged production path includes:
 
 - reducer-owned product registration and trial continuity
 - a first-party browser camera surface with the Face Value acquisition sequence
@@ -33,17 +54,24 @@ Current production behavior includes:
 - protected Demo Lab and provider engineering-session boundaries
 - a protected, isolated preliminary redness-calibration instrument
 
-Current limitations are equally important:
+## Provider status
 
-- each ordinary period requires three accepted provider observations but still
-  represents one short acquisition session
-- measurement quality remains limited because cross-session pose, facial
-  registration, segmentation, crop, face size, color cast, and skin-tone
-  properties are not measured
+The previous YouCam quota blocker is resolved.
+
+Perfect Corp restored **500 complimentary API units on August 5, 2026**. The earlier `CreditInsufficiency` failure remains useful historical evidence, but it is no longer the active blocker.
+
+Physical iPhone Safari has already proven native camera preview and capture, and upload-slot creation has succeeded. The remaining provider proof is one fresh **baseline → follow-up** physical-device acceptance run through the genuine provider path after the integrated submission candidate is green.
+
+Do not reopen provider architecture, retry policy, thresholds, evaluator logic, persistence, privacy, or camera acquisition unless a verified failing acceptance test proves it is necessary.
+
+## Current limitations
+
+- each ordinary period requires three accepted provider observations but still represents one short acquisition session
+- measurement quality remains limited because cross-session pose, facial registration, segmentation, crop, face size, color cast, and skin-tone properties are not measured
 - mask, registration, segmentation, measured skin-tone, and provider model-version evidence remain unavailable
 - the 5/10 boundaries are provisional Face Value operating thresholds, not clinical significance thresholds
 - the provider does not currently report an analysis-model version
-- live calibration collection is blocked by YouCam `CreditInsufficiency`; only explicitly synthetic face-free calibration fixtures are verified
+- a final provider-backed physical baseline-to-follow-up acceptance run still needs to be completed and recorded after the current integration/hardening pass
 - Face Value does not diagnose skin disease or establish clinical product efficacy
 
 See [`docs/README.md`](docs/README.md) for the authority and supersession index.
@@ -73,12 +101,55 @@ follow-up ready
 → deterministic comparison
 → sealed Oracle
 → reveal result and recommendation
-→ accept or deliberately change the next step
 → collect one Evidence Record
 → Home / Previous Trials
 ```
 
 The current archive label is **Previous Trials**. Internal compatibility names such as `archive`, `placement`, and legacy reducer events may remain in code and saved-state migration paths; they are not alternate product journeys.
+
+## Pre-submission flow hardening
+
+An August 11 flow audit identified four bounded presentation/continuity issues that should be resolved without changing the evidence architecture:
+
+1. **Strength normalization**
+   - registration accepts plain numeric strength such as `10`
+   - the specimen/bottle presentation currently recognizes percentage strength only when `%` is present
+   - numeric strength should normalize to percentage presentation instead of requiring secret punctuation from the user
+
+2. **Pre-camera clarity**
+   - before guided capture starts, the current UI can say `Position your face` / `Looking for a stable frame`
+   - pre-start copy should explain that guided capture starts below and camera permission will be requested
+   - positioning/stability guidance should appear only after the live camera preview exists
+
+3. **Baseline continuity**
+   - the standalone baseline completion screen creates an unnecessary break in the machine model
+   - after baseline capture, the same trial cassette should become `BASELINE LOCKED`, show the follow-up date, and clearly tell the user they are done for now
+
+4. **Comparison continuity**
+   - the standalone `Comparing against your baseline…` screen weakens the single-machine mental model
+   - keep the underlying asynchronous analysis state, but present comparison progress inside the cassette/machine before the verdict reveal
+
+North-star rule:
+
+> **The cassette should become the state of the trial wherever possible.**
+
+These are pre-submission flow-coherence fixes, not a provider or evaluator redesign.
+
+## Hackathon execution order
+
+1. Validate the new Result Experience on the PR #74 Vercel preview and Demo Lab.
+2. Integrate PR #74 and PR #73 deliberately; do not merge blindly or mix unrelated changes.
+3. Run one bounded trial-continuity hardening pass for the four findings above.
+4. Exhaust zero-credit validation first:
+   - Demo Lab preview and journey states
+   - `npm run check`
+   - targeted Playwright/WebKit flow checks
+   - persistence/reload behavior
+   - accessibility and reduced-motion behavior
+   - Result → Evidence sheet → Technical record → detail inspection
+5. Only after the synthetic/automated candidate is green, run one fresh physical iPhone Safari baseline → follow-up provider acceptance using restored credits.
+6. Confirm genuine provider completion, truthful analysis progression, no partial durable evidence on failure, camera cleanup, and the correct saved result.
+7. If green, freeze product code for submission and move into the nine-beat hackathon storyboard, capture, and edit.
 
 ## Evidence model
 
@@ -140,27 +211,23 @@ The external Perfect Corp Camera Kit renderer is retained as a development diagn
 
 See [`docs/camera-contract.md`](docs/camera-contract.md).
 
-## Phase C status
+## Evidence-engine milestones
 
-1. **#63 — Evidence Burst (merged)**
+The evidence-engine work that established the current scientific/product boundary includes:
 
-   Three independently analyzed current frames per baseline and follow-up,
-   reducer-owned atomic period commit, evaluator-owned aggregation, bounded
-   rejected-attempt evidence, and face-free persistence.
+1. **#63 · Evidence Burst — merged**
 
-2. **#64 — Trial Truth (merged)**
+   Three independently analyzed current frames per baseline and follow-up, reducer-owned atomic period commit, evaluator-owned aggregation, bounded rejected-attempt evidence, and face-free persistence.
+
+2. **#64 · Trial Truth — merged**
 
    Explicit adherence, tolerance, symptoms, and participant-observed redness direction mapped into the existing evaluator without UI-side verdict logic.
 
-3. **#65 — Preliminary Calibration Harness (implemented in this change)**
+3. **#65 · Preliminary Calibration Harness — implemented**
 
-   A protected internal repeatability instrument, deterministic exploratory
-   report/registry, and saved-snapshot Redness Response Signature. Production
-   trials continue using the provisional 5/10 configuration unless a future
-   separately reviewed graduation process approves otherwise.
+   A protected internal repeatability instrument, deterministic exploratory report/registry, and saved-snapshot Redness Response Signature. Production trials continue using the provisional 5/10 configuration unless a future separately reviewed graduation process approves otherwise.
 
-Planned work does not become repository truth until its pull request is merged
-and the authority docs are updated in the same change.
+Planned or draft work does not become `main` repository truth until its pull request is merged and the authority docs are updated in the same change.
 
 ## Local setup
 
@@ -207,12 +274,10 @@ Start with:
 
 ## Verification status
 
-Issue #65's method, synthetic verification boundary, and remaining physical
-checks are recorded in
-[`docs/redness-calibration-harness.md`](docs/redness-calibration-harness.md).
-Issue #63 acquisition evidence remains in
-[`docs/verification/redness-evidence-burst-63/README.md`](docs/verification/redness-evidence-burst-63/README.md).
+The repository currently has strong synthetic and browser verification for the evidence engine, Demo Lab, persistence, privacy boundaries, and the active presentation work in PRs #73 and #74.
 
-A final exact-head provider-backed physical-iPhone acceptance pass remains
-blocked by `CreditInsufficiency` and must be recorded explicitly after credits
-return rather than inferred from synthetic browser evidence.
+The remaining irreversible acceptance gate is intentionally narrow:
+
+> **One fresh physical iPhone Safari baseline → follow-up run through the genuine provider path after integration and continuity hardening are green.**
+
+That physical result should be recorded explicitly. It must not be inferred from synthetic browser evidence, and live provider credits should not be spent repeatedly on UI or flow debugging that Demo Lab can cover for free.
