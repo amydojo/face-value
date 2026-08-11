@@ -227,6 +227,8 @@ The evidence-engine work that established the current scientific/product boundar
 
    A protected internal repeatability instrument, deterministic exploratory report/registry, and saved-snapshot Redness Response Signature. Production trials continue using the provisional 5/10 configuration unless a future separately reviewed graduation process approves otherwise.
 
+   Issue #65 was implemented from exact base `f95b051f6c562919c23da0d08728fff124d27d48`.
+
 Planned or draft work does not become `main` repository truth until its pull request is merged and the authority docs are updated in the same change.
 
 ## Local setup
