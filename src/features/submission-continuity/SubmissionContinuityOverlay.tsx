@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ElementType } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useState, type ElementType } from 'react';
 import { createPortal } from 'react-dom';
 import { systemClock } from '../../adapters/clock/clock';
 import { useFaceValue } from '../../app/faceValueContext';
@@ -68,17 +68,14 @@ export function SubmissionContinuityOverlay() {
     if (state.oracleRevealState !== 'verdict_revealed') setWhyOpen(false);
   }, [state.oracleRevealState]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (state.stage !== 'analysis' || state.oracleRevealState !== 'verdict_revealed') return;
-    const frame = window.requestAnimationFrame(() => {
-      const canonicalCommit = document.querySelector<HTMLButtonElement>(
-        '[data-oracle-scene-state="verdict_revealed"] [data-oracle-keep-action="hardware"]',
-      );
-      if (!canonicalCommit) return;
-      canonicalCommit.setAttribute('aria-label', 'Save result');
-      canonicalCommit.setAttribute('data-submission-save-result', '');
-    });
-    return () => window.cancelAnimationFrame(frame);
+    const canonicalCommit = document.querySelector<HTMLButtonElement>(
+      '[data-oracle-scene-state="verdict_revealed"] [data-oracle-keep-action="hardware"]',
+    );
+    if (!canonicalCommit) return;
+    canonicalCommit.setAttribute('aria-label', 'Save result');
+    canonicalCommit.setAttribute('data-submission-save-result', '');
   }, [state.stage, state.oracleRevealState]);
 
   const evidenceSummary = useMemo(
