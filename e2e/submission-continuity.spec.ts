@@ -41,7 +41,13 @@ test('baseline capture context stays inside the light-bench instrument and conti
   await context.getByLabel('Makeup').check();
   await expect(context.getByRole('button', { name: 'SAVE CONTEXT' })).toBeVisible();
   await context.getByRole('button', { name: 'SAVE CONTEXT' }).click();
-  await expect(page.getByRole('heading', { name: 'Baseline locked.' })).toBeVisible();
+
+  const locked = page.locator('[data-fv-screen="baseline-locked"]');
+  await expect(locked).toBeVisible();
+  await expect(locked.getByText('BASELINE LOCKED', { exact: true })).toBeVisible();
+  await expect(locked.getByRole('heading', { name: 'That’s everything for today.' })).toBeVisible();
+  await expect(locked.getByText('NOW', { exact: true })).toBeVisible();
+  await expect(locked.getByText('NEXT SCAN', { exact: true })).toBeVisible();
   await assertNoHorizontalOverflow(page);
 });
 
