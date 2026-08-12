@@ -46,6 +46,19 @@
   --fv-amber-core: #e77616;
   --fv-amber-deep: #3d2511;
   --fv-amber-bloom: rgba(231, 118, 22, 0.22);
+  /* Canonical Actuator V1.1 aliases stay local to the actuator and brand surfaces. */
+  --fv-actuator-signal: #f47721;
+  --fv-actuator-housing: #0a0a0a;
+  --fv-actuator-bezel: #1c1c1c;
+  --fv-actuator-recess: #0a0a0a;
+  --fv-actuator-gloss: rgba(255, 255, 255, 0.18);
+  --fv-actuator-ready-bloom: rgba(244, 119, 33, 0.2);
+  --fv-actuator-scanning-bloom-strong: rgba(244, 119, 33, 0.52);
+  --fv-actuator-scanning-bloom-wide: rgba(244, 119, 33, 0.22);
+  --fv-actuator-captured-bloom: rgba(244, 119, 33, 0.12);
+  --fv-brand-warm-white: #f7f7f3;
+  --fv-brand-text-primary: #0a0a0a;
+  --fv-brand-border-subtle: #e5e5e2;
   --fv-radius-shell: 42px;
   --fv-radius-control: 12px;
   --fv-font-sans:
