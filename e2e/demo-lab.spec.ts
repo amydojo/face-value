@@ -18,12 +18,9 @@ async function assertNoHorizontalOverflow(page: Page): Promise<void> {
 }
 
 async function expectCaptureReady(page: Page, kind: 'baseline' | 'follow-up'): Promise<void> {
-  await expect(
-    page.getByRole('heading', { name: `Ready for your ${kind}` }),
-  ).toBeVisible();
-  await expect(
-    page.getByText('Start guided capture below. We’ll ask for camera access first.'),
-  ).toBeVisible();
+  const heading = kind === 'baseline' ? 'Baseline scan' : 'Follow-up scan';
+  await expect(page.getByRole('heading', { name: heading })).toBeVisible();
+  await expect(page.getByText('Camera access comes next.')).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Position your face' })).toHaveCount(0);
 }
 
