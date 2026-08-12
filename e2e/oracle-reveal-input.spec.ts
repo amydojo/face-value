@@ -95,12 +95,8 @@ test('Escape is deterministic and cannot bypass the sealed or revealed state', a
   await expect(page.locator('[data-firmware-state="resolved"]')).toContainText(
     'A small favorable shift showed up.',
   );
-  await expect(
-    page.getByRole('button', {
-      name: 'Keep this result',
-      exact: true,
-    }),
-  ).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Save result', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Keep this result', exact: true })).toHaveCount(0);
 });
 
 test('reduced motion preserves reveal, atomic release, presentation, and collection', async ({
@@ -118,11 +114,11 @@ test('reduced motion preserves reveal, atomic release, presentation, and collect
     timeout: REDUCED_MOTION_TIMEOUT_MS,
   });
 
-  const amber = page.getByRole('button', {
-    name: 'Keep this result',
+  const saveResult = page.getByRole('button', {
+    name: 'Save result',
     exact: true,
   });
-  await amber.evaluate((element) => {
+  await saveResult.evaluate((element) => {
     (element as HTMLButtonElement).click();
     (element as HTMLButtonElement).click();
   });
