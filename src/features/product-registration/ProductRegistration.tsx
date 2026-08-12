@@ -117,16 +117,11 @@ export function ProductRegistration({
           </label>
         </div>
 
-        <fieldset className={styles.registrationJob} disabled={disabled}>
-          <legend>PROTOCOL</legend>
-          <label>
-            <input type="radio" name="supported-protocol" checked readOnly />
-            <span>
-              <strong>VISIBLE REDNESS</strong>
-              <small>Baseline → follow-up comparison</small>
-            </span>
-          </label>
-        </fieldset>
+        <div data-registration-protocol role="group" aria-label="Protocol">
+          <span>PROTOCOL</span>
+          <strong>VISIBLE REDNESS</strong>
+          <small>Baseline → follow-up comparison</small>
+        </div>
 
         <fieldset className={styles.registrationJob} disabled={disabled}>
           <legend>JOB</legend>
