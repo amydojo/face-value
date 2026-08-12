@@ -82,23 +82,13 @@ export function SubmissionContinuityOverlay() {
   );
 
   const revealLead = (() => {
-    switch (state.oracleRevealState) {
-      case 'sealed':
-        return { eyebrow: 'COMPARISON COMPLETE', headline: 'Your result is sealed.' };
-      case 'opening':
-      case 'transmitting':
-        return null;
-      case 'verdict_revealed':
-        return { eyebrow: 'RESULT', headline: 'The result is in.' };
-      case 'committing':
-        return { eyebrow: 'SAVING RESULT', headline: 'Converting experiment to evidence.' };
-      case 'dispensing':
-        return state.oracleEvidenceDispensed
-          ? { eyebrow: 'EVIDENCE READY', headline: 'TAKE YOUR RECORD' }
-          : { eyebrow: 'SAVING RESULT', headline: 'Preparing evidence record.' };
-      default:
-        return null;
+    if (state.oracleRevealState === 'sealed') {
+      return { eyebrow: 'COMPARISON COMPLETE', headline: 'Your result is sealed.' };
     }
+    if (state.oracleRevealState === 'dispensing' && state.oracleEvidenceDispensed) {
+      return { eyebrow: 'EVIDENCE READY', headline: 'TAKE YOUR RECORD' };
+    }
+    return null;
   })();
 
   const activeTrialSummary = useMemo(() => {
