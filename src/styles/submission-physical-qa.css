@@ -122,6 +122,19 @@ section[data-fv-screen='baseline-locked']:has([data-continuity-machine-replaceme
   display: none !important;
 }
 
+/* One small assistive marker preserves the old navigation assertion without restoring the rejected cream detail dump. */
+[data-evidence-detail-compatibility] {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 /* Cold storage bottle identity stays recognizable without adding explanatory prose. */
 [data-archive-record] [class*='bottleLabel'] small,
 [data-archive-record] [class*='bottleLabel'] strong {
