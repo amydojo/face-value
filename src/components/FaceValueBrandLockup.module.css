@@ -1,21 +1,77 @@
 .lockup {
   display: inline-flex;
   align-items: center;
-  gap: 14px;
   white-space: nowrap;
 }
 
-.actuator {
+.standard {
+  gap: 14px;
+}
+
+.standard .actuator {
   --fv-actuator-size: 32px;
+}
+
+.standard .wordmark {
+  height: 38px;
+  font: 400 32px/38px var(--fv-font-sans);
+  letter-spacing: -0.8px;
+}
+
+.standard .wordSpace {
+  width: 7px;
+  height: 38px;
+}
+
+.standard .customV {
+  width: 17px;
+  height: 38px;
+}
+
+.standard .customV > i {
+  top: 25px;
+  left: 7px;
+  width: 4px;
+  height: 1.5px;
+  border-radius: 0.75px;
+}
+
+.compact {
+  gap: 9px;
+}
+
+.compact .actuator {
+  --fv-actuator-size: 23px;
+}
+
+.compact .wordmark {
+  height: 28px;
+  font: 400 23px/28px var(--fv-font-sans);
+  letter-spacing: -0.55px;
+}
+
+.compact .wordSpace {
+  width: 5px;
+  height: 28px;
+}
+
+.compact .customV {
+  width: 12px;
+  height: 28px;
+}
+
+.compact .customV > i {
+  top: 18px;
+  left: 5px;
+  width: 3px;
+  height: 1px;
+  border-radius: 0.5px;
 }
 
 .wordmark {
   display: flex;
   align-items: flex-start;
-  height: 38px;
   color: currentColor;
-  font: 400 32px/38px var(--fv-font-sans);
-  letter-spacing: -0.8px;
 }
 
 .face,
@@ -26,15 +82,11 @@
 
 .wordSpace {
   flex: 0 0 auto;
-  width: 7px;
-  height: 38px;
 }
 
 .customV {
   position: relative;
   flex: 0 0 auto;
-  width: 17px;
-  height: 38px;
 }
 
 .customV > span {
@@ -45,11 +97,6 @@
 
 .customV > i {
   position: absolute;
-  top: 25px;
-  left: 7px;
-  width: 4px;
-  height: 1.5px;
-  border-radius: 0.75px;
   background: currentColor;
 }
 
