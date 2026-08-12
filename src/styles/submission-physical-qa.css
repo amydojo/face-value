@@ -22,6 +22,17 @@ section[data-fv-screen='baseline-locked']:has([data-continuity-machine-replaceme
   margin-inline: auto;
 }
 
+/* Trial Truth remains physically inside the Oracle glass, but its real form controls must sit above decorative glass layers in WebKit hit testing. */
+[data-oracle-trial-truth-firmware] {
+  z-index: 10 !important;
+  pointer-events: auto;
+}
+
+[data-oracle-trial-truth-firmware] [data-trial-truth-firmware-view] {
+  z-index: 11;
+  pointer-events: auto;
+}
+
 /* Registration must remain useful at 390 × 844 with the live specimen label still visible. */
 [data-fv-screen='product-registration'] {
   padding-top: 2px;
@@ -120,6 +131,12 @@ section[data-fv-screen='baseline-locked']:has([data-continuity-machine-replaceme
 /* VIEW EVIDENCE routes into the approved #74 record hierarchy; legacy inline dump stays unreachable. */
 [data-oracle-scene-state='collected'] #oracle-evidence-detail {
   display: none !important;
+}
+
+/* Preserve the operation-status footprint during dispense so #73 paper geometry does not jump; its obsolete copy remains nonvisual. */
+[data-oracle-scene-state='dispensing'] [data-oracle-operation-status] {
+  visibility: hidden !important;
+  display: block !important;
 }
 
 /* One small assistive marker preserves the old navigation assertion without restoring the rejected cream detail dump. */
