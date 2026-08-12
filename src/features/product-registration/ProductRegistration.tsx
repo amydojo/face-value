@@ -117,21 +117,11 @@ export function ProductRegistration({
           </label>
         </div>
 
-        <div data-registration-protocol role="group" aria-label="Protocol">
-          <span>PROTOCOL</span>
-          <strong>VISIBLE REDNESS</strong>
+        <div data-registration-protocol role="group" aria-label="Trial protocol and job">
+          <span>PROTOCOL · JOB</span>
+          <strong>VISIBLE REDNESS · REDUCE VISIBLE REDNESS</strong>
           <small>Baseline → follow-up comparison</small>
         </div>
-
-        <fieldset className={styles.registrationJob} disabled={disabled}>
-          <legend>JOB</legend>
-          <label>
-            <input type="radio" name="supported-job" checked readOnly />
-            <span>
-              <strong>REDUCE VISIBLE REDNESS</strong>
-            </span>
-          </label>
-        </fieldset>
 
         <button type="submit" className={styles.primaryAction} disabled={disabled}>
           <span>{submitLabel}</span>
