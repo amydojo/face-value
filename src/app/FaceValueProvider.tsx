@@ -96,15 +96,22 @@ function hydratePersistedState(
     !persisted.analysis &&
     !persisted.trialTruthEvidence,
   );
+  const followUpContextAwaiting = Boolean(
+    persisted.registeredProduct &&
+    persisted.stage === 'followup_context' &&
+    persisted.followUpContext === null &&
+    persisted.trialTruthEvidence,
+  );
   const completeSignalsAwaitingComparison = Boolean(
     hasBaselineEvidence(persisted.longitudinalEvidence) &&
     hasFollowUpEvidence(persisted.longitudinalEvidence) &&
     !persisted.longitudinalEvidence.comparison &&
     !persisted.analysis &&
     (!persisted.registeredProduct || Boolean(persisted.trialTruthEvidence)) &&
+    !followUpContextAwaiting &&
     !(persisted.stage === 'camera' && persisted.registeredProduct),
   );
-  const restoredStage = trialTruthAwaiting
+  const restoredStage = trialTruthAwaiting || followUpContextAwaiting
     ? 'followup_context'
     : options.preserveStage && persisted.stage
       ? persisted.stage
@@ -122,7 +129,7 @@ function hydratePersistedState(
   const hydrated = normalizeTrialTruthState({
     ...initialState,
     ...persisted,
-    stage: trialTruthAwaiting
+    stage: trialTruthAwaiting || followUpContextAwaiting
       ? 'followup_context'
       : completeSignalsAwaitingComparison
         ? 'analysis'
