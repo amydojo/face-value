@@ -7,18 +7,21 @@ import styles from './FaceValueBrandLockup.module.css';
 export type FaceValueBrandLockupProps = {
   state?: FaceValueActuatorState;
   tone?: 'ink' | 'reverse';
+  variant?: 'standard' | 'compact';
   className?: string;
 };
 
 export function FaceValueBrandLockup({
   state = 'rest',
   tone = 'ink',
+  variant = 'standard',
   className,
 }: FaceValueBrandLockupProps) {
   const toneClassName = tone === 'reverse' ? styles.reverse : styles.ink;
-  const rootClassName = className
-    ? `${styles.lockup} ${toneClassName} ${className}`
-    : `${styles.lockup} ${toneClassName}`;
+  const variantClassName = variant === 'compact' ? styles.compact : styles.standard;
+  const rootClassName = [styles.lockup, toneClassName, variantClassName, className]
+    .filter(Boolean)
+    .join(' ');
 
   return (
     <span
@@ -26,6 +29,7 @@ export function FaceValueBrandLockup({
       data-face-value-brand-lockup
       data-brand-lockup-state={state}
       data-brand-lockup-tone={tone}
+      data-brand-lockup-variant={variant}
       role="img"
       aria-label="face value"
     >
