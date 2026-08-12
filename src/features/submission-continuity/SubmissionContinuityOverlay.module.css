@@ -213,27 +213,30 @@
   top: 8px;
   right: 4.8%;
   z-index: 12;
-  width: 168px;
-  min-height: 46px;
+  width: 166px;
+  min-height: 52px;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  padding: 0 7px 0 12px;
-  border: 1px solid rgba(200, 121, 32, 0.5);
-  border-radius: 10px;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
   color: #eee6da;
-  background: linear-gradient(180deg, #181611, #0a0a09);
-  box-shadow:
-    inset 0 1px rgba(235, 226, 210, 0.055),
-    0 3px 5px rgba(0, 0, 0, 0.58);
+  background: transparent;
+  box-shadow: none;
   font: 650 8px/1.2 var(--fv-font-mono);
   letter-spacing: 0.075em;
   cursor: pointer;
 }
 
+.saveControl > span:first-child {
+  flex: 1 1 auto;
+  text-align: right;
+}
+
 .saveControl > [data-face-value-actuator] {
-  --fv-actuator-size: 32px;
+  --fv-actuator-size: 48px;
   flex: 0 0 auto;
 }
 
