@@ -52,7 +52,6 @@ export function ProductRegistration({
     >
       <p className={styles.eyebrow}>REGISTER ONE PRODUCT</p>
       <h2>Give the specimen an identity.</h2>
-      <p>Strength and volume are optional.</p>
 
       <form className={styles.registrationForm} onSubmit={submit} noValidate>
         <label>
@@ -93,34 +92,46 @@ export function ProductRegistration({
         </label>
         <div className={styles.registrationOptional}>
           <label>
-            <span>Strength or concentration</span>
+            <span>Strength (%) · optional</span>
             <input
               name="strength"
+              inputMode="decimal"
               value={value.strength ?? ''}
               disabled={disabled}
-              placeholder="10%"
+              placeholder="10"
               onChange={(event) => onChange({ ...value, strength: event.target.value })}
             />
           </label>
           <label>
-            <span>Volume</span>
+            <span>Volume (ml) · optional</span>
             <input
               name="volume"
+              inputMode="decimal"
               value={value.volume ?? ''}
               disabled={disabled}
-              placeholder="30 ml"
+              placeholder="30"
               onChange={(event) => onChange({ ...value, volume: event.target.value })}
             />
           </label>
         </div>
 
         <fieldset className={styles.registrationJob} disabled={disabled}>
-          <legend>ITS JOB</legend>
+          <legend>PROTOCOL</legend>
+          <label>
+            <input type="radio" name="supported-protocol" checked readOnly />
+            <span>
+              <strong>VISIBLE REDNESS</strong>
+              <small>Baseline → follow-up comparison</small>
+            </span>
+          </label>
+        </fieldset>
+
+        <fieldset className={styles.registrationJob} disabled={disabled}>
+          <legend>JOB</legend>
           <label>
             <input type="radio" name="supported-job" checked readOnly />
             <span>
               <strong>REDUCE VISIBLE REDNESS</strong>
-              <small>The one supported job in this protocol</small>
             </span>
           </label>
         </fieldset>

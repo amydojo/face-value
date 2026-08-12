@@ -4,7 +4,12 @@ import { systemClock } from '../../adapters/clock/clock';
 import { useFaceValue } from '../../app/faceValueContext';
 import { ScreenHeader } from '../../components/hardware';
 import type { RegisteredProduct } from '../../domain/model';
-import { createRegisteredProduct, type ProductRegistrationInput } from '../../domain/phaseB5';
+import {
+  createRegisteredProduct,
+  normalizeStrength,
+  normalizeVolume,
+  type ProductRegistrationInput,
+} from '../../domain/phaseB5';
 import { specimenRegistrationTiming } from '../../domain/specimenRegistration';
 import styles from '../../styles/FaceValue.module.css';
 import {
@@ -13,6 +18,7 @@ import {
   type OracleTrialStateMachineProps,
 } from '../oracle-reveal/OracleRevealScene';
 import { ProductRegistration } from '../product-registration/ProductRegistration';
+import continuityStyles from './FirstTrialScene.module.css';
 import { useSpecimenRegistrationSequence } from './useSpecimenRegistrationSequence';
 
 type SpecimenTimingProperties = CSSProperties & {
@@ -48,8 +54,8 @@ const draftSpecimenIdentity = (draft: ProductRegistrationInput): OracleSpecimenI
   accession: null,
   brand: draft.brand.trim() || 'UNNAMED BRAND',
   productName: draft.productName.trim() || 'UNNAMED PRODUCT',
-  strength: draft.strength?.trim() || null,
-  volume: draft.volume?.trim() || null,
+  strength: normalizeStrength(draft.strength),
+  volume: normalizeVolume(draft.volume),
   assignedJob: 'Reduce visible redness',
 });
 
@@ -194,12 +200,13 @@ export function FirstTrialScene() {
   const registrationVisible =
     registrationPanelMounted && (state.stage === 'product_registration' || state.stage === 'job');
   const baselineReady = registrationSequence.isReady && !baselineRequested;
+  const registrationPreview = state.stage === 'product_registration';
 
   return (
     <>
       <ScreenHeader dark />
       <section
-        className={styles.firstTrialScene}
+        className={`${styles.firstTrialScene} ${registrationPreview ? continuityStyles.registrationPreview : ''}`}
         data-fv-screen={
           state.stage === 'welcome'
             ? 'welcome'
@@ -235,7 +242,7 @@ export function FirstTrialScene() {
           )}
         </div>
 
-        <div className={styles.firstTrialMachine}>
+        <div className={`${styles.firstTrialMachine} ${continuityStyles.machineWindow}`}>
           <OracleTrialStateMachine {...oracleProps} />
         </div>
 
