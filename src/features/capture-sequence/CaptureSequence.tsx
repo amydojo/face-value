@@ -97,16 +97,25 @@ export function CaptureSequence({
     '--fv-analysis-field-cycle': `${CAPTURE_TIMING.analysisFieldCycleMs}ms`,
   } as CSSProperties;
   const phaseInstruction = getCaptureInstruction(state);
-  const defaultInstruction =
-    previewStatus === 'loading' ||
-    previewStatus === 'requesting-permission' ||
-    previewStatus === 'camera-opening'
-      ? { primary: 'Opening camera', secondary: 'Keep your phone steady' }
-      : previewStatus === 'waiting-first-frame'
-        ? { primary: 'Preparing preview', secondary: 'This may take a moment' }
-        : state.phase === 'scanning' && captureKind === 'followup'
-          ? { ...phaseInstruction, secondary: 'Securing follow-up' }
-          : phaseInstruction;
+  const readyInstruction = {
+    primary: captureKind === 'baseline' ? 'Ready for your baseline' : 'Ready for your follow-up',
+    secondary: 'Start guided capture below. We’ll ask for camera access first.',
+  };
+  const permissionInstruction = {
+    primary: 'Allow camera access',
+    secondary: 'Use the browser prompt to open the live preview.',
+  };
+  const defaultInstruction = !activeCapture
+    ? readyInstruction
+    : !previewLive &&
+        (previewStatus === 'loading' ||
+          previewStatus === 'requesting-permission' ||
+          previewStatus === 'camera-opening' ||
+          previewStatus === 'waiting-first-frame')
+      ? permissionInstruction
+      : state.phase === 'scanning' && captureKind === 'followup'
+        ? { ...phaseInstruction, secondary: 'Securing follow-up' }
+        : phaseInstruction;
   const instruction =
     burstStatus === 'failed' && state.phase === 'captured'
       ? {
@@ -183,7 +192,7 @@ export function CaptureSequence({
         <strong>{job ?? 'JOB UNASSIGNED'}</strong>
       </div>
       <CaptureInstruction
-        key={`capture-instruction-${analysisPresentationPhase ?? state.phase}`}
+        key={`capture-instruction-${analysisPresentationPhase ?? state.phase}-${activeCapture ? 'active' : 'ready'}-${previewLive ? 'live' : 'not-live'}`}
         copy={instruction}
         phase={state.phase}
       >
