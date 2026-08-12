@@ -10,6 +10,7 @@ import {
   trialDaySummary,
 } from '../../domain/phaseB5';
 import styles from './SubmissionContinuityOverlay.module.css';
+import { submissionContinuityEvidenceViewModel } from './submissionContinuityViewModel';
 
 type PortalTargets = {
   oracleScene: HTMLElement | null;
@@ -25,19 +26,6 @@ const emptyTargets: PortalTargets = {
   comparison: null,
   trialDisplay: null,
   baselineLocked: null,
-};
-
-const evidenceLabelFor = (value: string): string => {
-  if (value === 'confirmed') return 'Established';
-  if (value === 'likely') return 'Growing';
-  if (value === 'possible') return 'Early';
-  return 'Insufficient';
-};
-
-const signedPoints = (value: number | null | undefined): string => {
-  if (typeof value !== 'number' || !Number.isFinite(value)) return 'Not available';
-  const rounded = Math.round(value * 10) / 10;
-  return `${rounded > 0 ? '+' : ''}${rounded} points`;
 };
 
 const formatDate = (value: string | null): string => {
@@ -85,15 +73,13 @@ export function SubmissionContinuityOverlay() {
     if (state.oracleRevealState !== 'verdict_revealed') setWhyOpen(false);
   }, [state.oracleRevealState]);
 
-  const evaluation = state.analysis?.rednessEvaluation ?? null;
-  const comparisonSummary = useMemo(() => {
-    if (!evaluation) return 'Not available';
-    const accepted =
-      evaluation.baseline.acceptedRawScores.length + evaluation.endpoint.acceptedRawScores.length;
-    const attempted =
-      accepted + evaluation.baseline.rejectedFrameCount + evaluation.endpoint.rejectedFrameCount;
-    return attempted > 0 ? `${accepted}/${attempted} checks passed` : 'Not available';
-  }, [evaluation]);
+  const evidenceSummary = useMemo(
+    () =>
+      state.analysis
+        ? submissionContinuityEvidenceViewModel(state.analysis, state.confidence)
+        : null,
+    [state.analysis, state.confidence],
+  );
 
   const revealLead = (() => {
     switch (state.oracleRevealState) {
@@ -235,62 +221,65 @@ export function SubmissionContinuityOverlay() {
         </Portal>
       )}
 
-      {state.stage === 'analysis' && state.analysis && state.oracleRevealState === 'verdict_revealed' && (
-        <>
-          <Portal
-            target={targets.lowerDeck}
-            as="button"
-            type="button"
-            className={styles.saveControl}
-            data-submission-save-result
-            aria-label="Save result"
-            onClick={saveResult}
-          >
-            <span>SAVE RESULT</span>
-            <FaceValueActuator state="ready" />
-          </Portal>
-          <Portal
-            target={targets.oracleScene}
-            as="section"
-            className={styles.resultActions}
-            data-continuity-result-actions
-            aria-label="Why this result"
-          >
-            <button
+      {state.stage === 'analysis' &&
+        state.analysis &&
+        evidenceSummary &&
+        state.oracleRevealState === 'verdict_revealed' && (
+          <>
+            <Portal
+              target={targets.lowerDeck}
+              as="button"
               type="button"
-              aria-expanded={whyOpen}
-              aria-controls="continuity-why-result"
-              onClick={() => setWhyOpen((open) => !open)}
+              className={styles.saveControl}
+              data-submission-save-result
+              aria-label="Save result"
+              onClick={saveResult}
             >
-              <span>WHY THIS RESULT</span>
-              <span aria-hidden="true">{whyOpen ? '−' : '+'}</span>
-            </button>
-            {whyOpen && (
-              <div id="continuity-why-result" className={styles.whyPanel}>
-                <dl>
-                  <div>
-                    <dt>CHANGE</dt>
-                    <dd>{signedPoints(evaluation?.rawScoreDelta)}</dd>
-                  </div>
-                  <div>
-                    <dt>COMPARISON</dt>
-                    <dd>{comparisonSummary}</dd>
-                  </div>
-                  <div>
-                    <dt>EVIDENCE</dt>
-                    <dd>{evidenceLabelFor(evaluation?.evidenceQuality ?? state.confidence)}</dd>
-                  </div>
-                </dl>
-                <p>{state.analysis.finding}</p>
-                <small>
-                  Visible redness only. Face Value does not establish clinical efficacy or prove product
-                  causation. {state.analysis.claimBoundary}
-                </small>
-              </div>
-            )}
-          </Portal>
-        </>
-      )}
+              <span>SAVE RESULT</span>
+              <FaceValueActuator state="ready" />
+            </Portal>
+            <Portal
+              target={targets.oracleScene}
+              as="section"
+              className={styles.resultActions}
+              data-continuity-result-actions
+              aria-label="Why this result"
+            >
+              <button
+                type="button"
+                aria-expanded={whyOpen}
+                aria-controls="continuity-why-result"
+                onClick={() => setWhyOpen((open) => !open)}
+              >
+                <span>WHY THIS RESULT</span>
+                <span aria-hidden="true">{whyOpen ? '−' : '+'}</span>
+              </button>
+              {whyOpen && (
+                <div id="continuity-why-result" className={styles.whyPanel}>
+                  <dl>
+                    <div>
+                      <dt>CHANGE</dt>
+                      <dd>{evidenceSummary.change}</dd>
+                    </div>
+                    <div>
+                      <dt>COMPARISON</dt>
+                      <dd>{evidenceSummary.comparison}</dd>
+                    </div>
+                    <div>
+                      <dt>EVIDENCE</dt>
+                      <dd>{evidenceSummary.evidence}</dd>
+                    </div>
+                  </dl>
+                  <p>{evidenceSummary.interpretation}</p>
+                  <small>
+                    Visible redness only. Face Value does not establish clinical efficacy or prove product
+                    causation. {evidenceSummary.claimBoundary}
+                  </small>
+                </div>
+              )}
+            </Portal>
+          </>
+        )}
     </>
   );
 }
