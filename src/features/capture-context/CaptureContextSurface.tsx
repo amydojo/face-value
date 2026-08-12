@@ -3,6 +3,7 @@ import { useFaceValue } from '../../app/faceValueContext';
 import type { CaptureContext, CaptureKind } from '../../domain/model';
 import { emptyCaptureContext, hasMeaningfulCaptureContext } from '../../domain/phaseB5';
 import styles from '../../styles/FaceValue.module.css';
+import { CanonicalTrialChassis } from '../submission-continuity/CanonicalTrialChassis';
 import instrumentStyles from './CaptureContextSurface.module.css';
 import { CAPTURE_CONTEXT_OPTIONS } from './captureContextOptions';
 
@@ -43,7 +44,7 @@ export function CaptureContextFields({
       <label className={noteClassName}>
         <span>{noteLabel}</span>
         <textarea
-          rows={3}
+          rows={2}
           maxLength={240}
           value={context.note ?? ''}
           placeholder="Optional note"
@@ -72,14 +73,12 @@ export function CaptureContextSurface({
   const product = state.registeredProduct;
   const securedLabel = kind === 'baseline' ? 'BASELINE SECURED' : 'FOLLOW-UP SECURED';
   const compactIdentity = product
-    ? [
-        product.accession,
-        product.brand,
-        [product.productName, product.strength].filter(Boolean).join(' '),
-      ]
+    ? [product.accession, product.brand, [product.productName, product.strength].filter(Boolean).join(' ')]
         .filter(Boolean)
         .join(' · ')
     : 'REGISTERED SPECIMEN';
+
+  if (!product) return null;
 
   return (
     <section
@@ -88,50 +87,40 @@ export function CaptureContextSurface({
       data-capture-context-instrument
       aria-labelledby={`${kind}-context-heading`}
     >
-      <article className={instrumentStyles.machine} data-context-machine data-context-kind={kind}>
-        <div className={instrumentStyles.display} data-context-machine-display>
-          <div className={instrumentStyles.firmware}>
-            <header className={instrumentStyles.header}>
-              <strong>{securedLabel}</strong>
-              <span>CAPTURE CONTEXT</span>
-            </header>
+      <CanonicalTrialChassis
+        product={product}
+        mode={kind === 'baseline' ? 'baseline-context' : 'followup-context'}
+        ariaLabel={`${securedLabel}. Capture context for ${compactIdentity}.`}
+      >
+        <header className={instrumentStyles.header}>
+          <strong>{securedLabel}</strong>
+          <span>CAPTURE CONTEXT</span>
+        </header>
+        <p className={instrumentStyles.identity} title={compactIdentity}>
+          {compactIdentity}
+        </p>
+        <h1 id={`${kind}-context-heading`} className={instrumentStyles.question} data-stage-focus tabIndex={-1}>
+          Anything meaningfully different today?
+        </h1>
+        <p className={instrumentStyles.helper}>Qualify what the camera cannot see. Optional.</p>
 
-            <div className={instrumentStyles.identity}>
-              <div className={instrumentStyles.identityCopy}>
-                <span>SPECIMEN / TRIAL</span>
-                <strong title={compactIdentity}>{compactIdentity}</strong>
-              </div>
-              <i className={instrumentStyles.specimen} aria-hidden="true" />
-            </div>
+        <CaptureContextFields
+          context={context}
+          onChange={setContext}
+          optionsClassName={instrumentStyles.options}
+          noteClassName={instrumentStyles.note}
+          noteLabel="Optional note"
+        />
 
-            <h1 id={`${kind}-context-heading`} className={instrumentStyles.question} data-stage-focus tabIndex={-1}>
-              Anything meaningfully different today?
-            </h1>
-            <p className={instrumentStyles.helper}>
-              Qualify what the camera cannot see. This context is optional.
-            </p>
-
-            <div className={instrumentStyles.defaultState} data-selected={!changed || undefined}>
-              <i aria-hidden="true" />
-              <strong>NOTHING DIFFERENT</strong>
-            </div>
-
-            <CaptureContextFields
-              context={context}
-              onChange={setContext}
-              optionsClassName={instrumentStyles.options}
-              noteClassName={instrumentStyles.note}
-              noteLabel="Optional context"
-            />
-          </div>
-        </div>
-
-        <div className={instrumentStyles.deck} data-context-machine-deck>
-          <button type="button" onClick={() => onContinue(context)}>
-            <span>{changed ? 'SAVE CONTEXT' : 'NOTHING DIFFERENT'}</span>
-          </button>
-        </div>
-      </article>
+        <button
+          type="button"
+          className={instrumentStyles.commit}
+          onClick={() => onContinue(context)}
+        >
+          <span>{changed ? 'SAVE CONTEXT' : 'NOTHING DIFFERENT'}</span>
+          <span aria-hidden="true">→</span>
+        </button>
+      </CanonicalTrialChassis>
     </section>
   );
 }
