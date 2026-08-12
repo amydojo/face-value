@@ -8,6 +8,7 @@ import {
   followUpIsEligible,
   trialDaySummary,
 } from '../../domain/phaseB5';
+import { CanonicalTrialChassis } from './CanonicalTrialChassis';
 import styles from './SubmissionContinuityOverlay.module.css';
 import { submissionContinuityEvidenceViewModel } from './submissionContinuityViewModel';
 
@@ -17,6 +18,7 @@ type PortalTargets = {
   comparison: HTMLElement | null;
   trialDisplay: HTMLElement | null;
   baselineLocked: HTMLElement | null;
+  trialTruthFirmware: HTMLElement | null;
 };
 
 const emptyTargets: PortalTargets = {
@@ -25,6 +27,7 @@ const emptyTargets: PortalTargets = {
   comparison: null,
   trialDisplay: null,
   baselineLocked: null,
+  trialTruthFirmware: null,
 };
 
 const formatDate = (value: string | null): string => {
@@ -51,7 +54,7 @@ function Portal({ target, as: Component = 'div', children, ...props }: {
 }
 
 export function SubmissionContinuityOverlay() {
-  const { state, demoRuntime } = useFaceValue();
+  const { state, dispatch, demoRuntime } = useFaceValue();
   const [targets, setTargets] = useState<PortalTargets>(emptyTargets);
   const [whyOpen, setWhyOpen] = useState(false);
 
@@ -63,6 +66,7 @@ export function SubmissionContinuityOverlay() {
         comparison: document.querySelector<HTMLElement>('[data-fv-screen="comparing"]'),
         trialDisplay: document.querySelector<HTMLElement>('[data-oracle-trial-display]'),
         baselineLocked: document.querySelector<HTMLElement>('[data-fv-screen="baseline-locked"]'),
+        trialTruthFirmware: document.querySelector<HTMLElement>('[data-oracle-trial-truth-firmware]'),
       });
     });
     return () => window.cancelAnimationFrame(frame);
@@ -71,6 +75,26 @@ export function SubmissionContinuityOverlay() {
   useEffect(() => {
     if (state.oracleRevealState !== 'verdict_revealed') setWhyOpen(false);
   }, [state.oracleRevealState]);
+
+  useEffect(() => {
+    if (state.oracleRevealState !== 'collected' || !state.record) return;
+    const actions = Array.from(
+      document.querySelectorAll<HTMLButtonElement>('[data-result-actions] button'),
+    );
+    const viewEvidence = actions.find((button) => button.textContent?.trim() === 'VIEW EVIDENCE');
+    if (!viewEvidence) return;
+    const record = state.record;
+    const openEvidenceRecord = (event: Event) => {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      dispatch({ type: 'VIEW_RECORD', record });
+    };
+    viewEvidence.addEventListener('click', openEvidenceRecord, true);
+    viewEvidence.removeAttribute('aria-expanded');
+    viewEvidence.removeAttribute('aria-controls');
+    viewEvidence.setAttribute('aria-label', 'Open evidence record');
+    return () => viewEvidence.removeEventListener('click', openEvidenceRecord, true);
+  }, [dispatch, state.oracleRevealState, state.record]);
 
   const evidenceSummary = useMemo(
     () =>
@@ -85,7 +109,7 @@ export function SubmissionContinuityOverlay() {
       return { eyebrow: 'COMPARISON COMPLETE', headline: 'Your result is sealed.' };
     }
     if (state.oracleRevealState === 'dispensing' && state.oracleEvidenceDispensed) {
-      return { eyebrow: 'EVIDENCE READY', headline: 'TAKE YOUR RECORD' };
+      return { eyebrow: 'EVIDENCE READY', headline: 'Take your record.' };
     }
     return null;
   })();
@@ -122,43 +146,68 @@ export function SubmissionContinuityOverlay() {
 
   return (
     <>
-      {state.stage === 'analysis' && !state.analysis && (
+      {state.stage === 'followup_context' && targets.trialTruthFirmware && (
+        <Portal
+          target={targets.trialTruthFirmware}
+          as="span"
+          className={styles.followupSecuredMarker}
+          data-followup-secured-marker
+        >
+          FOLLOW-UP SECURED
+        </Portal>
+      )}
+
+      {state.stage === 'analysis' && !state.analysis && state.registeredProduct && (
         <Portal
           target={targets.comparison}
-          className={styles.comparison}
-          data-continuity-comparison
+          className={styles.machineReplacement}
+          data-continuity-machine-replacement="comparison"
         >
-          <p>COMPARING</p>
-          <h1 data-stage-focus tabIndex={-1}>
-            Baseline ↔ follow-up
-          </h1>
-          <div role="status" aria-live="polite">
-            <span>BASELINE</span>
-            <i aria-hidden="true" />
-            <span>FOLLOW-UP</span>
-          </div>
-          <small>Checking repeat measurements before sealing the result.</small>
+          <CanonicalTrialChassis
+            product={state.registeredProduct}
+            mode="comparison"
+            ariaLabel="Comparing baseline and follow-up measurements"
+          >
+            <div className={styles.machineStateFirmware} data-machine-state-firmware="comparison">
+              <p>COMPARING</p>
+              <h2 data-stage-focus tabIndex={-1}>Baseline ↔ follow-up</h2>
+              <div className={styles.comparisonRail} role="status" aria-live="polite">
+                <span>BASELINE</span>
+                <i aria-hidden="true" />
+                <span>FOLLOW-UP</span>
+              </div>
+              <small>Verifying repeat measurements.</small>
+            </div>
+          </CanonicalTrialChassis>
         </Portal>
       )}
 
       {state.stage === 'baseline_locked' && state.registeredProduct && (
         <Portal
           target={targets.baselineLocked}
-          className={styles.baselineLocked}
-          data-continuity-baseline-locked
+          className={styles.machineReplacement}
+          data-continuity-machine-replacement="baseline-locked"
         >
-          <p>BASELINE LOCKED</p>
-          <h2>That’s everything for today.</h2>
-          <dl>
-            <div>
-              <dt>NOW</dt>
-              <dd>KEEP USING {state.registeredProduct.productName.toLocaleUpperCase('en-US')}</dd>
+          <CanonicalTrialChassis
+            product={state.registeredProduct}
+            mode="baseline-locked"
+            ariaLabel={`Baseline locked for ${state.registeredProduct.productName}`}
+          >
+            <div className={styles.machineStateFirmware} data-machine-state-firmware="baseline-locked">
+              <p>BASELINE LOCKED</p>
+              <h2>That’s everything for today.</h2>
+              <dl>
+                <div>
+                  <dt>NOW</dt>
+                  <dd>KEEP USING {state.registeredProduct.productName.toLocaleUpperCase('en-US')}</dd>
+                </div>
+                <div>
+                  <dt>NEXT SCAN</dt>
+                  <dd>{formatDate(state.followUpEligibleAt)}</dd>
+                </div>
+              </dl>
             </div>
-            <div>
-              <dt>NEXT SCAN</dt>
-              <dd>{formatDate(state.followUpEligibleAt)}</dd>
-            </div>
-          </dl>
+          </CanonicalTrialChassis>
         </Portal>
       )}
 
@@ -170,7 +219,7 @@ export function SubmissionContinuityOverlay() {
         >
           <header>
             <span>
-              DAY {String(activeTrialSummary.day).padStart(2, '0')} /{' '}
+              DAY {String(activeTrialSummary.day).padStart(2, '0')} OF{' '}
               {String(activeTrialSummary.intervalDays || FOLLOW_UP_INTERVAL_DAYS).padStart(2, '0')}
             </span>
             <strong>{activeTrialSummary.eligible ? 'FOLLOW-UP READY' : 'IN PROGRESS'}</strong>
