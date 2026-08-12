@@ -192,9 +192,10 @@
   letter-spacing: -0.03em;
 }
 
-/* Sealed retains Oracle's original semantic nodes; submission-continuity.css already renders them as the approved COMPARISON COMPLETE / Your result is sealed. visual. */
-.revealLead[data-continuity-phase='sealed'] {
-  display: none !important;
+/* Sealed keeps Oracle's original semantic nodes for compatibility, but the approved header is real DOM from the continuity layer. */
+:global([data-fv-screen='oracle-reveal']:has([data-continuity-oracle-lead][data-continuity-phase='sealed'])) > div:first-child > p::after,
+:global([data-fv-screen='oracle-reveal']:has([data-continuity-oracle-lead][data-continuity-phase='sealed'])) > div:first-child > h1::after {
+  content: none !important;
 }
 
 :global([data-fv-screen='oracle-reveal']:has([data-continuity-oracle-lead][data-continuity-phase='dispensing'])) > div:first-child {
