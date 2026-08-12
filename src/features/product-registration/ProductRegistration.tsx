@@ -118,8 +118,20 @@ export function ProductRegistration({
         </div>
 
         <div data-registration-protocol role="group" aria-label="Trial protocol and job">
+          <input
+            type="radio"
+            name="supported-job"
+            checked
+            readOnly
+            disabled
+            aria-label="Reduce visible redness"
+          />
           <span>PROTOCOL · JOB</span>
-          <strong>VISIBLE REDNESS · REDUCE VISIBLE REDNESS</strong>
+          <strong>
+            <span>VISIBLE REDNESS</span>
+            <span aria-hidden="true"> · </span>
+            <span>REDUCE VISIBLE REDNESS</span>
+          </strong>
           <small>Baseline → follow-up comparison</small>
         </div>
 
