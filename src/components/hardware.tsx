@@ -28,17 +28,27 @@ export function EvidenceShell({
   );
 }
 
-export function ScreenHeader({ code = 'FV–014', dark = false }: { code?: string; dark?: boolean }) {
+export function ScreenHeader({
+  code = 'FV–014',
+  dark = false,
+  compact = true,
+}: {
+  code?: string;
+  dark?: boolean;
+  compact?: boolean;
+}) {
   return (
     <header
       className={`${headerStyles.header} ${dark ? headerStyles.dark : ''}`}
       data-fv-part="screen-header"
+      data-header-size={compact ? 'compact' : 'standard'}
     >
       <div className={headerStyles.brandBar} data-fv-part="brand-bar">
         <FaceValueBrandLockup
           className={headerStyles.brandLockup}
           state="rest"
           tone={dark ? 'reverse' : 'ink'}
+          variant={compact ? 'compact' : 'standard'}
         />
         <span data-oracle-trial-identity>{code}</span>
       </div>
