@@ -170,7 +170,9 @@ export function SubmissionContinuityOverlay() {
           >
             <div className={styles.machineStateFirmware} data-machine-state-firmware="comparison">
               <p>COMPARING</p>
-              <h2 data-stage-focus tabIndex={-1}>Baseline ↔ follow-up</h2>
+              <h2 data-stage-focus tabIndex={-1}>
+                Baseline ↔ follow-up
+              </h2>
               <div className={styles.comparisonRail} role="status" aria-live="polite">
                 <span>BASELINE</span>
                 <i aria-hidden="true" />
@@ -251,7 +253,15 @@ export function SubmissionContinuityOverlay() {
           data-continuity-phase={state.oracleRevealState}
         >
           <p>{revealLead.eyebrow}</p>
-          <h1 data-stage-focus tabIndex={-1}>
+          <h1
+            data-stage-focus
+            tabIndex={-1}
+            aria-label={
+              state.oracleRevealState === 'dispensing' && state.oracleEvidenceDispensed
+                ? 'TAKE YOUR RECORD'
+                : undefined
+            }
+          >
             {revealLead.headline}
           </h1>
         </Portal>
