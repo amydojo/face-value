@@ -89,7 +89,6 @@ export function SubmissionContinuityOverlay() {
     if (!viewEvidence) return;
     const openEvidenceRecord = (event: Event) => {
       event.preventDefault();
-      event.stopImmediatePropagation();
       setRecordOpen(true);
     };
     viewEvidence.addEventListener('click', openEvidenceRecord, true);
