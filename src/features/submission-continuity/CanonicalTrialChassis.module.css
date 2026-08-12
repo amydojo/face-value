@@ -1,0 +1,50 @@
+.root {
+  min-width: 0;
+}
+
+.firmware {
+  position: absolute;
+  inset: 0;
+  z-index: 8;
+  display: grid;
+  align-content: center;
+  gap: 7px;
+  padding: 12px 43% 12px 14px;
+  color: #eae3d6;
+  background: linear-gradient(90deg, rgba(7, 7, 6, 0.96), rgba(7, 7, 6, 0.78) 62%, transparent);
+  font-family: var(--fv-font-mono);
+  visibility: visible !important;
+}
+
+:global([data-oracle-trial-display]:has([data-canonical-trial-firmware])) > :not([data-canonical-trial-firmware]) {
+  visibility: hidden !important;
+}
+
+.firmware[data-mode='baseline-context'] {
+  align-content: start;
+  gap: 6px;
+  padding: 10px 10px 10px 12px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  background: linear-gradient(90deg, rgba(7, 7, 6, 0.97), rgba(7, 7, 6, 0.91) 72%, rgba(7, 7, 6, 0.55));
+  scrollbar-width: none;
+}
+
+.firmware[data-mode='baseline-context']::-webkit-scrollbar {
+  display: none;
+}
+
+:global([data-canonical-trial-mode='baseline-context'] [data-oracle-specimen]) {
+  opacity: 0.42 !important;
+}
+
+@media (max-width: 390px) {
+  .firmware {
+    padding-left: 12px;
+    padding-right: 42%;
+  }
+
+  .firmware[data-mode='baseline-context'] {
+    padding-right: 9px;
+  }
+}
