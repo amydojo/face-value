@@ -63,6 +63,7 @@ export function HumanButterProductionJourney() {
     return (
       <>
         <TrialTruthSurface />
+        <SubmissionContinuityOverlay />
         {DEMO_LAB_ENABLED && demoRuntime.mode !== 'ordinary' && (
           <DemoRuntimeBanner runtime={demoRuntime} />
         )}
