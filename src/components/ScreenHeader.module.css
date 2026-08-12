@@ -12,12 +12,11 @@
   justify-content: space-between;
 }
 
-.brandBar strong {
-  font-size: 18px;
-  font-weight: 500;
+.brandLockup {
+  flex: 0 0 auto;
 }
 
-.brandBar span {
+.brandBar > [data-oracle-trial-identity] {
   font: 500 10px/1.3 var(--fv-font-mono);
   letter-spacing: 0.025em;
   text-transform: uppercase;

@@ -1,0 +1,62 @@
+.lockup {
+  display: inline-flex;
+  align-items: center;
+  gap: 14px;
+  white-space: nowrap;
+}
+
+.actuator {
+  --fv-actuator-size: 32px;
+}
+
+.wordmark {
+  display: flex;
+  align-items: flex-start;
+  height: 38px;
+  color: currentColor;
+  font: 400 32px/38px var(--fv-font-sans);
+  letter-spacing: -0.8px;
+}
+
+.face,
+.wordSpace,
+.customV {
+  margin-right: -1px;
+}
+
+.wordSpace {
+  flex: 0 0 auto;
+  width: 7px;
+  height: 38px;
+}
+
+.customV {
+  position: relative;
+  flex: 0 0 auto;
+  width: 17px;
+  height: 38px;
+}
+
+.customV > span {
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+
+.customV > i {
+  position: absolute;
+  top: 25px;
+  left: 7px;
+  width: 4px;
+  height: 1.5px;
+  border-radius: 0.75px;
+  background: currentColor;
+}
+
+.ink {
+  color: var(--fv-brand-text-primary);
+}
+
+.reverse {
+  color: var(--fv-brand-warm-white);
+}
