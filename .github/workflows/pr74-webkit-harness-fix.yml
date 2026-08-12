@@ -1,0 +1,55 @@
+name: PR74 WebKit harness fix
+
+on:
+  push:
+    branches:
+      - agent/result-experience
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/result-experience
+          fetch-depth: 0
+
+      - name: Stabilize same-origin storage seeding
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          replacements = {
+              Path('e2e/first-trial-ingestion.spec.ts'): (
+                  """async function openFreshTrial(page: Page): Promise<void> {\n  await page.goto('/');\n  await page.evaluate((key) => localStorage.removeItem(key), STORAGE_KEY);\n  await page.reload();\n  await expect(page.locator('[data-fv-screen=\"welcome\"]')).toBeVisible();\n}\n""",
+                  """async function openFreshTrial(page: Page): Promise<void> {\n  await page.goto('/favicon.svg');\n  await page.evaluate((key) => localStorage.removeItem(key), STORAGE_KEY);\n  await page.goto('/');\n  await expect(page.locator('[data-fv-screen=\"welcome\"]')).toBeVisible();\n}\n""",
+              ),
+              Path('e2e/home-verdict.spec.ts'): (
+                  """async function loadState(\n  page: Page,\n  state: ReturnType<typeof completedState> | ReturnType<typeof revealState>,\n) {\n  await page.goto('/');\n  await page.evaluate(({ key, value }) => localStorage.setItem(key, JSON.stringify(value)), {\n    key: STORAGE_KEY,\n    value: state,\n  });\n  await page.reload();\n}\n""",
+                  """async function loadState(\n  page: Page,\n  state: ReturnType<typeof completedState> | ReturnType<typeof revealState>,\n) {\n  await page.goto('/favicon.svg');\n  await page.evaluate(({ key, value }) => localStorage.setItem(key, JSON.stringify(value)), {\n    key: STORAGE_KEY,\n    value: state,\n  });\n  await page.goto('/');\n}\n""",
+              ),
+          }
+
+          for path, (old, new) in replacements.items():
+              text = path.read_text()
+              if old not in text:
+                  raise SystemExit(f'Expected helper not found in {path}')
+              path.write_text(text.replace(old, new, 1))
+          PY
+
+          git diff --check
+          actual="$(git diff --name-only | sort)"
+          expected="$(printf '%s\n' e2e/first-trial-ingestion.spec.ts e2e/home-verdict.spec.ts | sort)"
+          test "$actual" = "$expected" || { echo "Unexpected changed files:"; printf '%s\n' "$actual"; exit 1; }
+
+      - name: Commit bounded test-harness correction
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add e2e/first-trial-ingestion.spec.ts e2e/home-verdict.spec.ts
+          git commit -m "test: stabilize WebKit fixture storage seeding"
+          git push origin HEAD:agent/result-experience
