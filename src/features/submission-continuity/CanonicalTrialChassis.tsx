@@ -32,17 +32,17 @@ export function CanonicalTrialChassis({
   useLayoutEffect(() => {
     const root = rootRef.current;
     if (!root) return;
-    const machine = root.querySelector<HTMLElement>('[data-oracle-machine]');
-    const target = root.querySelector<HTMLElement>('[data-oracle-trial-display]');
-    if (machine) {
-      machine.setAttribute('aria-label', ariaLabel);
-      machine.setAttribute('data-canonical-trial-mode', mode);
-    }
-    setDisplay(target);
-  }, [ariaLabel, mode]);
+    setDisplay(root.querySelector<HTMLElement>('[data-oracle-trial-display]'));
+  }, [mode]);
 
   return (
-    <div ref={rootRef} className={styles.root} data-canonical-trial-chassis={mode}>
+    <div
+      ref={rootRef}
+      className={styles.root}
+      data-canonical-trial-chassis={mode}
+      role="group"
+      aria-label={ariaLabel}
+    >
       <OracleTrialStateMachine
         state="pending"
         product={product}
