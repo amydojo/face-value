@@ -82,7 +82,12 @@ async function expectGuidedQualityReady(page: Page): Promise<void> {
 }
 
 async function takeGuidedCapture(page: Page, kind: 'baseline' | 'followup'): Promise<void> {
-  await expect(page.getByRole('heading', { name: 'Position your face' })).toBeVisible();
+  const readyLabel = kind === 'baseline' ? 'Ready for your baseline' : 'Ready for your follow-up';
+  await expect(page.getByRole('heading', { name: readyLabel })).toBeVisible();
+  await expect(
+    page.getByText('Start guided capture below. We’ll ask for camera access first.'),
+  ).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Position your face' })).toHaveCount(0);
   await expect(page.getByRole('checkbox')).toHaveCount(0);
   await expect(
     page.getByRole('button', { name: /shutter|take photo|use this capture/i }),
@@ -181,7 +186,11 @@ for (const scenario of cases) {
     await takeGuidedCapture(page, 'baseline');
     expect(analysisAcceptances).toHaveLength(3);
     expect(analysisAcceptances.every((entry) => entry.includes('baseline'))).toBe(true);
-    await expect(page.getByRole('heading', { name: 'Baseline locked.' })).toBeVisible();
+    const baselineLocked = page.locator('[data-fv-screen="baseline-locked"]');
+    await expect(baselineLocked.getByText('BASELINE LOCKED', { exact: true })).toBeVisible();
+    await expect(
+      baselineLocked.getByRole('heading', { name: 'That’s everything for today.' }),
+    ).toBeVisible();
     await expect(
       page.getByRole('button', { name: /take follow-up|continue|compare/i }),
     ).toHaveCount(0);
@@ -240,11 +249,8 @@ for (const scenario of cases) {
     await takeGuidedCapture(page, 'followup');
     expect(analysisAcceptances).toHaveLength(6);
     expect(analysisAcceptances.slice(3).every((entry) => entry.includes('followup'))).toBe(true);
-    await expect(
-      page.getByRole('heading', {
-        name: 'Comparing against your baseline…',
-      }),
-    ).toBeVisible();
+    await expect(page.getByText('COMPARING', { exact: true })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Baseline ↔ follow-up' })).toBeVisible();
     await expect(page.getByRole('heading', { name: 'The result is in.' })).toBeVisible({
       timeout: 1_500,
     });
@@ -365,43 +371,27 @@ for (const scenario of cases) {
     );
     await expect(page.getByLabel('Result recommendation').locator(':scope > p')).toBeVisible();
     await expect(page.locator('[data-firmware-state="resolved"]')).toContainText('TEST LONGER');
-    await expect(page.locator('[data-oracle-keep-action="text"]')).toBeVisible();
-    await expect(
-      page.getByRole('button', {
-        name: 'Keep this result',
-        exact: true,
-      }),
-    ).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Keep this result', exact: true })).toHaveCount(0);
+    const saveResult = page.getByRole('button', { name: 'Save result', exact: true });
+    await expect(saveResult).toBeVisible();
     await expect(page.getByText(/P1 · Test longer/i)).toBeHidden();
     await assertNoHorizontalOverflow(page);
     await saveScreenshot(page, testInfo, scenario.captureEvidence, 'phase-b5-one-reveal');
 
-    await page.getByRole('button', { name: 'SEE WHY' }).click();
-    await expect(
-      page
-        .locator('#oracle-why')
-        .getByText(
-          'The trial window is not complete. Keep the predeclared schedule before judging this product job.',
-        ),
-    ).toBeVisible();
+    const whyResult = page.getByRole('button', { name: 'WHY THIS RESULT', exact: true });
+    await whyResult.click();
+    const whyPanel = page.locator('#continuity-why-result');
+    await expect(whyPanel).toBeVisible();
+    await expect(whyPanel.getByText('CHANGE', { exact: true })).toBeVisible();
+    await expect(whyPanel.getByText('COMPARISON', { exact: true })).toBeVisible();
+    await expect(whyPanel.getByText('EVIDENCE', { exact: true })).toBeVisible();
+    await expect(whyPanel).toContainText('Visible redness only.');
 
-    const amber = page.getByRole('button', {
-      name: 'Keep this result',
-      exact: true,
-    });
-    await amber.evaluate((element) => {
-      (element as HTMLButtonElement).click();
-      (element as HTMLButtonElement).click();
-    });
+    await saveResult.click();
     await expect(machine).toHaveAttribute('data-oracle-state', 'dispensing', {
       timeout: scenario.reducedMotion ? 1_000 : 2_000,
     });
-    await expect(
-      page.getByRole('button', {
-        name: 'Keep this result',
-        exact: true,
-      }),
-    ).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Save result', exact: true })).toHaveCount(0);
     const paper = page.locator('[data-oracle-paper]');
     await expect(paper).toHaveAttribute('data-paper-position', 'final', {
       timeout: scenario.reducedMotion ? 1_000 : 2_000,
