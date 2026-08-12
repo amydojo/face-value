@@ -95,6 +95,7 @@ export function ProductRegistration({
             <span>Strength (%) · optional</span>
             <input
               name="strength"
+              aria-label="Strength or concentration"
               inputMode="decimal"
               value={value.strength ?? ''}
               disabled={disabled}
@@ -106,6 +107,7 @@ export function ProductRegistration({
             <span>Volume (ml) · optional</span>
             <input
               name="volume"
+              aria-label="Volume"
               inputMode="decimal"
               value={value.volume ?? ''}
               disabled={disabled}
