@@ -22,14 +22,16 @@ section[data-fv-screen='baseline-locked']:has([data-continuity-machine-replaceme
   margin-inline: auto;
 }
 
-/* Trial Truth remains physically inside the Oracle glass, but its real form controls must sit above decorative glass layers in WebKit hit testing. */
-[data-oracle-trial-truth-firmware] {
-  z-index: 10 !important;
-  pointer-events: auto;
+/* Trial Truth remains physically inside the Oracle glass. The glass itself is decorative while this cassette is interactive, so WebKit must hit-test the firmware controls rather than the parent glass surface. */
+[data-oracle-machine][data-cassette-variant='trial-truth'] [data-oracle-display-glass] {
+  pointer-events: none;
 }
 
-[data-oracle-trial-truth-firmware] [data-trial-truth-firmware-view] {
-  z-index: 11;
+[data-oracle-machine][data-cassette-variant='trial-truth'] [data-oracle-trial-truth-firmware],
+[data-oracle-machine][data-cassette-variant='trial-truth']
+  [data-oracle-trial-truth-firmware]
+  [data-trial-truth-firmware-view] {
+  z-index: 11 !important;
   pointer-events: auto;
 }
 
@@ -133,10 +135,13 @@ section[data-fv-screen='baseline-locked']:has([data-continuity-machine-replaceme
   display: none !important;
 }
 
-/* Preserve the operation-status footprint during dispense so #73 paper geometry does not jump; its obsolete copy remains nonvisual. */
-[data-oracle-scene-state='dispensing'] [data-oracle-operation-status] {
+/* Preserve the operation-status footprint during dispense so #73 paper geometry does not jump; obsolete copy remains nonvisual. This selector intentionally outranks the continuity-module hide rule. */
+section[data-fv-screen='oracle-reveal'][data-oracle-scene-state='dispensing']:has(
+    [data-continuity-oracle-lead]
+  )
+  > section[data-oracle-operation-status] {
+  display: grid !important;
   visibility: hidden !important;
-  display: block !important;
 }
 
 /* One small assistive marker preserves the old navigation assertion without restoring the rejected cream detail dump. */
