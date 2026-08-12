@@ -7,6 +7,7 @@ import styles from './CanonicalTrialChassis.module.css';
 
 export type CanonicalTrialMode =
   | 'baseline-context'
+  | 'followup-context'
   | 'baseline-locked'
   | 'comparison';
 
