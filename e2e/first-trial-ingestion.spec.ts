@@ -77,9 +77,9 @@ function collectRuntimeIssues(page: Page): RuntimeIssue[] {
 }
 
 async function openFreshTrial(page: Page): Promise<void> {
-  await page.goto('/');
+  await page.goto('/favicon.svg');
   await page.evaluate((key) => localStorage.removeItem(key), STORAGE_KEY);
-  await page.reload();
+  await page.goto('/');
   await expect(page.locator('[data-fv-screen="welcome"]')).toBeVisible();
 }
 

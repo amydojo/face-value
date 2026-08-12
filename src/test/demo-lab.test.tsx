@@ -392,19 +392,18 @@ describe('Demo Lab controls and production-screen reuse', () => {
   });
 
   it.each([
-    ['saved_result', 'false', 'false', false],
-    ['evidence_record_reasoning_expanded', 'true', 'false', false],
-    ['evidence_record_full_technical_expanded', 'false', 'true', true],
+    ['saved_result', 'result'],
+    ['evidence_record_reasoning_expanded', 'evidence'],
+    ['evidence_record_full_technical_expanded', 'provider'],
   ] as const)(
-    'opens %s through the real production Evidence Record',
-    (startingPoint, whyExpanded, fullExpanded, technicalExpanded) => {
+    'opens %s through the real production result experience',
+    (startingPoint, expectedLayer) => {
       const state = buildDemoFixtureState(startingPoint, 'clear_favorable_change');
       const record = state.record;
       if (!record?.rednessEvaluation) {
         throw new Error('Expected a saved canonical demo record.');
       }
       const snapshotBeforeRender = structuredClone(record.rednessEvaluation);
-      const verdict = verdictViewModelFromRecord(record);
 
       render(
         <FaceValueContext.Provider
@@ -423,22 +422,19 @@ describe('Demo Lab controls and production-screen reuse', () => {
         </FaceValueContext.Provider>,
       );
 
-      expect(screen.getByRole('heading', { name: 'Evidence record' })).toBeVisible();
-      expect(screen.getAllByText(verdict.headline).length).toBeGreaterThan(0);
-      expect(
-        screen.getByRole('button', { name: /Why Face Value reached this result/i }),
-      ).toHaveAttribute('aria-expanded', whyExpanded);
-      expect(screen.getByRole('button', { name: /Full evidence record/i })).toHaveAttribute(
-        'aria-expanded',
-        fullExpanded,
+      expect(screen.getByLabelText('Face Value saved result')).toHaveAttribute(
+        'data-current-layer',
+        expectedLayer,
       );
-      if (technicalExpanded) {
-        expect(screen.getByText('Technical metadata').closest('details')).toHaveAttribute(
-          'open',
-        );
-        expect(screen.getAllByText('Configuration hash')).toHaveLength(2);
+      if (expectedLayer === 'result') {
+        expect(screen.getByRole('heading', { name: 'Visible redness' })).toBeVisible();
+        expect(screen.getByRole('button', { name: 'Open evidence record' })).toBeVisible();
+      } else if (expectedLayer === 'evidence') {
+        expect(screen.getByRole('dialog', { name: 'Evidence record' })).toBeVisible();
+      } else {
+        expect(screen.getByRole('heading', { name: 'Provider details' })).toBeVisible();
+        expect(screen.getByText('Baseline median')).toBeVisible();
       }
-      expect(screen.getByRole('button', { name: 'View previous trials' })).toBeVisible();
       expect(record.rednessEvaluation).toEqual(snapshotBeforeRender);
     },
   );
