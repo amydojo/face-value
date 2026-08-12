@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ElementType } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useState, type ElementType } from 'react';
 import { createPortal } from 'react-dom';
 import { systemClock } from '../../adapters/clock/clock';
 import { useFaceValue } from '../../app/faceValueContext';
@@ -58,18 +58,15 @@ export function SubmissionContinuityOverlay() {
   const [targets, setTargets] = useState<PortalTargets>(emptyTargets);
   const [whyOpen, setWhyOpen] = useState(false);
 
-  useEffect(() => {
-    const frame = window.requestAnimationFrame(() => {
-      setTargets({
-        oracleScene: document.querySelector<HTMLElement>('[data-fv-screen="oracle-reveal"]'),
-        lowerDeck: document.querySelector<HTMLElement>('[data-oracle-lower-deck]'),
-        comparison: document.querySelector<HTMLElement>('[data-fv-screen="comparing"]'),
-        trialDisplay: document.querySelector<HTMLElement>('[data-oracle-trial-display]'),
-        baselineLocked: document.querySelector<HTMLElement>('[data-fv-screen="baseline-locked"]'),
-        trialTruthFirmware: document.querySelector<HTMLElement>('[data-oracle-trial-truth-firmware]'),
-      });
+  useLayoutEffect(() => {
+    setTargets({
+      oracleScene: document.querySelector<HTMLElement>('[data-fv-screen="oracle-reveal"]'),
+      lowerDeck: document.querySelector<HTMLElement>('[data-oracle-lower-deck]'),
+      comparison: document.querySelector<HTMLElement>('[data-fv-screen="comparing"]'),
+      trialDisplay: document.querySelector<HTMLElement>('[data-oracle-trial-display]'),
+      baselineLocked: document.querySelector<HTMLElement>('[data-fv-screen="baseline-locked"]'),
+      trialTruthFirmware: document.querySelector<HTMLElement>('[data-oracle-trial-truth-firmware]'),
     });
-    return () => window.cancelAnimationFrame(frame);
   }, [state.stage, state.oracleRevealState, state.demoTimelineAdvanced]);
 
   useEffect(() => {
@@ -92,7 +89,6 @@ export function SubmissionContinuityOverlay() {
     viewEvidence.addEventListener('click', openEvidenceRecord, true);
     viewEvidence.removeAttribute('aria-expanded');
     viewEvidence.removeAttribute('aria-controls');
-    viewEvidence.setAttribute('aria-label', 'Open evidence record');
     return () => viewEvidence.removeEventListener('click', openEvidenceRecord, true);
   }, [dispatch, state.oracleRevealState, state.record]);
 
