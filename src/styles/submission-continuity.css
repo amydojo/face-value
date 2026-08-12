@@ -1,0 +1,454 @@
+/* Submission continuity hardening. Presentation only: no trial/evidence authority lives here. */
+
+/* Active instrument states live on the warm light bench. */
+main[data-fv-tone='dark']:has([data-fv-screen='comparing']),
+main[data-fv-tone='dark']:has(
+    [data-fv-screen='oracle-reveal'][data-oracle-scene-state]:not([data-oracle-scene-state='collected'])
+  ) {
+  color: var(--fv-text-on-light);
+  background:
+    radial-gradient(circle at 50% 12%, rgba(255, 255, 255, 0.72), transparent 38%),
+    var(--fv-surface-chassis);
+}
+
+main[data-fv-tone='dark']:has([data-fv-screen='comparing']) [data-fv-part='screen-header'],
+main[data-fv-tone='dark']:has(
+    [data-fv-screen='oracle-reveal'][data-oracle-scene-state]:not([data-oracle-scene-state='collected'])
+  )
+  [data-fv-part='screen-header'] {
+  color: var(--fv-text-on-light);
+  border-color: rgba(62, 54, 45, 0.2);
+}
+
+main[data-fv-tone='dark']:has([data-fv-screen='comparing']) [data-face-value-brand-lockup],
+main[data-fv-tone='dark']:has(
+    [data-fv-screen='oracle-reveal'][data-oracle-scene-state]:not([data-oracle-scene-state='collected'])
+  )
+  [data-face-value-brand-lockup] {
+  color: var(--fv-text-on-light) !important;
+}
+
+/* Baseline completion becomes a cassette-like instrument state rather than a detached card. */
+section[data-fv-screen='baseline-locked'] {
+  width: min(100%, 376px);
+  min-height: 430px;
+  align-content: start;
+  gap: 14px;
+  margin: 14px auto 0;
+  padding: 18px;
+  border: 1px solid rgba(185, 178, 165, 0.2);
+  border-radius: 19px 19px 14px 14px;
+  color: #eee9df;
+  background:
+    radial-gradient(ellipse at 70% 16%, rgba(143, 96, 50, 0.16), transparent 31%),
+    linear-gradient(180deg, #171614, #0d0d0c 54%, #060606);
+  box-shadow:
+    0 24px 44px rgba(39, 31, 23, 0.2),
+    inset 0 1px rgba(238, 233, 223, 0.055),
+    inset 0 -18px 28px rgba(0, 0, 0, 0.26);
+}
+
+section[data-fv-screen='baseline-locked'] > p:first-child {
+  margin: 0;
+  color: #c87920;
+  font: 650 9px/1.3 var(--fv-font-mono);
+  letter-spacing: 0.09em;
+}
+
+section[data-fv-screen='baseline-locked'] > h1 {
+  color: #f0ebe2;
+  font-size: clamp(27px, 8vw, 34px);
+  text-transform: uppercase;
+}
+
+section[data-fv-screen='baseline-locked'] > h1 + p {
+  margin: 0;
+  color: #bdb6aa;
+  font-size: 12px;
+}
+
+section[data-fv-screen='baseline-locked'] > h1 + p::before {
+  display: block;
+  margin-bottom: 9px;
+  color: #ebe5da;
+  font: 600 10px/1.55 var(--fv-font-mono);
+  letter-spacing: 0.035em;
+  white-space: pre-line;
+  content: 'THAT’S EVERYTHING FOR TODAY.\A KEEP USING THIS PRODUCT.';
+}
+
+section[data-fv-screen='baseline-locked'] > button:last-child {
+  margin-top: auto;
+  border-color: rgba(200, 121, 32, 0.44);
+  color: #efe9de;
+  background: rgba(200, 121, 32, 0.08);
+}
+
+/* Pending/ready states: the cassette answers where the user is and what to do. */
+section[data-fv-screen='trial-pending'] [data-continuity-status],
+section[data-fv-screen='followup-ready'] [data-continuity-status] {
+  display: none;
+}
+
+[data-oracle-trial-display][data-trial-state='pending'] > header > span:last-child,
+[data-oracle-trial-display][data-trial-state='followup-ready'] > header > span:last-child {
+  display: none;
+}
+
+[data-oracle-trial-display][data-trial-state='pending'] > header + div,
+[data-oracle-trial-display][data-trial-state='followup-ready'] > header + div {
+  width: 55%;
+}
+
+[data-oracle-trial-display][data-trial-state='pending'] > header + div > span,
+[data-oracle-trial-display][data-trial-state='pending'] > header + div > strong,
+[data-oracle-trial-display][data-trial-state='pending'] > header + div > p > span,
+[data-oracle-trial-display][data-trial-state='pending'] > header + div > p > b,
+[data-oracle-trial-display][data-trial-state='followup-ready'] > header + div > span,
+[data-oracle-trial-display][data-trial-state='followup-ready'] > header + div > strong,
+[data-oracle-trial-display][data-trial-state='followup-ready'] > header + div > p > span,
+[data-oracle-trial-display][data-trial-state='followup-ready'] > header + div > p > b {
+  font-size: 0 !important;
+}
+
+[data-oracle-trial-display][data-trial-state='pending'] > header + div > span::after {
+  color: #9d978d;
+  font: 600 6px/1.3 var(--fv-font-mono);
+  letter-spacing: 0.11em;
+  content: 'CASE STATUS';
+}
+
+[data-oracle-trial-display][data-trial-state='pending'] > header + div > strong::after {
+  color: #ebe4d7;
+  font: 650 14px/1.05 var(--fv-font-mono);
+  content: 'IN PROGRESS';
+}
+
+[data-oracle-trial-display][data-trial-state='pending'] > header + div > p > span::after {
+  color: #9d978d;
+  font: 600 6px/1.3 var(--fv-font-mono);
+  letter-spacing: 0.11em;
+  content: 'NOW';
+}
+
+[data-oracle-trial-display][data-trial-state='pending'] > header + div > p > b::after {
+  color: #cfc7ba;
+  font: 600 8px/1.18 var(--fv-font-mono);
+  content: 'KEEP USING THIS PRODUCT';
+}
+
+[data-oracle-trial-display][data-trial-state='followup-ready'] > header + div > span::after {
+  color: #d18a3b;
+  font: 600 6px/1.3 var(--fv-font-mono);
+  letter-spacing: 0.11em;
+  content: 'CASE STATUS';
+}
+
+[data-oracle-trial-display][data-trial-state='followup-ready'] > header + div > strong::after {
+  color: #f0e9dd;
+  font: 680 13px/1.05 var(--fv-font-mono);
+  content: 'FOLLOW-UP READY';
+}
+
+[data-oracle-trial-display][data-trial-state='followup-ready'] > header + div > p > span::after {
+  color: #d18a3b;
+  font: 600 6px/1.3 var(--fv-font-mono);
+  letter-spacing: 0.11em;
+  content: 'NOW';
+}
+
+[data-oracle-trial-display][data-trial-state='followup-ready'] > header + div > p > b::after {
+  color: #efe7da;
+  font: 650 8px/1.18 var(--fv-font-mono);
+  content: 'TAKE YOUR FOLLOW-UP SCAN';
+}
+
+[data-oracle-trial-display][data-trial-state='pending'] > footer > span,
+[data-oracle-trial-display][data-trial-state='followup-ready'] > footer > span {
+  font-size: 0 !important;
+}
+
+[data-oracle-trial-display][data-trial-state='pending'] > footer > span::after,
+[data-oracle-trial-display][data-trial-state='followup-ready'] > footer > span::after {
+  font: 600 6px/1.3 var(--fv-font-mono);
+  letter-spacing: 0.1em;
+  content: 'TRIAL DAY';
+}
+
+[data-followup-action='pending'] > i:last-child {
+  display: none;
+}
+
+[data-followup-action='pending'] {
+  cursor: default;
+}
+
+[data-followup-action='ready'] strong {
+  font-size: 0 !important;
+}
+
+[data-followup-action='ready'] strong::after {
+  font-size: 14px;
+  content: 'START FOLLOW-UP SCAN';
+}
+
+/* Comparison remains a physical processing surface. */
+section[data-fv-screen='comparing'] {
+  position: relative;
+  width: min(100%, 376px);
+  min-height: 390px;
+  align-content: center;
+  gap: 18px;
+  margin: 14px auto 0;
+  padding: 26px 22px;
+  overflow: hidden;
+  border: 1px solid rgba(185, 178, 165, 0.18);
+  border-radius: 19px 19px 14px 14px;
+  color: #eee9df;
+  background:
+    radial-gradient(ellipse at 68% 24%, rgba(148, 98, 48, 0.15), transparent 32%),
+    linear-gradient(180deg, #171614, #0d0d0c 54%, #060606);
+  box-shadow:
+    0 24px 44px rgba(39, 31, 23, 0.2),
+    inset 0 1px rgba(238, 233, 223, 0.055),
+    inset 0 -18px 28px rgba(0, 0, 0, 0.26);
+}
+
+section[data-fv-screen='comparing'] > p:first-child {
+  color: #c87920;
+  font-size: 0 !important;
+}
+
+section[data-fv-screen='comparing'] > p:first-child::after {
+  font: 650 9px/1.3 var(--fv-font-mono);
+  letter-spacing: 0.09em;
+  content: 'COMPARING';
+}
+
+section[data-fv-screen='comparing'] > h1 {
+  color: #efe9df;
+  font-size: 0 !important;
+}
+
+section[data-fv-screen='comparing'] > h1::after {
+  display: block;
+  font: 500 clamp(26px, 7.5vw, 34px)/1.02 var(--fv-font-sans);
+  letter-spacing: -0.03em;
+  content: 'Baseline ↔ follow-up';
+}
+
+section[data-fv-screen='comparing'] > p:last-child {
+  color: #a9a298;
+  font-size: 11px;
+}
+
+/* Reveal/save copy hierarchy: the machine is the primary storyteller. */
+[data-fv-screen='oracle-reveal'][data-oracle-scene-state='sealed'] > div:first-child > p,
+[data-fv-screen='oracle-reveal'][data-oracle-scene-state='sealed'] > div:first-child > h1,
+[data-fv-screen='oracle-reveal'][data-oracle-scene-state='committing'] > div:first-child > h1,
+[data-fv-screen='oracle-reveal'][data-oracle-scene-state='dispensing'] > div:first-child > h1 {
+  font-size: 0 !important;
+}
+
+[data-fv-screen='oracle-reveal'][data-oracle-scene-state='sealed'] > div:first-child > p::after {
+  color: #6f675d;
+  font: 650 9px/1.3 var(--fv-font-mono);
+  letter-spacing: 0.08em;
+  content: 'COMPARISON COMPLETE';
+}
+
+[data-fv-screen='oracle-reveal'][data-oracle-scene-state='sealed'] > div:first-child > h1::after {
+  display: block;
+  color: #29241e;
+  font: 500 clamp(28px, 8vw, 35px)/1 var(--fv-font-sans);
+  letter-spacing: -0.03em;
+  content: 'Your result is sealed.';
+}
+
+[data-fv-screen='oracle-reveal'][data-oracle-scene-state='verdict_revealed'] > div:first-child > p {
+  color: #6f675d;
+  font-size: 0 !important;
+}
+
+[data-fv-screen='oracle-reveal'][data-oracle-scene-state='verdict_revealed'] > div:first-child > p::after {
+  font: 650 9px/1.3 var(--fv-font-mono);
+  letter-spacing: 0.08em;
+  content: 'RESULT';
+}
+
+[data-fv-screen='oracle-reveal'][data-oracle-scene-state='verdict_revealed'] > div:first-child > h1 {
+  color: #29241e;
+}
+
+[data-fv-screen='oracle-reveal'][data-oracle-scene-state='committing'] > div:first-child > p,
+[data-fv-screen='oracle-reveal'][data-oracle-scene-state='dispensing'] > div:first-child > p {
+  color: #6f675d;
+  font-size: 0 !important;
+}
+
+[data-fv-screen='oracle-reveal'][data-oracle-scene-state='committing'] > div:first-child > p::after,
+[data-fv-screen='oracle-reveal'][data-oracle-scene-state='dispensing'] > div:first-child > p::after {
+  font: 650 9px/1.3 var(--fv-font-mono);
+  letter-spacing: 0.08em;
+  content: 'SAVING RESULT';
+}
+
+[data-oracle-keep-action='text'],
+[data-oracle-scene-state='verdict_revealed'] [data-oracle-handle]:disabled {
+  display: none !important;
+}
+
+[data-oracle-scene-state='verdict_revealed'] [data-oracle-keep-action='hardware'] {
+  right: 4.8%;
+  width: 166px;
+  min-width: 166px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 0 7px 0 12px;
+  border: 1px solid rgba(200, 121, 32, 0.42);
+  border-radius: 10px;
+  background: linear-gradient(180deg, #181611, #0a0a09);
+  box-shadow:
+    inset 0 1px rgba(235, 226, 210, 0.055),
+    0 3px 5px rgba(0, 0, 0, 0.58);
+}
+
+[data-oracle-scene-state='verdict_revealed'] [data-oracle-keep-action='hardware']::before {
+  margin-right: auto;
+  color: #eee6da;
+  font: 650 8px/1.2 var(--fv-font-mono);
+  letter-spacing: 0.075em;
+  content: 'SAVE RESULT';
+}
+
+[data-oracle-scene-state='verdict_revealed'] button[aria-controls='oracle-next-step-options'],
+[data-oracle-scene-state='verdict_revealed'] #oracle-next-step-options {
+  display: none !important;
+}
+
+[data-oracle-scene-state='verdict_revealed'] button[aria-controls='oracle-why'] {
+  font-size: 0 !important;
+}
+
+[data-oracle-scene-state='verdict_revealed'] button[aria-controls='oracle-why'] > span:first-child::after {
+  font-size: 11px;
+  content: 'WHY THIS RESULT';
+}
+
+[data-oracle-scene-state='committing'] [role='status'],
+[data-oracle-scene-state='dispensing'] [data-oracle-operation-status] {
+  margin-top: -8px;
+}
+
+[data-oracle-scene-state='committing'] [role='status'] > strong {
+  font-size: 0 !important;
+}
+
+[data-oracle-scene-state='committing'] [role='status'] > strong::after {
+  font-size: 12px;
+  content: 'Converting this experiment into a saved record.';
+}
+
+[data-oracle-scene-state='dispensing'] [data-oracle-operation-status] > p,
+[data-oracle-scene-state='dispensing'] [data-oracle-operation-status] > strong {
+  font-size: 0 !important;
+}
+
+[data-oracle-scene-state='dispensing'] [data-oracle-operation-status][data-collection-started='false'] > p::after {
+  font: 650 9px/1.3 var(--fv-font-mono);
+  content: 'EVIDENCE READY';
+}
+
+[data-oracle-scene-state='dispensing'] [data-oracle-operation-status][data-collection-started='false'] > strong::after {
+  font-size: 12px;
+  content: 'TAKE YOUR RECORD';
+}
+
+/* Collected evidence is now archive, not operating bench. */
+[data-fv-screen='oracle-reveal'][data-oracle-scene-state='collected'] {
+  color: var(--fv-text-on-dark);
+}
+
+/* Explicit record navigation: never disguise history as the brand. */
+[data-fv-screen='saved-result'] [data-result-layer='result'] [data-fv-part='screen-header'] > button:first-child {
+  min-width: 128px;
+  color: inherit;
+  font-size: 0 !important;
+  text-align: left;
+}
+
+[data-fv-screen='saved-result'] [data-result-layer='result'] [data-fv-part='screen-header'] > button:first-child::after {
+  font: 600 9px/1.3 var(--fv-font-mono);
+  letter-spacing: 0.03em;
+  content: '← PREVIOUS TRIALS';
+}
+
+[data-result-layer='technical'] > header > button:first-child,
+[data-technical-detail] > header > button:first-child {
+  width: auto !important;
+  min-width: 120px;
+  justify-content: flex-start;
+  gap: 5px;
+  font-size: 0 !important;
+}
+
+[data-result-layer='technical'] > header > button:first-child::after {
+  font: 600 9px/1.3 var(--fv-font-mono);
+  content: '← EVIDENCE RECORD';
+}
+
+[data-technical-detail] > header > button:first-child::after {
+  font: 600 9px/1.3 var(--fv-font-mono);
+  content: '← TECHNICAL RECORD';
+}
+
+/* Give Demo Lab chrome a fixed lane that cannot sit on top of technical titles. */
+[data-demo-runtime-pill] {
+  top: max(8px, env(safe-area-inset-top)) !important;
+  right: max(8px, env(safe-area-inset-right)) !important;
+  max-width: 104px;
+  white-space: nowrap;
+}
+
+[data-fv-screen='saved-result'][data-current-layer='technical'] > section > header,
+[data-fv-screen='saved-result'][data-current-layer='provider'] > section > header,
+[data-fv-screen='saved-result'][data-current-layer='capture'] > section > header,
+[data-fv-screen='saved-result'][data-current-layer='evaluation'] > section > header,
+[data-fv-screen='saved-result'][data-current-layer='exclusions'] > section > header {
+  padding-right: 110px;
+}
+
+@media (max-width: 390px) {
+  section[data-fv-screen='baseline-locked'],
+  section[data-fv-screen='comparing'] {
+    margin-top: 9px;
+  }
+
+  [data-oracle-trial-display][data-trial-state='pending'] > header + div,
+  [data-oracle-trial-display][data-trial-state='followup-ready'] > header + div {
+    width: 53%;
+  }
+
+  [data-oracle-scene-state='verdict_revealed'] [data-oracle-keep-action='hardware'] {
+    width: 154px;
+    min-width: 154px;
+  }
+
+  [data-fv-screen='saved-result'][data-current-layer='technical'] > section > header,
+  [data-fv-screen='saved-result'][data-current-layer='provider'] > section > header,
+  [data-fv-screen='saved-result'][data-current-layer='capture'] > section > header,
+  [data-fv-screen='saved-result'][data-current-layer='evaluation'] > section > header,
+  [data-fv-screen='saved-result'][data-current-layer='exclusions'] > section > header {
+    padding-right: 96px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-fv-screen='comparing'],
+  [data-oracle-scene-state] [data-oracle-machine],
+  [data-context-machine] {
+    scroll-behavior: auto;
+  }
+}
