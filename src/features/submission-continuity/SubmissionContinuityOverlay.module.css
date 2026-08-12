@@ -183,7 +183,12 @@
   letter-spacing: -0.03em;
 }
 
-:global([data-fv-screen='oracle-reveal']:has([data-continuity-oracle-lead])) > div:first-child {
+/* Sealed retains Oracle's original semantic nodes; submission-continuity.css already renders them as the approved COMPARISON COMPLETE / Your result is sealed. visual. */
+.revealLead[data-continuity-phase='sealed'] {
+  display: none !important;
+}
+
+:global([data-fv-screen='oracle-reveal']:has([data-continuity-oracle-lead][data-continuity-phase='dispensing'])) > div:first-child {
   display: none !important;
 }
 
