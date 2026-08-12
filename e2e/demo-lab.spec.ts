@@ -17,6 +17,16 @@ async function assertNoHorizontalOverflow(page: Page): Promise<void> {
   expect(overflow).toBeLessThanOrEqual(1);
 }
 
+async function expectCaptureReady(page: Page, kind: 'baseline' | 'follow-up'): Promise<void> {
+  await expect(
+    page.getByRole('heading', { name: `Ready for your ${kind}` }),
+  ).toBeVisible();
+  await expect(
+    page.getByText('Start guided capture below. We’ll ask for camera access first.'),
+  ).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Position your face' })).toHaveCount(0);
+}
+
 async function openPreview(
   page: Page,
   startingPoint: string,
@@ -268,7 +278,7 @@ test('pending and ready machine journeys preserve timing and chassis geometry ac
   await page.reload();
   await expect(page.locator('[data-trial-machine-state="followup-ready"]')).toBeVisible();
   await page.getByRole('button', { name: 'Take follow-up scan' }).click();
-  await expect(page.getByRole('heading', { name: 'Position your face' })).toBeVisible();
+  await expectCaptureReady(page, 'follow-up');
 });
 
 test('Evidence Record starting points resolve to the approved production inspection layers', async ({
@@ -347,11 +357,15 @@ test('core synthetic starting points open real production screens', async ({ pag
   await expect(page.getByRole('button', { name: 'TAKE GUIDED BASELINE' })).toBeEnabled();
 
   await openPreview(page, 'baseline_ready');
-  await expect(page.getByRole('heading', { name: 'Position your face' })).toBeVisible();
+  await expectCaptureReady(page, 'baseline');
   await expect(page.locator('[data-oracle-machine]')).toHaveCount(0);
 
   await openPreview(page, 'baseline_locked');
-  await expect(page.getByRole('heading', { name: 'Baseline locked.' })).toBeVisible();
+  const baselineLocked = page.locator('[data-fv-screen="baseline-locked"]');
+  await expect(baselineLocked.getByText('BASELINE LOCKED', { exact: true })).toBeVisible();
+  await expect(
+    baselineLocked.getByRole('heading', { name: 'That’s everything for today.' }),
+  ).toBeVisible();
   await expect(page.getByRole('button', { name: 'DONE' })).toBeVisible();
 
   await openPreview(page, 'trial_pending');
@@ -368,17 +382,10 @@ test('core synthetic starting points open real production screens', async ({ pag
   await expect(page.getByRole('button', { name: 'Take follow-up scan' })).toBeVisible();
 
   await openPreview(page, 'comparison_processing');
-  await expect(
-    page.getByRole('heading', {
-      name: 'Comparing against your baseline…',
-    }),
-  ).toBeVisible();
+  await expect(page.getByText('COMPARING', { exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Baseline ↔ follow-up' })).toBeVisible();
   await page.waitForTimeout(750);
-  await expect(
-    page.getByRole('heading', {
-      name: 'Comparing against your baseline…',
-    }),
-  ).toBeVisible();
+  await expect(page.getByText('COMPARING', { exact: true })).toBeVisible();
 
   await openPreview(page, 'verdict_ready');
   await expect(page.locator('[data-oracle-machine]')).toHaveAttribute(
