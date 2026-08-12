@@ -53,3 +53,9 @@
   color: rgba(238, 233, 223, 0.68);
   font-size: 12px;
 }
+
+/* WebKit must never let a centered inspection title steal the explicit back target. */
+[data-evidence-record] button[aria-label='Back to previous inspection layer'] {
+  position: relative;
+  z-index: 3;
+}
