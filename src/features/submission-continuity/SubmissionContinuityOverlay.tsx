@@ -71,7 +71,7 @@ export function SubmissionContinuityOverlay() {
   useLayoutEffect(() => {
     if (state.stage !== 'analysis' || state.oracleRevealState !== 'verdict_revealed') return;
     const canonicalCommit = document.querySelector<HTMLButtonElement>(
-      '[data-oracle-scene-state="verdict_revealed"] [data-oracle-keep-action="hardware"]',
+      '[data-oracle-keep-action="hardware"]',
     );
     if (!canonicalCommit) return;
     canonicalCommit.setAttribute('aria-label', 'Save result');
