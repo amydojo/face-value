@@ -45,7 +45,13 @@ const capArtworkClassByState = {
 } satisfies Record<FaceValueActuatorState, string>;
 
 function artwork(src: string) {
-  return <img className={styles.artwork} src={src} alt="" draggable={false} />;
+  return (
+    <span
+      className={styles.artwork}
+      style={{ backgroundImage: `url("${src}")` }}
+      aria-hidden="true"
+    />
+  );
 }
 
 export function FaceValueActuator({
