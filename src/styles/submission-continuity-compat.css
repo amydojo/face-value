@@ -65,7 +65,7 @@
  * click/haptic path. Only its transparent button hit region grows leftward so
  * the associated SAVE RESULT label and amber cap behave as one mobile target.
  */
-[data-oracle-scene-state='verdict_revealed'] [data-oracle-keep-action='hardware'] {
+[data-oracle-keep-action='hardware'][data-amber-state='ready'] {
   right: 4.8%;
   width: 166px;
   min-width: 166px;
@@ -78,7 +78,7 @@
   box-shadow: none !important;
 }
 
-[data-oracle-scene-state='verdict_revealed'] [data-oracle-keep-action='hardware']::before {
+[data-oracle-keep-action='hardware'][data-amber-state='ready']::before {
   position: absolute;
   top: 0;
   right: 58px;
