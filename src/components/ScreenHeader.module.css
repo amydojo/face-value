@@ -1,15 +1,21 @@
 .header {
   width: 100%;
-  min-height: 50px;
+  min-height: 44px;
   box-sizing: border-box;
   border-bottom: 1px solid var(--fv-rule-default);
 }
 
 .brandBar {
-  min-height: 50px;
+  min-height: 44px;
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 12px;
+}
+
+.header[data-header-size='standard'],
+.header[data-header-size='standard'] .brandBar {
+  min-height: 50px;
 }
 
 .brandLockup {
@@ -17,7 +23,7 @@
 }
 
 .brandBar > [data-oracle-trial-identity] {
-  font: 500 10px/1.3 var(--fv-font-mono);
+  font: 500 9px/1.3 var(--fv-font-mono);
   letter-spacing: 0.025em;
   text-transform: uppercase;
 }
