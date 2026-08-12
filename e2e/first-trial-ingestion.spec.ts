@@ -198,9 +198,12 @@ async function hardwareGeometry(page: Page) {
 async function workflowLayoutMetrics(page: Page) {
   return page.evaluate(() => {
     const rounded = (value: number) => Math.round(value * 100) / 100;
-    const bounds = (selector: string) => {
+    const elementFor = (selector: string) => {
       const element = document.querySelector<HTMLElement>(selector);
       if (!element) throw new Error(`Missing workflow element: ${selector}`);
+      return element;
+    };
+    const bounds = (element: HTMLElement) => {
       const box = element.getBoundingClientRect();
       return {
         x: rounded(box.x),
@@ -211,15 +214,30 @@ async function workflowLayoutMetrics(page: Page) {
         bottom: rounded(box.bottom),
       };
     };
-    const back = bounds('[data-first-trial-lead="product_registration"] button');
-    const machine = bounds('[data-oracle-machine]');
-    const panel = bounds('[data-registration-panel]');
+    const backElement = elementFor('[data-first-trial-lead="product_registration"] button');
+    const machineElement = elementFor('[data-oracle-machine]');
+    const panelElement = elementFor('[data-registration-panel]');
+    const back = bounds(backElement);
+    const machine = bounds(machineElement);
+    const panel = bounds(panelElement);
+    let visibleMachineBottom = machine.bottom;
+    let ancestor = machineElement.parentElement;
+    while (ancestor && ancestor !== document.body) {
+      const style = getComputedStyle(ancestor);
+      const clipsY = ['hidden', 'clip'].includes(style.overflowY) ||
+        ['hidden', 'clip'].includes(style.overflow);
+      if (clipsY) {
+        visibleMachineBottom = Math.min(visibleMachineBottom, ancestor.getBoundingClientRect().bottom);
+      }
+      ancestor = ancestor.parentElement;
+    }
     return {
       back,
       machine,
       panel,
+      visibleMachineBottom: rounded(visibleMachineBottom),
       backToMachine: rounded(machine.y - back.bottom),
-      machineToPanel: rounded(panel.y - machine.bottom),
+      machineToPanel: rounded(panel.y - visibleMachineBottom),
     };
   });
 }
@@ -665,7 +683,11 @@ test('one Oracle instrument accepts, loads, and releases one specimen to baselin
     action.click();
     action.click();
   });
-  await expect(page.getByRole('heading', { name: 'Position your face' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Ready for your baseline' })).toBeVisible();
+  await expect(
+    page.getByText('Start guided capture below. We’ll ask for camera access first.'),
+  ).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Position your face' })).toHaveCount(0);
   await expect(page.locator('[data-oracle-machine]')).toHaveCount(0);
   await expectNoHorizontalOverflow(page);
   await captureCheckpoint(page, '13-baseline-camera-entry.png');
