@@ -83,10 +83,10 @@ describe('submission continuity registration', () => {
     fireEvent.change(screen.getByLabelText('Product name'), {
       target: { value: 'Azelaic Topical Acid' },
     });
-    fireEvent.change(screen.getByLabelText('Strength (%) · optional'), {
+    fireEvent.change(screen.getByLabelText('Strength or concentration'), {
       target: { value: '10' },
     });
-    fireEvent.change(screen.getByLabelText('Volume (ml) · optional'), {
+    fireEvent.change(screen.getByLabelText('Volume'), {
       target: { value: '30' },
     });
 
