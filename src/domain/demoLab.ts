@@ -54,6 +54,12 @@ export const DEMO_STARTING_POINTS = [
     frequent: false,
   },
   {
+    id: 'baseline_context',
+    label: 'Baseline capture context',
+    description: 'Open baseline measurement qualification immediately after capture.',
+    frequent: false,
+  },
+  {
     id: 'baseline_locked',
     label: 'Baseline locked',
     description: 'Open the real locked-baseline completion state.',
@@ -63,6 +69,12 @@ export const DEMO_STARTING_POINTS = [
     id: 'trial_truth',
     label: 'Trial truth',
     description: 'Open the required evidence checkpoint after follow-up is secured.',
+    frequent: false,
+  },
+  {
+    id: 'followup_context',
+    label: 'Follow-up capture context',
+    description: 'Open the in-machine optional capture check after Trial Truth is secured.',
     frequent: false,
   },
   {
