@@ -6,6 +6,7 @@ import { AppRouter } from './app/router/AppRouter';
 import './styles/foundations.css';
 import './styles/hidden-contract.css';
 import './styles/oracle-specimen-choreography.css';
+import './styles/submission-continuity.css';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
