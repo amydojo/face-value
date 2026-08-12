@@ -36,6 +36,14 @@ type CaptureStatusWindow = Window & {
   __faceValueZeroProgressSeen?: boolean;
 };
 
+async function expectBaselineReadyForGuidedCapture(page: Page): Promise<void> {
+  await expect(page.getByRole('heading', { name: 'Ready for your baseline' })).toBeVisible();
+  await expect(
+    page.getByText('Start guided capture below. We’ll ask for camera access first.'),
+  ).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Position your face' })).toHaveCount(0);
+}
+
 async function openCapture(
   page: Page,
   {
@@ -74,7 +82,7 @@ async function openCapture(
   });
   await page.reload();
   await page.getByRole('button', { name: 'TAKE GUIDED BASELINE' }).click();
-  await expect(page.getByRole('heading', { name: 'Position your face' })).toBeVisible();
+  await expectBaselineReadyForGuidedCapture(page);
 }
 
 async function observeCaptureStatuses(page: Page): Promise<void> {
@@ -813,7 +821,7 @@ test('photo fallback remains explicitly single-image-limited', async ({ page }) 
   });
   await expect(page.getByText('One photo is not enough for this scan.')).toBeVisible();
   await expect(page.getByText(/nothing was added to your trial/i)).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Position your face' })).toBeVisible();
+  await expectBaselineReadyForGuidedCapture(page);
   await expect(page.locator('[data-camera-kit-fixture="active"]')).toHaveCount(0);
 });
 
@@ -1041,7 +1049,7 @@ test('Demo Lab banner stays separate from the active analysis status stack', asy
   const demoBanner = page.getByLabel('Synthetic demo state');
   await expect(demoBanner).toContainText('LAB · SYNTHETIC');
   await expect(demoBanner).toHaveAttribute('data-demo-runtime-mode', 'journey');
-  await expect(page.getByRole('heading', { name: 'Position your face' })).toBeVisible();
+  await expectBaselineReadyForGuidedCapture(page);
   await startCapture(page);
   await expect(page.getByRole('heading', { name: 'Analyzing your scan' })).toBeVisible({
     timeout: 6_000,
