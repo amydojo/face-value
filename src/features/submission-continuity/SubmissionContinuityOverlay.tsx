@@ -87,7 +87,7 @@ export function SubmissionContinuityOverlay() {
         return { eyebrow: 'COMPARISON COMPLETE', headline: 'Your result is sealed.' };
       case 'opening':
       case 'transmitting':
-        return { eyebrow: 'REVEALING RESULT', headline: 'Opening sealed result.' };
+        return null;
       case 'verdict_revealed':
         return { eyebrow: 'RESULT', headline: 'The result is in.' };
       case 'committing':
