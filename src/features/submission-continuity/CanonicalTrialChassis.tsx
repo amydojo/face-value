@@ -28,6 +28,7 @@ export function CanonicalTrialChassis({
 }) {
   const rootRef = useRef<HTMLDivElement>(null);
   const [display, setDisplay] = useState<HTMLElement | null>(null);
+  const contextMode = mode === 'baseline-context' || mode === 'followup-context';
 
   useLayoutEffect(() => {
     const root = rootRef.current;
@@ -40,6 +41,7 @@ export function CanonicalTrialChassis({
       ref={rootRef}
       className={styles.root}
       data-canonical-trial-chassis={mode}
+      data-context-machine={contextMode ? '' : undefined}
       role="group"
       aria-label={ariaLabel}
     >
