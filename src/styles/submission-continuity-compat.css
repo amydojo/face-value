@@ -23,35 +23,9 @@
   font-size: 11px;
 }
 
+/* Physical iPhone QA forbids positioning/sensing language before a live preview exists. */
 [data-camera-ready-compat] {
-  display: none;
-}
-
-[data-camera-state='ready'] [data-camera-ready-compat] {
-  position: absolute;
-  z-index: 10;
-  top: 22%;
-  left: 8%;
-  display: grid;
-  gap: 4px;
-  color: var(--fv-text-on-dark);
-  pointer-events: none;
-}
-
-[data-camera-state='ready'] [data-camera-ready-compat] h2,
-[data-camera-state='ready'] [data-camera-ready-compat] p {
-  margin: 0;
-}
-
-[data-camera-state='ready'] [data-camera-ready-compat] h2 {
-  font-size: clamp(24px, 7vw, 31px);
-  font-weight: 500;
-  line-height: 1;
-}
-
-[data-camera-state='ready'] [data-camera-ready-compat] p {
-  color: rgba(238, 233, 223, 0.68);
-  font-size: 12px;
+  display: none !important;
 }
 
 /* WebKit must never let a centered inspection title steal the explicit back target. */
