@@ -34,8 +34,8 @@
   display: none;
 }
 
-:global([data-canonical-trial-mode='baseline-context'] [data-oracle-specimen]),
-:global([data-canonical-trial-mode='followup-context'] [data-oracle-specimen]) {
+:global([data-canonical-trial-chassis='baseline-context'] [data-oracle-specimen]),
+:global([data-canonical-trial-chassis='followup-context'] [data-oracle-specimen]) {
   opacity: 0.36 !important;
 }
 
