@@ -401,6 +401,13 @@ export function buildDemoFixtureState(
         returnStage: 'job',
         announcement: 'Synthetic baseline entry ready.',
       };
+    case 'baseline_context':
+      return {
+        ...baselineOnlyState(evaluated.state, 'baseline_locked'),
+        stage: 'baseline_context',
+        baselineContext: null,
+        announcement: 'Synthetic baseline secured. Capture context is ready.',
+      };
     case 'baseline_locked':
       return baselineOnlyState(evaluated.state, 'baseline_locked');
     case 'trial_pending':
@@ -424,6 +431,23 @@ export function buildDemoFixtureState(
         trialTruthEvidence: null,
         trialTruthValidation: null,
         announcement: 'Synthetic follow-up secured. Trial truth is required.',
+      };
+    case 'followup_context':
+      return {
+        ...evaluated.state,
+        stage: 'followup_context',
+        analysis: null,
+        comparison: 'not_available',
+        confidence: 'insufficient',
+        processing: 'idle',
+        longitudinalEvidence: {
+          ...evaluated.state.longitudinalEvidence,
+          comparison: null,
+          evaluation: null,
+        },
+        followUpContext: null,
+        trialTruthValidation: null,
+        announcement: 'Synthetic follow-up secured. Optional capture context is ready.',
       };
     case 'comparison_processing':
       return {
