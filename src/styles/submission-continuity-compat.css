@@ -59,3 +59,35 @@
   position: relative;
   z-index: 3;
 }
+
+/*
+ * The #73 actuator remains the actuator: same first-party rendering, state and
+ * click/haptic path. Only its transparent button hit region grows leftward so
+ * the associated SAVE RESULT label and amber cap behave as one mobile target.
+ */
+[data-oracle-scene-state='verdict_revealed'] [data-oracle-keep-action='hardware'] {
+  right: 4.8%;
+  width: 166px;
+  min-width: 166px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 0;
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+[data-oracle-scene-state='verdict_revealed'] [data-oracle-keep-action='hardware']::before {
+  position: absolute;
+  top: 0;
+  right: 58px;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  color: #eee6da;
+  font: 650 8px/1.2 var(--fv-font-mono);
+  letter-spacing: 0.075em;
+  content: 'SAVE RESULT';
+  pointer-events: none;
+}
