@@ -1,3 +1,12 @@
+.recordOverlay {
+  position: fixed;
+  z-index: 2000;
+  inset: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+  background: var(--fv-surface-chassis);
+}
+
 .machineReplacement {
   order: -1;
   min-width: 0;
