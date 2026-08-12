@@ -1,0 +1,124 @@
+/* Physical iPhone QA corrections. Presentation only. */
+
+/* Baseline Locked and Comparison now host the canonical Oracle chassis, so remove the rejected detached-card shell. */
+section[data-fv-screen='baseline-locked']:has([data-continuity-machine-replacement]),
+section[data-fv-screen='comparing']:has([data-continuity-machine-replacement]) {
+  width: auto;
+  min-height: 0;
+  align-content: initial;
+  gap: 12px;
+  margin: 0;
+  padding: 10px 0 max(12px, env(safe-area-inset-bottom));
+  overflow: visible;
+  border: 0;
+  border-radius: 0;
+  color: inherit;
+  background: transparent;
+  box-shadow: none;
+}
+
+section[data-fv-screen='baseline-locked']:has([data-continuity-machine-replacement]) > button {
+  width: min(100%, 376px);
+  margin-inline: auto;
+}
+
+/* Registration must remain useful at 390 × 844 with the live specimen label still visible. */
+[data-fv-screen='product-registration'] {
+  padding-top: 2px;
+}
+
+[data-fv-screen='product-registration'] [data-first-trial-lead] {
+  min-height: 42px !important;
+}
+
+[data-fv-screen='product-registration'] [data-first-trial-lead] button {
+  min-height: 38px;
+}
+
+[data-fv-screen='product-registration'] [data-registration-panel] {
+  gap: 7px;
+  padding: 11px 12px 12px;
+}
+
+[data-fv-screen='product-registration'] [data-registration-panel] > h2 {
+  font-size: clamp(20px, 5.6vw, 23px);
+  line-height: 1.03;
+}
+
+[data-fv-screen='product-registration'] [data-registration-panel] form {
+  gap: 8px;
+}
+
+[data-fv-screen='product-registration'] [data-registration-panel] form > label,
+[data-fv-screen='product-registration'] [data-registration-panel] form > div > label {
+  gap: 4px;
+}
+
+[data-fv-screen='product-registration'] [data-registration-panel] input:not([type='radio']) {
+  min-height: 44px;
+  padding: 8px 10px;
+}
+
+[data-fv-screen='product-registration'] [data-registration-protocol] {
+  min-height: 42px;
+  grid-template-columns: 1fr;
+  gap: 2px;
+  padding: 7px 9px;
+  border-left-width: 2px;
+}
+
+[data-fv-screen='product-registration'] [data-registration-protocol] > span {
+  font-size: 7px;
+}
+
+[data-fv-screen='product-registration'] [data-registration-protocol] > strong {
+  font-size: 8px;
+}
+
+[data-fv-screen='product-registration'] [data-registration-protocol] > small {
+  font-size: 9px;
+}
+
+[data-fv-screen='product-registration'] [data-registration-panel] button[type='submit'] {
+  min-height: 48px;
+  padding-block: 10px;
+}
+
+/* One consistent light-screen state grammar. */
+[data-fv-screen='oracle-reveal'] > [data-continuity-oracle-lead] {
+  min-height: 78px;
+  gap: 6px;
+}
+
+[data-fv-screen='oracle-reveal'] > [data-continuity-oracle-lead] > p {
+  font-size: 9px;
+  font-weight: 650;
+}
+
+[data-fv-screen='oracle-reveal'] > [data-continuity-oracle-lead] > h1 {
+  font-size: clamp(29px, 8.3vw, 36px);
+  font-weight: 500;
+  line-height: 1;
+}
+
+/* VIEW EVIDENCE routes into the approved #74 record hierarchy; legacy inline dump stays unreachable. */
+[data-oracle-scene-state='collected'] #oracle-evidence-detail {
+  display: none !important;
+}
+
+/* Cold storage bottle identity stays recognizable without adding explanatory prose. */
+[data-archive-record] [class*='bottleLabel'] small,
+[data-archive-record] [class*='bottleLabel'] strong {
+  opacity: 1;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.32);
+}
+
+@media (max-width: 390px) {
+  [data-fv-screen='product-registration'] [data-registration-panel] {
+    padding-inline: 10px;
+  }
+
+  [data-fv-screen='product-registration'] [data-registration-panel] form {
+    gap: 7px;
+  }
+}
