@@ -51,9 +51,11 @@ describe('submission continuity capture context', () => {
     expect(screen.getByText('BASELINE SECURED')).toBeVisible();
     expect(screen.getByText('CAPTURE CONTEXT')).toBeVisible();
     expect(screen.getByRole('button', { name: 'NOTHING DIFFERENT' })).toBeVisible();
-    expect(document.querySelector('[data-context-machine]')).toHaveAttribute(
-      'data-context-kind',
-      'baseline',
+    const chassis = document.querySelector('[data-canonical-trial-chassis="baseline-context"]');
+    expect(chassis).toBeInTheDocument();
+    expect(chassis?.querySelector('[data-oracle-machine]')).toHaveAttribute(
+      'data-machine-implementation',
+      'oracle',
     );
     expect(document.querySelector('main')).toHaveAttribute('data-fv-tone', 'light');
   });
@@ -81,7 +83,7 @@ describe('submission continuity capture context', () => {
       </FaceValueContext.Provider>,
     );
 
-    expect(screen.getByText('CAPTURE CHECK · OPTIONAL')).toBeVisible();
+    expect(screen.getByText('FOLLOW-UP SECURED')).toBeVisible();
     expect(screen.getByText('Anything different around today’s scan?')).toBeVisible();
     expect(screen.getByRole('button', { name: 'NOTHING DIFFERENT' })).toBeVisible();
     expect(document.querySelector('[data-oracle-machine]')).toBeInTheDocument();
