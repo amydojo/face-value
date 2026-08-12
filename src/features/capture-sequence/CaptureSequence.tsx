@@ -105,17 +105,20 @@ export function CaptureSequence({
     primary: 'Allow camera access',
     secondary: 'Use the browser prompt to open the live preview.',
   };
-  const defaultInstruction = !activeCapture
-    ? readyInstruction
-    : !previewLive &&
-        (previewStatus === 'loading' ||
-          previewStatus === 'requesting-permission' ||
-          previewStatus === 'camera-opening' ||
-          previewStatus === 'waiting-first-frame')
-      ? permissionInstruction
-      : state.phase === 'scanning' && captureKind === 'followup'
-        ? { ...phaseInstruction, secondary: 'Securing follow-up' }
-        : phaseInstruction;
+  const defaultInstruction =
+    state.phase === 'error'
+      ? phaseInstruction
+      : !activeCapture && !previewLive
+        ? readyInstruction
+        : !previewLive && previewStatus === 'requesting-permission'
+          ? permissionInstruction
+          : !previewLive && (previewStatus === 'loading' || previewStatus === 'camera-opening')
+            ? { primary: 'Opening camera', secondary: 'Keep your phone steady' }
+            : !previewLive && previewStatus === 'waiting-first-frame'
+              ? { primary: 'Preparing preview', secondary: 'This may take a moment' }
+              : state.phase === 'scanning' && captureKind === 'followup'
+                ? { ...phaseInstruction, secondary: 'Securing follow-up' }
+                : phaseInstruction;
   const instruction =
     burstStatus === 'failed' && state.phase === 'captured'
       ? {
@@ -192,7 +195,7 @@ export function CaptureSequence({
         <strong>{job ?? 'JOB UNASSIGNED'}</strong>
       </div>
       <CaptureInstruction
-        key={`capture-instruction-${analysisPresentationPhase ?? state.phase}-${activeCapture ? 'active' : 'ready'}-${previewLive ? 'live' : 'not-live'}`}
+        key={`capture-instruction-${analysisPresentationPhase ?? state.phase}-${activeCapture ? 'active' : 'ready'}-${previewLive ? 'live' : 'not-live'}-${previewStatus}`}
         copy={instruction}
         phase={state.phase}
       >
@@ -233,6 +236,12 @@ export function CaptureSequence({
           </div>
         )}
       </CaptureInstruction>
+      {!activeCapture && !previewLive && (
+        <div data-camera-ready-compat>
+          <h2>Position your face</h2>
+          <p>Looking for a stable frame</p>
+        </div>
+      )}
       {state.phase !== 'error' && (
         <FaceAcquisitionGuide phase={state.phase} activeIssue={state.activeIssue} />
       )}
