@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useState, type ElementType } from 'react';
+import { useEffect, useMemo, useState, type ElementType } from 'react';
 import { createPortal } from 'react-dom';
 import { systemClock } from '../../adapters/clock/clock';
 import { useFaceValue } from '../../app/faceValueContext';
@@ -68,15 +68,31 @@ export function SubmissionContinuityOverlay() {
     if (state.oracleRevealState !== 'verdict_revealed') setWhyOpen(false);
   }, [state.oracleRevealState]);
 
-  useLayoutEffect(() => {
-    if (state.stage !== 'analysis' || state.oracleRevealState !== 'verdict_revealed') return;
-    const canonicalCommit = document.querySelector<HTMLButtonElement>(
-      '[data-oracle-keep-action="hardware"]',
-    );
-    if (!canonicalCommit) return;
-    canonicalCommit.setAttribute('aria-label', 'Save result');
-    canonicalCommit.setAttribute('data-submission-save-result', '');
-  }, [state.stage, state.oracleRevealState]);
+  useEffect(() => {
+    const syncCanonicalCommit = () => {
+      const canonicalCommit = document.querySelector<HTMLButtonElement>(
+        '[data-oracle-keep-action="hardware"]',
+      );
+      if (!canonicalCommit) return;
+      const ready = canonicalCommit.dataset.amberState === 'ready' && !canonicalCommit.disabled;
+      if (!ready) return;
+      if (canonicalCommit.getAttribute('aria-label') !== 'Save result') {
+        canonicalCommit.setAttribute('aria-label', 'Save result');
+      }
+      if (!canonicalCommit.hasAttribute('data-submission-save-result')) {
+        canonicalCommit.setAttribute('data-submission-save-result', '');
+      }
+    };
+
+    syncCanonicalCommit();
+    const observer = new MutationObserver(syncCanonicalCommit);
+    observer.observe(document.body, {
+      subtree: true,
+      attributes: true,
+      attributeFilter: ['data-amber-state', 'disabled', 'aria-label'],
+    });
+    return () => observer.disconnect();
+  }, []);
 
   const evidenceSummary = useMemo(
     () =>
