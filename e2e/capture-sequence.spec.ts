@@ -37,10 +37,8 @@ type CaptureStatusWindow = Window & {
 };
 
 async function expectBaselineReadyForGuidedCapture(page: Page): Promise<void> {
-  await expect(page.getByRole('heading', { name: 'Ready for your baseline' })).toBeVisible();
-  await expect(
-    page.getByText('Start guided capture below. We’ll ask for camera access first.'),
-  ).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Baseline scan' })).toBeVisible();
+  await expect(page.getByText('Camera access comes next.')).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Position your face' })).toHaveCount(0);
 }
 
@@ -75,12 +73,12 @@ async function openCapture(
     ...(providerDelayMs ? { 'provider-delay-ms': String(providerDelayMs) } : {}),
     ...(providerDelayFrame ? { 'provider-delay-frame': String(providerDelayFrame) } : {}),
   });
-  await page.goto(`/?${query}`);
+  await page.goto('/favicon.svg');
   await page.evaluate(({ key, value }) => localStorage.setItem(key, JSON.stringify(value)), {
     key: STORAGE_KEY,
     value: baselineReady,
   });
-  await page.reload();
+  await page.goto(`/?${query}`);
   await page.getByRole('button', { name: 'TAKE GUIDED BASELINE' }).click();
   await expectBaselineReadyForGuidedCapture(page);
 }
