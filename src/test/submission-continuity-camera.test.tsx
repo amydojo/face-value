@@ -38,8 +38,8 @@ describe('submission continuity camera state truth', () => {
   it('does not claim sensing before guided capture starts', () => {
     renderSequence({ activeCapture: false, previewLive: false, previewStatus: 'idle' });
 
-    expect(screen.getByRole('heading', { name: 'Ready for your baseline' })).toBeVisible();
-    expect(screen.getByText('Start guided capture below. We’ll ask for camera access first.')).toBeVisible();
+    expect(screen.getByRole('heading', { name: 'Baseline scan' })).toBeVisible();
+    expect(screen.getByText('Camera access comes next.')).toBeVisible();
     expect(primaryInstruction()).not.toHaveTextContent('Position your face');
   });
 
