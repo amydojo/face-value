@@ -28,13 +28,19 @@ const renderSequence = ({
     />,
   );
 
+const primaryInstruction = (): HTMLElement => {
+  const instruction = document.querySelector<HTMLElement>('[data-capture-instruction]');
+  if (!instruction) throw new Error('Expected the primary capture instruction.');
+  return instruction;
+};
+
 describe('submission continuity camera state truth', () => {
   it('does not claim sensing before guided capture starts', () => {
     renderSequence({ activeCapture: false, previewLive: false, previewStatus: 'idle' });
 
     expect(screen.getByRole('heading', { name: 'Ready for your baseline' })).toBeVisible();
     expect(screen.getByText('Start guided capture below. We’ll ask for camera access first.')).toBeVisible();
-    expect(screen.queryByRole('heading', { name: 'Position your face' })).not.toBeInTheDocument();
+    expect(primaryInstruction()).not.toHaveTextContent('Position your face');
   });
 
   it('asks for camera access until a live preview genuinely exists', () => {
@@ -45,7 +51,7 @@ describe('submission continuity camera state truth', () => {
     });
 
     expect(screen.getByRole('heading', { name: 'Allow camera access' })).toBeVisible();
-    expect(screen.queryByRole('heading', { name: 'Position your face' })).not.toBeInTheDocument();
+    expect(primaryInstruction()).not.toHaveTextContent('Position your face');
   });
 
   it('allows positioning guidance only after preview-live', () => {
