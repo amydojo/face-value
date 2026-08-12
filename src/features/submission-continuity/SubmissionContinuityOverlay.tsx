@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { systemClock } from '../../adapters/clock/clock';
 import { useFaceValue } from '../../app/faceValueContext';
 import { FaceValueActuator } from '../../components/FaceValueActuator';
+import { oracleTrialIdentityForRecord } from '../../domain/oracleTrialIdentity';
 import {
   FOLLOW_UP_INTERVAL_DAYS,
   followUpIsEligible,
@@ -19,6 +20,7 @@ type PortalTargets = {
   trialDisplay: HTMLElement | null;
   baselineLocked: HTMLElement | null;
   trialTruthFirmware: HTMLElement | null;
+  evidenceRecord: HTMLElement | null;
 };
 
 const emptyTargets: PortalTargets = {
@@ -28,6 +30,7 @@ const emptyTargets: PortalTargets = {
   trialDisplay: null,
   baselineLocked: null,
   trialTruthFirmware: null,
+  evidenceRecord: null,
 };
 
 const formatDate = (value: string | null): string => {
@@ -66,6 +69,7 @@ export function SubmissionContinuityOverlay() {
       trialDisplay: document.querySelector<HTMLElement>('[data-oracle-trial-display]'),
       baselineLocked: document.querySelector<HTMLElement>('[data-fv-screen="baseline-locked"]'),
       trialTruthFirmware: document.querySelector<HTMLElement>('[data-oracle-trial-truth-firmware]'),
+      evidenceRecord: document.querySelector<HTMLElement>('[data-evidence-record]'),
     });
   }, [state.stage, state.oracleRevealState, state.demoTimelineAdvanced]);
 
@@ -142,6 +146,18 @@ export function SubmissionContinuityOverlay() {
 
   return (
     <>
+      {state.stage === 'record' && state.record && targets.evidenceRecord && (
+        <Portal
+          target={targets.evidenceRecord}
+          as="section"
+          className={styles.assistiveEvidenceCompatibility}
+          data-evidence-detail-compatibility
+        >
+          <h2>EVIDENCE DETAIL</h2>
+          <span>{oracleTrialIdentityForRecord(state.record).folio}</span>
+        </Portal>
+      )}
+
       {state.stage === 'followup_context' && targets.trialTruthFirmware && (
         <Portal
           target={targets.trialTruthFirmware}
