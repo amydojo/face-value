@@ -9,6 +9,7 @@ import {
   followUpIsEligible,
   trialDaySummary,
 } from '../../domain/phaseB5';
+import { EvidenceRecord } from '../evidence-record/EvidenceRecord';
 import { CanonicalTrialChassis } from './CanonicalTrialChassis';
 import styles from './SubmissionContinuityOverlay.module.css';
 import { submissionContinuityEvidenceViewModel } from './submissionContinuityViewModel';
@@ -20,7 +21,6 @@ type PortalTargets = {
   trialDisplay: HTMLElement | null;
   baselineLocked: HTMLElement | null;
   trialTruthFirmware: HTMLElement | null;
-  evidenceRecord: HTMLElement | null;
 };
 
 const emptyTargets: PortalTargets = {
@@ -30,7 +30,6 @@ const emptyTargets: PortalTargets = {
   trialDisplay: null,
   baselineLocked: null,
   trialTruthFirmware: null,
-  evidenceRecord: null,
 };
 
 const formatDate = (value: string | null): string => {
@@ -57,9 +56,10 @@ function Portal({ target, as: Component = 'div', children, ...props }: {
 }
 
 export function SubmissionContinuityOverlay() {
-  const { state, dispatch, demoRuntime } = useFaceValue();
+  const { state, demoRuntime } = useFaceValue();
   const [targets, setTargets] = useState<PortalTargets>(emptyTargets);
   const [whyOpen, setWhyOpen] = useState(false);
+  const [recordOpen, setRecordOpen] = useState(false);
 
   useLayoutEffect(() => {
     setTargets({
@@ -69,12 +69,15 @@ export function SubmissionContinuityOverlay() {
       trialDisplay: document.querySelector<HTMLElement>('[data-oracle-trial-display]'),
       baselineLocked: document.querySelector<HTMLElement>('[data-fv-screen="baseline-locked"]'),
       trialTruthFirmware: document.querySelector<HTMLElement>('[data-oracle-trial-truth-firmware]'),
-      evidenceRecord: document.querySelector<HTMLElement>('[data-evidence-record]'),
     });
   }, [state.stage, state.oracleRevealState, state.demoTimelineAdvanced]);
 
   useEffect(() => {
     if (state.oracleRevealState !== 'verdict_revealed') setWhyOpen(false);
+  }, [state.oracleRevealState]);
+
+  useEffect(() => {
+    if (state.oracleRevealState !== 'collected') setRecordOpen(false);
   }, [state.oracleRevealState]);
 
   useEffect(() => {
@@ -84,17 +87,34 @@ export function SubmissionContinuityOverlay() {
     );
     const viewEvidence = actions.find((button) => button.textContent?.trim() === 'VIEW EVIDENCE');
     if (!viewEvidence) return;
-    const record = state.record;
     const openEvidenceRecord = (event: Event) => {
       event.preventDefault();
       event.stopImmediatePropagation();
-      dispatch({ type: 'VIEW_RECORD', record });
+      setRecordOpen(true);
     };
     viewEvidence.addEventListener('click', openEvidenceRecord, true);
     viewEvidence.removeAttribute('aria-expanded');
     viewEvidence.removeAttribute('aria-controls');
     return () => viewEvidence.removeEventListener('click', openEvidenceRecord, true);
-  }, [dispatch, state.oracleRevealState, state.record]);
+  }, [state.oracleRevealState, state.record]);
+
+  useEffect(() => {
+    if (!recordOpen) return;
+    const app = document.querySelector<HTMLElement>('main');
+    app?.setAttribute('aria-hidden', 'true');
+    app?.setAttribute('inert', '');
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return;
+      event.preventDefault();
+      setRecordOpen(false);
+    };
+    document.addEventListener('keydown', closeOnEscape);
+    return () => {
+      document.removeEventListener('keydown', closeOnEscape);
+      app?.removeAttribute('aria-hidden');
+      app?.removeAttribute('inert');
+    };
+  }, [recordOpen]);
 
   const evidenceSummary = useMemo(
     () =>
@@ -146,17 +166,21 @@ export function SubmissionContinuityOverlay() {
 
   return (
     <>
-      {state.stage === 'record' && state.record && targets.evidenceRecord && (
-        <Portal
-          target={targets.evidenceRecord}
-          as="section"
-          className={styles.assistiveEvidenceCompatibility}
-          data-evidence-detail-compatibility
-        >
-          <h2>EVIDENCE DETAIL</h2>
-          <span>{oracleTrialIdentityForRecord(state.record).folio}</span>
-        </Portal>
-      )}
+      {recordOpen && state.record &&
+        createPortal(
+          <div className={styles.recordOverlay} data-continuity-record-overlay>
+            <section data-evidence-detail-compatibility>
+              <h2>EVIDENCE DETAIL</h2>
+              <span>{oracleTrialIdentityForRecord(state.record).folio}</span>
+            </section>
+            <EvidenceRecord
+              record={state.record}
+              onArchive={() => undefined}
+              onBack={() => setRecordOpen(false)}
+            />
+          </div>,
+          document.body,
+        )}
 
       {state.stage === 'followup_context' && targets.trialTruthFirmware && (
         <Portal
