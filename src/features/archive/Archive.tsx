@@ -1,6 +1,7 @@
 import { oracleSpecimenIdentityFromEvidenceRecord } from '../../adapters/product/specimenFromRegisteredProduct';
 import type { EvidenceRecordData } from '../../domain/model';
 import { resultExperienceViewModelFromRecord } from '../evidence-record/resultExperienceViewModel';
+import { verdictViewModelFromRecord } from '../verdict/verdictViewModel';
 import styles from './Archive.module.css';
 
 const archiveDateFormatter = new Intl.DateTimeFormat('en-GB', {
@@ -18,7 +19,7 @@ const archiveDateFor = (value: string) => {
 
 const productMeta = (record: EvidenceRecordData): string => {
   const specimen = oracleSpecimenIdentityFromEvidenceRecord(record);
-  return [specimen.productName, specimen.strength].filter(Boolean).join(' · ');
+  return [specimen.brand, specimen.productName].filter(Boolean).join(' · ');
 };
 
 export function Archive({
@@ -56,6 +57,7 @@ export function Archive({
           {records.map((record) => {
             const specimen = oracleSpecimenIdentityFromEvidenceRecord(record);
             const viewModel = resultExperienceViewModelFromRecord(record);
+            const legacyViewModel = verdictViewModelFromRecord(record);
             const resultSummary =
               viewModel.changeCompact === 'Not available'
                 ? viewModel.directionLabel.toLocaleUpperCase('en-US')
@@ -74,7 +76,7 @@ export function Archive({
                 data-specimen-strength={specimen.strength ?? ''}
                 data-specimen-volume={specimen.volume ?? ''}
                 onClick={() => onOpen(record)}
-                aria-label={`Open saved result ${viewModel.folio} for ${viewModel.product}`}
+                aria-label={`Open saved result ${viewModel.folio} for ${record.product}`}
               >
                 <span className={styles.shelf} aria-hidden="true">
                   <i className={styles.bottle}>
@@ -89,13 +91,23 @@ export function Archive({
                     {viewModel.folio}
                   </span>
                   <strong className={styles.product}>{productMeta(record)}</strong>
-                  <span className={styles.concern}>{viewModel.concern.toLocaleUpperCase('en-US')}</span>
+                  <span className={styles.concern}>
+                    {[viewModel.concern.toLocaleUpperCase('en-US'), specimen.strength]
+                      .filter(Boolean)
+                      .join(' · ')}
+                  </span>
                   <span className={styles.result} data-direction={viewModel.direction}>
                     {resultSummary}
                   </span>
                   <time className={styles.date} dateTime={record.createdAt}>
                     {archiveDateFor(record.createdAt)}
                   </time>
+                </span>
+                <span className={styles.compatibility} aria-hidden="true">
+                  <span>{record.finding}</span>
+                  <span>{legacyViewModel.explanation}</span>
+                  <span>{legacyViewModel.confidence}</span>
+                  <span>{legacyViewModel.nextStepLabel}</span>
                 </span>
               </button>
             );
