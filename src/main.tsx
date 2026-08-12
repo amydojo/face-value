@@ -7,6 +7,7 @@ import './styles/foundations.css';
 import './styles/hidden-contract.css';
 import './styles/oracle-specimen-choreography.css';
 import './styles/submission-continuity.css';
+import './styles/submission-continuity-compat.css';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
