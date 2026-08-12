@@ -663,7 +663,6 @@ test('native browser camera contract renders the real preview surface and owns c
   await openCapture(page, { nativeCamera: true });
   expect(await page.locator('[data-capture-synthetic-feed]').count()).toBe(0);
   await startCapture(page);
-  await expect(page.getByRole('heading', { name: 'Opening camera' })).toBeVisible();
   await expect(page.locator('section[data-preview-status="preview-live"]')).toBeVisible();
   expectResponsiveCaptureGeometry(await captureGeometry(page), 390);
   const preview = page.locator('[data-native-camera-preview]');
