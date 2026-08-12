@@ -179,7 +179,7 @@ function evaluatedState(resultFixture: DemoResultFixtureId): {
     simulated: true,
   };
   const compatibilityComparison = rednessComparisonFromEvaluation(snapshot);
-  const generationId = `${product.id}:${followUpAt}`;
+  const generationId = `${product.id}:${followUpBurst.burstId}`;
   const trialTruthEvidence =
     resultFixture === 'legacy_trial_truth_not_collected'
       ? null
