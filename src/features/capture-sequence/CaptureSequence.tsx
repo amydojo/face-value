@@ -98,8 +98,8 @@ export function CaptureSequence({
   } as CSSProperties;
   const phaseInstruction = getCaptureInstruction(state);
   const readyInstruction = {
-    primary: captureKind === 'baseline' ? 'Ready for your baseline' : 'Ready for your follow-up',
-    secondary: 'Start guided capture below. We’ll ask for camera access first.',
+    primary: captureKind === 'baseline' ? 'Baseline scan' : 'Follow-up scan',
+    secondary: 'Camera access comes next.',
   };
   const permissionInstruction = {
     primary: 'Allow camera access',
