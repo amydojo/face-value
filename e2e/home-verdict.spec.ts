@@ -96,12 +96,12 @@ async function loadState(
   page: Page,
   state: ReturnType<typeof completedState> | ReturnType<typeof revealState>,
 ) {
-  await page.goto('/');
+  await page.goto('/favicon.svg');
   await page.evaluate(({ key, value }) => localStorage.setItem(key, JSON.stringify(value)), {
     key: STORAGE_KEY,
     value: state,
   });
-  await page.reload();
+  await page.goto('/');
 }
 
 async function noHorizontalOverflow(page: Page) {
