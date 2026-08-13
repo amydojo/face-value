@@ -1042,6 +1042,7 @@ test('Demo Lab banner stays separate from the active analysis status stack', asy
   await page.getByRole('combobox', { name: /Starting point/ }).selectOption('baseline_ready');
   await page.getByRole('button', { name: /OPEN DEMO STATE/ }).click();
   await page.getByRole('button', { name: 'CONFIRM AND LOAD' }).click();
+  await expect(page).toHaveURL(/\?fv-demo-journey=1$/);
   await page.goto('/?fv-demo-journey=1&provider-delay-ms=3000&provider-delay-frame=1');
   const demoBanner = page.getByLabel('Synthetic demo state');
   await expect(demoBanner).toContainText('LAB · SYNTHETIC');
