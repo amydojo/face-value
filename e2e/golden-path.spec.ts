@@ -208,8 +208,9 @@ for (const scenario of cases) {
 
     await page.getByRole('button', { name: 'DONE' }).click();
     await expect(page.getByRole('heading', { name: 'Your trials' })).toBeVisible();
-    await expect(page.getByText('DAY 01 OF 14')).toBeVisible();
-    await expect(page.getByText('IN 14 DAYS')).toBeVisible();
+    const pendingDisplay = page.locator('[data-continuity-trial-display]');
+    await expect(pendingDisplay).toContainText('DAY 01 OF 14');
+    await expect(page.locator('[data-followup-action="pending"]')).toContainText('IN 14 DAYS');
     await expect(page.getByRole('button', { name: 'Take follow-up scan' })).toHaveCount(0);
     await assertNoHorizontalOverflow(page);
 
