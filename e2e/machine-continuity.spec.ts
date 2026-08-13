@@ -527,10 +527,8 @@ test('Pending and ready keep identical screen geometry and differ only by approv
   await page.reload();
   await expect(page.locator('[data-trial-machine-state="followup-ready"]')).toBeVisible();
   await page.getByRole('button', { name: 'Take follow-up scan' }).click();
-  await expect(page.getByRole('heading', { name: 'Ready for your follow-up' })).toBeVisible();
-  await expect(
-    page.getByText('Start guided capture below. We’ll ask for camera access first.'),
-  ).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Follow-up scan' })).toBeVisible();
+  await expect(page.getByText('Camera access comes next.')).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Position your face' })).toHaveCount(0);
   expect(runtimeIssues).toEqual([]);
 });
