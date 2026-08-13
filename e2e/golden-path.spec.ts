@@ -82,11 +82,9 @@ async function expectGuidedQualityReady(page: Page): Promise<void> {
 }
 
 async function takeGuidedCapture(page: Page, kind: 'baseline' | 'followup'): Promise<void> {
-  const readyLabel = kind === 'baseline' ? 'Ready for your baseline' : 'Ready for your follow-up';
+  const readyLabel = kind === 'baseline' ? 'Baseline scan' : 'Follow-up scan';
   await expect(page.getByRole('heading', { name: readyLabel })).toBeVisible();
-  await expect(
-    page.getByText('Start guided capture below. We’ll ask for camera access first.'),
-  ).toBeVisible();
+  await expect(page.getByText('Camera access comes next.')).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Position your face' })).toHaveCount(0);
   await expect(page.getByRole('checkbox')).toHaveCount(0);
   await expect(
