@@ -1,0 +1,31 @@
+name: PR76 hit-test evidence
+on:
+  push:
+    branches: [agent/submission-continuity-hardening]
+permissions:
+  contents: read
+jobs:
+  hit-test:
+    if: github.event.head_commit.message == 'run PR76 hit-test evidence'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.18.0
+      - run: npm ci --no-audit --no-fund
+      - run: npx playwright install --with-deps webkit
+      - name: Run two hit-test diagnostics
+        env:
+          PLAYWRIGHT_JSON_OUTPUT_NAME: hit-test-results.json
+        run: npx playwright test e2e/webkit-hit-test-diagnostic.spec.ts --project=mobile-webkit --reporter=github,json
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pr76-hit-test-results
+          path: hit-test-results.json
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pr76-hit-test-evidence
+          path: test-results
