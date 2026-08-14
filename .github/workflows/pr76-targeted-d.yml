@@ -1,0 +1,53 @@
+name: PR76 targeted D WebKit
+on:
+  push:
+    branches: [agent/submission-continuity-hardening]
+permissions:
+  contents: read
+jobs:
+  targeted-d:
+    if: github.event.head_commit.message == 'run PR76 targeted D WebKit'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.18.0
+      - name: Verify exact checkout
+        run: test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+      - run: npm ci --no-audit --no-fund
+      - run: npx playwright install --with-deps webkit
+      - name: Representative Capture Context + Trial Truth
+        env:
+          PLAYWRIGHT_JSON_OUTPUT_NAME: targeted-d-representative.json
+        run: >-
+          npx playwright test
+          e2e/submission-continuity.spec.ts
+          e2e/trial-truth.spec.ts
+          --project=mobile-webkit
+          --grep "follow-up capture context stays inside the same trial machine and continues toward analysis|favorable objective result with complete use, no irritation, and agreement preserves one immutable result"
+          --reporter=github,json
+      - name: Full Trial Truth Mobile WebKit
+        env:
+          PLAYWRIGHT_JSON_OUTPUT_NAME: targeted-d-trial-truth-full.json
+        run: >-
+          npx playwright test
+          e2e/trial-truth.spec.ts
+          --project=mobile-webkit
+          --reporter=github,json
+      - name: Upload targeted D results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pr76-targeted-d-results
+          path: |
+            targeted-d-representative.json
+            targeted-d-trial-truth-full.json
+          if-no-files-found: warn
+      - name: Upload targeted D evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pr76-targeted-d-evidence
+          path: test-results
+          if-no-files-found: warn
