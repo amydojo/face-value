@@ -1,4 +1,4 @@
-name: PR76 one-shot post-repair contracts
+name: PR76 post-repair contract proof
 
 on:
   push:
@@ -9,8 +9,7 @@ permissions:
   contents: write
 
 jobs:
-  patch-and-prove:
-    if: github.event.head_commit.message == 'stage PR76 post-repair contract proof'
+  prove:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -20,26 +19,27 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22.18.0
-      - name: Verify exact starting parent and live head
+      - name: Verify bounded invocation
         run: |
           set -euo pipefail
-          test "$(git rev-parse HEAD^)" = "f21e08e25a6442e12399616d1cad7adb57f0bff2"
+          test "$(git log -1 --pretty=%s)" = "run PR76 post-repair contract proof"
+          test "$(git rev-parse HEAD^)" = "efbd6cb5db5ec46f1bb4d103dfe6096c398eb440"
+          test "$(git rev-parse HEAD~2)" = "f21e08e25a6442e12399616d1cad7adb57f0bff2"
           git fetch origin agent/submission-continuity-hardening
           test "$(git rev-parse origin/agent/submission-continuity-hardening)" = "$GITHUB_SHA"
-      - name: Apply only evidence-backed stale contract corrections
+      - name: Apply evidence-backed test contracts
         run: |
           python - <<'PY'
           from pathlib import Path
-
-          ingestion = Path('e2e/first-trial-ingestion.spec.ts')
-          text = ingestion.read_text()
+          p = Path('e2e/first-trial-ingestion.spec.ts')
+          s = p.read_text()
           stale = "expect(await machineDocumentGeometry(page)).toEqual(workflowMachineGeometry);"
-          if text.count(stale) != 6:
-              raise SystemExit(f'Expected six stale preview-geometry equalities, found {text.count(stale)}')
+          if s.count(stale) != 6:
+              raise SystemExit(f'expected 6 stale geometry assertions, found {s.count(stale)}')
           first = """  expect(await machineDocumentGeometry(page)).toEqual(workflowMachineGeometry);
 
   await page.clock.runFor(registrationTiming.preparingCheckpoint);"""
-          replacement = """  const operationalMachineGeometry = await machineDocumentGeometry(page);
+          new_first = """  const operationalMachineGeometry = await machineDocumentGeometry(page);
   expect(operationalMachineGeometry.x).toBe(workflowMachineGeometry.x);
   expect(operationalMachineGeometry.width).toBe(workflowMachineGeometry.width);
   expect(operationalMachineGeometry.height).toBe(workflowMachineGeometry.height);
@@ -49,49 +49,41 @@ jobs:
   expect(operationalMachineGeometry.viewportY).toBeGreaterThan(workflowMachineGeometry.viewportY);
 
   await page.clock.runFor(registrationTiming.preparingCheckpoint);"""
-          if text.count(first) != 1:
-              raise SystemExit('Expected exact first compact-preview geometry equality once.')
-          text = text.replace(first, replacement)
-          if text.count(stale) != 5:
-              raise SystemExit(f'Expected five operational-phase equalities after first replacement, found {text.count(stale)}')
-          text = text.replace(stale, "expect(await machineDocumentGeometry(page)).toEqual(operationalMachineGeometry);")
-          evidence_old = """          workflowMachine: workflowMachineGeometry,
+          if s.count(first) != 1:
+              raise SystemExit('first geometry assertion block changed')
+          s = s.replace(first, new_first)
+          if s.count(stale) != 5:
+              raise SystemExit('operational geometry assertion count changed')
+          s = s.replace(stale, "expect(await machineDocumentGeometry(page)).toEqual(operationalMachineGeometry);")
+          old_ev = """          workflowMachine: workflowMachineGeometry,
           workflowLayout: registrationLayout,
           stableMachinePhases: [
             'registration-preview',
             'preparing',"""
-          evidence_new = """          registrationPreviewMachine: workflowMachineGeometry,
+          new_ev = """          registrationPreviewMachine: workflowMachineGeometry,
           operationalMachine: operationalMachineGeometry,
           workflowLayout: registrationLayout,
           stableMachinePhases: [
             'preparing',"""
-          if text.count(evidence_old) != 1:
-              raise SystemExit('Expected registration geometry evidence block once.')
-          text = text.replace(evidence_old, evidence_new)
-          ingestion.write_text(text)
+          if s.count(old_ev) != 1:
+              raise SystemExit('geometry evidence block changed')
+          p.write_text(s.replace(old_ev, new_ev))
 
-          golden = Path('e2e/golden-path.spec.ts')
-          text = golden.read_text()
+          p = Path('e2e/golden-path.spec.ts')
+          s = p.read_text()
           old = "    await expect(page.getByLabel('Result recommendation').locator(':scope > p')).toBeVisible();"
           new = "    await expect(page.getByLabel('Result recommendation').locator(':scope > p')).toBeHidden();"
-          if text.count(old) != 1:
-              raise SystemExit(f'Expected one stale legacy recommendation visibility assertion, found {text.count(old)}')
-          golden.write_text(text.replace(old, new))
+          if s.count(old) != 1:
+              raise SystemExit('legacy recommendation assertion changed')
+          p.write_text(s.replace(old, new))
           PY
           git diff --check
-          git diff -- e2e/first-trial-ingestion.spec.ts e2e/golden-path.spec.ts
       - run: npm ci --no-audit --no-fund
       - run: npx playwright install --with-deps webkit
-      - name: Prove five post-repair contracts in Mobile WebKit
+      - name: Five targeted Mobile WebKit contracts
         env:
           PLAYWRIGHT_JSON_OUTPUT_NAME: postrepair-targeted.json
-        run: >-
-          npx playwright test
-          e2e/first-trial-ingestion.spec.ts
-          e2e/golden-path.spec.ts
-          --project=mobile-webkit
-          --grep "one Oracle instrument accepts, loads, and releases one specimen to baseline|complete Phase B.5 golden path"
-          --reporter=github,json
+        run: npx playwright test e2e/first-trial-ingestion.spec.ts e2e/golden-path.spec.ts --project=mobile-webkit --grep "one Oracle instrument accepts, loads, and releases one specimen to baseline|complete Phase B.5 golden path" --reporter=github,json
       - name: Upload proof
         if: always()
         uses: actions/upload-artifact@v4
@@ -99,7 +91,7 @@ jobs:
           name: pr76-postrepair-targeted-results
           path: postrepair-targeted.json
           if-no-files-found: warn
-      - name: Commit only after targeted WebKit is green
+      - name: Commit proven contracts and remove runner
         run: |
           set -euo pipefail
           git fetch origin agent/submission-continuity-hardening
