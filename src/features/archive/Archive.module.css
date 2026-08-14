@@ -192,13 +192,14 @@
 }
 
 .product {
+  display: -webkit-box;
   overflow: hidden;
   color: #f0ebe2;
   font-size: 17px;
   font-weight: 550;
-  line-height: 1.05;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  line-height: 1.15;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
 
 .concern {

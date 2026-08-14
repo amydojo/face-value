@@ -516,7 +516,7 @@ for (const scenario of cases) {
     );
     await expect(page.locator('[data-technical-field="evidence-quality"]')).toContainText('Early');
     await expect(page.locator('[data-technical-field="recommended-action"]')).toContainText(
-      'Test longer',
+      'TEST LONGER',
     );
 
     const restoredArchive = await page.evaluate((key) => {

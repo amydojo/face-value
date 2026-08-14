@@ -26,7 +26,8 @@ test('baseline capture context stays inside the light-bench instrument and conti
 
   const context = page.locator('[data-fv-screen="baseline-context"]');
   await expect(context).toBeVisible();
-  await expect(context.locator('[data-context-machine]')).toBeVisible();
+  await expect(context.locator('[data-cassette-variant="trial-truth"]')).toBeVisible();
+  await expect(context.locator('[data-capture-context-question]')).toBeVisible();
   await expect(context.getByText('BASELINE SECURED', { exact: true })).toBeVisible();
   await expect(
     context.getByRole('heading', { name: 'Anything meaningfully different today?' }),
@@ -36,6 +37,7 @@ test('baseline capture context stays inside the light-bench instrument and conti
   await expect(context.getByLabel('Recent cleansing or skincare')).toBeVisible();
   await expect(context.getByLabel('Routine or treatment change')).toBeVisible();
   await expect(context.getByRole('button', { name: 'NOTHING DIFFERENT' })).toBeVisible();
+  await expect(context.locator('[data-oracle-specimen]')).toHaveCount(0);
   await assertNoHorizontalOverflow(page);
 
   await context.getByLabel('Makeup').check();
@@ -48,6 +50,18 @@ test('baseline capture context stays inside the light-bench instrument and conti
   await expect(locked.getByRole('heading', { name: 'That’s everything for today.' })).toBeVisible();
   await expect(locked.getByText('NOW', { exact: true })).toBeVisible();
   await expect(locked.getByText('NEXT SCAN', { exact: true })).toBeVisible();
+  await assertNoHorizontalOverflow(page);
+});
+
+test('comparison preserves follow-up as one typographic unit at mobile width', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await openPreview(page, 'comparison_processing');
+
+  const heading = page.getByRole('heading', { name: 'Baseline ↔ follow-up' });
+  const followUp = heading.locator('span');
+  await expect(heading).toBeVisible();
+  await expect(followUp).toHaveText('follow-up');
+  expect(await followUp.evaluate((node) => node.getClientRects().length)).toBe(1);
   await assertNoHorizontalOverflow(page);
 });
 

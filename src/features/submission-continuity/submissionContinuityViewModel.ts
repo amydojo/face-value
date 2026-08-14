@@ -1,9 +1,16 @@
-import type { AnalysisResult, EvidenceConfidence } from '../../domain/model';
+import type {
+  AnalysisResult,
+  EvidenceConfidence,
+  ProductPlacement,
+} from '../../domain/model';
+import { oracleNextStep } from '../oracle-reveal/oraclePresentation';
+import { canonicalActionLabel } from '../verdict/verdictViewModel';
 
 export interface SubmissionContinuityEvidenceViewModel {
   change: string;
   comparison: string;
   evidence: string;
+  recommendation: string;
   interpretation: string;
   claimBoundary: string;
 }
@@ -24,6 +31,7 @@ const signedPoints = (value: number | null | undefined): string => {
 export function submissionContinuityEvidenceViewModel(
   analysis: AnalysisResult,
   confidence: EvidenceConfidence,
+  placement: ProductPlacement,
 ): SubmissionContinuityEvidenceViewModel {
   const evaluation = analysis.rednessEvaluation;
   const accepted = evaluation
@@ -37,6 +45,9 @@ export function submissionContinuityEvidenceViewModel(
     change: signedPoints(evaluation?.rawScoreDelta),
     comparison: attempted > 0 ? `${accepted}/${attempted} checks passed` : 'Not available',
     evidence: evidenceLabelFor(evaluation?.evidenceQuality ?? confidence),
+    recommendation: evaluation
+      ? canonicalActionLabel(evaluation.interpretation.recommendedAction)
+      : oracleNextStep(placement),
     interpretation: analysis.finding,
     claimBoundary: analysis.claimBoundary,
   };

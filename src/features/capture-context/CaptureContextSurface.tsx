@@ -1,10 +1,14 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type RefObject } from 'react';
+import {
+  oracleSpecimenIdentityFromRegisteredProduct,
+  oracleSpecimenIdentityLabel,
+} from '../../adapters/product/specimenFromRegisteredProduct';
 import { useFaceValue } from '../../app/faceValueContext';
 import type { CaptureContext, CaptureKind } from '../../domain/model';
 import { emptyCaptureContext, hasMeaningfulCaptureContext } from '../../domain/phaseB5';
 import styles from '../../styles/FaceValue.module.css';
-import { CanonicalTrialChassis } from '../submission-continuity/CanonicalTrialChassis';
-import instrumentStyles from './CaptureContextSurface.module.css';
+import { OracleTrialTruthMachine } from '../oracle-reveal/OracleRevealScene';
+import instrumentStyles from '../trial-truth/TrialTruthSurface.module.css';
 import { CAPTURE_CONTEXT_OPTIONS } from './captureContextOptions';
 
 export function CaptureContextFields({
@@ -60,6 +64,70 @@ export function CaptureContextFields({
   );
 }
 
+export function CaptureContextQuestion({
+  context,
+  headingId,
+  headingRef,
+  productIdentity,
+  productAccessibleLabel,
+  statusLabel,
+  detailLabel,
+  question,
+  helper,
+  motionDirection = 'forward',
+  onChange,
+}: {
+  context: CaptureContext;
+  headingId: string;
+  headingRef?: RefObject<HTMLHeadingElement | null>;
+  productIdentity: string;
+  productAccessibleLabel: string;
+  statusLabel: string;
+  detailLabel?: string;
+  question: string;
+  helper: string;
+  motionDirection?: 'forward' | 'back';
+  onChange(context: CaptureContext): void;
+}) {
+  return (
+    <div
+      className={instrumentStyles.firmwarePanel}
+      data-trial-truth-firmware-view="capture-context"
+      data-motion-direction={motionDirection}
+      data-capture-context-question
+    >
+      <header className={instrumentStyles.firmwareHeader}>
+        <span>{statusLabel}</span>
+        {detailLabel ? <span>{detailLabel}</span> : null}
+      </header>
+      <p
+        className={instrumentStyles.productIdentity}
+        aria-label={`Registered product: ${productAccessibleLabel}`}
+        data-trial-truth-product-identity
+      >
+        <span aria-hidden="true">{productIdentity}</span>
+      </p>
+      <section className={instrumentStyles.contextSubview} aria-labelledby={headingId}>
+        <div className={instrumentStyles.contextSubviewHeading}>
+          <h1 id={headingId} ref={headingRef} data-stage-focus tabIndex={-1}>
+            {question}
+          </h1>
+          <p>{helper}</p>
+        </div>
+        <div className={instrumentStyles.contextScroller} data-trial-truth-context-scroller>
+          <CaptureContextFields
+            context={context}
+            onChange={onChange}
+            optionsClassName={instrumentStyles.contextOptions}
+            noteClassName={instrumentStyles.contextNote}
+            noteLabel="Optional note"
+          />
+        </div>
+      </section>
+    </div>
+  );
+}
+
 export function CaptureContextSurface({
   kind,
   onContinue,
@@ -72,13 +140,17 @@ export function CaptureContextSurface({
   const changed = useMemo(() => hasMeaningfulCaptureContext(context), [context]);
   const product = state.registeredProduct;
   const securedLabel = kind === 'baseline' ? 'BASELINE SECURED' : 'FOLLOW-UP SECURED';
-  const compactIdentity = product
-    ? [product.accession, product.brand, [product.productName, product.strength].filter(Boolean).join(' ')]
-        .filter(Boolean)
-        .join(' · ')
-    : 'REGISTERED SPECIMEN';
 
   if (!product) return null;
+
+  const productIdentity = oracleSpecimenIdentityFromRegisteredProduct(product);
+  const compactIdentity = [
+    product.accession,
+    [product.productName, product.strength].filter(Boolean).join(' '),
+  ]
+    .filter(Boolean)
+    .join(' · ');
+  const controlLabel = changed ? 'SAVE CONTEXT' : 'NOTHING DIFFERENT';
 
   return (
     <section
@@ -87,40 +159,32 @@ export function CaptureContextSurface({
       data-capture-context-instrument
       aria-labelledby={`${kind}-context-heading`}
     >
-      <CanonicalTrialChassis
-        product={product}
-        mode={kind === 'baseline' ? 'baseline-context' : 'followup-context'}
-        ariaLabel={`${securedLabel}. Capture context for ${compactIdentity}.`}
-      >
-        <header className={instrumentStyles.header}>
-          <strong>{securedLabel}</strong>
-          <span>CAPTURE CONTEXT</span>
-        </header>
-        <p className={instrumentStyles.identity} title={compactIdentity}>
-          {compactIdentity}
-        </p>
-        <h1 id={`${kind}-context-heading`} className={instrumentStyles.question} data-stage-focus tabIndex={-1}>
-          Anything meaningfully different today?
-        </h1>
-        <p className={instrumentStyles.helper}>Qualify what the camera cannot see. Optional.</p>
-
-        <CaptureContextFields
-          context={context}
-          onChange={setContext}
-          optionsClassName={instrumentStyles.options}
-          noteClassName={instrumentStyles.note}
-          noteLabel="Optional note"
+      <div className={instrumentStyles.machineStage}>
+        <OracleTrialTruthMachine
+          product={product}
+          step={4}
+          view="capture-context"
+          firmware={
+            <CaptureContextQuestion
+              context={context}
+              headingId={`${kind}-context-heading`}
+              productIdentity={compactIdentity}
+              productAccessibleLabel={oracleSpecimenIdentityLabel(productIdentity)}
+              statusLabel={securedLabel}
+              detailLabel="CAPTURE CONTEXT"
+              question="Anything meaningfully different today?"
+              helper="Qualify what the camera cannot see. Optional."
+              onChange={setContext}
+            />
+          }
+          controlLabel={controlLabel}
+          controlAccessibleLabel={controlLabel}
+          controlEnabled
+          onControl={() => onContinue(context)}
+          machineAccessibleLabel={`${securedLabel}. Capture context for ${oracleSpecimenIdentityLabel(productIdentity)}.`}
         />
-
-        <button
-          type="button"
-          className={instrumentStyles.commit}
-          onClick={() => onContinue(context)}
-        >
-          <span>{changed ? 'SAVE CONTEXT' : 'NOTHING DIFFERENT'}</span>
-          <span aria-hidden="true">→</span>
-        </button>
-      </CanonicalTrialChassis>
+      </div>
+      <div className={instrumentStyles.backSlot} aria-hidden="true" />
     </section>
   );
 }

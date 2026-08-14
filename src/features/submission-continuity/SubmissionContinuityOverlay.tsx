@@ -118,9 +118,13 @@ export function SubmissionContinuityOverlay() {
   const evidenceSummary = useMemo(
     () =>
       state.analysis
-        ? submissionContinuityEvidenceViewModel(state.analysis, state.confidence)
+        ? submissionContinuityEvidenceViewModel(
+            state.analysis,
+            state.confidence,
+            state.placement,
+          )
         : null,
-    [state.analysis, state.confidence],
+    [state.analysis, state.confidence, state.placement],
   );
 
   const revealLead = (() => {
@@ -206,7 +210,7 @@ export function SubmissionContinuityOverlay() {
             <div className={styles.machineStateFirmware} data-machine-state-firmware="comparison">
               <p>COMPARING</p>
               <h2 data-stage-focus tabIndex={-1}>
-                Baseline ↔ follow-up
+                Baseline ↔ <span>follow-up</span>
               </h2>
               <div className={styles.comparisonRail} role="status" aria-live="polite">
                 <span>BASELINE</span>
@@ -349,6 +353,10 @@ export function SubmissionContinuityOverlay() {
                     <div>
                       <dt>EVIDENCE</dt>
                       <dd>{evidenceSummary.evidence}</dd>
+                    </div>
+                    <div>
+                      <dt>NEXT</dt>
+                      <dd>{evidenceSummary.recommendation}</dd>
                     </div>
                   </dl>
                   <p>{evidenceSummary.interpretation}</p>

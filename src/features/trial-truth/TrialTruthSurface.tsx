@@ -19,7 +19,7 @@ import {
   type TrialTruthDraft,
   type TrialTruthToleranceAnswer,
 } from '../../domain/trialTruth';
-import { CaptureContextFields } from '../capture-context/CaptureContextSurface';
+import { CaptureContextQuestion } from '../capture-context/CaptureContextSurface';
 import { CAPTURE_CONTEXT_OPTIONS } from '../capture-context/captureContextOptions';
 import { OracleTrialTruthMachine } from '../oracle-reveal/OracleRevealScene';
 import styles from './TrialTruthSurface.module.css';
@@ -218,8 +218,23 @@ export function TrialTruthSurface() {
     });
   };
 
-  const firmware = (
-    <div
+  const firmware =
+    view === 'capture-context' ? (
+      <CaptureContextQuestion
+        key={`${step}-${view}`}
+        context={captureContextDraft}
+        headingId="trial-truth-context-heading"
+        headingRef={questionRef}
+        productIdentity={compactProductIdentity}
+        productAccessibleLabel={oracleSpecimenIdentityLabel(productIdentity)}
+        statusLabel="CAPTURE CHECK · OPTIONAL"
+        question="What was different?"
+        helper="Choose any that apply."
+        motionDirection={motionDirection}
+        onChange={setCaptureContextDraft}
+      />
+    ) : (
+      <div
       key={`${step}-${view}`}
       className={styles.firmwarePanel}
       data-trial-truth-firmware-view={view}
@@ -265,24 +280,6 @@ export function TrialTruthSurface() {
               Choose at least one.
             </p>
           )}
-        </section>
-      ) : view === 'capture-context' ? (
-        <section className={styles.contextSubview} aria-labelledby="trial-truth-context-heading">
-          <div className={styles.contextSubviewHeading}>
-            <h1 id="trial-truth-context-heading" ref={questionRef} tabIndex={-1}>
-              What was different?
-            </h1>
-            <p>Choose any that apply.</p>
-          </div>
-          <div className={styles.contextScroller} data-trial-truth-context-scroller>
-            <CaptureContextFields
-              context={captureContextDraft}
-              onChange={setCaptureContextDraft}
-              optionsClassName={styles.contextOptions}
-              noteClassName={styles.contextNote}
-              noteLabel="Optional note"
-            />
-          </div>
         </section>
       ) : (
         <section
@@ -472,8 +469,8 @@ export function TrialTruthSurface() {
           {state.trialTruthValidation.messages[0]}
         </p>
       )}
-    </div>
-  );
+      </div>
+    );
 
   return (
     <EvidenceShell tone="light" label="Face Value trial truth">

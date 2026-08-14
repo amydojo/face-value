@@ -34,6 +34,10 @@
   letter-spacing: -0.02em;
 }
 
+.machineStateFirmware h2 > span {
+  white-space: nowrap;
+}
+
 .machineStateFirmware dl {
   display: grid;
   gap: 5px;
@@ -289,7 +293,7 @@
 
 .whyPanel dl {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 7px;
 }
 
@@ -320,6 +324,12 @@
   color: #746b62;
   font-size: 10px;
   line-height: 1.4;
+}
+
+@media (max-width: 430px) {
+  .whyPanel dl {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 390px) {

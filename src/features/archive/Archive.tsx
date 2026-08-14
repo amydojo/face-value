@@ -1,5 +1,6 @@
 import { oracleSpecimenIdentityFromEvidenceRecord } from '../../adapters/product/specimenFromRegisteredProduct';
 import type { EvidenceRecordData } from '../../domain/model';
+import { evidenceRecordViewModelFromRecord } from '../evidence-record/evidenceRecordViewModel';
 import { resultExperienceViewModelFromRecord } from '../evidence-record/resultExperienceViewModel';
 import { verdictViewModelFromRecord } from '../verdict/verdictViewModel';
 import styles from './Archive.module.css';
@@ -21,6 +22,14 @@ const productMeta = (record: EvidenceRecordData): string => {
   const specimen = oracleSpecimenIdentityFromEvidenceRecord(record);
   return [specimen.brand, specimen.productName].filter(Boolean).join(' · ');
 };
+
+const registeredSpecimenLabel = (record: EvidenceRecordData): string =>
+  oracleSpecimenIdentityFromEvidenceRecord(record)
+    .productName.trim()
+    .split(/\s+/)
+    .slice(0, 2)
+    .join(' ')
+    .toLocaleUpperCase('en-US');
 
 export function Archive({
   records,
@@ -57,11 +66,12 @@ export function Archive({
           {records.map((record) => {
             const specimen = oracleSpecimenIdentityFromEvidenceRecord(record);
             const viewModel = resultExperienceViewModelFromRecord(record);
+            const recommendation = evidenceRecordViewModelFromRecord(record).nextStep.statusLabel;
             const legacyViewModel = verdictViewModelFromRecord(record);
             const resultSummary =
               viewModel.changeCompact === 'Not available'
-                ? viewModel.directionLabel.toLocaleUpperCase('en-US')
-                : `${viewModel.changeCompact} · ${viewModel.directionLabel.toLocaleUpperCase('en-US')}`;
+                ? recommendation
+                : `${viewModel.changeCompact} · ${recommendation}`;
             return (
               <button
                 className={styles.record}
@@ -81,7 +91,7 @@ export function Archive({
                 <span className={styles.shelf} aria-hidden="true">
                   <i className={styles.bottle}>
                     <span className={styles.bottleLabel}>
-                      <small>{specimen.brand}</small>
+                      <small>{registeredSpecimenLabel(record)}</small>
                       <strong>{specimen.strength ?? 'FV'}</strong>
                     </span>
                   </i>
@@ -107,7 +117,6 @@ export function Archive({
                   <span>{record.finding}</span>
                   <span>{legacyViewModel.explanation}</span>
                   <span>{legacyViewModel.confidence}</span>
-                  <span>{legacyViewModel.nextStepLabel}</span>
                 </span>
               </button>
             );

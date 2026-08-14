@@ -466,10 +466,16 @@ export type OracleTrialTruthMachineProps = {
   step: 1 | 2 | 3 | 4;
   view: 'question' | 'symptoms' | 'capture-context';
   firmware: ReactNode;
-  controlLabel: 'CONTINUE' | 'SAVE SIGNS' | 'SAVE CONTEXT' | 'SEE RESULT';
+  controlLabel:
+    | 'CONTINUE'
+    | 'SAVE SIGNS'
+    | 'SAVE CONTEXT'
+    | 'NOTHING DIFFERENT'
+    | 'SEE RESULT';
   controlAccessibleLabel: string;
   controlEnabled: boolean;
   onControl: () => void;
+  machineAccessibleLabel?: string;
 };
 
 type OracleVerdictMachineProps = {
@@ -713,7 +719,8 @@ function OracleMachine(props: OracleMachineProps) {
         ].filter((value): value is string => Boolean(value))
       : [];
   const machineLabel = trialTruthMachine
-    ? `Follow-up secured for ${oracleSpecimenIdentityLabel(
+    ? trialTruthMachine.machineAccessibleLabel ??
+      `Follow-up secured for ${oracleSpecimenIdentityLabel(
         trialTruthMachine.specimenIdentity,
       )}. Trial truth step ${trialTruthMachine.step} of 3${
         trialTruthMachine.view === 'symptoms' ? ', symptom selection' : ''
