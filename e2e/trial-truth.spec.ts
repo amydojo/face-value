@@ -323,7 +323,7 @@ async function submitTrialTruth(page: Page, scenario: TrialScenario): Promise<vo
   await page.getByRole('radio', { name: scenario.visible.toUpperCase() }).click();
   await page.getByRole('button', { name: 'Continue to capture check' }).click();
 
-  await expect(page.getByText('CAPTURE CHECK · OPTIONAL')).toBeVisible();
+  await expect(page.locator('[data-oracle-machine]')).toHaveAttribute('data-trial-truth-step', '4');
   await expect(
     page.getByRole('heading', { name: 'Anything different around today’s scan?' }),
   ).toBeVisible();
