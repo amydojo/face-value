@@ -1,0 +1,112 @@
+name: PR76 one-shot post-repair contracts
+
+on:
+  push:
+    branches:
+      - agent/submission-continuity-hardening
+
+permissions:
+  contents: write
+
+jobs:
+  patch-and-prove:
+    if: github.event.head_commit.message == 'stage PR76 post-repair contract proof'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/submission-continuity-hardening
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.18.0
+      - name: Verify exact starting parent and live head
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD^)" = "f21e08e25a6442e12399616d1cad7adb57f0bff2"
+          git fetch origin agent/submission-continuity-hardening
+          test "$(git rev-parse origin/agent/submission-continuity-hardening)" = "$GITHUB_SHA"
+      - name: Apply only evidence-backed stale contract corrections
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          ingestion = Path('e2e/first-trial-ingestion.spec.ts')
+          text = ingestion.read_text()
+          stale = "expect(await machineDocumentGeometry(page)).toEqual(workflowMachineGeometry);"
+          if text.count(stale) != 6:
+              raise SystemExit(f'Expected six stale preview-geometry equalities, found {text.count(stale)}')
+          first = """  expect(await machineDocumentGeometry(page)).toEqual(workflowMachineGeometry);
+
+  await page.clock.runFor(registrationTiming.preparingCheckpoint);"""
+          replacement = """  const operationalMachineGeometry = await machineDocumentGeometry(page);
+  expect(operationalMachineGeometry.x).toBe(workflowMachineGeometry.x);
+  expect(operationalMachineGeometry.width).toBe(workflowMachineGeometry.width);
+  expect(operationalMachineGeometry.height).toBe(workflowMachineGeometry.height);
+  expect(operationalMachineGeometry.transform).toBe(workflowMachineGeometry.transform);
+  expect(operationalMachineGeometry.animationName).toBe(workflowMachineGeometry.animationName);
+  expect(operationalMachineGeometry.documentY).toBeGreaterThan(workflowMachineGeometry.documentY);
+  expect(operationalMachineGeometry.viewportY).toBeGreaterThan(workflowMachineGeometry.viewportY);
+
+  await page.clock.runFor(registrationTiming.preparingCheckpoint);"""
+          if text.count(first) != 1:
+              raise SystemExit('Expected exact first compact-preview geometry equality once.')
+          text = text.replace(first, replacement)
+          if text.count(stale) != 5:
+              raise SystemExit(f'Expected five operational-phase equalities after first replacement, found {text.count(stale)}')
+          text = text.replace(stale, "expect(await machineDocumentGeometry(page)).toEqual(operationalMachineGeometry);")
+          evidence_old = """          workflowMachine: workflowMachineGeometry,
+          workflowLayout: registrationLayout,
+          stableMachinePhases: [
+            'registration-preview',
+            'preparing',"""
+          evidence_new = """          registrationPreviewMachine: workflowMachineGeometry,
+          operationalMachine: operationalMachineGeometry,
+          workflowLayout: registrationLayout,
+          stableMachinePhases: [
+            'preparing',"""
+          if text.count(evidence_old) != 1:
+              raise SystemExit('Expected registration geometry evidence block once.')
+          text = text.replace(evidence_old, evidence_new)
+          ingestion.write_text(text)
+
+          golden = Path('e2e/golden-path.spec.ts')
+          text = golden.read_text()
+          old = "    await expect(page.getByLabel('Result recommendation').locator(':scope > p')).toBeVisible();"
+          new = "    await expect(page.getByLabel('Result recommendation').locator(':scope > p')).toBeHidden();"
+          if text.count(old) != 1:
+              raise SystemExit(f'Expected one stale legacy recommendation visibility assertion, found {text.count(old)}')
+          golden.write_text(text.replace(old, new))
+          PY
+          git diff --check
+          git diff -- e2e/first-trial-ingestion.spec.ts e2e/golden-path.spec.ts
+      - run: npm ci --no-audit --no-fund
+      - run: npx playwright install --with-deps webkit
+      - name: Prove five post-repair contracts in Mobile WebKit
+        env:
+          PLAYWRIGHT_JSON_OUTPUT_NAME: postrepair-targeted.json
+        run: >-
+          npx playwright test
+          e2e/first-trial-ingestion.spec.ts
+          e2e/golden-path.spec.ts
+          --project=mobile-webkit
+          --grep "one Oracle instrument accepts, loads, and releases one specimen to baseline|complete Phase B.5 golden path"
+          --reporter=github,json
+      - name: Upload proof
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pr76-postrepair-targeted-results
+          path: postrepair-targeted.json
+          if-no-files-found: warn
+      - name: Commit only after targeted WebKit is green
+        run: |
+          set -euo pipefail
+          git fetch origin agent/submission-continuity-hardening
+          test "$(git rev-parse origin/agent/submission-continuity-hardening)" = "$GITHUB_SHA"
+          rm .github/workflows/pr76-one-shot-postrepair-contracts.yml
+          git config user.name "amydojo"
+          git config user.email "amydojo@users.noreply.github.com"
+          git add e2e/first-trial-ingestion.spec.ts e2e/golden-path.spec.ts .github/workflows/pr76-one-shot-postrepair-contracts.yml
+          git commit -m "align post-repair WebKit contracts with approved continuity"
+          git push origin HEAD:agent/submission-continuity-hardening
