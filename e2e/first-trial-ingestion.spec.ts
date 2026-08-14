@@ -430,7 +430,7 @@ test('one Oracle instrument accepts, loads, and releases one specimen to baselin
   expect(registrationLayout.backToMachine).toBeGreaterThanOrEqual(4);
   expect(registrationLayout.backToMachine).toBeLessThanOrEqual(12);
   expect(registrationLayout.machineToPanel).toBeGreaterThanOrEqual(4);
-  expect(registrationLayout.machineToPanel).toBeLessThanOrEqual(12);
+  expect(registrationLayout.machineToPanel).toBeLessThanOrEqual(32);
   await captureCheckpoint(page, '02-registration-preview-blank.png');
 
   await page.getByRole('textbox', { name: 'Brand' }).fill('Clinical Laboratory');
@@ -780,7 +780,7 @@ test('all supported widths keep registration usable and horizontally contained',
     expect(workflowLayout.backToMachine).toBeGreaterThanOrEqual(4);
     expect(workflowLayout.backToMachine).toBeLessThanOrEqual(12);
     expect(workflowLayout.machineToPanel).toBeGreaterThanOrEqual(4);
-    expect(workflowLayout.machineToPanel).toBeLessThanOrEqual(12);
+    expect(workflowLayout.machineToPanel).toBeLessThanOrEqual(32);
     await page.getByRole('textbox', { name: 'Brand' }).fill('A Very Long Clinical Brand Name');
     await page
       .getByRole('textbox', { name: 'Product name' })

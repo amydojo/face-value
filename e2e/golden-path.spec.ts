@@ -233,9 +233,12 @@ for (const scenario of cases) {
       localStorage.setItem(key, JSON.stringify(persisted));
     }, STORAGE_KEY);
     await page.reload();
-    await expect(page.getByText('FOLLOW-UP READY').first()).toBeVisible();
+    const followupReadyMachine = page.getByLabel('Follow-up ready for Naturium');
+    await expect(
+      followupReadyMachine.getByText('FOLLOW-UP READY', { exact: true }),
+    ).toBeVisible();
     await expect(page.getByRole('button', { name: 'Take follow-up scan' })).toBeVisible();
-    await expect(page.getByText('READY', { exact: true })).toBeVisible();
+    await expect(followupReadyMachine.getByText('READY', { exact: true })).toBeVisible();
 
     const advancedStorage = await page.evaluate((key) => {
       return localStorage.getItem(key);
