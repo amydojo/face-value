@@ -7,6 +7,23 @@ async function openPreview(page: Page, startingPoint: string): Promise<void> {
   await expect(page).toHaveURL(/\/$/);
 }
 
+async function installCandidatePointerBoundary(page: Page): Promise<void> {
+  await page.addStyleTag({
+    content: `
+      [data-oracle-machine][data-cassette-variant='trial-truth'] {
+        pointer-events: none !important;
+      }
+
+      [data-oracle-machine][data-cassette-variant='trial-truth'] [data-oracle-trial-truth-firmware],
+      [data-oracle-machine][data-cassette-variant='trial-truth']
+        [data-oracle-trial-truth-firmware]
+        [data-trial-truth-firmware-view] {
+        pointer-events: auto !important;
+      }
+    `,
+  });
+}
+
 async function hitEvidence(page: Page, control: Locator) {
   await control.scrollIntoViewIfNeeded();
   const box = await control.boundingBox();
@@ -24,9 +41,6 @@ async function hitEvidence(page: Page, control: Locator) {
         tag: html.tagName,
         id: html.id,
         className: html.className,
-        role: html.getAttribute('role'),
-        name: html.getAttribute('name'),
-        type: html.getAttribute('type'),
         data: Object.fromEntries(
           [...html.attributes]
             .filter((attribute) => attribute.name.startsWith('data-'))
@@ -113,9 +127,10 @@ async function physicalTapTarget(page: Page, point: { x: number; y: number }) {
   );
 }
 
-test('WebKit hit-test evidence · Trial Truth radio', async ({ page }, testInfo) => {
+test('candidate pointer boundary · Trial Truth physical radio tap', async ({ page }, testInfo) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await openPreview(page, 'trial_truth');
+  await installCandidatePointerBoundary(page);
   const control = page.getByRole('radio', { name: 'YES' });
   await expect(control).toBeVisible();
   await expect(control).toBeEnabled();
@@ -123,25 +138,18 @@ test('WebKit hit-test evidence · Trial Truth radio', async ({ page }, testInfo)
   const evidence = await hitEvidence(page, control);
   const pointerTarget = await physicalTapTarget(page, evidence.point);
   const pointerActivated = await control.isChecked();
-  await attach(testInfo, 'trial-truth-hit-evidence', { ...evidence, pointerTarget, pointerActivated });
-
-  await control.focus();
-  await page.keyboard.press('Space');
-  const keyboardActivated = await control.isChecked();
-  await attach(testInfo, 'trial-truth-keyboard-evidence', { keyboardActivated });
-  expect(keyboardActivated).toBe(true);
-
-  await openPreview(page, 'trial_truth');
-  const freshControl = page.getByRole('radio', { name: 'YES' });
-  await freshControl.evaluate((element: HTMLInputElement) => element.click());
-  const domClickActivated = await freshControl.isChecked();
-  await attach(testInfo, 'trial-truth-dom-click-evidence', { domClickActivated });
-  expect(domClickActivated).toBe(true);
+  await attach(testInfo, 'candidate-trial-truth-hit-evidence', {
+    ...evidence,
+    pointerTarget,
+    pointerActivated,
+  });
+  expect(pointerActivated).toBe(true);
 });
 
-test('WebKit hit-test evidence · follow-up Capture Context', async ({ page }, testInfo) => {
+test('candidate pointer boundary · Capture Context physical button tap', async ({ page }, testInfo) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await openPreview(page, 'followup_context');
+  await installCandidatePointerBoundary(page);
   const control = page.getByRole('button', { name: 'ADD CONTEXT' });
   await expect(control).toBeVisible();
   await expect(control).toBeEnabled();
@@ -149,18 +157,10 @@ test('WebKit hit-test evidence · follow-up Capture Context', async ({ page }, t
   const evidence = await hitEvidence(page, control);
   const pointerTarget = await physicalTapTarget(page, evidence.point);
   const pointerActivated = await page.getByRole('heading', { name: 'What was different?' }).isVisible();
-  await attach(testInfo, 'capture-context-hit-evidence', { ...evidence, pointerTarget, pointerActivated });
-
-  await control.focus();
-  await page.keyboard.press('Enter');
-  const keyboardActivated = await page.getByRole('heading', { name: 'What was different?' }).isVisible();
-  await attach(testInfo, 'capture-context-keyboard-evidence', { keyboardActivated });
-  expect(keyboardActivated).toBe(true);
-
-  await openPreview(page, 'followup_context');
-  const freshControl = page.getByRole('button', { name: 'ADD CONTEXT' });
-  await freshControl.evaluate((element: HTMLButtonElement) => element.click());
-  const domClickActivated = await page.getByRole('heading', { name: 'What was different?' }).isVisible();
-  await attach(testInfo, 'capture-context-dom-click-evidence', { domClickActivated });
-  expect(domClickActivated).toBe(true);
+  await attach(testInfo, 'candidate-capture-context-hit-evidence', {
+    ...evidence,
+    pointerTarget,
+    pointerActivated,
+  });
+  expect(pointerActivated).toBe(true);
 });
