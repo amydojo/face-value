@@ -22,32 +22,57 @@ jobs:
       - name: Verify exact starting head
         run: |
           set -euo pipefail
-          test "$(git rev-parse HEAD^)" = "e8ce8deb04ed1f47535b4da293a2574d2369e813"
+          test "$(git rev-parse HEAD^)" = "b8d66d74273f1dc89204cdb80b14851be5c39ea4"
           git fetch origin agent/submission-continuity-hardening
           test "$(git rev-parse origin/agent/submission-continuity-hardening)" = "$GITHUB_SHA"
-      - name: Align legacy evidence-detail visibility with approved inspection hierarchy
+      - name: Align golden path with canonical saved-result evidence hierarchy
         run: |
           python - <<'PY'
           from pathlib import Path
+
           path = Path('e2e/golden-path.spec.ts')
           text = path.read_text()
-          blocks = [
-              """    await expect(
+
+          legacy_open = """    await page.getByRole('button', { name: 'VIEW EVIDENCE' }).click();
+              await expect(page.getByRole('heading', { name: 'EVIDENCE DETAIL' })).toBeVisible();
+              const evidenceDetail = page.locator('[data-evidence-detail]');
+              await expect(
                 page.getByText(/Demo timing was advanced explicitly; capture timestamps remain unchanged/i),
-              ).toBeVisible();""",
-              """    await expect(
+              ).toBeVisible();
+              await expect(
                 evidenceDetail.getByText('Production thresholds require repeat-scan calibration.', {
                   exact: true,
                 }),
-              ).toBeVisible();""",
-              """    await expect(
+              ).toBeVisible();
+              await expect(
                 evidenceDetail.getByText(/provisional_fixture · redness-provisional-v1/i),
-              ).toBeVisible();""",
-          ]
-          for block in blocks:
+              ).toBeVisible();
+          """
+          legacy_close = """    await page.getByRole('button', { name: 'VIEW EVIDENCE' }).click();
+              await expect(page.getByRole('heading', { name: 'EVIDENCE DETAIL' })).toHaveCount(0);
+          """
+          canonical_anchor = """    await page.getByRole('button', { name: /Open Evaluation details/ }).click();
+              await expect(page.locator('[data-technical-field=\"direction-agreement\"]')).toContainText(
+                'Agreeing',
+              );
+          """
+          canonical_replacement = """    await page.getByRole('button', { name: /Open Evaluation details/ }).click();
+              const elapsedTimeField = page.locator('[data-technical-field=\"elapsed-time\"]');
+              await expect(elapsedTimeField).toBeVisible();
+              await expect(elapsedTimeField.locator('dt')).toHaveText('Elapsed time');
+              await expect(elapsedTimeField.locator('dd')).toContainText(/day/i);
+              await expect(page.locator('[data-technical-field=\"direction-agreement\"]')).toContainText(
+                'Agreeing',
+              );
+          """
+
+          for name, block in [('legacy open', legacy_open), ('legacy close', legacy_close), ('canonical anchor', canonical_anchor)]:
               if text.count(block) != 1:
-                  raise SystemExit(f'Expected exact legacy visibility block once: {block!r}')
-              text = text.replace(block, block.replace('toBeVisible()', 'toBeHidden()'))
+                  raise SystemExit(f'Expected exact {name} block once; found {text.count(block)}')
+
+          text = text.replace(legacy_open, '')
+          text = text.replace(legacy_close, '')
+          text = text.replace(canonical_anchor, canonical_replacement)
           path.write_text(text)
           PY
           git diff --check
@@ -65,5 +90,5 @@ jobs:
           git config user.name "amydojo"
           git config user.email "amydojo@users.noreply.github.com"
           git add e2e/golden-path.spec.ts .github/workflows/pr76-final-golden-contract.yml
-          git commit -m "align legacy evidence detail contract with approved inspection hierarchy"
+          git commit -m "align golden path with canonical evidence hierarchy"
           git push origin HEAD:agent/submission-continuity-hardening
