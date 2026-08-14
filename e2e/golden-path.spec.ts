@@ -256,6 +256,19 @@ for (const scenario of cases) {
     await expect(page.getByRole('heading', { name: 'The result is in.' })).toBeVisible({
       timeout: 1_500,
     });
+    await expect
+      .poll(async () => {
+        const serialized = await page.evaluate((key) => localStorage.getItem(key), STORAGE_KEY);
+        if (!serialized) return false;
+        const persisted = JSON.parse(serialized) as {
+          analysis?: { rednessEvaluation?: unknown } | null;
+          longitudinalEvidence?: { evaluation?: unknown };
+        };
+        return Boolean(
+          persisted.analysis?.rednessEvaluation && persisted.longitudinalEvidence?.evaluation,
+        );
+      })
+      .toBe(true);
     const comparedStorage = await page.evaluate((key) => {
       return localStorage.getItem(key);
     }, STORAGE_KEY);
