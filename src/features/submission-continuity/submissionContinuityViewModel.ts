@@ -15,6 +15,12 @@ export interface SubmissionContinuityEvidenceViewModel {
   claimBoundary: string;
 }
 
+export function registeredProductInstructionLabel(productName: string): string {
+  const registeredName = productName.trim();
+  const specimenName = registeredName.replace(/\s+REDNESS\s+TRIAL$/i, '').trim();
+  return (specimenName || registeredName).toLocaleUpperCase('en-US');
+}
+
 const evidenceLabelFor = (value: string): string => {
   if (value === 'confirmed') return 'Established';
   if (value === 'likely') return 'Growing';

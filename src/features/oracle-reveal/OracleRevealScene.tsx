@@ -444,6 +444,7 @@ function LatestVerdictPaper({
 export type OracleTrialStateMachineProps =
   | {
       state: 'empty';
+      onLoadProduct?: () => void;
     }
   | {
       state: 'registration-preview';
@@ -506,6 +507,7 @@ type OracleTrialMachineProps = {
   registration: SpecimenRegistrationSnapshot;
   day: number | null;
   intervalDays: number | null;
+  onLoadProduct?: () => void;
 };
 
 type OracleTrialTruthMachineInternalProps = OracleTrialTruthMachineProps & {
@@ -657,12 +659,16 @@ function OracleMachine(props: OracleMachineProps) {
     trialTruthMachine?.specimenIdentity ??
     verdictMachine?.specimenIdentity ??
     null;
+  const emptyLoadAction =
+    trialMachine?.trialState === 'empty' ? trialMachine.onLoadProduct : undefined;
   const amberState: OracleAmberState = trialTruthMachine
     ? trialTruthMachine.controlEnabled
       ? 'ready'
       : 'idle'
     : trialMachine
-      ? trialMachine.trialState === 'followup-ready'
+      ? emptyLoadAction
+        ? 'ready'
+        : trialMachine.trialState === 'followup-ready'
         ? 'followup-ready'
         : trialMachine.trialState === 'pending'
           ? 'trial-pending'
@@ -844,6 +850,20 @@ function OracleMachine(props: OracleMachineProps) {
             <b className={styles.guideLeft} />
             <b className={styles.guideRight} />
           </div>
+          {emptyLoadAction && (
+            <button
+              type="button"
+              className={styles.emptyLoadDeckAction}
+              data-welcome-action
+              aria-label="LOAD PRODUCT"
+              onClick={emptyLoadAction}
+            >
+              <span className={styles.emptyLoadRail} aria-hidden="true">
+                <b>LOAD PRODUCT</b>
+                <i>→</i>
+              </span>
+            </button>
+          )}
           {trialTruthMachine && (
             <button
               type="button"
@@ -1007,6 +1027,7 @@ export function OracleTrialStateMachine(props: OracleTrialStateMachineProps) {
       intervalDays={
         props.state === 'pending' || props.state === 'followup-ready' ? props.intervalDays : null
       }
+      onLoadProduct={props.state === 'empty' ? props.onLoadProduct : undefined}
     />
   );
 }

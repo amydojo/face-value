@@ -75,7 +75,7 @@ function renderApplication(
 }
 
 function enterRegistration() {
-  fireEvent.click(screen.getByRole('button', { name: 'LOAD A PRODUCT' }));
+  fireEvent.click(screen.getByRole('button', { name: 'LOAD PRODUCT' }));
 }
 
 function fillRequiredProduct(brand = 'Naturium', productName = 'Azelaic Topical Acid') {

@@ -9,7 +9,7 @@ test('new specimen registration progresses once and releases the guided baseline
   await page.evaluate((key) => localStorage.removeItem(key), STORAGE_KEY);
   await page.reload();
 
-  await page.getByRole('button', { name: 'LOAD A PRODUCT' }).click();
+  await page.getByRole('button', { name: 'LOAD PRODUCT' }).click();
   const brand = page.getByLabel('Brand', { exact: true });
   await expect(brand).toHaveCount(1);
   await expect(brand).toHaveAttribute('name', 'brand');

@@ -124,9 +124,14 @@ export function FirstTrialScene() {
 
   const identity = useMemo(() => draftSpecimenIdentity(draft), [draft]);
 
+  const onLoadProduct = () => {
+    setRegistrationPanelMounted(true);
+    dispatch({ type: 'START_PRODUCT_REGISTRATION' });
+  };
+
   const oracleProps: OracleTrialStateMachineProps =
     state.stage === 'welcome'
-      ? { state: 'empty' }
+      ? { state: 'empty', onLoadProduct }
       : state.stage === 'product_registration'
         ? { state: 'registration-preview', identity }
         : state.registeredProduct
@@ -136,11 +141,6 @@ export function FirstTrialScene() {
               registration: registrationSequence.registration,
             }
           : { state: 'empty' };
-
-  const onLoadProduct = () => {
-    setRegistrationPanelMounted(true);
-    dispatch({ type: 'START_PRODUCT_REGISTRATION' });
-  };
 
   const onBack = () => {
     registrationSequence.cancel();
@@ -204,7 +204,7 @@ export function FirstTrialScene() {
 
   return (
     <>
-      <ScreenHeader dark />
+      <ScreenHeader dark={state.stage !== 'welcome'} />
       <section
         className={`${styles.firstTrialScene} ${registrationPreview ? continuityStyles.registrationPreview : ''}`}
         data-fv-screen={
@@ -224,7 +224,6 @@ export function FirstTrialScene() {
         <div className={styles.firstTrialLeadSlot} data-first-trial-lead={state.stage}>
           {state.stage === 'welcome' && (
             <div className={styles.firstTrialWelcomeLead}>
-              <p className={styles.firstTrialEyebrow}>ONE PRODUCT · ONE JOB · ONE HONEST RESULT</p>
               <h1 data-stage-focus tabIndex={-1}>
                 Is your skincare actually doing anything?
               </h1>
@@ -247,18 +246,6 @@ export function FirstTrialScene() {
         </div>
 
         <div className={styles.firstTrialControls}>
-          {state.stage === 'welcome' && (
-            <button
-              className={styles.firstTrialLoadAction}
-              type="button"
-              data-welcome-action
-              onClick={onLoadProduct}
-            >
-              <span>LOAD A PRODUCT</span>
-              <span aria-hidden="true">→</span>
-            </button>
-          )}
-
           {registrationVisible && (
             <ProductRegistration
               value={draft}
@@ -304,8 +291,11 @@ export function FirstTrialScene() {
           className={styles.firstTrialPrivacy}
           data-welcome-privacy={state.stage === 'welcome' ? '' : undefined}
         >
-          {state.stage !== 'product_registration' &&
-            'PRIVATE BY DEFAULT · FACE IMAGES STAY IN MEMORY'}
+          {state.stage === 'welcome'
+            ? 'PRIVATE BY DEFAULT · FACE IMAGES ARE NOT SAVED'
+            : state.stage !== 'product_registration'
+              ? 'PRIVATE BY DEFAULT · FACE IMAGES STAY IN MEMORY'
+              : ''}
         </footer>
         <div className={styles.liveRegion} role="status" aria-live="polite" aria-atomic="true">
           {registrationSequence.announcement}

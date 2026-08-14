@@ -53,51 +53,51 @@ section[data-fv-screen='baseline-locked']:has([data-continuity-machine-replaceme
 }
 
 [data-fv-screen='product-registration'] [data-registration-panel] {
-  gap: 7px;
-  padding: 11px 12px 12px;
+  gap: 5px;
+  padding: 8px 10px 9px;
 }
 
 [data-fv-screen='product-registration'] [data-registration-panel] > h2 {
-  font-size: clamp(20px, 5.6vw, 23px);
+  font-size: clamp(19px, 5.3vw, 22px);
   line-height: 1.03;
 }
 
 [data-fv-screen='product-registration'] [data-registration-panel] form {
-  gap: 8px;
+  gap: 6px;
 }
 
 [data-fv-screen='product-registration'] [data-registration-panel] form > label,
 [data-fv-screen='product-registration'] [data-registration-panel] form > div > label {
-  gap: 4px;
+  gap: 2px;
 }
 
 [data-fv-screen='product-registration'] [data-registration-panel] input:not([type='radio']) {
   min-height: 44px;
-  padding: 8px 10px;
+  padding: 7px 9px;
 }
 
 [data-fv-screen='product-registration'] [data-registration-protocol] {
   position: relative;
-  min-height: 42px;
-  grid-template-columns: 14px minmax(0, 1fr);
+  min-height: 38px;
+  grid-template-columns: 12px auto minmax(0, 1fr);
   gap: 2px 6px;
-  padding: 7px 9px;
+  align-items: center;
+  padding: 5px 8px;
   border-left-width: 2px;
 }
 
 [data-fv-screen='product-registration'] [data-registration-protocol] > input[type='radio'] {
   width: 12px;
   height: 12px;
-  grid-row: 1 / span 3;
+  grid-row: 1 / span 2;
   align-self: center;
   margin: 0;
   accent-color: var(--fv-signal-active);
 }
 
-[data-fv-screen='product-registration'] [data-registration-protocol] > span,
-[data-fv-screen='product-registration'] [data-registration-protocol] > strong,
-[data-fv-screen='product-registration'] [data-registration-protocol] > small {
+[data-fv-screen='product-registration'] [data-registration-protocol] > span {
   grid-column: 2;
+  grid-row: 1;
 }
 
 [data-fv-screen='product-registration'] [data-registration-protocol] > span {
@@ -105,10 +105,14 @@ section[data-fv-screen='baseline-locked']:has([data-continuity-machine-replaceme
 }
 
 [data-fv-screen='product-registration'] [data-registration-protocol] > strong {
+  grid-column: 3;
+  grid-row: 1;
   font-size: 8px;
 }
 
 [data-fv-screen='product-registration'] [data-registration-protocol] > small {
+  grid-column: 2 / -1;
+  grid-row: 2;
   font-size: 9px;
 }
 

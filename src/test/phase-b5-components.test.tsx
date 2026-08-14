@@ -263,7 +263,7 @@ it('starts with real registration and ends session one at Baseline locked', asyn
     </FaceValueProvider>,
   );
 
-  await user.click(screen.getByRole('button', { name: 'LOAD A PRODUCT' }));
+  await user.click(screen.getByRole('button', { name: 'LOAD PRODUCT' }));
   const registrationHeading = screen.getByRole('heading', {
     name: 'Give the specimen an identity.',
   });

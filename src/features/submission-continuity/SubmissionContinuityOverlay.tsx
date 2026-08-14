@@ -12,7 +12,10 @@ import {
 import { EvidenceRecord } from '../evidence-record/EvidenceRecord';
 import { CanonicalTrialChassis } from './CanonicalTrialChassis';
 import styles from './SubmissionContinuityOverlay.module.css';
-import { submissionContinuityEvidenceViewModel } from './submissionContinuityViewModel';
+import {
+  registeredProductInstructionLabel,
+  submissionContinuityEvidenceViewModel,
+} from './submissionContinuityViewModel';
 
 type PortalTargets = {
   oracleScene: HTMLElement | null;
@@ -159,6 +162,15 @@ export function SubmissionContinuityOverlay() {
     Boolean(targets.trialDisplay && state.registeredProduct && activeTrialSummary) &&
     ['cabinet', 'waiting_for_followup', 'followup_ready'].includes(state.stage);
 
+  const productInstruction = state.registeredProduct
+    ? registeredProductInstructionLabel(state.registeredProduct.productName)
+    : '';
+
+  const baselineNextScan =
+    demoRuntime.mode !== 'ordinary'
+      ? `IN ${FOLLOW_UP_INTERVAL_DAYS} DAYS`
+      : formatDate(state.followUpEligibleAt);
+
   const saveResult = () => {
     const canonicalCommit = document.querySelector<HTMLButtonElement>(
       '[data-oracle-keep-action="hardware"]',
@@ -240,11 +252,11 @@ export function SubmissionContinuityOverlay() {
               <dl>
                 <div>
                   <dt>NOW</dt>
-                  <dd>KEEP USING {state.registeredProduct.productName.toLocaleUpperCase('en-US')}</dd>
+                  <dd>KEEP USING {productInstruction}</dd>
                 </div>
                 <div>
                   <dt>NEXT SCAN</dt>
-                  <dd>{formatDate(state.followUpEligibleAt)}</dd>
+                  <dd>{baselineNextScan}</dd>
                 </div>
               </dl>
             </div>
@@ -270,7 +282,7 @@ export function SubmissionContinuityOverlay() {
             <strong>
               {activeTrialSummary.eligible
                 ? 'TAKE YOUR FOLLOW-UP SCAN'
-                : `KEEP USING ${state.registeredProduct.productName.toLocaleUpperCase('en-US')}`}
+                : `KEEP USING ${productInstruction}`}
             </strong>
             <span>NEXT SCAN</span>
             <b>

@@ -383,9 +383,19 @@ test('First Run uses the original Oracle machine and fits at 390 × 844', async 
       name: 'Is your skincare actually doing anything?',
     }),
   ).toBeVisible();
-  await expect(page.getByRole('button', { name: 'LOAD A PRODUCT' })).toBeVisible();
+  await expect(page.getByText('ONE PRODUCT · ONE JOB · ONE HONEST RESULT')).toHaveCount(0);
+  await expect(page.locator('main[data-fv-tone]')).toHaveAttribute('data-fv-tone', 'light');
+  const loadAction = page.getByRole('button', { name: 'LOAD PRODUCT' });
+  await expect(loadAction).toBeVisible();
+  await expect(page.locator('[data-oracle-lower-deck] > [data-welcome-action]')).toHaveCount(1);
+  const loadActionBox = await loadAction.boundingBox();
+  expect(loadActionBox?.height).toBeGreaterThanOrEqual(44);
+  expect(loadActionBox?.width).toBeGreaterThanOrEqual(200);
   await expect(page.getByText('NO SPECIMEN LOADED')).toBeVisible();
   await expect(page.getByText('Insert one product to begin.')).toBeVisible();
+  await expect(page.locator('[data-welcome-privacy]')).toHaveText(
+    'PRIVATE BY DEFAULT · FACE IMAGES ARE NOT SAVED',
+  );
 
   await assertViewportContract(page, [
     ...coreMachineSelectors,
@@ -398,6 +408,7 @@ test('First Run uses the original Oracle machine and fits at 390 × 844', async 
 test('First Run remains complete across supported mobile viewports', async ({ page }) => {
   const runtimeIssues = collectRuntimeIssues(page);
   for (const viewport of [
+    { width: 390, height: 660 },
     { width: 375, height: 812 },
     { width: 402, height: 874 },
     { width: 430, height: 932 },
@@ -456,7 +467,7 @@ test('Empty, registration preview, baseline ready, pending, and follow-up ready 
   await openOrdinaryFirstRun(page);
   metrics.empty = await hardwareMetrics(page);
 
-  await page.getByRole('button', { name: 'LOAD A PRODUCT' }).click();
+  await page.getByRole('button', { name: 'LOAD PRODUCT' }).click();
   await expect(page.locator('[data-trial-machine-state="registration-preview"]')).toBeVisible();
   metrics.registration_preview = await hardwareMetrics(page);
   await page.getByRole('textbox', { name: 'Brand' }).fill('Face Value Lab');

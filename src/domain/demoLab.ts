@@ -195,7 +195,9 @@ export function fixtureNowForDemoStartingPoint(
   startingPoint: DemoStartingPoint,
   baselineLockedAt: string | null,
 ): string | null {
-  return startingPoint === 'trial_pending' ? baselineLockedAt : null;
+  return startingPoint === 'baseline_locked' || startingPoint === 'trial_pending'
+    ? baselineLockedAt
+    : null;
 }
 
 export function canonicalKeyForDemoFixture(

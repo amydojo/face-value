@@ -145,7 +145,7 @@ test('canceling guided capture releases the fixture and ignores stale completion
   const runtimeErrors: string[] = [];
   page.on('pageerror', (error) => runtimeErrors.push(error.message));
   await page.goto('/');
-  await page.getByRole('button', { name: 'LOAD A PRODUCT' }).click();
+  await page.getByRole('button', { name: 'LOAD PRODUCT' }).click();
   await page.getByLabel('Brand').fill('Experiment');
   await page.getByLabel('Product name').fill('Quiet Serum');
   await page.getByRole('button', { name: 'REGISTER & LOAD' }).click();
@@ -170,7 +170,7 @@ test('a stalled preview restarts from a fresh tap and Back releases it', async (
     }
   });
   await page.goto('/?camera-stall=1');
-  await page.getByRole('button', { name: 'LOAD A PRODUCT' }).click();
+  await page.getByRole('button', { name: 'LOAD PRODUCT' }).click();
   await page.getByLabel('Brand').fill('Experiment');
   await page.getByLabel('Product name').fill('Quiet Serum');
   await page.getByRole('button', { name: 'REGISTER & LOAD' }).click();
@@ -203,7 +203,7 @@ test('preview-live gates one instruction and the canonical quality rail', async 
     }
   });
   await page.goto('/?camera-quality-proof=1');
-  await page.getByRole('button', { name: 'LOAD A PRODUCT' }).click();
+  await page.getByRole('button', { name: 'LOAD PRODUCT' }).click();
   await page.getByLabel('Brand').fill('Experiment');
   await page.getByLabel('Product name').fill('Quiet Serum');
   await page.getByRole('button', { name: 'REGISTER & LOAD' }).click();

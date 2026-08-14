@@ -157,11 +157,11 @@ for (const scenario of cases) {
         name: 'Is your skincare actually doing anything?',
       }),
     ).toBeVisible();
-    await expect(page.getByRole('button', { name: 'LOAD A PRODUCT' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'LOAD PRODUCT' })).toBeVisible();
     await assertNoHorizontalOverflow(page);
     await assertNoInternalJourneyJargon(page);
 
-    await page.getByRole('button', { name: 'LOAD A PRODUCT' }).click();
+    await page.getByRole('button', { name: 'LOAD PRODUCT' }).click();
     await page.getByLabel('Brand').fill('Naturium');
     await page.getByLabel('Product name').fill('Azelaic Topical Acid');
     await page.getByLabel('Strength or concentration').fill('10%');

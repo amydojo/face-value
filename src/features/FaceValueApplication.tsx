@@ -145,15 +145,25 @@ export function FaceValueApplication() {
   const [baselineNoteEditing, setBaselineNoteEditing] = useState(false);
   const [baselineNoteDraft, setBaselineNoteDraft] = useState(state.baselineContext?.note ?? '');
   const homeStage = ['cabinet', 'waiting_for_followup', 'followup_ready'].includes(state.stage);
+  const hasActiveTrial = Boolean(
+    state.registeredProduct &&
+    hasBaseline &&
+    ['active_stable', 'active_disturbed', 'waiting', 'review_due'].includes(state.observation) &&
+    !state.placementSealed,
+  );
+  const activeWaitingEnvironment = homeStage && hasActiveTrial;
   const firstTrialStage =
     state.stage === 'welcome' || state.stage === 'product_registration' || state.stage === 'job';
+  const welcomeWorkbench = state.stage === 'welcome';
   const tone =
-    firstTrialStage ||
-    state.stage === 'camera' ||
-    state.stage === 'analysis' ||
-    state.stage === 'archive' ||
-    state.stage === 'record' ||
-    homeStage
+    !activeWaitingEnvironment &&
+    !welcomeWorkbench &&
+    (firstTrialStage ||
+      state.stage === 'camera' ||
+      state.stage === 'analysis' ||
+      state.stage === 'archive' ||
+      state.stage === 'record' ||
+      homeStage)
       ? 'dark'
       : 'light';
 
@@ -220,12 +230,6 @@ export function FaceValueApplication() {
   const renderTrialIndex = () => {
     const latestEvidence = state.archive[0] ?? null;
     const latestIdentity = latestEvidence ? oracleTrialIdentityForRecord(latestEvidence) : null;
-    const hasActiveTrial = Boolean(
-      state.registeredProduct &&
-      hasBaseline &&
-      ['active_stable', 'active_disturbed', 'waiting', 'review_due'].includes(state.observation) &&
-      !state.placementSealed,
-    );
     const now = readTrialNow(demoRuntime.fixtureNow);
     const eligible = followUpIsEligible({
       followUpEligibleAt: state.followUpEligibleAt,
@@ -254,11 +258,12 @@ export function FaceValueApplication() {
     if (hasActiveTrial && state.registeredProduct) {
       return (
         <>
-          <ScreenHeader code={activeIdentity?.folio} dark />
+          <ScreenHeader code={activeIdentity?.folio} />
           <section
             className={styles.trialContinuityScreen}
             data-fv-screen={eligible ? 'followup-ready' : 'trial-pending'}
             data-home-state="active"
+            data-active-trial-environment="workbench"
             aria-labelledby="trial-index-heading"
           >
             <h1 id="trial-index-heading" className={styles.srOnly} data-stage-focus tabIndex={-1}>

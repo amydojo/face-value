@@ -1,5 +1,5 @@
 .registrationPreview .machineWindow {
-  height: 246px;
+  height: clamp(154px, 25dvh, 182px);
   overflow: hidden;
   border-bottom: 1px solid rgba(201, 192, 177, 0.38);
 }
@@ -23,6 +23,6 @@
 
 @media (max-width: 390px) {
   .registrationPreview .machineWindow {
-    height: 232px;
+    height: clamp(148px, 25dvh, 176px);
   }
 }

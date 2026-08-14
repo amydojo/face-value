@@ -15,6 +15,7 @@ import {
   normalizeVolume,
 } from '../domain/phaseB5';
 import { FaceValueApplication } from '../features/FaceValueApplication';
+import { registeredProductInstructionLabel } from '../features/submission-continuity/submissionContinuityViewModel';
 
 function installMatchMedia() {
   Object.defineProperty(window, 'matchMedia', {
@@ -54,6 +55,14 @@ function Harness({ events }: { events: FaceValueEvent[] }) {
 beforeEach(() => installMatchMedia());
 
 describe('submission continuity registration', () => {
+  it('separates the registered specimen instruction from synthetic trial metadata', () => {
+    expect(registeredProductInstructionLabel('One Thing Redness Trial')).toBe('ONE THING');
+    expect(registeredProductInstructionLabel('Azelaic Topical Acid')).toBe(
+      'AZELAIC TOPICAL ACID',
+    );
+    expect(registeredProductInstructionLabel('Redness Trial')).toBe('REDNESS TRIAL');
+  });
+
   it('normalizes numeric strength and volume without requiring punctuation', () => {
     expect(normalizeStrength('10')).toBe('10%');
     expect(normalizeStrength('10%')).toBe('10%');
@@ -78,7 +87,7 @@ describe('submission continuity registration', () => {
     const events: FaceValueEvent[] = [];
     render(<Harness events={events} />);
 
-    fireEvent.click(screen.getByRole('button', { name: 'LOAD A PRODUCT' }));
+    fireEvent.click(screen.getByRole('button', { name: 'LOAD PRODUCT' }));
     fireEvent.change(screen.getByLabelText('Brand'), { target: { value: 'Naturium' } });
     fireEvent.change(screen.getByLabelText('Product name'), {
       target: { value: 'Azelaic Topical Acid' },

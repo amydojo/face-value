@@ -414,7 +414,7 @@ test('one Oracle instrument accepts, loads, and releases one specimen to baselin
   );
   await captureCheckpoint(page, '01-empty-first-screen.png');
 
-  await page.getByRole('button', { name: 'LOAD A PRODUCT' }).click();
+  await page.getByRole('button', { name: 'LOAD PRODUCT' }).click();
   await expect(page.locator('[data-fv-screen="product-registration"]')).toBeVisible();
   await expect(page.getByLabel('Brand')).toHaveCount(1);
   await expect(page.getByLabel('Brand')).toHaveAttribute('name', 'brand');
@@ -711,7 +711,7 @@ test('captures real-time WebKit ingestion paint checkpoints', async ({ page }) =
 
   await page.waitForTimeout(80);
   await captureCheckpoint(page, '01-empty-first-screen.png');
-  await page.getByRole('button', { name: 'LOAD A PRODUCT' }).click();
+  await page.getByRole('button', { name: 'LOAD PRODUCT' }).click();
   await captureCheckpoint(page, '02-registration-preview-blank.png');
   await page.getByRole('textbox', { name: 'Brand' }).fill('Clinical Laboratory');
   await page
@@ -782,7 +782,7 @@ test('all supported widths keep registration usable and horizontally contained',
     await page.setViewportSize(viewport);
     await openFreshTrial(page);
     await expectNoHorizontalOverflow(page);
-    await page.getByRole('button', { name: 'LOAD A PRODUCT' }).click();
+    await page.getByRole('button', { name: 'LOAD PRODUCT' }).click();
     const workflowLayout = await workflowLayoutMetrics(page);
     expect(workflowLayout.backToMachine).toBeGreaterThanOrEqual(4);
     expect(workflowLayout.backToMachine).toBeLessThanOrEqual(12);
@@ -812,7 +812,7 @@ test('reduced motion preserves the shortened semantic ceremony without specimen 
   await page.setViewportSize({ width: 390, height: 844 });
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await openFreshTrial(page);
-  await page.getByRole('button', { name: 'LOAD A PRODUCT' }).click();
+  await page.getByRole('button', { name: 'LOAD PRODUCT' }).click();
   await page.getByRole('textbox', { name: 'Brand' }).fill('Face Value Lab');
   await page.getByRole('textbox', { name: 'Product name' }).fill('Redness Trial');
 

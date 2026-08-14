@@ -27,7 +27,11 @@ import { DemoLab } from '../features/demo-lab/DemoLab';
 import { buildDemoFixtureState } from '../features/demo-lab/demoFixtureState';
 import { demoLabAccessEnabled } from '../features/demo-lab/demoLabAccess';
 import { evidenceRecordDisclosureStateForDemo } from '../features/demo-lab/evidenceRecordDemoAdapter';
-import { DEMO_RESULT_FIXTURES, DEMO_STARTING_POINTS } from '../domain/demoLab';
+import {
+  DEMO_RESULT_FIXTURES,
+  DEMO_STARTING_POINTS,
+  fixtureNowForDemoStartingPoint,
+} from '../domain/demoLab';
 import { FaceValueApplication } from '../features/FaceValueApplication';
 import { evidenceRecordViewModelFromRecord } from '../features/evidence-record/evidenceRecordViewModel';
 import { verdictViewModelFromRecord } from '../features/verdict/verdictViewModel';
@@ -66,6 +70,13 @@ describe('Demo Lab access boundary', () => {
 });
 
 describe('canonical typed fixture states', () => {
+  it('anchors baseline locked and pending to the same synthetic timeline clock', () => {
+    const baselineAt = '2026-01-01T12:00:00.000Z';
+    expect(fixtureNowForDemoStartingPoint('baseline_locked', baselineAt)).toBe(baselineAt);
+    expect(fixtureNowForDemoStartingPoint('trial_pending', baselineAt)).toBe(baselineAt);
+    expect(fixtureNowForDemoStartingPoint('followup_ready', baselineAt)).toBeNull();
+  });
+
   it.each([
     ['A', 'strong_improvement', 'keep'],
     ['B', 'no_detectable_change', 'not_proving_job'],

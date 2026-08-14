@@ -18,6 +18,19 @@ async function openPreview(page: Page, startingPoint: string): Promise<void> {
   );
 }
 
+async function expectInsideVisualViewport(page: Page, selector: string): Promise<void> {
+  const bounds = await page.locator(selector).evaluate((node) => {
+    const rect = node.getBoundingClientRect();
+    return {
+      top: rect.top,
+      bottom: rect.bottom,
+      viewportHeight: window.visualViewport?.height ?? window.innerHeight,
+    };
+  });
+  expect(bounds.top).toBeGreaterThanOrEqual(0);
+  expect(bounds.bottom).toBeLessThanOrEqual(bounds.viewportHeight);
+}
+
 test('baseline capture context stays inside the light-bench instrument and continues to baseline locked', async ({
   page,
 }) => {
@@ -50,6 +63,57 @@ test('baseline capture context stays inside the light-bench instrument and conti
   await expect(locked.getByRole('heading', { name: 'That’s everything for today.' })).toBeVisible();
   await expect(locked.getByText('NOW', { exact: true })).toBeVisible();
   await expect(locked.getByText('NEXT SCAN', { exact: true })).toBeVisible();
+  await expect(locked.getByText('KEEP USING ONE THING', { exact: true })).toBeVisible();
+  await expect(locked.getByText('IN 14 DAYS', { exact: true })).toBeVisible();
+  await expect(locked).not.toContainText('JAN 15, 2026');
+  await assertNoHorizontalOverflow(page);
+});
+
+test('active waiting states use the light workbench and registered product instruction', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+
+  await openPreview(page, 'trial_pending');
+  await expect(page.locator('main')).toHaveAttribute('data-fv-tone', 'light');
+  await expect(page.locator('[data-trial-machine-state="pending"]')).toBeVisible();
+  await expect(page.getByText('KEEP USING ONE THING', { exact: true })).toBeVisible();
+  await expect(page.getByText('ONE THING REDNESS TRIAL', { exact: true })).toHaveCount(0);
+
+  await openPreview(page, 'followup_ready');
+  await expect(page.locator('main')).toHaveAttribute('data-fv-tone', 'light');
+  await expect(page.locator('[data-trial-machine-state="followup-ready"]')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Take follow-up scan' })).toBeVisible();
+  await assertNoHorizontalOverflow(page);
+});
+
+test('registration keeps the full action inside a Safari-sized visual viewport', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 660 });
+  await page.goto('/');
+  await page.evaluate(() => {
+    localStorage.clear();
+    sessionStorage.clear();
+  });
+  await page.reload();
+  await page.getByRole('button', { name: 'LOAD PRODUCT' }).click();
+  await page.getByLabel('Brand', { exact: true }).fill('Face Value Lab');
+  await page.getByLabel('Product name', { exact: true }).fill('One Thing Redness Trial');
+  await page.getByLabel('Strength or concentration', { exact: true }).fill('10');
+  await page.getByLabel('Volume', { exact: true }).fill('30');
+
+  await expect(page.locator('[data-label-content]')).toContainText('ONE THING');
+  await expect(page.getByRole('button', { name: 'REGISTER & LOAD' })).toBeVisible();
+  for (const selector of [
+    '[data-label-content]',
+    'input[name="brand"]',
+    'input[name="product-name"]',
+    'input[name="strength"]',
+    'input[name="volume"]',
+    '[data-registration-protocol]',
+    'button[type="submit"]',
+  ]) {
+    await expectInsideVisualViewport(page, selector);
+  }
   await assertNoHorizontalOverflow(page);
 });
 
