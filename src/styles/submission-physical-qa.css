@@ -22,8 +22,16 @@ section[data-fv-screen='baseline-locked']:has([data-continuity-machine-replaceme
   margin-inline: auto;
 }
 
-/* Trial Truth remains physically inside the Oracle chassis. Keep the interactive firmware above the already non-interactive texture/reflection layers without disabling its structural ancestors; WebKit must be able to hit-test the nested controls normally. */
-[data-oracle-machine][data-cassette-variant='trial-truth'] [data-oracle-trial-truth-firmware],
+/* Trial Truth remains physically inside the Oracle chassis. WebKit requires the interactive firmware wrapper to own the full glass geometry; a collapsed zero-height wrapper paints visibly but loses physical hit testing. */
+[data-oracle-machine][data-cassette-variant='trial-truth'] [data-oracle-trial-truth-firmware] {
+  position: absolute !important;
+  inset: 0 !important;
+  z-index: 11 !important;
+  width: auto !important;
+  height: auto !important;
+  pointer-events: auto;
+}
+
 [data-oracle-machine][data-cassette-variant='trial-truth']
   [data-oracle-trial-truth-firmware]
   [data-trial-truth-firmware-view] {
