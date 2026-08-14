@@ -6,7 +6,7 @@ permissions:
   contents: read
 jobs:
   hit-test:
-    if: github.event.head_commit.message == 'run PR76 hit-test evidence'
+    if: github.event.head_commit.message == 'run PR76 pointer-boundary candidate'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
