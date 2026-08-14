@@ -496,7 +496,14 @@ test('one Oracle instrument accepts, loads, and releases one specimen to baselin
   );
   await expectCurrentNode(machine, '[data-oracle-machine]');
   await expectCurrentNode(specimen, '[data-oracle-specimen]');
-  expect(await machineDocumentGeometry(page)).toEqual(workflowMachineGeometry);
+  const operationalMachineGeometry = await machineDocumentGeometry(page);
+  expect(operationalMachineGeometry.x).toBe(workflowMachineGeometry.x);
+  expect(operationalMachineGeometry.width).toBe(workflowMachineGeometry.width);
+  expect(operationalMachineGeometry.height).toBe(workflowMachineGeometry.height);
+  expect(operationalMachineGeometry.transform).toBe(workflowMachineGeometry.transform);
+  expect(operationalMachineGeometry.animationName).toBe(workflowMachineGeometry.animationName);
+  expect(operationalMachineGeometry.documentY).toBeGreaterThan(workflowMachineGeometry.documentY);
+  expect(operationalMachineGeometry.viewportY).toBeGreaterThan(workflowMachineGeometry.viewportY);
 
   await page.clock.runFor(registrationTiming.preparingCheckpoint);
   await expect(page.locator('[data-oracle-machine]')).toHaveAttribute(
@@ -515,7 +522,7 @@ test('one Oracle instrument accepts, loads, and releases one specimen to baselin
       .locator('[data-oracle-specimen]')
       .evaluate((specimen) => new DOMMatrixReadOnly(getComputedStyle(specimen).transform).m42),
   ).toBeCloseTo(0, 1);
-  expect(await machineDocumentGeometry(page)).toEqual(workflowMachineGeometry);
+  expect(await machineDocumentGeometry(page)).toEqual(operationalMachineGeometry);
   await captureCheckpoint(page, '04-preparing.png', true);
 
   await page.clock.runFor(
@@ -538,7 +545,7 @@ test('one Oracle instrument accepts, loads, and releases one specimen to baselin
   await expect(page.locator('[data-trial-machine-state="baseline-ready"]')).toContainText(
     'ALIGNING SPECIMEN',
   );
-  expect(await machineDocumentGeometry(page)).toEqual(workflowMachineGeometry);
+  expect(await machineDocumentGeometry(page)).toEqual(operationalMachineGeometry);
   const aligningSpecimenGeometry = await specimenGeometry(page);
   await captureCheckpoint(page, '05-aligning.png', true);
 
@@ -568,7 +575,7 @@ test('one Oracle instrument accepts, loads, and releases one specimen to baselin
   expect(scanProgress).toBeGreaterThan(0);
   expect(scanProgress).toBeLessThan(1);
   await expect(page.locator('[data-baseline-action]')).toBeDisabled();
-  expect(await machineDocumentGeometry(page)).toEqual(workflowMachineGeometry);
+  expect(await machineDocumentGeometry(page)).toEqual(operationalMachineGeometry);
   const scanningSpecimenGeometry = await specimenGeometry(page);
   await captureCheckpoint(page, '06-scanning.png', true);
 
@@ -591,7 +598,7 @@ test('one Oracle instrument accepts, loads, and releases one specimen to baselin
     'data-label-scan-state',
     'inactive',
   );
-  expect(await machineDocumentGeometry(page)).toEqual(workflowMachineGeometry);
+  expect(await machineDocumentGeometry(page)).toEqual(operationalMachineGeometry);
   const processingSpecimenGeometry = await specimenGeometry(page);
   await captureCheckpoint(page, '07-processing.png', true);
 
@@ -623,7 +630,7 @@ test('one Oracle instrument accepts, loads, and releases one specimen to baselin
   await expect(page.getByText('PRODUCT REGISTERED')).toHaveCount(0);
   await expectCurrentNode(machine, '[data-oracle-machine]');
   await expectCurrentNode(specimen, '[data-oracle-specimen]');
-  expect(await machineDocumentGeometry(page)).toEqual(workflowMachineGeometry);
+  expect(await machineDocumentGeometry(page)).toEqual(operationalMachineGeometry);
   const readySpecimenGeometry = await specimenGeometry(page);
   expect(aligningSpecimenGeometry.root).toEqual(scanningSpecimenGeometry.root);
   expect(scanningSpecimenGeometry.root).toEqual(processingSpecimenGeometry.root);
@@ -649,10 +656,10 @@ test('one Oracle instrument accepts, loads, and releases one specimen to baselin
         {
           viewport: { width: 390, height: 844 },
           welcomeMachine: welcomeMachineGeometry,
-          workflowMachine: workflowMachineGeometry,
+          registrationPreviewMachine: workflowMachineGeometry,
+          operationalMachine: operationalMachineGeometry,
           workflowLayout: registrationLayout,
           stableMachinePhases: [
-            'registration-preview',
             'preparing',
             'aligning',
             'scanning',
