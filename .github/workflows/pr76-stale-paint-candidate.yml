@@ -1,0 +1,58 @@
+name: PR76 WebKit stale-paint candidate
+on:
+  push:
+    branches: [agent/submission-continuity-hardening]
+permissions:
+  contents: read
+jobs:
+  candidate:
+    if: github.event.head_commit.message == 'run PR76 stale-paint candidate'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.18.0
+      - name: Verify exact checkout
+        run: test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+      - run: npm ci --no-audit --no-fund
+      - run: npx playwright install --with-deps webkit
+      - name: Inject narrow step-4 animation candidate in test workspace only
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('e2e/trial-truth.spec.ts')
+          s=p.read_text()
+          old="  await page.goto('/?fv-demo-journey=1');\n"
+          new="""  await page.goto('/?fv-demo-journey=1');
+          await page.addStyleTag({
+            content: `[data-trial-truth-firmware-view='question']:has([data-trial-truth-question-step='4']) { animation: none !important; }`,
+          });
+          """
+          if s.count(old) != 1:
+              raise SystemExit('launchFixture insertion point changed')
+          p.write_text(s.replace(old,new))
+          PY
+          git diff -- e2e/trial-truth.spec.ts
+      - name: Representative Trial Truth with candidate
+        env:
+          PLAYWRIGHT_JSON_OUTPUT_NAME: stale-paint-candidate.json
+        run: >-
+          npx playwright test e2e/trial-truth.spec.ts
+          --project=mobile-webkit
+          --grep "favorable objective result with complete use, no irritation, and agreement preserves one immutable result"
+          --reporter=github,json
+      - name: Upload result
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pr76-stale-paint-candidate-result
+          path: stale-paint-candidate.json
+          if-no-files-found: error
+      - name: Upload evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pr76-stale-paint-candidate-evidence
+          path: test-results
+          if-no-files-found: warn
