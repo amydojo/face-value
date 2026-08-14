@@ -371,7 +371,7 @@ for (const scenario of cases) {
     await expect(page.locator('[data-firmware-state="resolved"]')).toContainText(
       'Visible redness moved in a favorable direction.',
     );
-    await expect(page.getByLabel('Result recommendation').locator(':scope > p')).toBeVisible();
+    await expect(page.getByLabel('Result recommendation').locator(':scope > p')).toBeHidden();
     await expect(page.locator('[data-firmware-state="resolved"]')).toContainText('TEST LONGER');
     await expect(page.getByRole('button', { name: 'Keep this result', exact: true })).toHaveCount(0);
     const saveResult = page.getByRole('button', { name: 'Save result', exact: true });
