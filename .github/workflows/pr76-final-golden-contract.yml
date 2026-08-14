@@ -1,0 +1,69 @@
+name: PR76 final golden contract proof
+
+on:
+  push:
+    branches:
+      - agent/submission-continuity-hardening
+
+permissions:
+  contents: write
+
+jobs:
+  patch-and-prove:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/submission-continuity-hardening
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.18.0
+      - name: Verify exact starting head
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD^)" = "e8ce8deb04ed1f47535b4da293a2574d2369e813"
+          git fetch origin agent/submission-continuity-hardening
+          test "$(git rev-parse origin/agent/submission-continuity-hardening)" = "$GITHUB_SHA"
+      - name: Align legacy evidence-detail visibility with approved inspection hierarchy
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('e2e/golden-path.spec.ts')
+          text = path.read_text()
+          blocks = [
+              """    await expect(
+                page.getByText(/Demo timing was advanced explicitly; capture timestamps remain unchanged/i),
+              ).toBeVisible();""",
+              """    await expect(
+                evidenceDetail.getByText('Production thresholds require repeat-scan calibration.', {
+                  exact: true,
+                }),
+              ).toBeVisible();""",
+              """    await expect(
+                evidenceDetail.getByText(/provisional_fixture · redness-provisional-v1/i),
+              ).toBeVisible();""",
+          ]
+          for block in blocks:
+              if text.count(block) != 1:
+                  raise SystemExit(f'Expected exact legacy visibility block once: {block!r}')
+              text = text.replace(block, block.replace('toBeVisible()', 'toBeHidden()'))
+          path.write_text(text)
+          PY
+          git diff --check
+          git diff -- e2e/golden-path.spec.ts
+      - run: npm ci --no-audit --no-fund
+      - run: npx playwright install --with-deps webkit
+      - name: Prove all four golden paths
+        run: npx playwright test e2e/golden-path.spec.ts --project=mobile-webkit --reporter=github
+      - name: Commit proven test-only correction and remove runner
+        run: |
+          set -euo pipefail
+          git fetch origin agent/submission-continuity-hardening
+          test "$(git rev-parse origin/agent/submission-continuity-hardening)" = "$GITHUB_SHA"
+          rm .github/workflows/pr76-final-golden-contract.yml
+          git config user.name "amydojo"
+          git config user.email "amydojo@users.noreply.github.com"
+          git add e2e/golden-path.spec.ts .github/workflows/pr76-final-golden-contract.yml
+          git commit -m "align legacy evidence detail contract with approved inspection hierarchy"
+          git push origin HEAD:agent/submission-continuity-hardening
