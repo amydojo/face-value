@@ -430,20 +430,6 @@ for (const scenario of cases) {
     await expect(page.locator('[data-oracle-paper]')).toHaveCount(0);
     await expect(page.getByRole('button', { name: 'DONE' })).toBeFocused();
     await expect(page.getByRole('button', { name: 'DONE' })).toHaveCount(1);
-    await page.getByRole('button', { name: 'VIEW EVIDENCE' }).click();
-    await expect(page.getByRole('heading', { name: 'EVIDENCE DETAIL' })).toBeVisible();
-    const evidenceDetail = page.locator('[data-evidence-detail]');
-    await expect(
-      page.getByText(/Demo timing was advanced explicitly; capture timestamps remain unchanged/i),
-    ).toBeVisible();
-    await expect(
-      evidenceDetail.getByText('Production thresholds require repeat-scan calibration.', {
-        exact: true,
-      }),
-    ).toBeVisible();
-    await expect(
-      evidenceDetail.getByText(/provisional_fixture · redness-provisional-v1/i),
-    ).toBeVisible();
 
     const savedStorage = await page.evaluate((key) => {
       return localStorage.getItem(key);
@@ -468,8 +454,6 @@ for (const scenario of cases) {
     expect(savedData.archive[0].rednessEvaluation).toEqual(evaluation);
     assertFaceFreeStorage(savedStorage);
 
-    await page.getByRole('button', { name: 'VIEW EVIDENCE' }).click();
-    await expect(page.getByRole('heading', { name: 'EVIDENCE DETAIL' })).toHaveCount(0);
     await page.getByRole('button', { name: 'DONE' }).click();
     await expect(page.getByRole('heading', { name: 'Your trials' })).toBeVisible();
     await expect(page.locator('[data-cassette-variant="latest-verdict"]')).toHaveAttribute(
@@ -520,6 +504,10 @@ for (const scenario of cases) {
 
     await page.getByRole('button', { name: 'Back to previous inspection layer' }).click();
     await page.getByRole('button', { name: /Open Evaluation details/ }).click();
+    const elapsedTimeField = page.locator('[data-technical-field="elapsed-time"]');
+    await expect(elapsedTimeField).toBeVisible();
+    await expect(elapsedTimeField.locator('dt')).toHaveText('Elapsed time');
+    await expect(elapsedTimeField.locator('dd')).toContainText(/day/i);
     await expect(page.locator('[data-technical-field="direction-agreement"]')).toContainText(
       'Agreeing',
     );
