@@ -1,0 +1,51 @@
+.root {
+  min-width: 0;
+}
+
+.firmware {
+  position: absolute;
+  inset: 0;
+  z-index: 8;
+  display: grid;
+  align-content: center;
+  gap: 7px;
+  padding: 12px 43% 12px 14px;
+  color: #eae3d6;
+  background: linear-gradient(90deg, rgba(7, 7, 6, 0.96), rgba(7, 7, 6, 0.78) 62%, transparent);
+  font-family: var(--fv-font-mono);
+  visibility: visible !important;
+}
+
+:global([data-oracle-trial-display]:has([data-canonical-trial-firmware])) > :not([data-canonical-trial-firmware]) {
+  visibility: hidden !important;
+}
+
+.firmware:is([data-mode='baseline-context'], [data-mode='followup-context']) {
+  align-content: start;
+  gap: 6px;
+  padding: 9px 9px 9px 11px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  background: linear-gradient(90deg, rgba(7, 7, 6, 0.97), rgba(7, 7, 6, 0.93) 74%, rgba(7, 7, 6, 0.62));
+  scrollbar-width: none;
+}
+
+.firmware:is([data-mode='baseline-context'], [data-mode='followup-context'])::-webkit-scrollbar {
+  display: none;
+}
+
+:global([data-canonical-trial-chassis='baseline-context'] [data-oracle-specimen]),
+:global([data-canonical-trial-chassis='followup-context'] [data-oracle-specimen]) {
+  opacity: 0.36 !important;
+}
+
+@media (max-width: 390px) {
+  .firmware {
+    padding-left: 12px;
+    padding-right: 42%;
+  }
+
+  .firmware:is([data-mode='baseline-context'], [data-mode='followup-context']) {
+    padding-right: 8px;
+  }
+}

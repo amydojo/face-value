@@ -743,6 +743,60 @@
   cursor: pointer;
 }
 
+.emptyLoadDeckAction {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  color: #d1cabd;
+  appearance: none;
+  background: transparent;
+  cursor: pointer;
+}
+
+.emptyLoadRail {
+  position: absolute;
+  left: 9%;
+  right: 24%;
+  bottom: 6px;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 0 12px;
+  border: 1px solid;
+  border-color: rgba(187, 190, 184, 0.11) rgba(74, 72, 67, 0.08) rgba(0, 0, 0, 0.88);
+  border-radius: 5px 5px 9px 9px;
+  background: linear-gradient(180deg, #1a1917, #0b0c0b 48%, #070807), var(--fv-recess-black);
+  box-shadow:
+    inset 0 2px 3px rgba(225, 226, 219, 0.045),
+    inset 0 -4px 5px rgba(0, 0, 0, 0.44),
+    0 3px 4px rgba(0, 0, 0, 0.88);
+  pointer-events: none;
+}
+
+.emptyLoadRail b {
+  font: 650 9px/1.2 var(--fv-font-mono);
+  letter-spacing: 0.045em;
+}
+
+.emptyLoadRail i {
+  font: 400 18px/1 var(--fv-font-sans);
+  font-style: normal;
+}
+
+.emptyLoadDeckAction:focus-visible {
+  outline: none;
+}
+
+.emptyLoadDeckAction:focus-visible .emptyLoadRail {
+  outline: 2px solid #e6a35e;
+  outline-offset: 2px;
+}
+
 .trialTruthDeckAction {
   position: absolute;
   inset: 0;

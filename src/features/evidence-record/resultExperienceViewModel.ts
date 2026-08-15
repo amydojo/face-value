@@ -7,6 +7,7 @@ import type {
 } from '../../domain/evidence/redness';
 import type { CaptureMetadata, EvidenceRecordData } from '../../domain/model';
 import { oracleTrialIdentityForRecord } from '../../domain/oracleTrialIdentity';
+import { verdictViewModelFromRecord } from '../verdict/verdictViewModel';
 
 export type ResultDirection = 'favorable' | 'unfavorable' | 'unchanged' | 'unavailable';
 export type EvidenceCheckTone = 'pass' | 'limited' | 'fail' | 'unavailable';
@@ -312,6 +313,7 @@ const technicalGroups = (
   evaluation: RednessEvaluationSnapshot | undefined,
   checks: EvidenceCheckViewModel[],
   duration: number | null,
+  recommendation: string,
 ): TechnicalGroupViewModel[] => {
   const captureFields = [
     ...checks.map(({ id, label, value }) => field(`capture-${id}`, label, value)),
@@ -374,9 +376,7 @@ const technicalGroups = (
     field(
       'recommended-action',
       'Recommended action',
-      evaluation
-        ? sentenceCase(evaluation.interpretation.recommendedAction)
-        : sentenceCase(record.recommendedAction),
+      recommendation,
     ),
   ];
 
@@ -432,6 +432,7 @@ export function resultExperienceViewModelFromRecord(
       : null);
   const level = evaluation ? evidenceLevel(evaluation.evidenceQuality) : evidenceLevel(record.confidence);
   const product = [record.productBrand, record.product].filter(Boolean).join(' · ');
+  const recommendation = verdictViewModelFromRecord(record).nextStepLabel;
 
   return {
     canonical: Boolean(evaluation),
@@ -454,6 +455,6 @@ export function resultExperienceViewModelFromRecord(
     evidenceLevel: level,
     evidenceBoundary: [`${level} evidence.`, 'Visible redness only.'],
     checks,
-    groups: technicalGroups(record, evaluation, checks, days),
+    groups: technicalGroups(record, evaluation, checks, days, recommendation),
   };
 }

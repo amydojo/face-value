@@ -8,6 +8,7 @@ import {
 import { oracleSpecimenIdentityFromEvidenceRecord } from '../../adapters/product/specimenFromRegisteredProduct';
 import { savedResultCompatibilityRows } from '../../adapters/product/savedResultCompatibilityViewModel';
 import type { EvidenceRecordData } from '../../domain/model';
+import { evidenceRecordViewModelFromRecord } from './evidenceRecordViewModel';
 import {
   collapsedEvidenceRecordDisclosureState,
   type EvidenceRecordDisclosureState,
@@ -69,27 +70,77 @@ function Arrow({ direction = 'right' }: { direction?: 'left' | 'right' }) {
   return <span aria-hidden="true">{direction === 'left' ? '←' : '›'}</span>;
 }
 
+function ArchiveHeader({
+  className,
+  title,
+  titleId,
+  headingRef,
+  buttonRef,
+  backLabel,
+  backAccessibleLabel,
+  meta,
+  onBack,
+}: {
+  className: string;
+  title: string;
+  titleId: string;
+  headingRef?: RefObject<HTMLHeadingElement | null>;
+  buttonRef?: RefObject<HTMLButtonElement | null>;
+  backLabel: string;
+  backAccessibleLabel: string;
+  meta?: string;
+  onBack: () => void;
+}) {
+  return (
+    <header className={className} data-archive-header>
+      <button
+        ref={buttonRef}
+        type="button"
+        className={styles.archiveBack}
+        onClick={onBack}
+        aria-label={backAccessibleLabel}
+      >
+        <Arrow direction="left" />
+        <span>{backLabel}</span>
+      </button>
+      <h1
+        id={titleId}
+        ref={headingRef}
+        data-stage-focus={headingRef ? '' : undefined}
+        tabIndex={headingRef ? -1 : undefined}
+      >
+        {title}
+      </h1>
+      <span className={styles.archiveHeaderMeta} aria-hidden={meta ? undefined : true}>
+        {meta}
+      </span>
+    </header>
+  );
+}
+
 function TechnicalHeader({
   title,
   titleId,
   headingRef,
+  backLabel,
   onBack,
 }: {
   title: string;
   titleId: string;
   headingRef: RefObject<HTMLHeadingElement | null>;
+  backLabel: string;
   onBack: () => void;
 }) {
   return (
-    <header className={styles.inspectionHeader}>
-      <button type="button" onClick={onBack} aria-label="Back to previous inspection layer">
-        <Arrow direction="left" />
-      </button>
-      <h1 id={titleId} ref={headingRef} data-stage-focus tabIndex={-1}>
-        {title}
-      </h1>
-      <span aria-hidden="true" />
-    </header>
+    <ArchiveHeader
+      className={styles.inspectionHeader}
+      title={title}
+      titleId={titleId}
+      headingRef={headingRef}
+      backLabel={backLabel}
+      backAccessibleLabel="Back to previous inspection layer"
+      onBack={onBack}
+    />
   );
 }
 
@@ -116,6 +167,7 @@ function TechnicalRecordList({
         title="Technical record"
         titleId="technical-record-title"
         headingRef={headingRef}
+        backLabel="Evidence record"
         onBack={onBack}
       />
       <div className={styles.technicalIntro}>
@@ -178,6 +230,7 @@ function TechnicalFieldList({
         title={title}
         titleId={titleId}
         headingRef={headingRef}
+        backLabel="Technical record"
         onBack={onBack}
       />
       <div className={styles.detailGroupHeader}>
@@ -283,6 +336,8 @@ export function EvidenceRecord({
   void onArchive;
   const specimenIdentity = oracleSpecimenIdentityFromEvidenceRecord(record);
   const viewModel = resultExperienceViewModelFromRecord(record);
+  const recommendation = evidenceRecordViewModelFromRecord(record).nextStep;
+  const recommendedAction = recommendation.statusLabel;
   const resultVerdict = resultVerdictFor(viewModel.direction, viewModel.verdict);
   const comparisonLabel = comparisonLabelFor(record);
   const comparisonVerified = record.comparison === 'comparable';
@@ -294,10 +349,6 @@ export function EvidenceRecord({
     viewModel.agreement === 'Not available'
       ? 'Not available'
       : `${viewModel.agreement} checks passed`;
-  const recommendedAction =
-    viewModel.groups
-      .find(({ id }) => id === 'evaluation')
-      ?.fields.find(({ id }) => id === 'recommended-action')?.value ?? 'Not available';
   const [layer, setLayer] = useState<ResultLayer>(() => initialLayerFor(initialDisclosureState));
   const viewEvidenceRef = useRef<HTMLButtonElement>(null);
   const closeSheetRef = useRef<HTMLButtonElement>(null);
@@ -413,7 +464,7 @@ export function EvidenceRecord({
         initialDisclosureState={initialDisclosureState}
         finding={viewModel.verdict}
         showFinding={resultVerdict !== viewModel.verdict}
-        recommendedAction={recommendedAction}
+        recommendedAction={recommendation.title}
         onBack={onBack}
         onOpenEvidence={openEvidence}
       />
@@ -485,6 +536,10 @@ export function EvidenceRecord({
               {verificationSummary} · {viewModel.evidenceLevel.toLocaleLowerCase('en-US')} evidence
             </span>
           </div>
+          <div className={styles.resultRecommendation} data-canonical-recommendation>
+            <span>NEXT</span>
+            <strong>{recommendedAction}</strong>
+          </div>
           <button
             ref={viewEvidenceRef}
             type="button"
@@ -532,18 +587,16 @@ export function EvidenceRecord({
             }}
           >
             <div className={styles.sheetHandle} aria-hidden="true" />
-            <header className={styles.sheetHeader}>
-              <h1 id="evidence-sheet-title">Evidence record</h1>
-              <span>{viewModel.folio}</span>
-              <button
-                ref={closeSheetRef}
-                type="button"
-                onClick={closeEvidence}
-                aria-label="Close evidence record"
-              >
-                ×
-              </button>
-            </header>
+            <ArchiveHeader
+              className={styles.sheetHeader}
+              title="Evidence record"
+              titleId="evidence-sheet-title"
+              buttonRef={closeSheetRef}
+              backLabel="Result"
+              backAccessibleLabel="Close evidence record"
+              meta={viewModel.folio}
+              onBack={closeEvidence}
+            />
             <dl className={styles.evidenceRows}>
               <div>
                 <dt>Concern</dt>
@@ -558,6 +611,10 @@ export function EvidenceRecord({
                 <dd data-accent data-direction={viewModel.direction}>
                   {viewModel.directionLabel}
                 </dd>
+              </div>
+              <div>
+                <dt>Recommendation</dt>
+                <dd data-canonical-recommendation>{recommendedAction}</dd>
               </div>
             </dl>
             <p className={styles.sectionLabel}>RECORD</p>

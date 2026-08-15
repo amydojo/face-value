@@ -1,0 +1,67 @@
+/* Compatibility surfaces that preserve existing contracts without reintroducing old presentation. */
+
+[data-registration-protocol] {
+  display: grid;
+  gap: 4px;
+  padding: 11px 12px;
+  border: 1px solid var(--fv-rule-default);
+  border-left: 3px solid var(--fv-signal-active);
+  border-radius: 9px;
+}
+
+[data-registration-protocol] > span {
+  color: var(--fv-text-muted);
+  font: 600 9px/1.3 var(--fv-font-mono);
+}
+
+[data-registration-protocol] > strong {
+  font: 650 10px/1.3 var(--fv-font-mono);
+}
+
+[data-registration-protocol] > small {
+  color: var(--fv-text-muted);
+  font-size: 11px;
+}
+
+/* Physical iPhone QA forbids positioning/sensing language before a live preview exists. */
+[data-camera-ready-compat] {
+  display: none !important;
+}
+
+/* WebKit must never let a centered inspection title steal the explicit back target. */
+[data-evidence-record] button[aria-label='Back to previous inspection layer'] {
+  position: relative;
+  z-index: 3;
+}
+
+/*
+ * The #73 actuator remains the actuator: same first-party rendering, state and
+ * click/haptic path. Only its transparent button hit region grows leftward so
+ * the associated SAVE RESULT label and amber cap behave as one mobile target.
+ */
+[data-oracle-keep-action='hardware'][data-amber-state='ready'] {
+  right: 4.8%;
+  width: 166px;
+  min-width: 166px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 0;
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+[data-oracle-keep-action='hardware'][data-amber-state='ready']::before {
+  position: absolute;
+  top: 0;
+  right: 58px;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  color: #eee6da;
+  font: 650 8px/1.2 var(--fv-font-mono);
+  letter-spacing: 0.075em;
+  content: 'SAVE RESULT';
+  pointer-events: none;
+}

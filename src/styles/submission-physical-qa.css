@@ -1,0 +1,183 @@
+/* Physical iPhone QA corrections. Presentation only. */
+
+/* Baseline Locked and Comparison now host the canonical Oracle chassis, so remove the rejected detached-card shell. */
+section[data-fv-screen='baseline-locked']:has([data-continuity-machine-replacement]),
+section[data-fv-screen='comparing']:has([data-continuity-machine-replacement]) {
+  width: auto;
+  min-height: 0;
+  align-content: initial;
+  gap: 12px;
+  margin: 0;
+  padding: 10px 0 max(12px, env(safe-area-inset-bottom));
+  overflow: visible;
+  border: 0;
+  border-radius: 0;
+  color: inherit;
+  background: transparent;
+  box-shadow: none;
+}
+
+section[data-fv-screen='baseline-locked']:has([data-continuity-machine-replacement]) > button {
+  width: min(100%, 376px);
+  margin-inline: auto;
+}
+
+/* Trial Truth remains physically inside the Oracle chassis. WebKit requires the interactive firmware wrapper to own the full glass geometry; a collapsed zero-height wrapper paints visibly but loses physical hit testing. */
+[data-oracle-machine][data-cassette-variant='trial-truth'] [data-oracle-trial-truth-firmware] {
+  position: absolute !important;
+  inset: 0 !important;
+  z-index: 11 !important;
+  width: auto !important;
+  height: auto !important;
+  pointer-events: auto;
+}
+
+[data-oracle-machine][data-cassette-variant='trial-truth']
+  [data-oracle-trial-truth-firmware]
+  [data-trial-truth-firmware-view] {
+  z-index: 11 !important;
+  pointer-events: auto;
+}
+
+/* Registration must remain useful at 390 × 844 with the live specimen label still visible. */
+[data-fv-screen='product-registration'] {
+  padding-top: 2px;
+}
+
+[data-fv-screen='product-registration'] [data-first-trial-lead] {
+  min-height: 42px !important;
+}
+
+[data-fv-screen='product-registration'] [data-first-trial-lead] button {
+  min-height: 38px;
+}
+
+[data-fv-screen='product-registration'] [data-registration-panel] {
+  gap: 5px;
+  padding: 8px 10px 9px;
+}
+
+[data-fv-screen='product-registration'] [data-registration-panel] > h2 {
+  font-size: clamp(19px, 5.3vw, 22px);
+  line-height: 1.03;
+}
+
+[data-fv-screen='product-registration'] [data-registration-panel] form {
+  gap: 6px;
+}
+
+[data-fv-screen='product-registration'] [data-registration-panel] form > label,
+[data-fv-screen='product-registration'] [data-registration-panel] form > div > label {
+  gap: 2px;
+}
+
+[data-fv-screen='product-registration'] [data-registration-panel] input:not([type='radio']) {
+  min-height: 44px;
+  padding: 7px 9px;
+}
+
+[data-fv-screen='product-registration'] [data-registration-protocol] {
+  position: relative;
+  min-height: 38px;
+  grid-template-columns: 12px auto minmax(0, 1fr);
+  gap: 2px 6px;
+  align-items: center;
+  padding: 5px 8px;
+  border-left-width: 2px;
+}
+
+[data-fv-screen='product-registration'] [data-registration-protocol] > input[type='radio'] {
+  width: 12px;
+  height: 12px;
+  grid-row: 1 / span 2;
+  align-self: center;
+  margin: 0;
+  accent-color: var(--fv-signal-active);
+}
+
+[data-fv-screen='product-registration'] [data-registration-protocol] > span {
+  grid-column: 2;
+  grid-row: 1;
+}
+
+[data-fv-screen='product-registration'] [data-registration-protocol] > span {
+  font-size: 7px;
+}
+
+[data-fv-screen='product-registration'] [data-registration-protocol] > strong {
+  grid-column: 3;
+  grid-row: 1;
+  font-size: 8px;
+}
+
+[data-fv-screen='product-registration'] [data-registration-protocol] > small {
+  grid-column: 2 / -1;
+  grid-row: 2;
+  font-size: 9px;
+}
+
+[data-fv-screen='product-registration'] [data-registration-panel] button[type='submit'] {
+  min-height: 48px;
+  padding-block: 10px;
+}
+
+/* One consistent light-screen state grammar. */
+[data-fv-screen='oracle-reveal'] > [data-continuity-oracle-lead] {
+  min-height: 78px;
+  gap: 6px;
+}
+
+[data-fv-screen='oracle-reveal'] > [data-continuity-oracle-lead] > p {
+  font-size: 9px;
+  font-weight: 650;
+}
+
+[data-fv-screen='oracle-reveal'] > [data-continuity-oracle-lead] > h1 {
+  font-size: clamp(29px, 8.3vw, 36px);
+  font-weight: 500;
+  line-height: 1;
+}
+
+/* VIEW EVIDENCE routes into the approved #74 record hierarchy; legacy inline dump stays unreachable. */
+[data-oracle-scene-state='collected'] #oracle-evidence-detail {
+  display: none !important;
+}
+
+/* Preserve the operation-status footprint during dispense so #73 paper geometry does not jump; obsolete copy remains nonvisual. This selector intentionally outranks the continuity-module hide rule. */
+section[data-fv-screen='oracle-reveal'][data-oracle-scene-state='dispensing']:has(
+    [data-continuity-oracle-lead]
+  )
+  > section[data-oracle-operation-status] {
+  display: grid !important;
+  visibility: hidden !important;
+}
+
+/* One small assistive marker preserves the old navigation assertion without restoring the rejected cream detail dump. */
+[data-evidence-detail-compatibility] {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Cold storage bottle identity stays recognizable without adding explanatory prose. */
+[data-archive-record] [class*='bottleLabel'] small,
+[data-archive-record] [class*='bottleLabel'] strong {
+  opacity: 1;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.32);
+}
+
+@media (max-width: 390px) {
+  [data-fv-screen='product-registration'] [data-registration-panel] {
+    padding-inline: 10px;
+  }
+
+  [data-fv-screen='product-registration'] [data-registration-panel] form {
+    gap: 7px;
+  }
+}

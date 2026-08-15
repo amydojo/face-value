@@ -263,7 +263,7 @@ it('starts with real registration and ends session one at Baseline locked', asyn
     </FaceValueProvider>,
   );
 
-  await user.click(screen.getByRole('button', { name: 'LOAD A PRODUCT' }));
+  await user.click(screen.getByRole('button', { name: 'LOAD PRODUCT' }));
   const registrationHeading = screen.getByRole('heading', {
     name: 'Give the specimen an identity.',
   });
@@ -668,34 +668,24 @@ it('keeps one canonical machine through reveal, dispense, collection, and Done',
   ).toHaveTextContent('FV–014');
   expect(machineControl).toHaveAttribute('data-oracle-control-label', 'KEEP');
   expect(document.querySelector('[data-oracle-machine]')).toBe(machine);
-  const amber = screen.getByRole('button', {
-    name: 'Keep this result',
-  });
-  expect(amber).toBe(amberControl);
-  expect(amber).toHaveAttribute('data-oracle-amber-control');
-  expect(amber).toHaveAttribute('data-amber-state', 'ready');
-  expect(amber).toHaveAttribute('tabindex', '0');
-  expect(amber).not.toBeDisabled();
-  expect(amber).not.toHaveAttribute('aria-hidden', 'true');
-  expect(amber.querySelector('[data-face-value-actuator]')).toHaveAttribute(
+  expect(screen.queryByRole('button', { name: 'Keep this result' })).not.toBeInTheDocument();
+  const saveResult = screen.getByRole('button', { name: 'Save result' });
+  expect(saveResult).toBeVisible();
+  expect(saveResult).toHaveAttribute('data-submission-save-result');
+  expect(saveResult.querySelector('[data-face-value-actuator]')).toHaveAttribute(
     'data-actuator-state',
     'ready',
   );
-  expect(amber.querySelector('[data-face-value-actuator]')).toHaveAttribute(
-    'aria-hidden',
-    'true',
-  );
-  amber.focus();
-  expect(amber).toHaveFocus();
-  fireEvent.click(amber);
-  fireEvent.click(amber);
+  saveResult.focus();
+  expect(saveResult).toHaveFocus();
+  fireEvent.click(saveResult);
   expect(machine).toHaveAttribute('data-oracle-state', 'committing');
-  expect(amber).toBe(amberControl);
-  expect(amber).toHaveAttribute('data-amber-state', 'committed');
-  expect(amber).toBeDisabled();
-  expect(amber).toHaveAttribute('tabindex', '-1');
-  expect(amber).toHaveAttribute('aria-hidden', 'true');
-  expect(amber.querySelector('[data-face-value-actuator]')).toHaveAttribute(
+  expect(screen.queryByRole('button', { name: 'Save result' })).not.toBeInTheDocument();
+  expect(amberControl).toHaveAttribute('data-amber-state', 'committed');
+  expect(amberControl).toBeDisabled();
+  expect(amberControl).toHaveAttribute('tabindex', '-1');
+  expect(amberControl).toHaveAttribute('aria-hidden', 'true');
+  expect(amberControl?.querySelector('[data-face-value-actuator]')).toHaveAttribute(
     'data-actuator-state',
     'captured',
   );
@@ -736,9 +726,8 @@ it('keeps one canonical machine through reveal, dispense, collection, and Done',
   expect(paper).toHaveAttribute('data-paper-scale', '1');
   expect(paper).toHaveAttribute('data-paper-horizontal-offset', '0');
   fireEvent.animationEnd(paper);
-  expect(screen.getByText('RESULT READY')).toBeVisible();
-  expect(screen.getByText('Take your evidence record.')).toBeVisible();
-  expect(screen.queryByText('EVIDENCE READY')).not.toBeInTheDocument();
+  expect(screen.getByText('EVIDENCE READY')).toBeVisible();
+  expect(screen.getByRole('heading', { name: 'TAKE YOUR RECORD' })).toBeVisible();
   const collectible = screen.getByRole('button', {
     name: /Evidence record for Naturium · Azelaic Topical Acid/i,
   });

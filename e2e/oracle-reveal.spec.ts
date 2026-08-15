@@ -610,8 +610,6 @@ test('responsive and reduced-motion flows preserve order without overflow', asyn
     await expect(page.locator('[data-oracle-machine]')).toHaveAttribute(
       'data-oracle-state',
       'verdict_revealed',
-      // The reduced-motion animations are 1 ms; the wider budget accounts
-      // only for WebKit delivering chained animation events under CI load.
       { timeout: 3_000 },
     );
     await expect(page.locator('[data-oracle-handle]')).toHaveAttribute(
@@ -624,7 +622,7 @@ test('responsive and reduced-motion flows preserve order without overflow', asyn
         (node) => node === document.querySelector('[data-oracle-machine]'),
       ),
     ).toBe(true);
-    await page.locator('[data-oracle-keep-action="text"]').click();
+    await page.getByRole('button', { name: 'Save result', exact: true }).click();
     await expect(page.locator('[data-oracle-paper]')).toHaveAttribute(
       'data-paper-position',
       'final',

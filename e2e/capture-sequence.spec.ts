@@ -36,6 +36,12 @@ type CaptureStatusWindow = Window & {
   __faceValueZeroProgressSeen?: boolean;
 };
 
+async function expectBaselineReadyForGuidedCapture(page: Page): Promise<void> {
+  await expect(page.getByRole('heading', { name: 'Baseline scan' })).toBeVisible();
+  await expect(page.getByText('Camera access comes next.')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Position your face' })).toHaveCount(0);
+}
+
 async function openCapture(
   page: Page,
   {
@@ -67,14 +73,14 @@ async function openCapture(
     ...(providerDelayMs ? { 'provider-delay-ms': String(providerDelayMs) } : {}),
     ...(providerDelayFrame ? { 'provider-delay-frame': String(providerDelayFrame) } : {}),
   });
-  await page.goto(`/?${query}`);
+  await page.goto('/favicon.svg');
   await page.evaluate(({ key, value }) => localStorage.setItem(key, JSON.stringify(value)), {
     key: STORAGE_KEY,
     value: baselineReady,
   });
-  await page.reload();
+  await page.goto(`/?${query}`);
   await page.getByRole('button', { name: 'TAKE GUIDED BASELINE' }).click();
-  await expect(page.getByRole('heading', { name: 'Position your face' })).toBeVisible();
+  await expectBaselineReadyForGuidedCapture(page);
 }
 
 async function observeCaptureStatuses(page: Page): Promise<void> {
@@ -657,7 +663,6 @@ test('native browser camera contract renders the real preview surface and owns c
   await openCapture(page, { nativeCamera: true });
   expect(await page.locator('[data-capture-synthetic-feed]').count()).toBe(0);
   await startCapture(page);
-  await expect(page.getByRole('heading', { name: 'Opening camera' })).toBeVisible();
   await expect(page.locator('section[data-preview-status="preview-live"]')).toBeVisible();
   expectResponsiveCaptureGeometry(await captureGeometry(page), 390);
   const preview = page.locator('[data-native-camera-preview]');
@@ -813,7 +818,7 @@ test('photo fallback remains explicitly single-image-limited', async ({ page }) 
   });
   await expect(page.getByText('One photo is not enough for this scan.')).toBeVisible();
   await expect(page.getByText(/nothing was added to your trial/i)).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Position your face' })).toBeVisible();
+  await expectBaselineReadyForGuidedCapture(page);
   await expect(page.locator('[data-camera-kit-fixture="active"]')).toHaveCount(0);
 });
 
@@ -1037,11 +1042,12 @@ test('Demo Lab banner stays separate from the active analysis status stack', asy
   await page.getByRole('combobox', { name: /Starting point/ }).selectOption('baseline_ready');
   await page.getByRole('button', { name: /OPEN DEMO STATE/ }).click();
   await page.getByRole('button', { name: 'CONFIRM AND LOAD' }).click();
+  await expect(page).toHaveURL(/\?fv-demo-journey=1$/);
   await page.goto('/?fv-demo-journey=1&provider-delay-ms=3000&provider-delay-frame=1');
   const demoBanner = page.getByLabel('Synthetic demo state');
   await expect(demoBanner).toContainText('LAB · SYNTHETIC');
   await expect(demoBanner).toHaveAttribute('data-demo-runtime-mode', 'journey');
-  await expect(page.getByRole('heading', { name: 'Position your face' })).toBeVisible();
+  await expectBaselineReadyForGuidedCapture(page);
   await startCapture(page);
   await expect(page.getByRole('heading', { name: 'Analyzing your scan' })).toBeVisible({
     timeout: 6_000,

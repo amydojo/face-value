@@ -16,6 +16,28 @@ const normalizedText = (value: string | null | undefined, maximumLength: number)
   return normalized || null;
 };
 
+const normalizeNumericUnit = (
+  value: string | null | undefined,
+  unit: '%' | 'ml',
+): string | null => {
+  const normalized = normalizedText(value, 48);
+  if (!normalized) return null;
+  const unitPattern = unit === '%' ? /%\s*$/ : /\s*ml\s*$/i;
+  const numericCandidate = normalized.replace(unitPattern, '').trim();
+  if (!/^\d+(?:\.\d+)?$/.test(numericCandidate)) return normalized;
+  const numericValue = Number(numericCandidate);
+  if (!Number.isFinite(numericValue)) return normalized;
+  return unit === '%' ? `${numericValue}%` : `${numericValue} ml`;
+};
+
+export function normalizeStrength(value: string | null | undefined): string | null {
+  return normalizeNumericUnit(value, '%');
+}
+
+export function normalizeVolume(value: string | null | undefined): string | null {
+  return normalizeNumericUnit(value, 'ml');
+}
+
 export function validateProductRegistration(
   input: ProductRegistrationInput,
 ): ProductRegistrationErrors {
@@ -42,8 +64,8 @@ export function createRegisteredProduct(
     accession: 'SPECIMEN 01',
     brand: normalizedText(input.brand, 80)!,
     productName: normalizedText(input.productName, 120)!,
-    strength: normalizedText(input.strength, 48),
-    volume: normalizedText(input.volume, 48),
+    strength: normalizeStrength(input.strength),
+    volume: normalizeVolume(input.volume),
     assignedJob: 'Reduce visible redness',
     protocolId: 'youcam-redness-v1',
     expectedObservationWindowDays: {

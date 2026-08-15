@@ -1,0 +1,136 @@
+.screen {
+  display: grid;
+  padding: 10px 0 max(12px, env(safe-area-inset-bottom));
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding-bottom: 5px;
+  border-bottom: 1px solid rgba(164, 149, 128, 0.18);
+  font: 650 7px/1.25 var(--fv-font-mono);
+  letter-spacing: 0.075em;
+}
+
+.header strong {
+  color: #efe9df;
+}
+
+.header span {
+  color: #9d9589;
+}
+
+.identity {
+  margin: 0;
+  overflow: hidden;
+  color: #a69f93;
+  font: 600 7px/1.25 var(--fv-font-mono);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.question {
+  margin: 0;
+  color: #f0ebe2;
+  font: 500 16px/1.05 var(--fv-font-sans);
+  letter-spacing: -0.02em;
+}
+
+.helper {
+  margin: -2px 0 0;
+  color: #8f887e;
+  font-size: 9px;
+  line-height: 1.25;
+}
+
+.options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 5px;
+  padding: 0;
+  margin: 1px 0 0;
+  border: 0;
+}
+
+.options legend {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+}
+
+.options label {
+  min-height: 40px;
+  display: grid;
+  grid-template-columns: 17px minmax(0, 1fr);
+  align-items: center;
+  gap: 6px;
+  padding: 5px 6px;
+  border: 1px solid rgba(112, 106, 96, 0.4);
+  border-radius: 7px;
+  color: #d3ccc0;
+  background: rgba(255, 255, 255, 0.018);
+  font-size: 9px;
+  line-height: 1.15;
+}
+
+.options input {
+  width: 17px;
+  height: 17px;
+  margin: 0;
+  accent-color: #c87920;
+}
+
+.note {
+  display: grid;
+  gap: 3px;
+  color: #918a80;
+  font: 600 6px/1.2 var(--fv-font-mono);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.note textarea {
+  min-height: 42px;
+  resize: none;
+  padding: 6px 7px;
+  border: 1px solid rgba(112, 106, 96, 0.4);
+  border-radius: 7px;
+  color: #ebe5da;
+  background: rgba(255, 255, 255, 0.025);
+  font: 400 11px/1.25 var(--fv-font-sans);
+  text-transform: none;
+}
+
+.commit {
+  min-height: 42px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 10px;
+  border: 1px solid rgba(200, 121, 32, 0.54);
+  border-radius: 8px;
+  color: #efe8dc;
+  background: rgba(200, 121, 32, 0.08);
+  font: 650 8px/1.2 var(--fv-font-mono);
+  letter-spacing: 0.04em;
+  cursor: pointer;
+}
+
+.commit > span:last-child {
+  color: #d6852c;
+  font-size: 16px;
+}
+
+@media (max-width: 390px) {
+  .screen {
+    padding-top: 7px;
+  }
+
+  .options label {
+    min-height: 40px;
+  }
+}

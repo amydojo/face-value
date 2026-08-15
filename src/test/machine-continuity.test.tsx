@@ -5,7 +5,11 @@ import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { FaceValueContext } from '../app/faceValueContext';
 import { initialState, type FaceValueEvent, type PhaseBFaceValueState } from '../app/phaseBMachine';
-import { ordinaryDemoRuntime, type DemoStartingPoint } from '../domain/demoLab';
+import {
+  fixtureNowForDemoStartingPoint,
+  ordinaryDemoRuntime,
+  type DemoStartingPoint,
+} from '../domain/demoLab';
 import { followUpIsEligible, trialDaySummary } from '../domain/phaseB5';
 import { FaceValueApplication } from '../features/FaceValueApplication';
 import { buildDemoFixtureState } from '../features/demo-lab/demoFixtureState';
@@ -14,7 +18,7 @@ const runtimeFor = (startingPoint: DemoStartingPoint, state: PhaseBFaceValueStat
   mode: 'preview' as const,
   startingPoint,
   resultFixture: 'clear_favorable_change' as const,
-  fixtureNow: startingPoint === 'trial_pending' ? state.baselineLockedAt : null,
+  fixtureNow: fixtureNowForDemoStartingPoint(startingPoint, state.baselineLockedAt),
 });
 
 function renderState(
@@ -110,20 +114,25 @@ describe('Machine Continuity production projections', () => {
     const user = userEvent.setup();
     const { dispatch } = renderState(initialState, null);
 
-    expect(screen.getByText('ONE PRODUCT · ONE JOB · ONE HONEST RESULT')).toBeVisible();
+    expect(screen.queryByText('ONE PRODUCT · ONE JOB · ONE HONEST RESULT')).not.toBeInTheDocument();
     expect(
       screen.getByRole('heading', { name: 'Is your skincare actually doing anything?' }),
     ).toBeVisible();
     expect(screen.getByText('NO SPECIMEN LOADED')).toBeVisible();
     expect(screen.getByText('Insert one product to begin.')).toBeVisible();
-    expect(document.querySelector('main')).toHaveAttribute('data-fv-tone', 'dark');
+    expect(document.querySelector('main')).toHaveAttribute('data-fv-tone', 'light');
     expect(document.querySelector('[data-trial-machine-state="empty"]')).toHaveAttribute(
       'data-machine-implementation',
       'oracle',
     );
     expect(document.querySelectorAll('[data-oracle-chassis]')).toHaveLength(1);
 
-    await user.click(screen.getByRole('button', { name: 'LOAD A PRODUCT' }));
+    expect(screen.getByText('PRIVATE BY DEFAULT · FACE IMAGES ARE NOT SAVED')).toBeVisible();
+    const loadAction = screen.getByRole('button', { name: 'LOAD PRODUCT' });
+    expect(loadAction).toHaveAttribute('data-welcome-action');
+    expect(loadAction.closest('[data-oracle-lower-deck]')).not.toBeNull();
+
+    await user.click(loadAction);
     expect(dispatch).toHaveBeenCalledWith({ type: 'START_PRODUCT_REGISTRATION' });
   });
 
@@ -190,6 +199,7 @@ describe('Machine Continuity production projections', () => {
     expect(screen.getByLabelText('Follow-up scan available in 14 days')).toBeVisible();
     expect(screen.queryByRole('button', { name: /Take follow-up scan/i })).not.toBeInTheDocument();
     expect(dispatch.mock.calls.some(([event]) => event.type === 'BEGIN_CAPTURE')).toBe(false);
+    expect(document.querySelector('main')).toHaveAttribute('data-fv-tone', 'light');
     expect(document.querySelectorAll('[data-oracle-chassis]')).toHaveLength(1);
   });
 
@@ -223,6 +233,7 @@ describe('Machine Continuity production projections', () => {
     expect(readyChassis?.getAttribute('class')).toBe(pendingChassisClass);
     expect(document.querySelectorAll('[data-oracle-chassis]')).toHaveLength(1);
     expect(screen.getByText('READY')).toBeVisible();
+    expect(document.querySelector('main')).toHaveAttribute('data-fv-tone', 'light');
 
     await user.click(screen.getByRole('button', { name: 'Take follow-up scan' }));
     expect(dispatch).toHaveBeenCalledWith(

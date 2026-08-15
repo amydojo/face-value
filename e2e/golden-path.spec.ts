@@ -82,7 +82,10 @@ async function expectGuidedQualityReady(page: Page): Promise<void> {
 }
 
 async function takeGuidedCapture(page: Page, kind: 'baseline' | 'followup'): Promise<void> {
-  await expect(page.getByRole('heading', { name: 'Position your face' })).toBeVisible();
+  const readyLabel = kind === 'baseline' ? 'Baseline scan' : 'Follow-up scan';
+  await expect(page.getByRole('heading', { name: readyLabel })).toBeVisible();
+  await expect(page.getByText('Camera access comes next.')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Position your face' })).toHaveCount(0);
   await expect(page.getByRole('checkbox')).toHaveCount(0);
   await expect(
     page.getByRole('button', { name: /shutter|take photo|use this capture/i }),
@@ -154,11 +157,11 @@ for (const scenario of cases) {
         name: 'Is your skincare actually doing anything?',
       }),
     ).toBeVisible();
-    await expect(page.getByRole('button', { name: 'LOAD A PRODUCT' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'LOAD PRODUCT' })).toBeVisible();
     await assertNoHorizontalOverflow(page);
     await assertNoInternalJourneyJargon(page);
 
-    await page.getByRole('button', { name: 'LOAD A PRODUCT' }).click();
+    await page.getByRole('button', { name: 'LOAD PRODUCT' }).click();
     await page.getByLabel('Brand').fill('Naturium');
     await page.getByLabel('Product name').fill('Azelaic Topical Acid');
     await page.getByLabel('Strength or concentration').fill('10%');
@@ -181,7 +184,11 @@ for (const scenario of cases) {
     await takeGuidedCapture(page, 'baseline');
     expect(analysisAcceptances).toHaveLength(3);
     expect(analysisAcceptances.every((entry) => entry.includes('baseline'))).toBe(true);
-    await expect(page.getByRole('heading', { name: 'Baseline locked.' })).toBeVisible();
+    const baselineLocked = page.locator('[data-fv-screen="baseline-locked"]');
+    await expect(baselineLocked.getByText('BASELINE LOCKED', { exact: true })).toBeVisible();
+    await expect(
+      baselineLocked.getByRole('heading', { name: 'That’s everything for today.' }),
+    ).toBeVisible();
     await expect(
       page.getByRole('button', { name: /take follow-up|continue|compare/i }),
     ).toHaveCount(0);
@@ -201,8 +208,9 @@ for (const scenario of cases) {
 
     await page.getByRole('button', { name: 'DONE' }).click();
     await expect(page.getByRole('heading', { name: 'Your trials' })).toBeVisible();
-    await expect(page.getByText('DAY 01 OF 14')).toBeVisible();
-    await expect(page.getByText('IN 14 DAYS')).toBeVisible();
+    const pendingDisplay = page.locator('[data-continuity-trial-display]');
+    await expect(pendingDisplay).toContainText('DAY 01 OF 14');
+    await expect(page.locator('[data-followup-action="pending"]')).toContainText('IN 14 DAYS');
     await expect(page.getByRole('button', { name: 'Take follow-up scan' })).toHaveCount(0);
     await assertNoHorizontalOverflow(page);
 
@@ -225,9 +233,12 @@ for (const scenario of cases) {
       localStorage.setItem(key, JSON.stringify(persisted));
     }, STORAGE_KEY);
     await page.reload();
-    await expect(page.getByText('FOLLOW-UP READY').first()).toBeVisible();
+    const followupReadyMachine = page.getByLabel('Follow-up ready for Naturium');
+    await expect(
+      followupReadyMachine.getByText('FOLLOW-UP READY', { exact: true }),
+    ).toBeVisible();
     await expect(page.getByRole('button', { name: 'Take follow-up scan' })).toBeVisible();
-    await expect(page.getByText('READY', { exact: true })).toBeVisible();
+    await expect(followupReadyMachine.getByText('READY', { exact: true })).toBeVisible();
 
     const advancedStorage = await page.evaluate((key) => {
       return localStorage.getItem(key);
@@ -240,14 +251,24 @@ for (const scenario of cases) {
     await takeGuidedCapture(page, 'followup');
     expect(analysisAcceptances).toHaveLength(6);
     expect(analysisAcceptances.slice(3).every((entry) => entry.includes('followup'))).toBe(true);
-    await expect(
-      page.getByRole('heading', {
-        name: 'Comparing against your baseline…',
-      }),
-    ).toBeVisible();
+    await expect(page.getByText('COMPARING', { exact: true })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Baseline ↔ follow-up' })).toBeVisible();
     await expect(page.getByRole('heading', { name: 'The result is in.' })).toBeVisible({
       timeout: 1_500,
     });
+    await expect
+      .poll(async () => {
+        const serialized = await page.evaluate((key) => localStorage.getItem(key), STORAGE_KEY);
+        if (!serialized) return false;
+        const persisted = JSON.parse(serialized) as {
+          analysis?: { rednessEvaluation?: unknown } | null;
+          longitudinalEvidence?: { evaluation?: unknown };
+        };
+        return Boolean(
+          persisted.analysis?.rednessEvaluation && persisted.longitudinalEvidence?.evaluation,
+        );
+      })
+      .toBe(true);
     const comparedStorage = await page.evaluate((key) => {
       return localStorage.getItem(key);
     }, STORAGE_KEY);
@@ -363,45 +384,29 @@ for (const scenario of cases) {
     await expect(page.locator('[data-firmware-state="resolved"]')).toContainText(
       'Visible redness moved in a favorable direction.',
     );
-    await expect(page.getByLabel('Result recommendation').locator(':scope > p')).toBeVisible();
+    await expect(page.getByLabel('Result recommendation').locator(':scope > p')).toBeHidden();
     await expect(page.locator('[data-firmware-state="resolved"]')).toContainText('TEST LONGER');
-    await expect(page.locator('[data-oracle-keep-action="text"]')).toBeVisible();
-    await expect(
-      page.getByRole('button', {
-        name: 'Keep this result',
-        exact: true,
-      }),
-    ).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Keep this result', exact: true })).toHaveCount(0);
+    const saveResult = page.getByRole('button', { name: 'Save result', exact: true });
+    await expect(saveResult).toBeVisible();
     await expect(page.getByText(/P1 · Test longer/i)).toBeHidden();
     await assertNoHorizontalOverflow(page);
     await saveScreenshot(page, testInfo, scenario.captureEvidence, 'phase-b5-one-reveal');
 
-    await page.getByRole('button', { name: 'SEE WHY' }).click();
-    await expect(
-      page
-        .locator('#oracle-why')
-        .getByText(
-          'The trial window is not complete. Keep the predeclared schedule before judging this product job.',
-        ),
-    ).toBeVisible();
+    const whyResult = page.getByRole('button', { name: 'WHY THIS RESULT', exact: true });
+    await whyResult.click();
+    const whyPanel = page.locator('#continuity-why-result');
+    await expect(whyPanel).toBeVisible();
+    await expect(whyPanel.getByText('CHANGE', { exact: true })).toBeVisible();
+    await expect(whyPanel.getByText('COMPARISON', { exact: true })).toBeVisible();
+    await expect(whyPanel.getByText('EVIDENCE', { exact: true })).toBeVisible();
+    await expect(whyPanel).toContainText('Visible redness only.');
 
-    const amber = page.getByRole('button', {
-      name: 'Keep this result',
-      exact: true,
-    });
-    await amber.evaluate((element) => {
-      (element as HTMLButtonElement).click();
-      (element as HTMLButtonElement).click();
-    });
+    await saveResult.click();
     await expect(machine).toHaveAttribute('data-oracle-state', 'dispensing', {
       timeout: scenario.reducedMotion ? 1_000 : 2_000,
     });
-    await expect(
-      page.getByRole('button', {
-        name: 'Keep this result',
-        exact: true,
-      }),
-    ).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Save result', exact: true })).toHaveCount(0);
     const paper = page.locator('[data-oracle-paper]');
     await expect(paper).toHaveAttribute('data-paper-position', 'final', {
       timeout: scenario.reducedMotion ? 1_000 : 2_000,
@@ -438,20 +443,6 @@ for (const scenario of cases) {
     await expect(page.locator('[data-oracle-paper]')).toHaveCount(0);
     await expect(page.getByRole('button', { name: 'DONE' })).toBeFocused();
     await expect(page.getByRole('button', { name: 'DONE' })).toHaveCount(1);
-    await page.getByRole('button', { name: 'VIEW EVIDENCE' }).click();
-    await expect(page.getByRole('heading', { name: 'EVIDENCE DETAIL' })).toBeVisible();
-    const evidenceDetail = page.locator('[data-evidence-detail]');
-    await expect(
-      page.getByText(/Demo timing was advanced explicitly; capture timestamps remain unchanged/i),
-    ).toBeVisible();
-    await expect(
-      evidenceDetail.getByText('Production thresholds require repeat-scan calibration.', {
-        exact: true,
-      }),
-    ).toBeVisible();
-    await expect(
-      evidenceDetail.getByText(/provisional_fixture · redness-provisional-v1/i),
-    ).toBeVisible();
 
     const savedStorage = await page.evaluate((key) => {
       return localStorage.getItem(key);
@@ -476,8 +467,6 @@ for (const scenario of cases) {
     expect(savedData.archive[0].rednessEvaluation).toEqual(evaluation);
     assertFaceFreeStorage(savedStorage);
 
-    await page.getByRole('button', { name: 'VIEW EVIDENCE' }).click();
-    await expect(page.getByRole('heading', { name: 'EVIDENCE DETAIL' })).toHaveCount(0);
     await page.getByRole('button', { name: 'DONE' }).click();
     await expect(page.getByRole('heading', { name: 'Your trials' })).toBeVisible();
     await expect(page.locator('[data-cassette-variant="latest-verdict"]')).toHaveAttribute(
@@ -528,6 +517,10 @@ for (const scenario of cases) {
 
     await page.getByRole('button', { name: 'Back to previous inspection layer' }).click();
     await page.getByRole('button', { name: /Open Evaluation details/ }).click();
+    const elapsedTimeField = page.locator('[data-technical-field="elapsed-time"]');
+    await expect(elapsedTimeField).toBeVisible();
+    await expect(elapsedTimeField.locator('dt')).toHaveText('Elapsed time');
+    await expect(elapsedTimeField.locator('dd')).toContainText(/day/i);
     await expect(page.locator('[data-technical-field="direction-agreement"]')).toContainText(
       'Agreeing',
     );
@@ -536,7 +529,7 @@ for (const scenario of cases) {
     );
     await expect(page.locator('[data-technical-field="evidence-quality"]')).toContainText('Early');
     await expect(page.locator('[data-technical-field="recommended-action"]')).toContainText(
-      'Test longer',
+      'TEST LONGER',
     );
 
     const restoredArchive = await page.evaluate((key) => {

@@ -444,6 +444,7 @@ function LatestVerdictPaper({
 export type OracleTrialStateMachineProps =
   | {
       state: 'empty';
+      onLoadProduct?: () => void;
     }
   | {
       state: 'registration-preview';
@@ -466,10 +467,16 @@ export type OracleTrialTruthMachineProps = {
   step: 1 | 2 | 3 | 4;
   view: 'question' | 'symptoms' | 'capture-context';
   firmware: ReactNode;
-  controlLabel: 'CONTINUE' | 'SAVE SIGNS' | 'SAVE CONTEXT' | 'SEE RESULT';
+  controlLabel:
+    | 'CONTINUE'
+    | 'SAVE SIGNS'
+    | 'SAVE CONTEXT'
+    | 'NOTHING DIFFERENT'
+    | 'SEE RESULT';
   controlAccessibleLabel: string;
   controlEnabled: boolean;
   onControl: () => void;
+  machineAccessibleLabel?: string;
 };
 
 type OracleVerdictMachineProps = {
@@ -500,6 +507,7 @@ type OracleTrialMachineProps = {
   registration: SpecimenRegistrationSnapshot;
   day: number | null;
   intervalDays: number | null;
+  onLoadProduct?: () => void;
 };
 
 type OracleTrialTruthMachineInternalProps = OracleTrialTruthMachineProps & {
@@ -651,12 +659,16 @@ function OracleMachine(props: OracleMachineProps) {
     trialTruthMachine?.specimenIdentity ??
     verdictMachine?.specimenIdentity ??
     null;
+  const emptyLoadAction =
+    trialMachine?.trialState === 'empty' ? trialMachine.onLoadProduct : undefined;
   const amberState: OracleAmberState = trialTruthMachine
     ? trialTruthMachine.controlEnabled
       ? 'ready'
       : 'idle'
     : trialMachine
-      ? trialMachine.trialState === 'followup-ready'
+      ? emptyLoadAction
+        ? 'ready'
+        : trialMachine.trialState === 'followup-ready'
         ? 'followup-ready'
         : trialMachine.trialState === 'pending'
           ? 'trial-pending'
@@ -713,7 +725,8 @@ function OracleMachine(props: OracleMachineProps) {
         ].filter((value): value is string => Boolean(value))
       : [];
   const machineLabel = trialTruthMachine
-    ? `Follow-up secured for ${oracleSpecimenIdentityLabel(
+    ? trialTruthMachine.machineAccessibleLabel ??
+      `Follow-up secured for ${oracleSpecimenIdentityLabel(
         trialTruthMachine.specimenIdentity,
       )}. Trial truth step ${trialTruthMachine.step} of 3${
         trialTruthMachine.view === 'symptoms' ? ', symptom selection' : ''
@@ -837,6 +850,20 @@ function OracleMachine(props: OracleMachineProps) {
             <b className={styles.guideLeft} />
             <b className={styles.guideRight} />
           </div>
+          {emptyLoadAction && (
+            <button
+              type="button"
+              className={styles.emptyLoadDeckAction}
+              data-welcome-action
+              aria-label="LOAD PRODUCT"
+              onClick={emptyLoadAction}
+            >
+              <span className={styles.emptyLoadRail} aria-hidden="true">
+                <b>LOAD PRODUCT</b>
+                <i>→</i>
+              </span>
+            </button>
+          )}
           {trialTruthMachine && (
             <button
               type="button"
@@ -1000,6 +1027,7 @@ export function OracleTrialStateMachine(props: OracleTrialStateMachineProps) {
       intervalDays={
         props.state === 'pending' || props.state === 'followup-ready' ? props.intervalDays : null
       }
+      onLoadProduct={props.state === 'empty' ? props.onLoadProduct : undefined}
     />
   );
 }

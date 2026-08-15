@@ -4,7 +4,12 @@ import { systemClock } from '../../adapters/clock/clock';
 import { useFaceValue } from '../../app/faceValueContext';
 import { ScreenHeader } from '../../components/hardware';
 import type { RegisteredProduct } from '../../domain/model';
-import { createRegisteredProduct, type ProductRegistrationInput } from '../../domain/phaseB5';
+import {
+  createRegisteredProduct,
+  normalizeStrength,
+  normalizeVolume,
+  type ProductRegistrationInput,
+} from '../../domain/phaseB5';
 import { specimenRegistrationTiming } from '../../domain/specimenRegistration';
 import styles from '../../styles/FaceValue.module.css';
 import {
@@ -13,6 +18,7 @@ import {
   type OracleTrialStateMachineProps,
 } from '../oracle-reveal/OracleRevealScene';
 import { ProductRegistration } from '../product-registration/ProductRegistration';
+import continuityStyles from './FirstTrialScene.module.css';
 import { useSpecimenRegistrationSequence } from './useSpecimenRegistrationSequence';
 
 type SpecimenTimingProperties = CSSProperties & {
@@ -48,8 +54,8 @@ const draftSpecimenIdentity = (draft: ProductRegistrationInput): OracleSpecimenI
   accession: null,
   brand: draft.brand.trim() || 'UNNAMED BRAND',
   productName: draft.productName.trim() || 'UNNAMED PRODUCT',
-  strength: draft.strength?.trim() || null,
-  volume: draft.volume?.trim() || null,
+  strength: normalizeStrength(draft.strength),
+  volume: normalizeVolume(draft.volume),
   assignedJob: 'Reduce visible redness',
 });
 
@@ -118,9 +124,14 @@ export function FirstTrialScene() {
 
   const identity = useMemo(() => draftSpecimenIdentity(draft), [draft]);
 
+  const onLoadProduct = () => {
+    setRegistrationPanelMounted(true);
+    dispatch({ type: 'START_PRODUCT_REGISTRATION' });
+  };
+
   const oracleProps: OracleTrialStateMachineProps =
     state.stage === 'welcome'
-      ? { state: 'empty' }
+      ? { state: 'empty', onLoadProduct }
       : state.stage === 'product_registration'
         ? { state: 'registration-preview', identity }
         : state.registeredProduct
@@ -130,11 +141,6 @@ export function FirstTrialScene() {
               registration: registrationSequence.registration,
             }
           : { state: 'empty' };
-
-  const onLoadProduct = () => {
-    setRegistrationPanelMounted(true);
-    dispatch({ type: 'START_PRODUCT_REGISTRATION' });
-  };
 
   const onBack = () => {
     registrationSequence.cancel();
@@ -194,12 +200,13 @@ export function FirstTrialScene() {
   const registrationVisible =
     registrationPanelMounted && (state.stage === 'product_registration' || state.stage === 'job');
   const baselineReady = registrationSequence.isReady && !baselineRequested;
+  const registrationPreview = state.stage === 'product_registration';
 
   return (
     <>
-      <ScreenHeader dark />
+      <ScreenHeader dark={state.stage !== 'welcome'} />
       <section
-        className={styles.firstTrialScene}
+        className={`${styles.firstTrialScene} ${registrationPreview ? continuityStyles.registrationPreview : ''}`}
         data-fv-screen={
           state.stage === 'welcome'
             ? 'welcome'
@@ -217,7 +224,6 @@ export function FirstTrialScene() {
         <div className={styles.firstTrialLeadSlot} data-first-trial-lead={state.stage}>
           {state.stage === 'welcome' && (
             <div className={styles.firstTrialWelcomeLead}>
-              <p className={styles.firstTrialEyebrow}>ONE PRODUCT · ONE JOB · ONE HONEST RESULT</p>
               <h1 data-stage-focus tabIndex={-1}>
                 Is your skincare actually doing anything?
               </h1>
@@ -235,23 +241,11 @@ export function FirstTrialScene() {
           )}
         </div>
 
-        <div className={styles.firstTrialMachine}>
+        <div className={`${styles.firstTrialMachine} ${continuityStyles.machineWindow}`}>
           <OracleTrialStateMachine {...oracleProps} />
         </div>
 
         <div className={styles.firstTrialControls}>
-          {state.stage === 'welcome' && (
-            <button
-              className={styles.firstTrialLoadAction}
-              type="button"
-              data-welcome-action
-              onClick={onLoadProduct}
-            >
-              <span>LOAD A PRODUCT</span>
-              <span aria-hidden="true">→</span>
-            </button>
-          )}
-
           {registrationVisible && (
             <ProductRegistration
               value={draft}
@@ -297,8 +291,11 @@ export function FirstTrialScene() {
           className={styles.firstTrialPrivacy}
           data-welcome-privacy={state.stage === 'welcome' ? '' : undefined}
         >
-          {state.stage !== 'product_registration' &&
-            'PRIVATE BY DEFAULT · FACE IMAGES STAY IN MEMORY'}
+          {state.stage === 'welcome'
+            ? 'PRIVATE BY DEFAULT · FACE IMAGES ARE NOT SAVED'
+            : state.stage !== 'product_registration'
+              ? 'PRIVATE BY DEFAULT · FACE IMAGES STAY IN MEMORY'
+              : ''}
         </footer>
         <div className={styles.liveRegion} role="status" aria-live="polite" aria-atomic="true">
           {registrationSequence.announcement}

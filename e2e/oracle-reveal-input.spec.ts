@@ -95,12 +95,8 @@ test('Escape is deterministic and cannot bypass the sealed or revealed state', a
   await expect(page.locator('[data-firmware-state="resolved"]')).toContainText(
     'A small favorable shift showed up.',
   );
-  await expect(
-    page.getByRole('button', {
-      name: 'Keep this result',
-      exact: true,
-    }),
-  ).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Save result', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Keep this result', exact: true })).toHaveCount(0);
 });
 
 test('reduced motion preserves reveal, atomic release, presentation, and collection', async ({
@@ -118,11 +114,11 @@ test('reduced motion preserves reveal, atomic release, presentation, and collect
     timeout: REDUCED_MOTION_TIMEOUT_MS,
   });
 
-  const amber = page.getByRole('button', {
-    name: 'Keep this result',
+  const saveResult = page.getByRole('button', {
+    name: 'Save result',
     exact: true,
   });
-  await amber.evaluate((element) => {
+  await saveResult.evaluate((element) => {
     (element as HTMLButtonElement).click();
     (element as HTMLButtonElement).click();
   });
@@ -149,7 +145,7 @@ test('canceling guided capture releases the fixture and ignores stale completion
   const runtimeErrors: string[] = [];
   page.on('pageerror', (error) => runtimeErrors.push(error.message));
   await page.goto('/');
-  await page.getByRole('button', { name: 'LOAD A PRODUCT' }).click();
+  await page.getByRole('button', { name: 'LOAD PRODUCT' }).click();
   await page.getByLabel('Brand').fill('Experiment');
   await page.getByLabel('Product name').fill('Quiet Serum');
   await page.getByRole('button', { name: 'REGISTER & LOAD' }).click();
@@ -174,7 +170,7 @@ test('a stalled preview restarts from a fresh tap and Back releases it', async (
     }
   });
   await page.goto('/?camera-stall=1');
-  await page.getByRole('button', { name: 'LOAD A PRODUCT' }).click();
+  await page.getByRole('button', { name: 'LOAD PRODUCT' }).click();
   await page.getByLabel('Brand').fill('Experiment');
   await page.getByLabel('Product name').fill('Quiet Serum');
   await page.getByRole('button', { name: 'REGISTER & LOAD' }).click();
@@ -207,7 +203,7 @@ test('preview-live gates one instruction and the canonical quality rail', async 
     }
   });
   await page.goto('/?camera-quality-proof=1');
-  await page.getByRole('button', { name: 'LOAD A PRODUCT' }).click();
+  await page.getByRole('button', { name: 'LOAD PRODUCT' }).click();
   await page.getByLabel('Brand').fill('Experiment');
   await page.getByLabel('Product name').fill('Quiet Serum');
   await page.getByRole('button', { name: 'REGISTER & LOAD' }).click();

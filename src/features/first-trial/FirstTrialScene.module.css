@@ -1,0 +1,28 @@
+.registrationPreview .machineWindow {
+  height: clamp(154px, 25dvh, 182px);
+  overflow: hidden;
+  border-bottom: 1px solid rgba(201, 192, 177, 0.38);
+}
+
+.registrationPreview .machineWindow :global([data-oracle-machine]) {
+  width: min(100%, 376px);
+  margin-top: 0;
+}
+
+.registrationPreview .machineWindow :global([data-oracle-lower-deck]),
+.registrationPreview .machineWindow :global([data-oracle-evidence-path]),
+.registrationPreview .machineWindow :global([data-oracle-slot-lip]) {
+  visibility: hidden;
+}
+
+.registrationPreview .machineWindow :global([data-oracle-chassis]) {
+  box-shadow:
+    0 14px 28px rgba(0, 0, 0, 0.32),
+    inset 0 1px rgba(255, 255, 255, 0.04);
+}
+
+@media (max-width: 390px) {
+  .registrationPreview .machineWindow {
+    height: clamp(148px, 25dvh, 176px);
+  }
+}

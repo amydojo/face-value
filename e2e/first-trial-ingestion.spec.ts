@@ -198,9 +198,12 @@ async function hardwareGeometry(page: Page) {
 async function workflowLayoutMetrics(page: Page) {
   return page.evaluate(() => {
     const rounded = (value: number) => Math.round(value * 100) / 100;
-    const bounds = (selector: string) => {
+    const elementFor = (selector: string) => {
       const element = document.querySelector<HTMLElement>(selector);
       if (!element) throw new Error(`Missing workflow element: ${selector}`);
+      return element;
+    };
+    const bounds = (element: HTMLElement) => {
       const box = element.getBoundingClientRect();
       return {
         x: rounded(box.x),
@@ -211,15 +214,30 @@ async function workflowLayoutMetrics(page: Page) {
         bottom: rounded(box.bottom),
       };
     };
-    const back = bounds('[data-first-trial-lead="product_registration"] button');
-    const machine = bounds('[data-oracle-machine]');
-    const panel = bounds('[data-registration-panel]');
+    const backElement = elementFor('[data-first-trial-lead="product_registration"] button');
+    const machineElement = elementFor('[data-oracle-machine]');
+    const panelElement = elementFor('[data-registration-panel]');
+    const back = bounds(backElement);
+    const machine = bounds(machineElement);
+    const panel = bounds(panelElement);
+    let visibleMachineBottom = machine.bottom;
+    let ancestor = machineElement.parentElement;
+    while (ancestor && ancestor !== document.body) {
+      const style = getComputedStyle(ancestor);
+      const clipsY =
+        ['hidden', 'clip'].includes(style.overflowY) || ['hidden', 'clip'].includes(style.overflow);
+      if (clipsY) {
+        visibleMachineBottom = Math.min(visibleMachineBottom, ancestor.getBoundingClientRect().bottom);
+      }
+      ancestor = ancestor.parentElement;
+    }
     return {
       back,
       machine,
       panel,
+      visibleMachineBottom: rounded(visibleMachineBottom),
       backToMachine: rounded(machine.y - back.bottom),
-      machineToPanel: rounded(panel.y - machine.bottom),
+      machineToPanel: rounded(panel.y - visibleMachineBottom),
     };
   });
 }
@@ -279,8 +297,7 @@ async function expectNoRunningSpecimenAnimation(page: Page) {
             .getAnimations({ subtree: true })
             .filter((animation) => animation.playState === 'running')
             .map((animation) => {
-              const target =
-                animation.effect instanceof KeyframeEffect ? animation.effect.target : null;
+              const target = animation.effect instanceof KeyframeEffect ? animation.effect.target : null;
               return {
                 type: animation.id || animation.constructor.name,
                 target:
@@ -397,7 +414,7 @@ test('one Oracle instrument accepts, loads, and releases one specimen to baselin
   );
   await captureCheckpoint(page, '01-empty-first-screen.png');
 
-  await page.getByRole('button', { name: 'LOAD A PRODUCT' }).click();
+  await page.getByRole('button', { name: 'LOAD PRODUCT' }).click();
   await expect(page.locator('[data-fv-screen="product-registration"]')).toBeVisible();
   await expect(page.getByLabel('Brand')).toHaveCount(1);
   await expect(page.getByLabel('Brand')).toHaveAttribute('name', 'brand');
@@ -410,10 +427,10 @@ test('one Oracle instrument accepts, loads, and releases one specimen to baselin
   const workflowMachineGeometry = await machineDocumentGeometry(page);
   expect(workflowMachineGeometry.documentY).toBeLessThan(welcomeMachineGeometry.documentY - 60);
   const registrationLayout = await workflowLayoutMetrics(page);
-  expect(registrationLayout.backToMachine).toBeGreaterThanOrEqual(28);
-  expect(registrationLayout.backToMachine).toBeLessThanOrEqual(36);
-  expect(registrationLayout.machineToPanel).toBeGreaterThanOrEqual(32);
-  expect(registrationLayout.machineToPanel).toBeLessThanOrEqual(48);
+  expect(registrationLayout.backToMachine).toBeGreaterThanOrEqual(4);
+  expect(registrationLayout.backToMachine).toBeLessThanOrEqual(12);
+  expect(registrationLayout.machineToPanel).toBeGreaterThanOrEqual(4);
+  expect(registrationLayout.machineToPanel).toBeLessThanOrEqual(32);
   await captureCheckpoint(page, '02-registration-preview-blank.png');
 
   await page.getByRole('textbox', { name: 'Brand' }).fill('Clinical Laboratory');
@@ -479,7 +496,14 @@ test('one Oracle instrument accepts, loads, and releases one specimen to baselin
   );
   await expectCurrentNode(machine, '[data-oracle-machine]');
   await expectCurrentNode(specimen, '[data-oracle-specimen]');
-  expect(await machineDocumentGeometry(page)).toEqual(workflowMachineGeometry);
+  const operationalMachineGeometry = await machineDocumentGeometry(page);
+  expect(operationalMachineGeometry.x).toBe(workflowMachineGeometry.x);
+  expect(operationalMachineGeometry.width).toBe(workflowMachineGeometry.width);
+  expect(operationalMachineGeometry.height).toBe(workflowMachineGeometry.height);
+  expect(operationalMachineGeometry.transform).toBe(workflowMachineGeometry.transform);
+  expect(operationalMachineGeometry.animationName).toBe(workflowMachineGeometry.animationName);
+  expect(operationalMachineGeometry.documentY).toBeGreaterThan(workflowMachineGeometry.documentY);
+  expect(operationalMachineGeometry.viewportY).toBeGreaterThan(workflowMachineGeometry.viewportY);
 
   await page.clock.runFor(registrationTiming.preparingCheckpoint);
   await expect(page.locator('[data-oracle-machine]')).toHaveAttribute(
@@ -498,7 +522,7 @@ test('one Oracle instrument accepts, loads, and releases one specimen to baselin
       .locator('[data-oracle-specimen]')
       .evaluate((specimen) => new DOMMatrixReadOnly(getComputedStyle(specimen).transform).m42),
   ).toBeCloseTo(0, 1);
-  expect(await machineDocumentGeometry(page)).toEqual(workflowMachineGeometry);
+  expect(await machineDocumentGeometry(page)).toEqual(operationalMachineGeometry);
   await captureCheckpoint(page, '04-preparing.png', true);
 
   await page.clock.runFor(
@@ -521,7 +545,7 @@ test('one Oracle instrument accepts, loads, and releases one specimen to baselin
   await expect(page.locator('[data-trial-machine-state="baseline-ready"]')).toContainText(
     'ALIGNING SPECIMEN',
   );
-  expect(await machineDocumentGeometry(page)).toEqual(workflowMachineGeometry);
+  expect(await machineDocumentGeometry(page)).toEqual(operationalMachineGeometry);
   const aligningSpecimenGeometry = await specimenGeometry(page);
   await captureCheckpoint(page, '05-aligning.png', true);
 
@@ -551,7 +575,7 @@ test('one Oracle instrument accepts, loads, and releases one specimen to baselin
   expect(scanProgress).toBeGreaterThan(0);
   expect(scanProgress).toBeLessThan(1);
   await expect(page.locator('[data-baseline-action]')).toBeDisabled();
-  expect(await machineDocumentGeometry(page)).toEqual(workflowMachineGeometry);
+  expect(await machineDocumentGeometry(page)).toEqual(operationalMachineGeometry);
   const scanningSpecimenGeometry = await specimenGeometry(page);
   await captureCheckpoint(page, '06-scanning.png', true);
 
@@ -574,7 +598,7 @@ test('one Oracle instrument accepts, loads, and releases one specimen to baselin
     'data-label-scan-state',
     'inactive',
   );
-  expect(await machineDocumentGeometry(page)).toEqual(workflowMachineGeometry);
+  expect(await machineDocumentGeometry(page)).toEqual(operationalMachineGeometry);
   const processingSpecimenGeometry = await specimenGeometry(page);
   await captureCheckpoint(page, '07-processing.png', true);
 
@@ -606,7 +630,7 @@ test('one Oracle instrument accepts, loads, and releases one specimen to baselin
   await expect(page.getByText('PRODUCT REGISTERED')).toHaveCount(0);
   await expectCurrentNode(machine, '[data-oracle-machine]');
   await expectCurrentNode(specimen, '[data-oracle-specimen]');
-  expect(await machineDocumentGeometry(page)).toEqual(workflowMachineGeometry);
+  expect(await machineDocumentGeometry(page)).toEqual(operationalMachineGeometry);
   const readySpecimenGeometry = await specimenGeometry(page);
   expect(aligningSpecimenGeometry.root).toEqual(scanningSpecimenGeometry.root);
   expect(scanningSpecimenGeometry.root).toEqual(processingSpecimenGeometry.root);
@@ -632,10 +656,10 @@ test('one Oracle instrument accepts, loads, and releases one specimen to baselin
         {
           viewport: { width: 390, height: 844 },
           welcomeMachine: welcomeMachineGeometry,
-          workflowMachine: workflowMachineGeometry,
+          registrationPreviewMachine: workflowMachineGeometry,
+          operationalMachine: operationalMachineGeometry,
           workflowLayout: registrationLayout,
           stableMachinePhases: [
-            'registration-preview',
             'preparing',
             'aligning',
             'scanning',
@@ -665,7 +689,9 @@ test('one Oracle instrument accepts, loads, and releases one specimen to baselin
     action.click();
     action.click();
   });
-  await expect(page.getByRole('heading', { name: 'Position your face' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Baseline scan' })).toBeVisible();
+  await expect(page.getByText('Camera access comes next.')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Position your face' })).toHaveCount(0);
   await expect(page.locator('[data-oracle-machine]')).toHaveCount(0);
   await expectNoHorizontalOverflow(page);
   await captureCheckpoint(page, '13-baseline-camera-entry.png');
@@ -685,7 +711,7 @@ test('captures real-time WebKit ingestion paint checkpoints', async ({ page }) =
 
   await page.waitForTimeout(80);
   await captureCheckpoint(page, '01-empty-first-screen.png');
-  await page.getByRole('button', { name: 'LOAD A PRODUCT' }).click();
+  await page.getByRole('button', { name: 'LOAD PRODUCT' }).click();
   await captureCheckpoint(page, '02-registration-preview-blank.png');
   await page.getByRole('textbox', { name: 'Brand' }).fill('Clinical Laboratory');
   await page
@@ -756,12 +782,12 @@ test('all supported widths keep registration usable and horizontally contained',
     await page.setViewportSize(viewport);
     await openFreshTrial(page);
     await expectNoHorizontalOverflow(page);
-    await page.getByRole('button', { name: 'LOAD A PRODUCT' }).click();
+    await page.getByRole('button', { name: 'LOAD PRODUCT' }).click();
     const workflowLayout = await workflowLayoutMetrics(page);
-    expect(workflowLayout.backToMachine).toBeGreaterThanOrEqual(28);
-    expect(workflowLayout.backToMachine).toBeLessThanOrEqual(36);
-    expect(workflowLayout.machineToPanel).toBeGreaterThanOrEqual(32);
-    expect(workflowLayout.machineToPanel).toBeLessThanOrEqual(48);
+    expect(workflowLayout.backToMachine).toBeGreaterThanOrEqual(4);
+    expect(workflowLayout.backToMachine).toBeLessThanOrEqual(12);
+    expect(workflowLayout.machineToPanel).toBeGreaterThanOrEqual(4);
+    expect(workflowLayout.machineToPanel).toBeLessThanOrEqual(32);
     await page.getByRole('textbox', { name: 'Brand' }).fill('A Very Long Clinical Brand Name');
     await page
       .getByRole('textbox', { name: 'Product name' })
@@ -786,7 +812,7 @@ test('reduced motion preserves the shortened semantic ceremony without specimen 
   await page.setViewportSize({ width: 390, height: 844 });
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await openFreshTrial(page);
-  await page.getByRole('button', { name: 'LOAD A PRODUCT' }).click();
+  await page.getByRole('button', { name: 'LOAD PRODUCT' }).click();
   await page.getByRole('textbox', { name: 'Brand' }).fill('Face Value Lab');
   await page.getByRole('textbox', { name: 'Product name' }).fill('Redness Trial');
 

@@ -222,7 +222,9 @@ test('home keeps one hierarchy and the exact verdict across home, detail, and hi
   );
   await expect(savedRecords.first()).toHaveAttribute('data-specimen-strength', '10%');
   await expect(savedRecords.first()).toHaveAttribute('data-specimen-volume', '30 ml');
-  await expect(savedRecords.first()).toContainText('→');
+  expect(
+    await savedRecords.first().evaluate((element) => getComputedStyle(element, '::after').content),
+  ).toContain('→');
   expect((await savedRecords.first().boundingBox())?.height).toBeGreaterThanOrEqual(44);
   for (let index = 0; index < 4; index += 1) {
     if (await savedRecords.first().evaluate((element) => document.activeElement === element)) break;
@@ -369,12 +371,12 @@ test('saving and collectible states use one concise status at mobile widths', as
     await expect(savingFirmware).not.toContainText('IN PROGRESS');
     await expect(savingFirmware.getByText('STATUS', { exact: true })).toHaveCount(0);
     await expect(savingFirmware.getByText('RECORDING', { exact: true })).toHaveCount(0);
-    await expect(page.getByText('RESULT READY')).toHaveCount(0);
+    await expect(page.getByText('EVIDENCE READY', { exact: true })).toHaveCount(0);
     await noHorizontalOverflow(page);
 
     await loadState(page, revealState('dispensing'));
-    await expect(page.getByText('RESULT READY')).toHaveCount(0);
-    await expect(page.getByText('EVIDENCE READY')).toHaveCount(0);
+    await expect(page.getByText('SAVING RESULT')).toBeVisible();
+    await expect(page.getByText('EVIDENCE READY', { exact: true })).toHaveCount(0);
     await noHorizontalOverflow(page);
 
     await loadState(
@@ -383,9 +385,8 @@ test('saving and collectible states use one concise status at mobile widths', as
         oracleEvidenceDispensed: true,
       }),
     );
-    await expect(page.getByText('RESULT READY')).toBeVisible();
-    await expect(page.getByText('Take your evidence record.')).toBeVisible();
-    await expect(page.getByText('EVIDENCE READY')).toHaveCount(0);
+    await expect(page.getByText('EVIDENCE READY', { exact: true })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'TAKE YOUR RECORD' })).toBeVisible();
     const paper = page.getByRole('button', {
       name: /Evidence record for Naturium · Azelaic Topical Acid/i,
     });
@@ -441,13 +442,11 @@ test('recorded result preserves the approved action spacing and factual copy', a
   await noHorizontalOverflow(page);
 });
 
-test('ready and revealing states use direct result copy without mechanism narration', async ({
-  page,
-}) => {
+test('ready and revealing states use the hardened singular result grammar', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await loadState(page, revealState('sealed'));
-  await expect(page.getByText('VERDICT READY')).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'The result is in.' })).toBeVisible();
+  await expect(page.getByText('COMPARISON COMPLETE', { exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Your result is sealed.' })).toBeVisible();
   await expect(page.getByText('Preparing your evidence record.')).toHaveCount(0);
 
   await page.addStyleTag({

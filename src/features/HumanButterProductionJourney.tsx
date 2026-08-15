@@ -5,6 +5,7 @@ import styles from '../styles/FaceValue.module.css';
 import { FaceValueApplication } from './FaceValueApplication';
 import { DemoRuntimeBanner } from './demo-lab/DemoRuntimeBanner';
 import { DEMO_LAB_ENABLED } from './demo-lab/demoLabAccess';
+import { SubmissionContinuityOverlay } from './submission-continuity/SubmissionContinuityOverlay';
 import { TrialTruthSurface } from './trial-truth/TrialTruthSurface';
 
 function DemoSessionRecovery() {
@@ -62,6 +63,7 @@ export function HumanButterProductionJourney() {
     return (
       <>
         <TrialTruthSurface />
+        <SubmissionContinuityOverlay />
         {DEMO_LAB_ENABLED && demoRuntime.mode !== 'ordinary' && (
           <DemoRuntimeBanner runtime={demoRuntime} />
         )}
@@ -103,6 +105,7 @@ export function HumanButterProductionJourney() {
   return (
     <>
       <FaceValueApplication />
+      <SubmissionContinuityOverlay />
       {DEMO_LAB_ENABLED && demoRuntime.mode !== 'ordinary' && (
         <DemoRuntimeBanner runtime={demoRuntime} />
       )}
