@@ -134,3 +134,7 @@ Start with the canonical repository docs rather than treating README history as 
 - [Source-of-truth manifest](docs/source-of-truth-manifest.md)
 
 For traceability, the evidence-engine lineage is **#63 → #64 → #65**; issue #65 was implemented from base `f95b051f6c562919c23da0d08728fff124d27d48`. A historical `CreditInsufficiency` provider-quota incident remains documented in the calibration evidence record; it is not represented here as a current judge-path requirement.
+
+## License
+
+This project is licensed under the MIT License. See [`LICENSE`](LICENSE).
