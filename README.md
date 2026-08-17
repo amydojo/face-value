@@ -1,285 +1,136 @@
 # Face Value
 
-> **Your shelf is full of claims. Put them on trial.**
+> Your shelf is full of claims. Put them on trial.
 
-Face Value is a longitudinal skincare product trial machine. A person registers one product, assigns it one explicit job, captures a baseline and an eligible follow-up under a frozen protocol, and receives one evidence-bounded result about whether that product is earning its place.
+Face Value is a longitudinal skincare trial system that uses YouCam Skin Analysis to compare baseline and follow-up visible-redness evidence, then produces an evidence-bounded recommendation about whether a product is earning its place. The current hackathon protocol is intentionally narrow: one product, one job, visible redness, with deterministic evaluation and explicit evidence limits.
 
-The hackathon production slice is deliberately narrow:
+## Judge Quick Start
 
-> **One product. One job: reduce visible redness. One honest result.**
+### Try the hosted project
 
-## Current status
+**Production:** https://face-value-seven.vercel.app
 
-Face Value is in **hackathon pre-submission hardening**.
+Face Value is designed mobile-first. For the intended experience, use a phone or a mobile-sized browser viewport.
 
-The core evidence architecture is implemented and protected. The active work is not another scientific or provider rewrite. It is turning the already-verified pieces into one coherent submission candidate, validating the full flow without wasting provider credits, and then completing one deliberate physical-device acceptance run.
+### Recommended judge walkthrough
 
-### Repository truth vs active submission work
+1. Register one skincare product.
+2. Assign **Reduce visible redness** as its job.
+3. Capture and inspect the baseline behavior.
+4. Continue through the eligible follow-up flow.
+5. Inspect the verdict and recommendation.
+6. Open the **Evidence Record**.
+7. Open the **Technical Record** for the underlying measurement and evaluation details.
 
-`main` contains the currently merged production path and remains the authority for behavior that has actually landed.
+The ordinary production journey preserves the trial's real follow-up eligibility rules. Face Value also contains a protected **Demo Lab** for zero-credit inspection of later journey states. Demo Lab fixtures are synthetic, visibly labeled as synthetic, and never represent genuine provider-backed evidence. The deployed `/demo` route requires the protected engineering session; local Demo Lab controls require `VITE_SHOW_DEMO_CONTROLS=true`.
 
-Two active draft pull requests are the current submission integration candidates:
+## YouCam Integration
 
-- **PR #73 · canonical Face Value Actuator V1.1**
-  - open, draft, mergeable
-  - preserves the existing machine control behavior while replacing its visual actuator and adding the current brand/icon surface
-  - previously passed its full validation set, including strict TypeScript, unit tests, production build, privacy verification, and targeted mobile WebKit checks
-- **PR #74 · updated Result Experience**
-  - open, draft, mergeable
-  - current head: `346f17aaa7c3f715ee9ffded4775f772b8d8bd38`
-  - implements the approved Result → Evidence sheet → Technical record → detail hierarchy
-  - includes Demo Lab wiring for the new result experience
-  - does not change provider behavior, evaluator logic, thresholds, camera acquisition, persistence semantics, privacy behavior, or authentication
+Face Value integrates **YouCam Skin Analysis v2.1** through server-side routes.
 
-If the production-style `main` deployment still shows the older large Evidence Record, that is expected until PR #74 is integrated. Validate the new result experience on the PR #74 preview rather than judging it from stale `main` UI.
+For each ordinary baseline and follow-up period, the current acquisition flow collects **three distinct decoded frames and three independent YouCam analyses**. Each accepted frame is uploaded and analyzed independently. The primary optical signal for the visible-redness protocol is `hd_redness.raw_score`.
 
-## Current production behavior
+YouCam supplies the skin measurement. Face Value owns the longitudinal trial state, frozen comparison protocol, comparability checks, deterministic evaluation, saved result, and Evidence Record.
 
-The merged production path includes:
+**YouCam measures the skin. Face Value judges the trial.**
 
-- reducer-owned product registration and trial continuity
-- a first-party browser camera surface with the Face Value acquisition sequence
-- one continuous three-measurement baseline and follow-up acquisition ritual
-- three distinct decoded frames and three independent YouCam analyses per period
-- secure YouCam Skin Analysis v2.1 requests through server-only API routes
-- `hd_redness.raw_score` as the deciding optical signal
-- a frozen baseline/follow-up protocol
-- deterministic, versioned redness evaluation
-- provisional operating boundaries of 5 and 10 raw-score points
-- explicit measurement, attribution, evidence, safety, and action dimensions
-- reducer-owned adherence, tolerance, symptom, and participant-observed redness evidence
-- a sealed Oracle result reveal and exactly-once Evidence Record collection
-- a saved-snapshot Redness Response Signature inside progressive Evidence Record detail
-- face-free local persistence, Previous Trials, and reload continuity
-- protected Demo Lab and provider engineering-session boundaries
-- a protected, isolated preliminary redness-calibration instrument
+No provider score is presented as a diagnosis or as proof of clinical product efficacy.
 
-## Provider status
-
-The previous YouCam quota blocker is resolved.
-
-Perfect Corp restored **500 complimentary API units on August 5, 2026**. The earlier `CreditInsufficiency` failure remains useful historical evidence, but it is no longer the active blocker.
-
-Physical iPhone Safari has already proven native camera preview and capture, and upload-slot creation has succeeded. The remaining provider proof is one fresh **baseline → follow-up** physical-device acceptance run through the genuine provider path after the integrated submission candidate is green.
-
-Do not reopen provider architecture, retry policy, thresholds, evaluator logic, persistence, privacy, or camera acquisition unless a verified failing acceptance test proves it is necessary.
-
-## Current limitations
-
-- each ordinary period requires three accepted provider observations but still represents one short acquisition session
-- measurement quality remains limited because cross-session pose, facial registration, segmentation, crop, face size, color cast, and skin-tone properties are not measured
-- mask, registration, segmentation, measured skin-tone, and provider model-version evidence remain unavailable
-- the 5/10 boundaries are provisional Face Value operating thresholds, not clinical significance thresholds
-- the provider does not currently report an analysis-model version
-- a final provider-backed physical baseline-to-follow-up acceptance run still needs to be completed and recorded after the current integration/hardening pass
-- Face Value does not diagnose skin disease or establish clinical product efficacy
-
-See [`docs/README.md`](docs/README.md) for the authority and supersession index.
-
-## Current product journeys
-
-### First trial
+## How Face Value Works
 
 ```text
-empty instrument
-→ register product identity
-→ assign Reduce visible redness
-→ specimen loads and identity locks
-→ guided baseline evidence burst
-→ optional capture context
-→ baseline locked
-→ trial pending
+product registration
+→ baseline
+→ trial period
+→ follow-up
+→ comparability / deterministic evaluation
+→ verdict
+→ Evidence Record
 ```
 
-### Follow-up and result
+The production capture surface uses `NativeBrowserCameraAdapter`. Saved results appear under **Previous Trials**.
 
-```text
-follow-up ready
-→ guided follow-up evidence burst
-→ optional capture context
-→ trial truth: adherence, tolerance, symptoms, and participant-observed direction
-→ deterministic comparison
-→ sealed Oracle
-→ reveal result and recommendation
-→ collect one Evidence Record
-→ Home / Previous Trials
-```
+## Local Setup
 
-The current archive label is **Previous Trials**. Internal compatibility names such as `archive`, `placement`, and legacy reducer events may remain in code and saved-state migration paths; they are not alternate product journeys.
-
-## Pre-submission flow hardening
-
-An August 11 flow audit identified four bounded presentation/continuity issues that should be resolved without changing the evidence architecture:
-
-1. **Strength normalization**
-   - registration accepts plain numeric strength such as `10`
-   - the specimen/bottle presentation currently recognizes percentage strength only when `%` is present
-   - numeric strength should normalize to percentage presentation instead of requiring secret punctuation from the user
-
-2. **Pre-camera clarity**
-   - before guided capture starts, the current UI can say `Position your face` / `Looking for a stable frame`
-   - pre-start copy should explain that guided capture starts below and camera permission will be requested
-   - positioning/stability guidance should appear only after the live camera preview exists
-
-3. **Baseline continuity**
-   - the standalone baseline completion screen creates an unnecessary break in the machine model
-   - after baseline capture, the same trial cassette should become `BASELINE LOCKED`, show the follow-up date, and clearly tell the user they are done for now
-
-4. **Comparison continuity**
-   - the standalone `Comparing against your baseline…` screen weakens the single-machine mental model
-   - keep the underlying asynchronous analysis state, but present comparison progress inside the cassette/machine before the verdict reveal
-
-North-star rule:
-
-> **The cassette should become the state of the trial wherever possible.**
-
-These are pre-submission flow-coherence fixes, not a provider or evaluator redesign.
-
-## Hackathon execution order
-
-1. Validate the new Result Experience on the PR #74 Vercel preview and Demo Lab.
-2. Integrate PR #74 and PR #73 deliberately; do not merge blindly or mix unrelated changes.
-3. Run one bounded trial-continuity hardening pass for the four findings above.
-4. Exhaust zero-credit validation first:
-   - Demo Lab preview and journey states
-   - `npm run check`
-   - targeted Playwright/WebKit flow checks
-   - persistence/reload behavior
-   - accessibility and reduced-motion behavior
-   - Result → Evidence sheet → Technical record → detail inspection
-5. Only after the synthetic/automated candidate is green, run one fresh physical iPhone Safari baseline → follow-up provider acceptance using restored credits.
-6. Confirm genuine provider completion, truthful analysis progression, no partial durable evidence on failure, camera cleanup, and the correct saved result.
-7. If green, freeze product code for submission and move into the nine-beat hackathon storyboard, capture, and edit.
-
-## Evidence model
-
-YouCam measures the skin. Face Value judges the trial.
-
-```text
-three distinct in-memory frames
-→ three independent YouCam Skin Analysis v2.1 requests
-→ three normalized hd_redness.raw_score observations
-→ frozen protocol and face-free capture metadata
-→ reducer-owned trial-truth evidence
-→ canonical redness evidence adapter
-→ deterministic median, direction agreement, and evaluation
-→ immutable RednessEvaluationSnapshot
-→ verdict presentation
-→ exactly-once Evidence Record
-```
-
-The evaluator keeps these concepts separate:
-
-- effect classification
-- measurement quality
-- attribution quality
-- evidence quality
-- safety status
-- recommended action
-
-The canonical action set is:
-
-- `keep`
-- `test_longer`
-- `retry_alone`
-- `not_proving_job`
-- `safety_interruption`
-
-No React component, animation callback, provider response, or language model may create or upgrade a scientific result.
-
-## Privacy and security
-
-Raw face images remain memory-only. They are not written to reducer state, local storage, Evidence Records, analytics, logs, or committed verification artifacts.
-
-Durable evidence excludes:
-
-- image bytes, `File`, and `Blob` values
-- base64 and data URLs
-- object URLs
-- signed upload URLs
-- provider task identifiers
-- API credentials and authorization headers
-- raw provider payloads
-
-`YOUCAM_API_KEY` remains server-only. The protected engineering token is exchanged for a signed `Secure`, `HttpOnly`, `SameSite=Strict` cookie. It is not a consumer authentication system.
-
-## Camera architecture
-
-Production uses `NativeBrowserCameraAdapter`: the visible first-party `<video>` surface is the frame Face Value captures. The app measures only whole-frame exposure and movement locally and does not claim native face detection, pose estimation, skin-tone classification, or facial registration.
-
-The external Perfect Corp Camera Kit renderer is retained as a development diagnostic harness only. It is not the production acquisition surface.
-
-See [`docs/camera-contract.md`](docs/camera-contract.md).
-
-## Evidence-engine milestones
-
-The evidence-engine work that established the current scientific/product boundary includes:
-
-1. **#63 · Evidence Burst — merged**
-
-   Three independently analyzed current frames per baseline and follow-up, reducer-owned atomic period commit, evaluator-owned aggregation, bounded rejected-attempt evidence, and face-free persistence.
-
-2. **#64 · Trial Truth — merged**
-
-   Explicit adherence, tolerance, symptoms, and participant-observed redness direction mapped into the existing evaluator without UI-side verdict logic.
-
-3. **#65 · Preliminary Calibration Harness — implemented**
-
-   A protected internal repeatability instrument, deterministic exploratory report/registry, and saved-snapshot Redness Response Signature. Production trials continue using the provisional 5/10 configuration unless a future separately reviewed graduation process approves otherwise.
-
-   Issue #65 was implemented from exact base `f95b051f6c562919c23da0d08728fff124d27d48`.
-
-Planned or draft work does not become `main` repository truth until its pull request is merged and the authority docs are updated in the same change.
-
-## Local setup
+The repository uses npm.
 
 ```bash
 npm install
+cp .env.example .env.local
 npm run dev
 ```
 
-Validation:
+`npm run dev` starts the Vite frontend at `http://127.0.0.1:4173`.
+
+Environment variables are documented in [`.env.example`](.env.example):
+
+- `YOUCAM_API_KEY`: server-only YouCam bearer credential. A genuine provider-backed run requires a valid value.
+- `YOUCAM_SPIKE_TOKEN`: protected engineering token used to establish the signed server session required by the current YouCam provider routes and protected Demo Lab.
+- `VITE_SHOW_DEMO_CONTROLS`: optional local-only switch for synthetic Demo Lab controls.
+- `VITE_CAMERA_KIT_MODE`: guided-capture compatibility selector. Production resolves to the first-party native browser camera path; the external Camera Kit renderer is diagnostic only.
+
+Do not place real credentials in the README or commit local environment files. The repository ignores `.env` and `.env*` files.
+
+The YouCam endpoints are Vercel serverless routes. `npm run dev` runs the Vite frontend; a genuine provider-backed local run also needs a Vercel-compatible serverless runtime with the server environment variables configured.
+
+### Local synthetic Demo Lab
+
+```bash
+VITE_SHOW_DEMO_CONTROLS=true npm run dev
+```
+
+Then open `http://127.0.0.1:4173/demo`. Synthetic states are for product and evidence-flow inspection only; they do not spend provider credits and do not claim physical capture provenance.
+
+## Validation
+
+These commands exist in `package.json`:
 
 ```bash
 npm run check
-npx playwright install --with-deps webkit
 npm run test:e2e
 ```
 
-Key scripts:
+`npm run check` runs linting, strict TypeScript, unit/component tests, redness-architecture verification, documentation verification, the production build, and the client privacy scan. End-to-end coverage uses Playwright; CI installs WebKit before `npm run test:e2e`.
 
-- `npm run lint`
-- `npm run typecheck`
-- `npm run test`
-- `npm run verify:redness-architecture`
-- `npm run verify:docs`
-- `npm run build`
-- `npm run verify:privacy`
-- `npm run check`
-- `npm run test:e2e`
+Useful focused commands include:
 
-## Architecture
+```bash
+npm run lint
+npm run typecheck
+npm run test
+npm run verify:redness-architecture
+npm run verify:docs
+npm run build
+npm run verify:privacy
+```
 
-The application uses Vite, React, strict TypeScript, one reducer-owned product state machine, a separate pure Oracle mechanical reducer, CSS Modules, Vitest, React Testing Library, Playwright WebKit, serverless YouCam routes, and local face-free persistence.
+## Privacy
 
-Start with:
+- Raw face images are temporary and memory-only during acquisition and provider transfer.
+- Raw face images are not persisted in saved trials, Previous Trials, or Evidence Records.
+- Durable evidence excludes image bytes, signed upload URLs, provider task identifiers, authorization headers, and raw provider payloads.
+- `YOUCAM_API_KEY` remains server-side.
+- The protected engineering token is exchanged for a short-lived signed `Secure`, `HttpOnly`, `SameSite=Strict` cookie; it is not consumer authentication.
 
-- [`docs/README.md`](docs/README.md)
-- [`docs/product-contract.md`](docs/product-contract.md)
-- [`docs/architecture.md`](docs/architecture.md)
-- [`docs/state-model.md`](docs/state-model.md)
-- [`docs/camera-contract.md`](docs/camera-contract.md)
-- [`docs/redness-evidence-engine-v1.md`](docs/redness-evidence-engine-v1.md)
-- [`docs/redness-calibration-harness.md`](docs/redness-calibration-harness.md)
-- [`docs/oracle-reveal-v1.md`](docs/oracle-reveal-v1.md)
-- [`docs/source-of-truth-manifest.md`](docs/source-of-truth-manifest.md)
+## Limitations
 
-## Verification status
+- The current hackathon protocol focuses on visible redness.
+- The production 5 / 10 raw-score operating boundaries remain provisional Face Value thresholds, not clinical significance thresholds.
+- Cross-session pose, registration, segmentation, crop, face-size, color-cast, and skin-tone properties are not currently measured as comparison-quality signals.
+- Face Value is not diagnostic.
+- Face Value does not establish clinical product efficacy.
 
-The repository currently has strong synthetic and browser verification for the evidence engine, Demo Lab, persistence, privacy boundaries, and the active presentation work in PRs #73 and #74.
+## Architecture and deeper documentation
 
-The remaining irreversible acceptance gate is intentionally narrow:
+Start with the canonical repository docs rather than treating README history as implementation authority:
 
-> **One fresh physical iPhone Safari baseline → follow-up run through the genuine provider path after integration and continuity hardening are green.**
+- [Documentation authority index](docs/README.md)
+- [Product contract](docs/product-contract.md)
+- [Architecture](docs/architecture.md)
+- [State model](docs/state-model.md)
+- [Camera contract](docs/camera-contract.md)
+- [Redness evidence engine](docs/redness-evidence-engine-v1.md)
+- [Demo Lab](docs/demo-lab.md)
+- [Source-of-truth manifest](docs/source-of-truth-manifest.md)
 
-That physical result should be recorded explicitly. It must not be inferred from synthetic browser evidence, and live provider credits should not be spent repeatedly on UI or flow debugging that Demo Lab can cover for free.
+For traceability, the evidence-engine lineage is **#63 → #64 → #65**; issue #65 was implemented from base `f95b051f6c562919c23da0d08728fff124d27d48`. A historical `CreditInsufficiency` provider-quota incident remains documented in the calibration evidence record; it is not represented here as a current judge-path requirement.
