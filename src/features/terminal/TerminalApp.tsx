@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { FaceValueBrandLockup } from '../../components/FaceValueBrandLockup';
 import { getBrowserTerminalHardware } from '../../adapters/terminal/TerminalHardware';
 import { EvidenceReceipt } from '../evidence-receipt/EvidenceReceipt';
@@ -34,7 +34,7 @@ export function TerminalApp() {
   const [cassetteId, setCassetteId] = useState<string | null>(null);
   const hardware = useMemo(() => getBrowserTerminalHardware(), []);
 
-  const sealRecord = async () => {
+  const sealRecord = useCallback(async () => {
     if (stage !== 'verdict') return;
     setStage('printing');
     await hardware.setStatusLight('printing');
@@ -46,7 +46,7 @@ export function TerminalApp() {
     setReceiptVisible(true);
     setStage('sealed');
     await hardware.setStatusLight('ready');
-  };
+  }, [hardware, stage]);
 
   useEffect(() => {
     const stopCassette = hardware.onCassetteDetected((productId) => {
@@ -60,7 +60,7 @@ export function TerminalApp() {
       stopCassette();
       stopActuator();
     };
-  }, [hardware, stage]);
+  }, [hardware, sealRecord]);
 
   useEffect(() => {
     void hardware.setStatusLight(stageLight[stage]);
@@ -125,12 +125,12 @@ export function TerminalApp() {
         <button type="button" onClick={() => setReceiptVisible((current) => !current)}>P · RECEIPT</button>
       </nav>
 
-      {receiptVisible && (
+      {receiptVisible ? (
         <div className={styles.receiptOverlay} role="dialog" aria-modal="true" aria-label="Evidence receipt preview">
           <button className={styles.closeReceipt} type="button" onClick={() => setReceiptVisible(false)}>CLOSE ×</button>
           <EvidenceReceipt record={record} />
         </div>
-      )}
+      ) : null}
     </main>
   );
 }
