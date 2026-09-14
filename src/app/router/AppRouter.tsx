@@ -2,12 +2,18 @@ import { HumanButterProductionJourney } from '../../features/HumanButterProducti
 import { RednessCalibration } from '../../features/calibration-redness/RednessCalibration';
 import { DemoLab } from '../../features/demo-lab/DemoLab';
 import { DEMO_LAB_ENABLED } from '../../features/demo-lab/demoLabAccess';
+import { EvidenceReceiptPreview } from '../../features/evidence-receipt/EvidenceReceipt';
+import { TerminalApp } from '../../features/terminal/TerminalApp';
 import { YouCamCalibration } from '../../features/youcam-calibration/YouCamCalibration';
 import { YouCamSpike } from '../../features/youcam-spike/YouCamSpike';
 
 export function AppRouter() {
   const pathname = globalThis.location?.pathname ?? '/';
 
+  if (pathname === '/terminal' || pathname === '/terminal/') return <TerminalApp />;
+  if (pathname === '/terminal/receipt' || pathname === '/terminal/receipt/') {
+    return <EvidenceReceiptPreview />;
+  }
   if (
     DEMO_LAB_ENABLED
     && (pathname === '/calibration/redness' || pathname === '/calibration/redness/')
