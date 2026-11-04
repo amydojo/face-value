@@ -1,6 +1,6 @@
 export const REDNESS_FRAMEWORK_VERSION = 'redness-v1' as const;
 export const REDNESS_SCHEMA_VERSION = 'redness-evidence-v1' as const;
-export const REDNESS_ENGINE_VERSION = 'face-value-redness-engine-v1.0.0' as const;
+export const REDNESS_ENGINE_VERSION = 'face-value-redness-engine-v1.1.0' as const;
 
 export type EffectClassification =
   | 'worsened'

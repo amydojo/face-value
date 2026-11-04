@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { isRednessEvaluationSnapshot, type RednessEvaluationSnapshot } from '../domain/evidence/redness';
+import {
+  REDNESS_ENGINE_VERSION,
+  isRednessEvaluationSnapshot,
+  type RednessEvaluationSnapshot,
+} from '../domain/evidence/redness';
 import savedV1 from './fixtures/redness-snapshot-engine-v1.0.0.json';
 import { surfacesFor } from './support/rednessScenarios';
 
@@ -10,6 +14,8 @@ describe('V1 saved snapshot compatibility', () => {
 
   it('still validates as a canonical snapshot', () => {
     expect(snapshot.engineVersion).toBe('face-value-redness-engine-v1.0.0');
+    // Copy-corrected evaluations carry a newer engine version, so the two are distinguishable.
+    expect(REDNESS_ENGINE_VERSION).not.toBe(snapshot.engineVersion);
     expect(isRednessEvaluationSnapshot(snapshot)).toBe(true);
   });
 

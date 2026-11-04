@@ -317,7 +317,7 @@ for (const scenario of cases) {
     expect(evaluation).toMatchObject({
       frameworkVersion: 'redness-v1',
       schemaVersion: 'redness-evidence-v1',
-      engineVersion: 'face-value-redness-engine-v1.0.0',
+      engineVersion: 'face-value-redness-engine-v1.1.0',
       assignedJob: 'calm_visible_redness',
       baseline: {
         sessionCount: 1,
