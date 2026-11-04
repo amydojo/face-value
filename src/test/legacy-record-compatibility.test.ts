@@ -97,6 +97,61 @@ describe('saved records the current validator rejects are preserved, not deleted
   });
 });
 
+/** In-memory Storage whose writes can be made to fail, like a full localStorage quota. */
+class FailingStorage implements Storage {
+  private readonly items = new Map<string, string>();
+  constructor(private readonly failWrite: (key: string) => boolean) {}
+  get length() {
+    return this.items.size;
+  }
+  clear() {
+    this.items.clear();
+  }
+  getItem(key: string) {
+    return this.items.get(key) ?? null;
+  }
+  key(index: number) {
+    return [...this.items.keys()][index] ?? null;
+  }
+  removeItem(key: string) {
+    this.items.delete(key);
+  }
+  setItem(key: string, value: string) {
+    if (this.failWrite(key)) throw new DOMException('Quota exceeded', 'QuotaExceededError');
+    this.items.set(key, value);
+  }
+  seed(key: string, value: string) {
+    this.items.set(key, value);
+  }
+  values() {
+    return [...this.items.values()];
+  }
+}
+
+describe('unreadable archives survive a failed quarantine write', () => {
+  const unreadable = () => {
+    const raw = saveEditedArchive((e) => delete e.safetyStatus);
+    localStorage.clear();
+    return raw;
+  };
+
+  it('quarantine write fails: the bytes stay in storage', () => {
+    const raw = unreadable();
+    const storage = new FailingStorage((key) => key.startsWith(QUARANTINE_PREFIX));
+    storage.seed(STORAGE_KEY, raw);
+    expect(loadStructuredDemoData(storage)).toBeNull();
+    expect(storage.values()).toContain(raw);
+  });
+
+  it('every write fails: the bytes stay in storage', () => {
+    const raw = unreadable();
+    const storage = new FailingStorage(() => true);
+    storage.seed(STORAGE_KEY, raw);
+    expect(loadStructuredDemoData(storage)).toBeNull();
+    expect(storage.values()).toContain(raw);
+  });
+});
+
 describe('guidance fails safe when source facts are unavailable', () => {
   for (const [name, edit] of [
     ['safety status', (e: Record<string, unknown>) => delete e.safetyStatus],
