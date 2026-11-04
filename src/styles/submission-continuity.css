@@ -280,6 +280,28 @@ section[data-fv-screen='comparing'] > p:last-child {
   color: #29241e;
 }
 
+/* A revealed result names its evidence strength in the real eyebrow text, and a safety result's
+   guidance title is the headline, sized to stay within the first viewport down to 320x568. */
+[data-fv-screen='oracle-reveal'][data-oracle-scene-state='verdict_revealed']
+  > div:first-child[data-result-evidence]
+  > p {
+  font: 650 9px/1.3 var(--fv-font-mono) !important;
+  letter-spacing: 0.08em;
+}
+
+[data-fv-screen='oracle-reveal'][data-oracle-scene-state='verdict_revealed']
+  > div:first-child[data-result-evidence]
+  > p::after {
+  content: none;
+}
+
+[data-fv-screen='oracle-reveal'][data-oracle-scene-state='verdict_revealed']
+  > div:first-child
+  > h1[data-safety-lead] {
+  font-size: clamp(24px, 7vw, 31px);
+  line-height: 1.04;
+}
+
 [data-fv-screen='oracle-reveal'][data-oracle-scene-state='committing'] > div:first-child > p,
 [data-fv-screen='oracle-reveal'][data-oracle-scene-state='dispensing'] > div:first-child > p {
   color: #6f675d;

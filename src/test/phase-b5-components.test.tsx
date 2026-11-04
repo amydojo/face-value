@@ -567,6 +567,8 @@ it('keeps one canonical machine through reveal, dispense, collection, and Done',
   expect(preRevealTree).not.toContain(
     'The direction looks encouraging, but the change is not yet strong or consistent enough to call.',
   );
+  expect(preRevealTree).not.toContain('matching scan conditions were not measured');
+  expect(preRevealTree).not.toContain('Check how your skin is responding');
   expect(preRevealTree).not.toContain('A small favorable shift showed up.');
   expect(preRevealTree).not.toContain(
     'This prototype cannot yet tell whether the shift is larger than normal scan variation.',
@@ -653,7 +655,7 @@ it('keeps one canonical machine through reveal, dispense, collection, and Done',
   expect(screen.getByText('Visible redness moved in a favorable direction.')).toBeVisible();
   const recommendationRegion = screen.getByLabelText('Result recommendation');
   expect(recommendationRegion.querySelector('p')).toHaveTextContent(
-    'The direction looks encouraging, but the change is not yet strong or consistent enough to call.',
+    'Visible redness moved in a favorable direction, but matching scan conditions were not measured, so Face Value cannot call this result yet. Symptoms were not recorded. Check how your skin is responding before you continue.',
   );
   expect(document.querySelector('[data-firmware-state="resolved"]')).toHaveTextContent(
     'TEST LONGER',

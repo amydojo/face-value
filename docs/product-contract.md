@@ -199,7 +199,44 @@ The current action set is exactly:
 | `not_proving_job`     | the completed trial does not support the assigned job                |
 | `safety_interruption` | reported or objective safety evidence interrupts ordinary evaluation |
 
-The deciding raw-score result cannot be rescued by unrelated skin metrics. A favorable raw-score movement cannot override an attribution blocker or safety interruption.
+The deciding raw-score result cannot be rescued by unrelated skin metrics.
+
+Result copy follows the rules in `redness-evidence-engine-v1.md` (engine
+v1.1.0): explanations name the deciding gate, scans are called comparable only
+when comparability was established, and worsening is never paired with
+encouraging language. Under live measurement the reachable actions are
+`test_longer`, `retry_alone` and `safety_interruption`. A favorable raw-score movement cannot override an attribution blocker or safety interruption.
+
+### Safety guidance (presentation only)
+
+The action says what the evidence supports. It is not advice to keep using a
+product. Every revealed result therefore also shows safety guidance derived by
+`src/features/verdict/safetyGuidance.ts` from fields already on the saved
+evaluation. It is never persisted and never changes an action, threshold or gate.
+
+| Guidance            | When                                         | Shows                                                                 |
+| ------------------- | -------------------------------------------- | --------------------------------------------------------------------- |
+| Pause the product   | reported symptoms (`safety_interruption`)    | pause use; pharmacist, doctor or dermatologist if symptoms warrant it |
+| Check your skin     | readable worsening without reported symptoms | unfavorable direction, unconfirmed change, no causation, skin check   |
+| No result was read  | invalid comparison                           | no direction claimed; no new scan offered as the fix                  |
+| No change detected  | no detectable change                         | not a sign of improvement; the binding limitation                     |
+| Favorable, no proof | favorable movement short of `keep`           | direction is not proof the product works; the binding limitation      |
+
+When guidance must not let the action read as advice (worsening, invalid), the
+action is captioned `EVIDENCE` instead of `NEXT` and the guidance explains what
+the label means. Safety guidance always shows on the Oracle reveal and the
+Record result layer. Neutral guidance shows on the reveal and at the top of the
+Record's evidence sheet, so the approved one-screen result layout is kept.
+Saved records keep their saved words; guidance is recomputed from their saved
+fields on display.
+
+On the revealed Oracle, a safety result's guidance title is the page headline
+and the eyebrow names the evidence strength (`RESULT · LIMITED EVIDENCE` or
+`RESULT · INCONCLUSIVE`), so the skin check is the first instruction in the
+first mobile viewport. If guidance lacks the facts it needs, it makes no claim
+and asks for a skin check. Persisted data this build cannot validate is copied
+to `face-value:structured-demo:v1:quarantine:<timestamp>` before the existing
+reset, so it is never destroyed.
 
 ## 8. Oracle completion contract
 

@@ -125,7 +125,9 @@
     [aria-label*='No detectable improvement showed up.'],
     [aria-label*='This comparison was not readable.'],
     [aria-label*='The trial did not isolate this product.'],
-    [aria-label*='Visible redness worsened across comparable scans.']
+    [aria-label*='Visible redness worsened across comparable scans.'],
+    [aria-label*='Visible redness was lower at follow-up.'],
+    [aria-label*='Visible redness was higher at follow-up.']
   )
   [data-oracle-finding] {
   color: transparent;
@@ -141,7 +143,9 @@
     [aria-label*='No detectable improvement showed up.'],
     [aria-label*='This comparison was not readable.'],
     [aria-label*='The trial did not isolate this product.'],
-    [aria-label*='Visible redness worsened across comparable scans.']
+    [aria-label*='Visible redness worsened across comparable scans.'],
+    [aria-label*='Visible redness was lower at follow-up.'],
+    [aria-label*='Visible redness was higher at follow-up.']
   )
   [data-oracle-finding]::after {
   display: block;
@@ -158,7 +162,9 @@
     [aria-label*='Visible redness improved across comparable scans.'],
     [aria-label*='Visible redness moved in a favorable direction.'],
     [aria-label*='The trial did not isolate this product.'],
-    [aria-label*='Visible redness worsened across comparable scans.']
+    [aria-label*='Visible redness worsened across comparable scans.'],
+    [aria-label*='Visible redness was lower at follow-up.'],
+    [aria-label*='Visible redness was higher at follow-up.']
   )
   [data-oracle-finding]::after {
   font-size: clamp(10.5px, 3.05vw, 12.4px);
@@ -201,6 +207,16 @@
 [data-oracle-machine][data-cassette-variant='reveal'][aria-label*='Visible redness worsened across comparable scans.']
   [data-oracle-finding]::after {
   content: 'VISIBLE REDNESS\A WORSENED ACROSS\A COMPARABLE SCANS.';
+}
+
+[data-oracle-machine][data-cassette-variant='reveal'][aria-label*='Visible redness was lower at follow-up.']
+  [data-oracle-finding]::after {
+  content: 'VISIBLE REDNESS\A WAS LOWER AT\A FOLLOW-UP.';
+}
+
+[data-oracle-machine][data-cassette-variant='reveal'][aria-label*='Visible redness was higher at follow-up.']
+  [data-oracle-finding]::after {
+  content: 'VISIBLE REDNESS\A WAS HIGHER AT\A FOLLOW-UP.';
 }
 
 /*

@@ -256,6 +256,7 @@
 }
 
 .resultActions {
+  --fv-guidance-ink: #29241e;
   display: grid;
   gap: 10px;
   padding-top: 4px;

@@ -1,0 +1,299 @@
+{
+  "frameworkVersion": "redness-v1",
+  "schemaVersion": "redness-evidence-v1",
+  "engineVersion": "face-value-redness-engine-v1.0.0",
+  "evaluatedAt": "2026-07-30T12:00:01.000Z",
+  "trialId": "trial-scenario",
+  "productId": "registered-product-scenario",
+  "assignedJob": "calm_visible_redness",
+  "expectedObservationWindowDays": {
+    "minimum": 14,
+    "target": 28,
+    "maximum": 56
+  },
+  "actualObservationIntervalDays": 29,
+  "observationWindowStatus": "within_window",
+  "baseline": {
+    "sessionCount": 1,
+    "sessions": [
+      {
+        "sessionId": "baseline-session",
+        "capturedAt": "2026-07-01T12:00:01.000Z",
+        "deviceClass": "native-browser-camera-v1",
+        "cameraFacing": "front",
+        "frameIds": [
+          "baseline-frame-1",
+          "baseline-frame-2",
+          "baseline-frame-3"
+        ],
+        "rawScores": [
+          70,
+          70,
+          70
+        ],
+        "acceptedFrameIds": [
+          "baseline-frame-1",
+          "baseline-frame-2",
+          "baseline-frame-3"
+        ],
+        "rejectedFrames": [],
+        "captureQuality": {
+          "accepted": true,
+          "lightingComparability": "limited",
+          "poseComparability": "limited",
+          "cropComparability": "limited",
+          "faceSizeComparability": "limited",
+          "colorCastComparability": "limited",
+          "obstructionPresent": false,
+          "enhancementDetected": false,
+          "reasons": [
+            "Three distinct current frames passed the available exposure and movement gates.",
+            "Cross-session exposure, pose, crop, face-size, and color-cast comparability were not measured."
+          ]
+        },
+        "versions": {
+          "apiVersion": "2.1",
+          "analysisModelVersion": "youcam-hd-redness-model-version-not-reported",
+          "analysisMode": "hd",
+          "appBuildVersion": "face-value-web-0.1.0",
+          "preprocessingVersion": "face-value-unmodified-upload-v1",
+          "captureProtocolVersion": "face-value-youcam-1"
+        }
+      }
+    ],
+    "acceptedRawScores": [
+      70,
+      70,
+      70
+    ],
+    "rejectedFrameCount": 0,
+    "rawMedian": 70
+  },
+  "endpoint": {
+    "sessionCount": 1,
+    "sessions": [
+      {
+        "sessionId": "followup-session",
+        "capturedAt": "2026-07-30T12:00:01.000Z",
+        "deviceClass": "native-browser-camera-v1",
+        "cameraFacing": "front",
+        "frameIds": [
+          "followup-frame-1",
+          "followup-frame-2",
+          "followup-frame-3"
+        ],
+        "rawScores": [
+          50,
+          50,
+          50
+        ],
+        "acceptedFrameIds": [
+          "followup-frame-1",
+          "followup-frame-2",
+          "followup-frame-3"
+        ],
+        "rejectedFrames": [],
+        "captureQuality": {
+          "accepted": true,
+          "lightingComparability": "limited",
+          "poseComparability": "limited",
+          "cropComparability": "limited",
+          "faceSizeComparability": "limited",
+          "colorCastComparability": "limited",
+          "obstructionPresent": false,
+          "enhancementDetected": false,
+          "reasons": [
+            "Three distinct current frames passed the available exposure and movement gates.",
+            "Cross-session exposure, pose, crop, face-size, and color-cast comparability were not measured."
+          ]
+        },
+        "versions": {
+          "apiVersion": "2.1",
+          "analysisModelVersion": "youcam-hd-redness-model-version-not-reported",
+          "analysisMode": "hd",
+          "appBuildVersion": "face-value-web-0.1.0",
+          "preprocessingVersion": "face-value-unmodified-upload-v1",
+          "captureProtocolVersion": "face-value-youcam-1"
+        }
+      }
+    ],
+    "acceptedRawScores": [
+      50,
+      50,
+      50
+    ],
+    "rejectedFrameCount": 0,
+    "rawMedian": 50
+  },
+  "baselineRawMedian": 70,
+  "endpointRawMedian": 50,
+  "rawScoreDelta": -20,
+  "threshold": {
+    "version": "redness-provisional-v1",
+    "source": "provisional_fixture",
+    "provisionalDetectablePoints": 5,
+    "provisionalStrongPoints": 10,
+    "configHash": "sha256:66571af3c662f4da1de469d763b884ad46eb37ee77df0aa060e4b2db280feed5",
+    "provisional": true,
+    "evidenceStrengthRatio": -4
+  },
+  "effectClassification": "worsened",
+  "measurementQuality": "limited",
+  "attributionQuality": "strong",
+  "evidenceQuality": "possible",
+  "safetyStatus": "check_required",
+  "directionAgreement": {
+    "status": "agreeing",
+    "assessedEndpointFrameCount": 3,
+    "improvingEndpointFrameCount": 0,
+    "contradictionDetected": false
+  },
+  "corroboratingSignals": [],
+  "maskEvidence": {},
+  "patientAnchor": {
+    "visibleChange": -1,
+    "recordedAt": "2026-07-30T12:05:00.000Z"
+  },
+  "tolerance": {
+    "collectionStatus": "collected",
+    "severity": "none",
+    "symptoms": [],
+    "safetyStatus": "check_required"
+  },
+  "adherence": {
+    "status": "complete"
+  },
+  "confounders": [],
+  "secondProductStatus": "none",
+  "contextSignals": {},
+  "versions": {
+    "apiVersion": "2.1",
+    "analysisModelVersion": "youcam-hd-redness-model-version-not-reported",
+    "analysisMode": "hd",
+    "appBuildVersion": "face-value-web-0.1.0",
+    "preprocessingVersion": "face-value-unmodified-upload-v1",
+    "captureProtocolVersion": "face-value-youcam-1"
+  },
+  "interpretation": {
+    "finding": "Visible redness worsened across comparable scans.",
+    "nonFinding": "The result does not diagnose a reaction or establish why redness changed.",
+    "limitations": [
+      "Three distinct current frames passed the available exposure and movement gates.",
+      "Cross-session exposure, pose, crop, face-size, and color-cast comparability were not measured.",
+      "baseline: only one capture session was collected.",
+      "endpoint: only one capture session was collected.",
+      "Production thresholds require repeat-scan calibration.",
+      "The patient-observed redness anchor contradicted improvement.",
+      "The current evidence volume supports only a limited measurement-quality classification."
+    ],
+    "claimBoundary": [
+      "This result describes visible redness in comparable scans.",
+      "Face Value operating thresholds are not clinical efficacy thresholds.",
+      "Face Value does not diagnose a skin condition or establish product causation."
+    ],
+    "recommendedAction": "test_longer",
+    "explanation": "The direction looks encouraging, but the change is not yet strong or consistent enough to call."
+  },
+  "reasons": [],
+  "missingEvidence": [
+    "Mask and facial-registration evidence was not collected.",
+    "Optional acne, texture, and moisture context signals were not collected."
+  ],
+  "triggeredRuleIds": [
+    "R01_SCHEMA_AND_VERSIONS",
+    "R02_CAPTURE_QUALITY",
+    "R03_ACCEPTED_SCORE_AGGREGATION",
+    "R04_MEASUREMENT_LIMITED",
+    "R05_OBSERVATION_WINDOW_ELAPSED",
+    "R06_THRESHOLD_PROVISIONAL",
+    "R07_EFFECT_WORSENED",
+    "R08_DIRECTION_AGREEING",
+    "R09_MASK_AND_REGISTRATION",
+    "R10_PATIENT_ANCHOR",
+    "R11_ATTRIBUTION_STRONG",
+    "R12_OBJECTIVE_WORSENING",
+    "R13_SAFETY_CHECK_REQUIRED",
+    "R14_ACTION_TEST_LONGER",
+    "R15_DETERMINISTIC_INTERPRETATION"
+  ],
+  "auditTrace": [
+    {
+      "ruleId": "R01_SCHEMA_AND_VERSIONS",
+      "outcome": "pass",
+      "detail": "Schema, HD mode, and immutable comparison versions are compatible."
+    },
+    {
+      "ruleId": "R02_CAPTURE_QUALITY",
+      "outcome": "limited",
+      "detail": "The captures are usable with recorded comparability limits."
+    },
+    {
+      "ruleId": "R03_ACCEPTED_SCORE_AGGREGATION",
+      "outcome": "pass",
+      "detail": "Accepted raw scores were aggregated into period medians."
+    },
+    {
+      "ruleId": "R04_MEASUREMENT_LIMITED",
+      "outcome": "limited",
+      "detail": "Measurement quality classified independently as limited."
+    },
+    {
+      "ruleId": "R05_OBSERVATION_WINDOW_ELAPSED",
+      "outcome": "pass",
+      "detail": "29 observed day(s); minimum 14."
+    },
+    {
+      "ruleId": "R06_THRESHOLD_PROVISIONAL",
+      "outcome": "selected",
+      "detail": "provisional_fixture redness-provisional-v1 (sha256:66571af3c662f4da1de469d763b884ad46eb37ee77df0aa060e4b2db280feed5) selected."
+    },
+    {
+      "ruleId": "R07_EFFECT_WORSENED",
+      "outcome": "selected",
+      "detail": "Endpoint minus baseline raw-score delta classified as worsened."
+    },
+    {
+      "ruleId": "R08_DIRECTION_AGREEING",
+      "outcome": "pass",
+      "detail": "0 of 3 endpoint frame(s) moved favorably."
+    },
+    {
+      "ruleId": "R09_MASK_AND_REGISTRATION",
+      "outcome": "not_available",
+      "detail": "No mask or registration evidence was available."
+    },
+    {
+      "ruleId": "R10_PATIENT_ANCHOR",
+      "outcome": "limited",
+      "detail": "Patient anchor recorded visible change -1."
+    },
+    {
+      "ruleId": "R11_ATTRIBUTION_STRONG",
+      "outcome": "selected",
+      "detail": "Attribution quality classified independently as strong."
+    },
+    {
+      "ruleId": "R12_OBJECTIVE_WORSENING",
+      "outcome": "selected",
+      "detail": "The primary redness raw score worsened beyond the active boundary."
+    },
+    {
+      "ruleId": "R13_SAFETY_CHECK_REQUIRED",
+      "outcome": "limited",
+      "detail": "Safety status classified separately as check_required."
+    },
+    {
+      "ruleId": "R14_ACTION_TEST_LONGER",
+      "outcome": "selected",
+      "detail": "test_longer selected after safety, attribution, timing, measurement, effect, and corroboration checks."
+    },
+    {
+      "ruleId": "R15_DETERMINISTIC_INTERPRETATION",
+      "outcome": "pass",
+      "detail": "Finding, non-finding, limits, claim boundary, and explanation came from deterministic templates."
+    }
+  ],
+  "privacy": {
+    "includesFaceImage": false
+  }
+}

@@ -280,7 +280,15 @@ const resultInterpretation = (evaluation: RednessEvaluationSnapshot): string => 
     return 'The saved scans were not comparable enough to support a readable result.';
   }
   if (evaluation.interpretation.recommendedAction === 'retry_alone') {
-    return 'Visible redness changed, but another trial change interfered.';
+    switch (evaluation.effectClassification) {
+      case 'worsened':
+        return 'Visible redness was higher, and another trial change interfered.';
+      case 'no_detectable_change':
+      case null:
+        return 'Visible redness stayed close to the baseline, and another trial change interfered.';
+      default:
+        return 'Visible redness changed, but another trial change interfered.';
+    }
   }
   if (evaluation.interpretation.recommendedAction === 'safety_interruption') {
     return 'The recorded skin response interrupted ordinary product evaluation.';
@@ -300,10 +308,35 @@ const resultInterpretation = (evaluation: RednessEvaluationSnapshot): string => 
   }
 };
 
+const SKIN_CHECK_FIRST = 'Check how your skin is responding before you continue';
+
+/** Test-longer next step: an unreadable comparison first, then any safety check, then timing.
+ * It never suggests a change "holds" when no change was detected. */
+const testLongerBody = (evaluation: RednessEvaluationSnapshot): string => {
+  const checkRequired = evaluation.safetyStatus === 'check_required';
+  if (evaluation.measurementQuality === 'invalid') {
+    return checkRequired
+      ? 'Repeat the scans under matched conditions before reading this result. If your skin feels worse, pause the product.'
+      : 'Repeat the scans under matched conditions before reading this result.';
+  }
+  if (checkRequired) {
+    return evaluation.observationWindowStatus === 'too_early'
+      ? `${SKIN_CHECK_FIRST} the trial window.`
+      : `${SKIN_CHECK_FIRST}, then repeat a comparable scan.`;
+  }
+  if (evaluation.observationWindowStatus === 'too_early') {
+    return 'Continue the predeclared trial window, then repeat a comparable scan.';
+  }
+  return evaluation.effectClassification === 'no_detectable_change'
+    ? 'Repeat a comparable scan to see whether a change appears.'
+    : 'Repeat a comparable scan to see whether the change holds.';
+};
+
 const actionPresentation = (
   action: RednessAction,
   evaluation: RednessEvaluationSnapshot,
 ): EvidenceRecordNextStep => {
+  const checkRequired = evaluation.safetyStatus === 'check_required';
   const statusLabel = canonicalActionLabel(action);
   switch (action) {
     case 'keep':
@@ -319,21 +352,18 @@ const actionPresentation = (
         canonicalAction: action,
         statusLabel,
         title: 'Test longer',
-        body:
-          evaluation.measurementQuality === 'invalid'
-            ? 'Repeat the scans under matched conditions before reading this result.'
-            : evaluation.observationWindowStatus === 'too_early'
-              ? 'Continue the predeclared trial window, then repeat a comparable scan.'
-              : 'Repeat a comparable scan to see whether the change holds.',
-        tone: 'default',
+        body: testLongerBody(evaluation),
+        tone: checkRequired ? 'safety' : 'default',
       };
     case 'retry_alone':
       return {
         canonicalAction: action,
         statusLabel,
         title: 'Retry it alone',
-        body: 'Repeat the trial without the other redness-changing product or routine change.',
-        tone: 'default',
+        body: checkRequired
+          ? `${SKIN_CHECK_FIRST}, then repeat the trial without the other redness-changing product or routine change.`
+          : 'Repeat the trial without the other redness-changing product or routine change.',
+        tone: checkRequired ? 'safety' : 'default',
       };
     case 'not_proving_job':
       return {

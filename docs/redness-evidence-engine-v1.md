@@ -11,6 +11,9 @@
 
 **Scope:** calm visible redness only
 
+**Copy correction:** engine `face-value-redness-engine-v1.1.0` (P0-A). Decisions,
+thresholds and quality gates are unchanged from v1.0.0.
+
 ## Source traceability
 
 The implementation was reconstructed from the connected canonical documents,
@@ -99,6 +102,40 @@ face-size, color-cast, and skin-tone metrics are not measured, so current MVP
 measurement quality remains limited even when each frame passed the existing
 guided exposure and movement gates. Repeated measurements strengthen evidence
 without silently converting unavailable properties into passing evidence.
+
+## Result copy rules (engine v1.1.0)
+
+Engine-authored result text is deterministic and is selected only from state the
+evaluator already decided. `interpretationForRedness` receives the gates
+`actionFor` evaluated (direction agreement, attribution quality, corroborating
+signal count, whether tolerance was collected) so the words can name them.
+
+1. A `test_longer` explanation names the gate that produced it, in `actionFor`
+   order. When both apply, an unreadable comparison is stated before the trial
+   window.
+2. "Comparable" is asserted only when comparability was established
+   (`adequate` or `strong` measurement). Otherwise findings say "at follow-up",
+   and the first claim-boundary line states that matching scan conditions were
+   not measured.
+3. Every `check_required` `test_longer` or `retry_alone` explanation tells the
+   person to check how their skin is responding, including when symptoms were
+   never recorded. A worsening result never receives encouraging language.
+4. No movement is claimed from an invalid comparison, and a null result is never
+   described as changed.
+5. Boundaries are described as Face Value's provisional boundaries, never as a
+   repeat-scan threshold.
+
+**Live consequence, stated explicitly.** The live adapter writes every
+cross-session comparability field as `limited`, so live measurement quality is
+`limited` and the reachable live actions are `test_longer`, `retry_alone` and
+`safety_interruption`. `keep` and `not_proving_job` require all five
+comparability fields to pass. Objective worsening under live measurement routes
+to `test_longer` with `check_required` safety; changing that routing is a policy
+decision outside this copy correction.
+
+Saved v1.0.0 snapshots are not rewritten: they keep their saved finding,
+explanation and claim boundary. The Oracle projection keeps every v1.0.0
+finding selector so those records render unchanged.
 
 ## Persistence and migration
 
