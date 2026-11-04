@@ -1,5 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { join, resolve } from 'node:path';
 import { landmarkerAssets, loadMediaPipeLandmarker } from '../features/local-optics/landmarkSource';
+import assets from '../features/local-optics/local-optics-assets.json';
 import type { LandmarkFrame } from '../features/local-optics/opticsMetrics';
 import { OpticsSession, type OpticsSessionDeps } from '../features/local-optics/opticsSession';
 
@@ -144,25 +147,20 @@ describe('optics session resources', () => {
   });
 });
 
-describe('landmark model loading', () => {
-  it('uses pinned asset URLs, or a same-origin base when configured', () => {
-    expect(landmarkerAssets('').module).toMatch(/tasks-vision@0\.10\.14\/vision_bundle\.mjs$/);
-    expect(landmarkerAssets('/vendor/mediapipe')).toEqual({
-      module: '/vendor/mediapipe/vision_bundle.mjs',
-      wasmBase: '/vendor/mediapipe/wasm',
-      model: '/vendor/mediapipe/face_landmarker.task',
-    });
-  });
+describe('landmark model loading (fake runtime)', () => {
+  const MODEL = new Uint8Array([1, 2, 3]).buffer;
 
-  it('asks for two faces and the transformation matrix, falls back to CPU, and maps results', async () => {
+  function runtime(options: { gpuFails?: boolean } = {}) {
     const created: Record<string, unknown>[] = [];
     const close = vi.fn();
     const vision = {
-      FilesetResolver: { forVisionTasks: vi.fn(async () => 'fileset') },
+      FilesetResolver: { forVisionTasks: vi.fn<(base: string) => Promise<string>>(async () => 'fileset') },
       FaceLandmarker: {
-        createFromOptions: vi.fn(async (_f: unknown, options: Record<string, unknown>) => {
-          created.push(options);
-          if ((options.baseOptions as { delegate: string }).delegate === 'GPU') throw new Error('no webgl');
+        createFromOptions: vi.fn(async (_fileset: unknown, opts: Record<string, unknown>) => {
+          created.push(opts);
+          if (options.gpuFails && (opts.baseOptions as { delegate: string }).delegate === 'GPU') {
+            throw new Error('no webgl');
+          }
           return {
             detectForVideo: () => ({
               faceLandmarks: [[{ x: 0.5, y: 0.5, z: 0, visibility: 1 }]],
@@ -173,14 +171,68 @@ describe('landmark model loading', () => {
         }),
       },
     };
-    const source = await loadMediaPipeLandmarker(landmarkerAssets('/m'), async () => vision);
-    expect(created.map((o) => (o.baseOptions as { delegate: string }).delegate)).toEqual(['GPU', 'CPU']);
-    expect(created[0]).toMatchObject({ numFaces: 2, outputFacialTransformationMatrixes: true, runningMode: 'VIDEO' });
-    expect(source.name).toMatch(/CPU/);
+    return { vision, created, close };
+  }
+
+  const deps = (vision: unknown, digest = assets.model.sha256) => ({
+    importVision: vi.fn(async () => vision as never),
+    fetchBytes: vi.fn(async () => MODEL),
+    digestHex: vi.fn(async () => digest),
+  });
+
+  it('uses only same-origin paths pinned by the manifest', () => {
+    const paths = landmarkerAssets();
+    expect(paths).toEqual({
+      wasmBase: '/local-optics-assets/mediapipe-tasks-vision-0.10.35/wasm',
+      model: '/local-optics-assets/mediapipe-tasks-vision-0.10.35/face_landmarker.task',
+      modelSha256: '64184e229b263107bc2b804c6625db1341ff2bb731874b0bcc2fe6544e0bc9ff',
+    });
+    expect(JSON.stringify(paths)).not.toMatch(/https?:/);
+  });
+
+  it('verifies the model, asks for two faces and the matrix, falls back to CPU, and maps results', async () => {
+    const r = runtime({ gpuFails: true });
+    const d = deps(r.vision);
+    const source = await loadMediaPipeLandmarker(landmarkerAssets(), d);
+    expect(d.fetchBytes).toHaveBeenCalledWith('/local-optics-assets/mediapipe-tasks-vision-0.10.35/face_landmarker.task');
+    expect(r.vision.FilesetResolver.forVisionTasks).toHaveBeenCalledWith('/local-optics-assets/mediapipe-tasks-vision-0.10.35/wasm');
+    expect(r.created.map((o) => (o.baseOptions as { delegate: string }).delegate)).toEqual(['GPU', 'CPU']);
+    expect(r.created[0]).toMatchObject({ numFaces: 2, outputFacialTransformationMatrixes: true, runningMode: 'VIDEO' });
+    expect((r.created[0].baseOptions as { modelAssetBuffer: Uint8Array }).modelAssetBuffer).toEqual(new Uint8Array([1, 2, 3]));
+    expect(source.name).toMatch(/0\.10\.35, CPU, same-origin/);
     const frame = source.detect({} as HTMLVideoElement, 1);
     expect(frame.faces[0].points[0]).toEqual({ x: 0.5, y: 0.5, z: 0 });
     expect(frame.faces[0].matrix).toHaveLength(16);
     source.close();
-    expect(close).toHaveBeenCalled();
+    source.close();
+    expect(r.close).toHaveBeenCalledTimes(1);
+    expect(() => source.detect({} as HTMLVideoElement, 2)).toThrow('Landmarker closed');
+  });
+
+  it('refuses a model whose hash does not match, before loading the runtime', async () => {
+    const r = runtime();
+    const d = deps(r.vision, 'f'.repeat(64));
+    await expect(loadMediaPipeLandmarker(landmarkerAssets(), d)).rejects.toThrow('Model integrity check failed');
+    expect(d.importVision).not.toHaveBeenCalled();
+  });
+
+  it('reports a missing model without loading the runtime', async () => {
+    const r = runtime();
+    const d = { ...deps(r.vision), fetchBytes: vi.fn(async () => Promise.reject(new Error('Model not available at /x (404)'))) };
+    await expect(loadMediaPipeLandmarker(landmarkerAssets(), d)).rejects.toThrow('Model not available');
+    expect(d.importVision).not.toHaveBeenCalled();
+  });
+});
+
+describe('pinned runtime has no usage-metrics channel', () => {
+  it('the installed @mediapipe/tasks-vision matches the manifest and contains no Google metrics endpoint', () => {
+    const dir = resolve(process.cwd(), 'node_modules/@mediapipe/tasks-vision');
+    const pkg = JSON.parse(readFileSync(join(dir, 'package.json'), 'utf8')) as { version: string };
+    expect(pkg.version).toBe(assets.runtime.version);
+    for (const file of ['vision_bundle.mjs', 'wasm/vision_wasm_internal.js', 'wasm/vision_wasm_nosimd_internal.js']) {
+      const source = readFileSync(join(dir, file), 'utf8');
+      expect(source).not.toContain('odml.pa.googleapis.com');
+      expect(source).not.toMatch(/googleapis\.com\/v\d+\/log/);
+    }
   });
 });

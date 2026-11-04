@@ -68,6 +68,15 @@
   overflow-wrap: anywhere;
 }
 
+.live {
+  margin: 0;
+  padding: 6px 8px;
+  border-radius: 6px;
+  background: #1f1b16;
+  color: #f4f1ea;
+  font: 12px/1.4 var(--fv-font-mono, monospace);
+}
+
 .muted {
   margin: 0;
   color: #6b6358;
@@ -156,7 +165,11 @@
 }
 
 .table th {
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
+}
+
+.table th[scope='row'] {
+  min-width: 92px; /* property names wrap by word, never by letter */
 }
 
 .table tr[data-status='outside_experimental_tolerance'] td:last-child {

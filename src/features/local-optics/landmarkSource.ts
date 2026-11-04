@@ -1,9 +1,11 @@
+import assets from './local-optics-assets.json';
 import type { LandmarkFrame } from './opticsMetrics';
 
 /**
- * Browser-local face landmarks. The model runs in this tab (WebAssembly / WebGL); video frames
- * are handed to it in memory and never leave the device. Loading the model downloads code and
- * weights only.
+ * Browser-local face landmarks. The model runs in this tab (WebAssembly, optionally WebGL);
+ * video frames are handed to it in memory and never leave the device. The runtime and model are
+ * same-origin static files (see scripts/prepare-local-optics-assets.mjs), loaded only when the
+ * person asks.
  */
 export interface FaceLandmarkSource {
   readonly name: string;
@@ -11,33 +13,23 @@ export interface FaceLandmarkSource {
   close(): void;
 }
 
-export const MEDIAPIPE_TASKS_VISION_VERSION = '0.10.14';
+export const MEDIAPIPE_TASKS_VISION_VERSION = assets.runtime.version;
+export const LOCAL_OPTICS_MODEL = assets.model;
 
 export interface LandmarkerAssets {
-  module: string;
   wasmBase: string;
   model: string;
+  modelSha256: string;
 }
 
-/**
- * Pinned third-party asset locations. Set VITE_LOCAL_OPTICS_ASSET_BASE to a same-origin folder
- * holding vision_bundle.mjs, wasm/ and face_landmarker.task to avoid third-party hosts entirely.
- */
-export function landmarkerAssets(base = import.meta.env.VITE_LOCAL_OPTICS_ASSET_BASE): LandmarkerAssets {
-  if (base) {
-    const root = base.endsWith('/') ? base : `${base}/`;
-    return { module: `${root}vision_bundle.mjs`, wasmBase: `${root}wasm`, model: `${root}face_landmarker.task` };
-  }
-  const pkg = `https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@${MEDIAPIPE_TASKS_VISION_VERSION}`;
-  return {
-    module: `${pkg}/vision_bundle.mjs`,
-    wasmBase: `${pkg}/wasm`,
-    model: 'https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task',
-  };
-}
+export const landmarkerAssets = (): LandmarkerAssets => ({
+  wasmBase: `${assets.publicBase}/wasm`,
+  model: `${assets.publicBase}/${assets.model.name}`,
+  modelSha256: assets.model.sha256,
+});
 
 // The subset of the @mediapipe/tasks-vision API this experiment uses.
-interface MediaPipeVision {
+export interface MediaPipeVision {
   FilesetResolver: { forVisionTasks(wasmBase: string): Promise<unknown> };
   FaceLandmarker: {
     createFromOptions(fileset: unknown, options: Record<string, unknown>): Promise<MediaPipeLandmarker>;
@@ -49,22 +41,44 @@ interface MediaPipeLandmarker {
     timestampMs: number,
   ): {
     faceLandmarks: { x: number; y: number; z: number }[][];
-    facialTransformationMatrixes?: { data: number[] }[];
+    facialTransformationMatrixes?: { data: ArrayLike<number> }[];
   };
   close(): void;
 }
 
-export type ModuleImporter = (url: string) => Promise<unknown>;
-const importFromUrl: ModuleImporter = (url) => import(/* @vite-ignore */ url);
+export interface LandmarkerLoaderDeps {
+  importVision: () => Promise<MediaPipeVision>;
+  fetchBytes: (url: string) => Promise<ArrayBuffer>;
+  digestHex: (bytes: ArrayBuffer) => Promise<string>;
+}
+
+const browserLoaderDeps: LandmarkerLoaderDeps = {
+  importVision: () => import('@mediapipe/tasks-vision') as unknown as Promise<MediaPipeVision>,
+  fetchBytes: async (url) => {
+    const response = await fetch(url, { credentials: 'same-origin' });
+    if (!response.ok) throw new Error(`Model not available at ${url} (${response.status})`);
+    return response.arrayBuffer();
+  },
+  digestHex: async (bytes) => {
+    const digest = await crypto.subtle.digest('SHA-256', bytes);
+    return Array.from(new Uint8Array(digest), (b) => b.toString(16).padStart(2, '0')).join('');
+  },
+};
 
 export async function loadMediaPipeLandmarker(
-  assets: LandmarkerAssets = landmarkerAssets(),
-  importer: ModuleImporter = importFromUrl,
+  paths: LandmarkerAssets = landmarkerAssets(),
+  deps: LandmarkerLoaderDeps = browserLoaderDeps,
 ): Promise<FaceLandmarkSource> {
-  const vision = (await importer(assets.module)) as MediaPipeVision;
-  const fileset = await vision.FilesetResolver.forVisionTasks(assets.wasmBase);
+  // Fetch and verify the model before any runtime work, so a wrong file never reaches inference.
+  const modelBytes = await deps.fetchBytes(paths.model);
+  const digest = await deps.digestHex(modelBytes);
+  if (digest !== paths.modelSha256) {
+    throw new Error(`Model integrity check failed (sha256 ${digest.slice(0, 12)}…)`);
+  }
+  const vision = await deps.importVision();
+  const fileset = await vision.FilesetResolver.forVisionTasks(paths.wasmBase);
   const options = (delegate: 'GPU' | 'CPU') => ({
-    baseOptions: { modelAssetPath: assets.model, delegate },
+    baseOptions: { modelAssetBuffer: new Uint8Array(modelBytes), delegate },
     runningMode: 'VIDEO',
     numFaces: 2, // two, so a second face is detected and rejected rather than ignored
     outputFacialTransformationMatrixes: true,
@@ -78,9 +92,11 @@ export async function loadMediaPipeLandmarker(
     delegate = 'CPU';
     landmarker = await vision.FaceLandmarker.createFromOptions(fileset, options('CPU'));
   }
+  let closed = false;
   return {
-    name: `MediaPipe Face Landmarker (tasks-vision ${MEDIAPIPE_TASKS_VISION_VERSION}, ${delegate})`,
+    name: `MediaPipe Face Landmarker (tasks-vision ${MEDIAPIPE_TASKS_VISION_VERSION}, ${delegate}, same-origin)`,
     detect(video, timestampMs) {
+      if (closed) throw new Error('Landmarker closed');
       const result = landmarker.detectForVideo(video, timestampMs);
       return {
         faces: result.faceLandmarks.map((points, i) => ({
@@ -92,6 +108,8 @@ export async function loadMediaPipeLandmarker(
       };
     },
     close() {
+      if (closed) return;
+      closed = true;
       landmarker.close();
     },
   };

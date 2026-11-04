@@ -7,10 +7,10 @@ import { YouCamCalibration } from '../../features/youcam-calibration/YouCamCalib
 import { LOCAL_OPTICS_ENABLED } from '../../features/local-optics/localOpticsAccess';
 import { YouCamSpike } from '../../features/youcam-spike/YouCamSpike';
 
-// Experimental and isolated: a separate chunk, never loaded by the production journey.
-const LocalOptics = lazy(() =>
-  import('../../features/local-optics/LocalOptics').then((module) => ({ default: module.LocalOptics })),
-);
+// Experimental and isolated: a separate chunk, and absent from builds that do not opt in.
+const LocalOptics = LOCAL_OPTICS_ENABLED
+  ? lazy(() => import('../../features/local-optics/LocalOptics').then((module) => ({ default: module.LocalOptics })))
+  : null;
 
 export function AppRouter() {
   const pathname = globalThis.location?.pathname ?? '/';
@@ -22,7 +22,7 @@ export function AppRouter() {
   if (DEMO_LAB_ENABLED && pathname === '/demo') return <DemoLab />;
   if (pathname === '/youcam-spike') return <YouCamSpike />;
   if (pathname === '/youcam-calibration') return <YouCamCalibration />;
-  if (LOCAL_OPTICS_ENABLED && pathname === '/experiments/local-optics') {
+  if (LocalOptics && pathname === '/experiments/local-optics') {
     return (
       <Suspense fallback={null}>
         <LocalOptics />

@@ -7,6 +7,7 @@ import {
 } from '../../adapters/camera/browserCamera';
 import type { FaceLandmarkSource } from './landmarkSource';
 import {
+  faceGeometry,
   measureCapture,
   type CameraReport,
   type CaptureMeasurement,
@@ -23,6 +24,16 @@ export interface OpticsCapture {
   /** Last analysed frame, held only in this tab's memory for the diagnostic view. */
   snapshot: HTMLCanvasElement;
   faces: DetectedFace[];
+}
+
+/** One real model reading for the live readout. Never stored; replaced on every sample. */
+export interface LiveReading {
+  faceCount: number;
+  rollDegrees: number | null;
+  yawDegrees: number | null;
+  pitchDegrees: number | null;
+  interocularFraction: number | null;
+  outOfFrame: boolean;
 }
 
 export interface OpticsSessionDeps {
@@ -78,6 +89,7 @@ export class OpticsSession {
   private canvases = new Set<HTMLCanvasElement>();
   private lastTimestamp = 0;
   private disposed = false;
+  private capturing = false;
 
   constructor(private readonly deps: OpticsSessionDeps) {}
 
@@ -136,8 +148,40 @@ export class OpticsSession {
     this.canvases.delete(canvas);
   }
 
+  private timestamp(now: number): number {
+    const ts = Math.max(now, this.lastTimestamp + 1);
+    this.lastTimestamp = ts;
+    return ts;
+  }
+
+  /** A single live model reading from the current video frame, or null when not available. */
+  liveReading(video: HTMLVideoElement, now: number): LiveReading | null {
+    if (this.disposed || this.capturing || !this.stream || !this.landmarks || !video.videoWidth) return null;
+    const frame = this.landmarks.detect(video, this.timestamp(now));
+    const only = frame.faces.length === 1 ? faceGeometry(frame.faces[0], video.videoWidth, video.videoHeight) : null;
+    return {
+      faceCount: frame.faces.length,
+      rollDegrees: only?.rollDegrees ?? null,
+      yawDegrees: only?.yawDegrees ?? null,
+      pitchDegrees: only?.pitchDegrees ?? null,
+      interocularFraction: only?.interocularFraction ?? null,
+      outOfFrame: only ? only.outOfFrameFraction > 0 : false,
+    };
+  }
+
   async capture(video: HTMLVideoElement, frames = CAPTURE_FRAMES): Promise<OpticsCapture> {
     if (!this.stream) throw new Error('Camera is not running');
+    this.capturing = true;
+    try {
+      return await this.captureFrames(video, frames);
+    } finally {
+      this.capturing = false;
+    }
+  }
+
+  private async captureFrames(video: HTMLVideoElement, frames: number): Promise<OpticsCapture> {
+    const stream = this.stream;
+    if (!stream) throw new Error('Camera is not running');
     const scale = ANALYSIS_LONG_SIDE / Math.max(video.videoWidth, video.videoHeight);
     const width = Math.max(1, Math.round(video.videoWidth * Math.min(1, scale)));
     const height = Math.max(1, Math.round(video.videoHeight * Math.min(1, scale)));
@@ -153,18 +197,16 @@ export class OpticsSession {
         // Unmirrored pixels, as the camera delivered them.
         context.drawImage(video, 0, 0, width, height);
         const image = context.getImageData(0, 0, width, height);
-        const ts = Math.max(timestamp, this.lastTimestamp + 1);
-        this.lastTimestamp = ts;
         samples.push({
           pixels: { width, height, data: image.data },
-          landmarks: this.landmarks ? this.landmarks.detect(video, ts) : null,
+          landmarks: this.landmarks ? this.landmarks.detect(video, this.timestamp(timestamp)) : null,
         });
       }
     } catch (error) {
       this.releaseCanvas(work);
       throw error;
     }
-    const measurement = measureCapture(samples, cameraReport(this.stream));
+    const measurement = measureCapture(samples, cameraReport(stream));
     const last = samples.at(-1)?.landmarks;
     return { measurement, snapshot: work, faces: last?.faces ?? [] };
   }

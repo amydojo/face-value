@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { loadMediaPipeLandmarker } from './landmarkSource';
+import { loadMediaPipeLandmarker, LOCAL_OPTICS_MODEL, MEDIAPIPE_TASKS_VISION_VERSION } from './landmarkSource';
 import {
   compareCaptures,
   EXPERIMENTAL_TOLERANCES,
@@ -9,7 +9,13 @@ import {
   type CaptureMeasurement,
   type ComparisonRow,
 } from './opticsMetrics';
-import { browserOpticsDeps, OpticsSession, type OpticsCapture, type OpticsSessionDeps } from './opticsSession';
+import {
+  browserOpticsDeps,
+  OpticsSession,
+  type LiveReading,
+  type OpticsCapture,
+  type OpticsSessionDeps,
+} from './opticsSession';
 import styles from './LocalOptics.module.css';
 
 type ModelState = { kind: 'off' } | { kind: 'loading' } | { kind: 'ready'; name: string } | { kind: 'failed'; message: string };
@@ -151,6 +157,7 @@ export function LocalOptics({ deps }: { deps?: OpticsSessionDeps } = {}) {
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [model, setModel] = useState<ModelState>({ kind: 'off' });
   const [busy, setBusy] = useState<Slot | null>(null);
+  const [live, setLive] = useState<LiveReading | null>(null);
   const [captures, setCaptures] = useState<Record<Slot, OpticsCapture | null>>({ baseline: null, comparison: null });
 
   const [generation, setGeneration] = useState(0);
@@ -174,6 +181,31 @@ export function LocalOptics({ deps }: { deps?: OpticsSessionDeps } = {}) {
       next.dispose();
     };
   }, [deps, generation]);
+
+  // Live readout: one real model reading about four times a second, only while the camera and
+  // model are both running. Nothing is kept; each reading replaces the last.
+  useEffect(() => {
+    if (!session || camera !== 'on' || model.kind !== 'ready') {
+      setLive(null);
+      return;
+    }
+    let raf = 0;
+    let last = 0;
+    const tick = (now: number) => {
+      if (now - last >= 250 && video.current) {
+        last = now;
+        try {
+          const reading = session.liveReading(video.current, now);
+          if (reading) setLive(reading);
+        } catch {
+          setLive(null);
+        }
+      }
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [session, camera, model.kind]);
 
   const comparison =
     captures.baseline && captures.comparison
@@ -233,7 +265,9 @@ export function LocalOptics({ deps }: { deps?: OpticsSessionDeps } = {}) {
   return (
     <main className={styles.page} data-local-optics>
       <header className={styles.header}>
-        <p className={styles.tag}>Experiment · {LOCAL_OPTICS_METRICS_VERSION}</p>
+        <p className={styles.tag} data-local-optics-label>
+          EXPERIMENTAL · UNVALIDATED · {LOCAL_OPTICS_METRICS_VERSION}
+        </p>
         <h1>Local capture comparability</h1>
         <p>
           Measures capture conditions on this device. Not connected to Face Value results, verdicts or YouCam. Frames
@@ -260,6 +294,14 @@ export function LocalOptics({ deps }: { deps?: OpticsSessionDeps } = {}) {
             Clear captures
           </button>
         </div>
+        <p className={styles.live} data-local-optics-live aria-live="off">
+          {live
+            ? `Live · faces ${live.faceCount}` +
+              (live.faceCount === 1
+                ? ` · roll ${live.rollDegrees?.toFixed(1)}° · yaw ${live.yawDegrees?.toFixed(1) ?? '—'}° · size ${live.interocularFraction?.toFixed(3)}${live.outOfFrame ? ' · OUT OF FRAME' : ''}`
+                : '')
+            : 'Live · start the camera and load landmarks'}
+        </p>
         <p className={styles.status} role="status" data-local-optics-status>
           Camera: {camera}
           {cameraError ? ` (${cameraError})` : ''} · Landmarks:{' '}
@@ -272,7 +314,9 @@ export function LocalOptics({ deps }: { deps?: OpticsSessionDeps } = {}) {
                 : 'not loaded'}
         </p>
         <p className={styles.muted}>
-          Loading landmarks downloads the model code and weights (MediaPipe, about 4 MB). No camera frame is sent.
+          Loading landmarks fetches MediaPipe Tasks Vision {MEDIAPIPE_TASKS_VISION_VERSION} and{' '}
+          {LOCAL_OPTICS_MODEL.variant} from this site, checks the model’s SHA-256, and runs it in this tab. No camera
+          frame is sent anywhere.
         </p>
       </section>
 
