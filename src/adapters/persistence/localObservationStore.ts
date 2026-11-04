@@ -574,8 +574,24 @@ export function loadStructuredDemoData(storage: Storage = localStorage): Persist
       oracleCommittedAt,
     };
   } catch {
+    quarantineUnreadableData(storage, raw);
     storage.removeItem(STORAGE_KEY);
     return null;
+  }
+}
+
+/**
+ * Saved evidence is never destroyed because this build cannot read it (an older schema, a field
+ * an earlier build did not write). The raw bytes move to their own key before the app starts
+ * clean, so a compatible build or a person can still recover them.
+ */
+function quarantineUnreadableData(storage: Storage, raw: string): void {
+  try {
+    let key = `${STORAGE_KEY}:quarantine:${Date.now()}`;
+    for (let n = 1; storage.getItem(key) !== null; n += 1) key = `${key}-${n}`;
+    storage.setItem(key, raw);
+  } catch {
+    // Storage full or unavailable: the existing fail-closed reset still applies.
   }
 }
 

@@ -16,7 +16,7 @@ import { evaluateLiveScenario, recordForSnapshot, surfacesFor } from './support/
 
 const QUARANTINE_PREFIX = `${STORAGE_KEY}:quarantine:`;
 const quarantined = () =>
-  Object.keys(localStorage)
+  Array.from({ length: localStorage.length }, (_, index) => localStorage.key(index) ?? '')
     .filter((key) => key.startsWith(QUARANTINE_PREFIX))
     .map((key) => localStorage.getItem(key));
 
