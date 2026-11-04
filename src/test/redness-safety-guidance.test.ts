@@ -154,7 +154,7 @@ describe('9. the Oracle reveal and the Evidence Record carry the same guidance',
         productName: 'P',
         analysis,
         confidence: analysis.confidence,
-        placement: 'test_longer',
+        placement: 'observation',
       }).safetyGuidance;
       expect(fromAnalysis).toEqual(safetyGuidanceFor(snapshot));
       expect(verdictViewModelFromRecord(record).safetyGuidance).toEqual(

@@ -8,6 +8,7 @@ import type { RednessAction, RednessEvaluationSnapshot } from '../../domain/evid
 import { oracleTrialIdentityForRecord } from '../../domain/oracleTrialIdentity';
 import { formatRawScore } from '../../domain/youcamEvidence';
 import { oracleNextStep } from '../oracle-reveal/oraclePresentation';
+import { safetyGuidanceFor, type SafetyGuidance } from './safetyGuidance';
 
 export interface VerdictViewModel {
   trialId: string;
@@ -23,6 +24,8 @@ export interface VerdictViewModel {
   safetyStatus?: string;
   canonicalAction?: RednessAction;
   nextStepLabel: string;
+  /** Safety-priority guidance, derived from the saved evaluation; never persisted. */
+  safetyGuidance?: SafetyGuidance | null;
   evaluatedAt?: string;
 }
 
@@ -65,6 +68,7 @@ function verdictViewModelFromEvaluation(input: {
     safetyStatus: presentationCode(evaluation.safetyStatus),
     canonicalAction: action,
     nextStepLabel: canonicalActionLabel(action),
+    safetyGuidance: safetyGuidanceFor(evaluation),
     evaluatedAt: evaluation.evaluatedAt,
   };
 }
