@@ -608,6 +608,10 @@ export function evaluateRedness(input: RednessEvaluationInput): RednessEvaluatio
     safetyStatus,
     tooEarly,
     limitations,
+    directionAgreement: directionAgreement.status,
+    attributionQuality,
+    corroboratingSignalCount: corroboratingSignals.length,
+    toleranceCollected: input.tolerance !== null,
   });
   recordTrace(
     'R15_DETERMINISTIC_INTERPRETATION',

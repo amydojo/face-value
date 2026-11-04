@@ -227,10 +227,16 @@ describe('Phase B deterministic comparison', () => {
   it('maps a higher raw score to favorable condition language without implying efficacy', () => {
     const result = analysisResultFromRednessEvaluation(evaluatePair(94.96, 95.69));
     expect(result.finding).toBe('No detectable improvement showed up.');
+    // Live measurement is limited: comparability was not established, so no "comparable" claim,
+    // and a null result is never described as encouraging.
     expect(result.nonFinding).toBe(
-      'Comparable scans did not establish progress on the assigned visible-redness job.',
+      'The saved scans did not establish progress on the assigned visible-redness job.',
     );
-    expect(result.relevantContext).toContain('not yet strong or consistent');
+    // This single-signal path collects no tolerance, so safety is check_required (rule 3).
+    expect(result.relevantContext).toBe(
+      'No detectable change showed up, but matching scan conditions were not measured, so Face Value cannot call this result yet. Symptoms were not recorded. Check how your skin is responding before you continue.',
+    );
+    expect(result.relevantContext).not.toMatch(/encouraging|not yet strong/i);
     expect(result.limitations).toContain('Production thresholds require repeat-scan calibration.');
     expect(result.confidence).toBe('possible');
     expect(result.recommendedAction).toBe('wait');
@@ -315,14 +321,14 @@ describe('Phase B deterministic comparison', () => {
     [
       100,
       93.3356,
-      'Visible redness worsened across comparable scans.',
+      'Visible redness was higher at follow-up.',
       'The result does not diagnose a reaction or establish why redness changed.',
     ],
     [
       93.3356,
       93.3356,
       'No detectable improvement showed up.',
-      'Comparable scans did not establish progress on the assigned visible-redness job.',
+      'The saved scans did not establish progress on the assigned visible-redness job.',
     ],
   ] as const)(
     'uses honest non-favorable copy for %s to %s',
@@ -330,8 +336,19 @@ describe('Phase B deterministic comparison', () => {
       const result = analysisResultFromRednessEvaluation(evaluatePair(baseline, followUp));
       expect(result.finding).toBe(finding);
       expect(result.nonFinding).toBe(support);
+      expect(`${result.finding} ${result.nonFinding} ${result.relevantContext}`).not.toMatch(
+        /comparable scans|encouraging/i,
+      );
     },
   );
+
+  it('leads a limited-measurement worsening with the skin check, never encouragement', () => {
+    const result = analysisResultFromRednessEvaluation(evaluatePair(100, 93.3356));
+    expect(result.relevantContext).toBe(
+      'Visible redness was higher at follow-up. Check how your skin is responding before you continue. Matching scan conditions were not measured, so Face Value cannot call this result yet.',
+    );
+    expect(result.recommendedAction).toBe('wait');
+  });
 });
 
 describe('Phase B reducer legality and idempotency', () => {
