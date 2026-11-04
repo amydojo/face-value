@@ -10,7 +10,7 @@ import {
   trialDaySummary,
 } from '../../domain/phaseB5';
 import { EvidenceRecord } from '../evidence-record/EvidenceRecord';
-import { SafetyGuidanceNotice } from '../verdict/SafetyGuidanceNotice';
+import { RESULT_HEADLINE_ID, SafetyGuidanceNotice } from '../verdict/SafetyGuidanceNotice';
 import { safetyGuidanceFor } from '../verdict/safetyGuidance';
 import { CanonicalTrialChassis } from './CanonicalTrialChassis';
 import styles from './SubmissionContinuityOverlay.module.css';
@@ -350,7 +350,11 @@ export function SubmissionContinuityOverlay() {
               aria-label="Why this result"
             >
               {safetyGuidance && (
-                <SafetyGuidanceNotice guidance={safetyGuidance} id={SAFETY_GUIDANCE_ID} />
+                <SafetyGuidanceNotice
+                  guidance={safetyGuidance}
+                  id={SAFETY_GUIDANCE_ID}
+                  headlineId={safetyGuidance.tone === 'safety' ? RESULT_HEADLINE_ID : undefined}
+                />
               )}
               <button
                 type="button"

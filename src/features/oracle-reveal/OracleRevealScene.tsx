@@ -49,6 +49,8 @@ import {
   oracleMachineControlLabel,
   type OracleAmberState,
 } from './oraclePresentation';
+import { RESULT_HEADLINE_ID } from '../verdict/SafetyGuidanceNotice';
+import type { SafetyGuidance } from '../verdict/safetyGuidance';
 import styles from './OracleRevealScene.module.css';
 
 export type { OracleSpecimenIdentity, OracleTrialState } from './IdentityLockSpecimen';
@@ -226,6 +228,26 @@ function OraclePullHandle({
       </span>
     </button>
   );
+}
+
+interface LeadCopy {
+  eyebrow: string;
+  headline: string;
+  evidence?: string;
+  safetyLead?: boolean;
+}
+
+// After reveal the lead names the evidence strength, and a safety result's guidance title becomes
+// the page headline: the first thing read, above the machine, in every mobile viewport.
+function revealedLeadCopy(guidance: SafetyGuidance | null): LeadCopy {
+  const evidence = guidance?.evidenceLabel ?? undefined;
+  const safetyLead = guidance?.tone === 'safety';
+  return {
+    eyebrow: evidence ? `RESULT · ${evidence}` : 'VERDICT READY',
+    headline: safetyLead && guidance ? guidance.title : 'The result is in.',
+    evidence,
+    safetyLead,
+  };
 }
 
 // When guidance says the action label must not read as advice, it is captioned as evidence.
@@ -1236,13 +1258,13 @@ export function OracleRevealScene({ haptics = browserHaptics }: { haptics?: Hapt
   };
 
   const collectedRecord = phase === 'collected' ? state.record : null;
-  const leadCopy =
+  const leadCopy: LeadCopy | null =
     phase === 'sealed'
       ? { eyebrow: 'VERDICT READY', headline: 'The result is in.' }
       : phase === 'opening' || phase === 'transmitting'
         ? { eyebrow: 'REVEALING RESULT', headline: 'Preparing your evidence record.' }
         : phase === 'verdict_revealed'
-          ? { eyebrow: 'VERDICT READY', headline: 'The result is in.' }
+          ? revealedLeadCopy(viewModel?.safetyGuidance ?? null)
           : phase === 'committing' || phase === 'dispensing'
             ? { eyebrow: 'SAVING RESULT', headline: 'Saving your result.' }
             : null;
@@ -1258,9 +1280,14 @@ export function OracleRevealScene({ haptics = browserHaptics }: { haptics?: Hapt
         data-oracle-scene-state={phase}
       >
         {leadCopy && (
-          <div className={styles.lead}>
+          <div className={styles.lead} data-result-evidence={leadCopy.evidence}>
             <p>{leadCopy.eyebrow}</p>
-            <h1 data-stage-focus tabIndex={-1}>
+            <h1
+              id={leadCopy.safetyLead ? RESULT_HEADLINE_ID : undefined}
+              data-safety-lead={leadCopy.safetyLead || undefined}
+              data-stage-focus
+              tabIndex={-1}
+            >
               {leadCopy.headline}
             </h1>
           </div>

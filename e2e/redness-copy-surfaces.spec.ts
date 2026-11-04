@@ -102,7 +102,7 @@ test('live worsening reveals an honest finding with no comparable claim', async 
     'rgb(41, 36, 30)',
   );
   await expect(page.getByRole('button', { name: 'Save result' })).toHaveAccessibleDescription(
-    /unfavorable direction/,
+    'Check your skin before continuing',
   );
   const why = page.getByRole('button', { name: /why this result/i }).first();
   expect(
