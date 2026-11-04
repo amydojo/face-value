@@ -6,7 +6,7 @@ import {
   evaluateLiveScenario,
   recordForSnapshot,
   type LiveScenario,
-} from '../src/test/support/rednessScenarios';
+} from '../src/test/support/liveScenarios';
 import { persistedRecordState } from './evidence-record-fixtures';
 import { persistedSealedTrial, STORAGE_KEY } from './phase-b5-fixtures';
 
