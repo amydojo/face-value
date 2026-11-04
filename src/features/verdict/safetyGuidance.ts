@@ -93,7 +93,7 @@ function checkSkinFirst(evaluation: RednessEvaluationSnapshot): SafetyGuidance {
   return {
     kind: 'check_skin_first',
     tone: 'safety',
-    title: 'Check your skin before you continue',
+    title: 'Check your skin before continuing',
     lines,
     actionMeaning,
     nextCaption: 'EVIDENCE',

@@ -46,7 +46,7 @@ describe('safety guidance for named states', () => {
     expect(safetyGuidanceFor(snapshot)).toEqual({
       kind: 'check_skin_first',
       tone: 'safety',
-      title: 'Check your skin before you continue',
+      title: 'Check your skin before continuing',
       lines: [
         'The measurements moved in an unfavorable direction.',
         'Matching scan conditions were not measured, so this change is not confirmed.',
@@ -56,6 +56,7 @@ describe('safety guidance for named states', () => {
       actionMeaning:
         '"Test longer" describes the evidence, not your skin. It does not mean continued use has been shown to be safe.',
       nextCaption: 'EVIDENCE',
+      evidenceLabel: 'LIMITED EVIDENCE',
     });
   });
 
@@ -130,6 +131,12 @@ describe('safety guidance for named states', () => {
     const before = JSON.stringify(snapshot);
     expect(safetyGuidanceFor(snapshot)?.kind).toBe('check_skin_first');
     expect(JSON.stringify(snapshot)).toBe(before);
+  });
+
+  it('every live result is labelled limited or inconclusive', () => {
+    expect(safetyGuidanceFor(live({ delta: 0 }))?.evidenceLabel).toBe('LIMITED EVIDENCE');
+    expect(safetyGuidanceFor(live({ delta: 20, anchor: 1 }))?.evidenceLabel).toBe('LIMITED EVIDENCE');
+    expect(safetyGuidanceFor(live({ delta: -20, context: 'makeup' }))?.evidenceLabel).toBe('INCONCLUSIVE');
   });
 
   it('records without a canonical evaluation get no guidance', () => {

@@ -109,7 +109,7 @@ describe('result surfaces for named live states', () => {
     });
     // What the current UI renders visibly for this trial (Chromium-verified on the branch build).
     const guidance = [
-      'Check your skin before you continue',
+      'Check your skin before continuing',
       'The measurements moved in an unfavorable direction.',
       'Matching scan conditions were not measured, so this change is not confirmed.',
       'Face Value cannot tell whether the product caused it.',

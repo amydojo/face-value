@@ -73,7 +73,7 @@ test('live worsening reveals an honest finding with no comparable claim', async 
   const sealedHtml = await page.locator('[data-fv-screen="oracle-reveal"]').innerHTML();
   expect(sealedHtml).not.toContain('Visible redness was higher at follow-up.');
   expect(sealedHtml).not.toContain('TEST LONGER');
-  expect(sealedHtml).not.toContain('Check your skin before you continue');
+  expect(sealedHtml).not.toContain('Check your skin before continuing');
   await expect(page.locator('[data-safety-guidance]')).toHaveCount(0);
 
   await page.getByRole('button', { name: /Reveal sealed result for/i }).press('Enter');
@@ -89,7 +89,7 @@ test('live worsening reveals an honest finding with no comparable claim', async 
   ).toContain('WAS HIGHER AT');
 
   // Safety guidance is on screen without opening anything, and comes before the WHY control.
-  const guidance = page.getByRole('note', { name: 'Check your skin before you continue' });
+  const guidance = page.getByRole('note', { name: 'Check your skin before continuing' });
   await expect(guidance).toBeVisible();
   await expect(guidance).toContainText('The measurements moved in an unfavorable direction.');
   await expect(guidance).toContainText('Matching scan conditions were not measured');
@@ -102,7 +102,7 @@ test('live worsening reveals an honest finding with no comparable claim', async 
     'rgb(41, 36, 30)',
   );
   await expect(page.getByRole('button', { name: 'Save result' })).toHaveAccessibleDescription(
-    /Check your skin before you continue/,
+    /unfavorable direction/,
   );
   const why = page.getByRole('button', { name: /why this result/i }).first();
   expect(
@@ -130,7 +130,7 @@ test('live worsening record makes no comparable or verified claim', async ({ pag
   await expect(page.getByText('Visible redness was higher at follow-up.').first()).toBeVisible();
   const resultLayer = await visibleText(page);
   expect(resultLayer).not.toMatch(/comparable scans|COMPARISON VERIFIED|encouraging/i);
-  const guidance = page.getByRole('note', { name: 'Check your skin before you continue' });
+  const guidance = page.getByRole('note', { name: 'Check your skin before continuing' });
   await expect(guidance).toBeVisible();
   await expect(guidance).toContainText('It does not mean continued use has been shown to be safe.');
   await expect(page.locator('[data-canonical-recommendation]').first()).toContainText('EVIDENCE');
@@ -149,7 +149,7 @@ test('a V1 saved record keeps its saved words and gains the skin check', async (
   await expect(
     page.getByText('Visible redness worsened across comparable scans.').first(),
   ).toBeVisible();
-  await expect(page.getByRole('note', { name: 'Check your skin before you continue' })).toBeVisible();
+  await expect(page.getByRole('note', { name: 'Check your skin before continuing' })).toBeVisible();
   await expectSavedEvidenceUnchanged(page, state);
 });
 
@@ -168,6 +168,48 @@ test('neutral guidance sits in the evidence sheet and keeps the approved result 
   await expect(guidance).toBeVisible();
   await expect(guidance).toContainText('This does not show that the product works.');
 });
+
+for (const viewport of [
+  { width: 390, height: 844 },
+  { width: 320, height: 568 },
+]) {
+  for (const reducedMotion of ['no-preference', 'reduce'] as const) {
+    test(`unfavorable result leads with the skin check above the fold at ${viewport.width}x${viewport.height} (${reducedMotion} motion)`, async ({
+      page,
+    }) => {
+      await page.emulateMedia({ reducedMotion });
+      await page.setViewportSize(viewport);
+      await seed(page, sealedStateFor(liveWorsening()));
+      await page.getByRole('button', { name: /Reveal sealed result for/i }).press('Enter');
+      const machine = page.locator('[data-oracle-machine]');
+      await expect(machine).toHaveAttribute('data-oracle-state', 'verdict_revealed', { timeout: 8_000 });
+
+      const headline = page.getByRole('heading', { level: 1, name: 'Check your skin before continuing' });
+      await expect(headline).toBeVisible();
+      expect(await page.evaluate(() => scrollY)).toBe(0);
+      const box = await headline.boundingBox();
+      expect(box!.y).toBeGreaterThanOrEqual(0);
+      expect(box!.y + box!.height).toBeLessThanOrEqual(viewport.height);
+      await expect(page.getByText('RESULT · LIMITED EVIDENCE', { exact: true })).toBeVisible();
+      // The headline is read before the machine's TEST LONGER and titles the guidance note,
+      // which shows its details without repeating the title.
+      expect(
+        await headline.evaluate(
+          (node, firmware) =>
+            Boolean(node.compareDocumentPosition(firmware as Node) & Node.DOCUMENT_POSITION_FOLLOWING),
+          await page.locator('[data-firmware-state="resolved"]').elementHandle(),
+        ),
+      ).toBe(true);
+      const note = page.getByRole('note', { name: 'Check your skin before continuing' });
+      await expect(note).toContainText('The measurements moved in an unfavorable direction.');
+      await expect(note).not.toContainText('Check your skin before continuing');
+      await expect(page.getByText('Check your skin before continuing', { exact: true })).toHaveCount(1);
+      // The Oracle and its canonical action are unchanged.
+      await expect(page.locator('[data-firmware-state="resolved"]')).toContainText('TEST LONGER');
+      await expect(page.getByRole('button', { name: 'Save result' })).toBeVisible();
+    });
+  }
+}
 
 for (const { name, scenario, title, says } of [
   {
@@ -207,6 +249,7 @@ for (const { name, scenario, title, says } of [
     const guidance = page.getByRole('note', { name: title });
     await expect(guidance).toBeVisible();
     await expect(guidance).toContainText(says);
+    await expect(page.getByText(/^RESULT · (LIMITED EVIDENCE|INCONCLUSIVE)$/)).toBeVisible();
     expect(await visibleText(page)).not.toMatch(/encouraging|promising|comparable scans/i);
   });
 }
