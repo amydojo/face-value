@@ -1,6 +1,6 @@
 # Local optical comparability (experiment 01)
 
-**Status:** technical feasibility prototype. Not connected to the redness evaluator, verdicts,
+**Status:** technical feasibility prototype (experiment 02: real on-device model, same-origin assets). Not connected to the redness evaluator, verdicts,
 the Oracle, the Evidence Record, persistence or YouCam. Metrics `fv-local-optics-metrics-0.1`;
 tolerances `fv-local-optics-tolerances-0.1-unvalidated`.
 
@@ -9,26 +9,34 @@ two face captures were taken under comparable conditions?
 
 ## Where it lives
 
-- Route: `/experiments/local-optics`. It is included only in development builds or builds with
-  `VITE_LOCAL_OPTICS_EXPERIMENT=true`, and it loads as a separate chunk.
+- Route: `/experiments/local-optics`. It is compiled only into development builds or builds with
+  `VITE_LOCAL_OPTICS_EXPERIMENT=true`, as a separate chunk.
 - Code: `src/features/local-optics/`
   - `opticsMetrics.ts`: pure, versioned measurements and the comparison
-  - `landmarkSource.ts`: the MediaPipe Face Landmarker loader
+  - `landmarkSource.ts`: same-origin MediaPipe Face Landmarker loader with a model integrity check
+  - `local-optics-assets.json`: pinned runtime and model, with hashes
   - `opticsSession.ts`: camera, frame sampling and cleanup
   - `LocalOptics.tsx`: the diagnostic view
-- Tests: `src/test/local-optics-metrics.test.ts`, `src/test/local-optics-session.test.ts` and
-  `e2e/local-optics.spec.ts` (Chromium only).
+- Tests: three unit test files (`src/test/local-optics-*.test.ts`) and two Chromium specs:
+  `e2e/local-optics.spec.ts` and `e2e/local-optics-inference.spec.ts` (real model). The specs skip
+  in WebKit CI and when the assets are not prepared.
 
-## Privacy
+## Privacy and network behaviour
 
 - **Frames:** each capture draws 12 frames into an in-memory canvas, downscaled to at most
   360 px on the long side. Only numbers leave the capture function. The last frame is kept in
-  memory for the diagnostic thumbnail and is cleared on reset, on unmount and on `pagehide`.
+  memory for the diagnostic thumbnail and is cleared on reset, on unmount and on `pagehide`. The
+  live readout keeps nothing: each model reading replaces the last.
 - **What is never done:** no upload, no storage, no data URLs or blobs, and no analytics.
-- **Model download:** loading landmarks downloads model code and weights. By default these come
-  from pinned third-party URLs (`@mediapipe/tasks-vision@0.10.14` on jsDelivr, and the model on
-  Google storage). Set `VITE_LOCAL_OPTICS_ASSET_BASE` to a same-origin folder to self-host them.
-  No camera frame is sent either way.
+- **Same-origin only:** the MediaPipe runtime and model are static files on the same site (see
+  [Assets](#assets)). Measured in Chromium with the real model loaded: every request went to the
+  page's own origin and every request was a GET.
+- **Why MediaPipe is pinned below 1.0:** `@mediapipe/tasks-vision` 1.0.0 and later create a
+  metrics logger in every task. It POSTs usage and performance data to
+  `https://odml.pa.googleapis.com/v1/log` every 60 seconds, and Google's README asks apps to
+  obtain user consent. Release 0.10.35 contains no such endpoint, and a unit test fails if the
+  installed runtime ever does. Upgrading needs a consent decision first.
+- **Not verified:** network behaviour in iOS Safari.
 
 ## Capability matrix
 
@@ -95,36 +103,90 @@ within tolerance, and an estimate never receives a tolerance verdict.
 - The face box is a rectangle, so face brightness includes a little background at the corners.
 - No clinical claim of any kind is made, and nothing here describes skin.
 
+## Assets
+
+The runtime and model live in `public/local-optics-assets/mediapipe-tasks-vision-0.10.35/`.
+`npm run prepare:local-optics` creates them; the output is git-ignored. Every file is checked
+against [`local-optics-assets.json`](../../src/features/local-optics/local-optics-assets.json),
+and the browser checks the model's SHA-256 again before handing it to MediaPipe.
+
+| Asset | Source | Licence | Integrity |
+|---|---|---|---|
+| WASM runtime (SIMD and non-SIMD, 4 files, about 22 MB) | `@mediapipe/tasks-vision@0.10.35`, an exact dependency | Apache-2.0 | npm registry `sha512-HOvadwVR…/egg==` in `package-lock.json`; per-file SHA-256 in the manifest |
+| `face_landmarker.task` (`float16/1`, 3,758,596 bytes) | Google's published URL in the manifest | Apache-2.0 | SHA-256 `64184e22…c9ff` |
+
+**Model provenance.** Google's host was unreachable from the build environment, so the model
+bytes came from an npm package that redistributes the official files (`ptmaker-vision-models@1.0.0`).
+They were accepted only because their size and SHA-256 match an independent public record of
+Google's URL
+([kylept/browser-model-mirrors](https://github.com/kylept/browser-model-mirrors)). That is strong
+corroboration, but not a Google-signed hash. Google's repository publishes SHA-256 values only for
+its test-data model files, and none of those is this file. In any environment that can reach
+Google, `npm run prepare:local-optics` downloads from Google directly and enforces the same hash.
+
+**Builds.** A production build that does not opt in contains no experiment code and no MediaPipe.
+Only prepare assets for experiment builds: anything under `public/` is copied into every build
+made from that checkout.
+
 ## Verification status
 
-| Evidence | Covers | Status |
+| Check | Evidence | Result |
 |---|---|---|
-| Unit tests with geometric landmark sets and synthetic pixels | Arithmetic and the honesty rules: missing face, multiple faces, pose, crop, motion, lighting limits, colour exclusion, comparison | Simulated, passing |
-| Unit tests with fake browser objects | Track stop, model close, cancelled frame, released canvases, late camera and model after dispose | Simulated, passing |
-| Playwright with Chromium's synthetic camera | Real `getUserMedia`, frames, canvas pixels, the honest model-unavailable path, no storage, no non-GET requests, camera release on `pagehide` | Real browser APIs with a synthetic picture, passing in Chromium |
-| MediaPipe Face Landmarker in a browser | Landmarks on a real face | **Not verified.** The model hosts were unreachable from the build environment. |
-| Physical iPhone | Anything | **Not verified** |
+| Real MediaPipe initialisation and inference | Chromium, real Vite dev server (React StrictMode), the real runtime and model, licensed still images played in as the camera | **PASS**. One face: live `faces 1`, roll 2.8°, yaw 0.7°, pitch 15.9°, size 0.088. No face: 0. Two faces: 2. GPU delegate. |
+| Model failure handling | Corrupted model (integrity refused, no WASM requested) and missing model (404) | PASS |
+| Camera shutdown and model cleanup | `pagehide` ends every camera track and drops the model; a new session initialises again and detects the face | PASS (Chromium) |
+| StrictMode remount | Dev build: exactly one live camera track after start | PASS (Chromium) |
+| Measurement arithmetic and honesty rules | Unit tests with synthetic landmarks and pixels | PASS (simulated) |
+| Resource handling | Unit tests with fake browser objects | PASS (simulated) |
+| Asset packaging | Unit tests: a tampered or missing model is refused; the runtime matches its pins | PASS |
+| WebKit and iOS Safari | — | **NOT TESTED** (WebKit download hosts unreachable; no device) |
+| Repeatability on a real face | — | **NOT TESTED**. Every Chromium "capture" is a still image, so between-capture differences are trivially zero. |
+
+**Limitation found in testing:** the Face Landmarker uses a short-range face detector. Faces about
+80 px wide in a 640 × 480 frame (12 % of its width) were not detected, while head-and-shoulders
+framing was. Distance changes in the protocol below must stay within selfie range.
 
 ## Running it on an iPhone
 
-Safari allows the camera only in a secure context. Two ways to run it:
+Safari grants the camera only over HTTPS.
 
-- Serve a build with `VITE_LOCAL_OPTICS_EXPERIMENT=true` over HTTPS. A deployment-disabled
-  preview needs explicit approval.
-- Run the dev server over HTTPS on the local network.
+1. Run `npm ci`, then `npm run prepare:local-optics`.
+2. Create a certificate the phone trusts, for example with
+   `mkcert <laptop-LAN-IP>`. Install mkcert's root CA on the iPhone and enable full trust for it.
+3. Start the dev server with
+   `FV_DEV_HTTPS_CERT=<cert.pem> FV_DEV_HTTPS_KEY=<key.pem> npx vite --host 0.0.0.0`.
+4. Open `https://<laptop-LAN-IP>:4173/experiments/local-optics` in Safari.
+5. Tap **Start camera**, then **Load face landmarks**. The live line should read `faces 1` with
+   changing values.
 
-Then open `/experiments/local-optics`, tap **Start camera** and **Load face landmarks**, and
-capture a baseline and a comparison.
+The dev server serves the page, the model and the WASM (as `application/wasm`) over TLS. This
+was checked with a self-signed certificate; it has not been run on a phone.
+
+## iPhone test protocol (privacy-preserving)
+
+- **What to write down:** for each pair, write down only what the comparison table shows: the
+  `vs exp. tolerance` column and the Δ values for roll, yaw, pitch, apparent size, horizontal
+  position, face brightness and side shading.
+- **What never to keep:** no screenshots of the snapshots, and nothing saved by the app.
+- **Same phone, same session.** Hold the phone in the same position for every baseline.
+
+| Block | Pairs | Change between baseline and comparison |
+|---|---|---|
+| A. Repeat | 10 | None: recapture immediately |
+| B. Orientation | 3 + 3 | Turn the head about 15° to one side; tilt it about 10° down |
+| C. Distance | 3 | Move the phone about 10 cm further away (stay within arm's length) |
+| D. Lighting | 3 + 3 | Switch one lamp off; move from window light to room light |
+| E. Background | 3 | Same light, different wall behind you |
+
+**Reading the results:**
+
+- Block A estimates repeat noise for each property.
+- A property is informative only if its Block B to E differences exceed the Block A spread.
+- Background (E) should move only the scene-colour estimate. If brightness moves too, auto
+  exposure is reacting to the background.
+- Nothing is a tolerance until this has been repeated across people and devices.
 
 ## Next smallest experiment
 
-On one iPhone, take 10 baseline/comparison pairs with nothing changed and 10 with one deliberate
-change each:
-
-- a 15° head turn
-- a step back
-- one lamp switched off
-- a different background
-
-Record the per-property differences. This answers whether the measured differences separate the
-deliberate changes from repeat noise. It is the minimum before any tolerance can be proposed.
+Run the protocol above on one iPhone in Safari. First confirm that the model initialises on
+device (the status line names the delegate) and that the live readout tracks head turns.
