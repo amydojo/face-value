@@ -108,9 +108,18 @@ describe('result surfaces for named live states', () => {
       previousTrialsVerdict: 'Visible redness was higher at follow-up.',
     });
     // What the current UI renders visibly for this trial (Chromium-verified on the branch build).
+    const guidance = [
+      'Check your skin before you continue',
+      'The measurements moved in an unfavorable direction.',
+      'Matching scan conditions were not measured, so this change is not confirmed.',
+      'Face Value cannot tell whether the product caused it.',
+      'Look at how your skin feels before using the product again. If it is irritated, pause the product.',
+      '"Test longer" describes the evidence, not your skin. It does not mean continued use has been shown to be safe.',
+    ];
     expect(v.visible).toEqual([
       'Visible redness was higher at follow-up.',
       'TEST LONGER',
+      ...guidance,
       '-20 points',
       '6/6 checks passed',
       'Early',
@@ -120,6 +129,7 @@ describe('result surfaces for named live states', () => {
       'Visible redness was higher at follow-up.',
       'Unfavorable',
       'Early',
+      ...guidance,
       'TEST LONGER',
     ]);
   });

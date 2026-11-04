@@ -5,6 +5,7 @@ import type { RednessEvaluationSnapshot } from '../src/domain/evidence/redness';
 import {
   evaluateLiveScenario,
   recordForSnapshot,
+  type LiveScenario,
 } from '../src/test/support/rednessScenarios';
 import { persistedRecordState } from './evidence-record-fixtures';
 import { persistedSealedTrial, STORAGE_KEY } from './phase-b5-fixtures';
@@ -17,17 +18,19 @@ const savedV1: RednessEvaluationSnapshot = JSON.parse(
   readFileSync(new URL('../src/test/fixtures/redness-snapshot-engine-v1.0.0.json', import.meta.url), 'utf8'),
 );
 
-const liveWorsening = (): RednessEvaluationSnapshot =>
+const liveScenario = (overrides: Partial<LiveScenario>): RednessEvaluationSnapshot =>
   evaluateLiveScenario({
     comparability: null,
-    delta: -20,
+    delta: 0,
     pattern: 'unanimous',
     intervalDays: 29,
     adherence: 'complete',
     tolerance: 'none',
-    anchor: -1,
+    anchor: 0,
     context: 'none',
+    ...overrides,
   });
+const liveWorsening = (): RednessEvaluationSnapshot => liveScenario({ delta: -20, anchor: -1 });
 
 const sealedStateFor = (snapshot: RednessEvaluationSnapshot) => ({
   ...persistedSealedTrial,
@@ -59,6 +62,8 @@ test('live worsening reveals an honest finding with no comparable claim', async 
   const sealedHtml = await page.locator('[data-fv-screen="oracle-reveal"]').innerHTML();
   expect(sealedHtml).not.toContain('Visible redness was higher at follow-up.');
   expect(sealedHtml).not.toContain('TEST LONGER');
+  expect(sealedHtml).not.toContain('Check your skin before you continue');
+  await expect(page.locator('[data-safety-guidance]')).toHaveCount(0);
 
   await page.getByRole('button', { name: /Reveal sealed result for/i }).press('Enter');
   const machine = page.locator('[data-oracle-machine]');
@@ -72,7 +77,28 @@ test('live worsening reveals an honest finding with no comparable claim', async 
     await page.locator('[data-oracle-finding]').first().evaluate((el) => getComputedStyle(el, '::after').content),
   ).toContain('WAS HIGHER AT');
 
-  await page.getByRole('button', { name: /why this result/i }).first().click();
+  // Safety guidance is on screen without opening anything, and comes before the WHY control.
+  const guidance = page.getByRole('note', { name: 'Check your skin before you continue' });
+  await expect(guidance).toBeVisible();
+  await expect(guidance).toContainText('The measurements moved in an unfavorable direction.');
+  await expect(guidance).toContainText('Matching scan conditions were not measured');
+  await expect(guidance).toContainText('Face Value cannot tell whether the product caused it.');
+  await expect(guidance).toContainText('Look at how your skin feels before using the product again.');
+  await expect(guidance).toContainText('It does not mean continued use has been shown to be safe.');
+  await expect(guidance).toBeInViewport();
+  const why = page.getByRole('button', { name: /why this result/i }).first();
+  expect(
+    await guidance.evaluate(
+      (node, whyButton) =>
+        Boolean(node.compareDocumentPosition(whyButton as Node) & Node.DOCUMENT_POSITION_FOLLOWING),
+      await why.elementHandle(),
+    ),
+  ).toBe(true);
+  // The action stays the evaluator's, but no longer sits under a bare NEXT caption.
+  await expect(firmware).toContainText('EVIDENCE');
+  await expect(firmware).not.toContainText(/\bNEXT\b/);
+
+  await why.click();
   const revealed = await visibleText(page);
   expect(revealed).toContain('matching scan conditions were not measured');
   expect(revealed).not.toMatch(/comparable scans|encouraging/i);
@@ -81,21 +107,73 @@ test('live worsening reveals an honest finding with no comparable claim', async 
 test('live worsening record makes no comparable or verified claim', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   const snapshot = liveWorsening();
-  await seed(page, persistedRecordState(snapshot, recordForSnapshot(snapshot)));
+  const state = persistedRecordState(snapshot, recordForSnapshot(snapshot));
+  await seed(page, state);
   await expect(page.getByText('Visible redness was higher at follow-up.').first()).toBeVisible();
   const resultLayer = await visibleText(page);
   expect(resultLayer).not.toMatch(/comparable scans|COMPARISON VERIFIED|encouraging/i);
+  const guidance = page.getByRole('note', { name: 'Check your skin before you continue' });
+  await expect(guidance).toBeVisible();
+  await expect(guidance).toContainText('It does not mean continued use has been shown to be safe.');
+  await expect(page.locator('[data-canonical-recommendation]').first()).toContainText('EVIDENCE');
+  // Rendering guidance writes nothing: the saved archive is byte-identical, no duplicate record.
+  expect(await page.evaluate((key) => localStorage.getItem(key), STORAGE_KEY)).toBe(JSON.stringify(state));
 
   await page.getByRole('button', { name: 'Open evidence record' }).first().click();
   const sheet = await visibleText(page);
   expect(sheet).not.toMatch(/comparable scans|COMPARISON VERIFIED|encouraging/i);
 });
 
-test('a V1 saved record keeps its saved words', async ({ page }) => {
+test('a V1 saved record keeps its saved words and gains the skin check', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   const snapshot = structuredClone(savedV1);
-  await seed(page, persistedRecordState(snapshot, recordForSnapshot(snapshot)));
+  const state = persistedRecordState(snapshot, recordForSnapshot(snapshot));
+  await seed(page, state);
   await expect(
     page.getByText('Visible redness worsened across comparable scans.').first(),
   ).toBeVisible();
+  await expect(page.getByRole('note', { name: 'Check your skin before you continue' })).toBeVisible();
+  expect(await page.evaluate((key) => localStorage.getItem(key), STORAGE_KEY)).toBe(JSON.stringify(state));
 });
+
+for (const { name, scenario, title, says } of [
+  {
+    name: 'reported symptoms',
+    scenario: { delta: -20, anchor: -1, tolerance: 'severe' } as Partial<LiveScenario>,
+    title: 'Pause the product',
+    says: 'pharmacist, doctor, or dermatologist',
+  },
+  {
+    name: 'no detectable change',
+    scenario: { delta: 0 } as Partial<LiveScenario>,
+    title: 'No change detected',
+    says: 'This is not a sign of improvement.',
+  },
+  {
+    name: 'favorable but unproven',
+    scenario: { delta: 20, anchor: 1 } as Partial<LiveScenario>,
+    title: 'Favorable direction, not proof',
+    says: 'This does not show that the product works.',
+  },
+  {
+    name: 'unreadable comparison',
+    scenario: { delta: -20, context: 'makeup' } as Partial<LiveScenario>,
+    title: 'No result was read',
+    says: 'makes no claim about whether redness went up or down',
+  },
+]) {
+  test(`revealed ${name} shows its guidance on screen`, async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await seed(page, sealedStateFor(liveScenario(scenario)));
+    await page.getByRole('button', { name: /Reveal sealed result for/i }).press('Enter');
+    await expect(page.locator('[data-oracle-machine]')).toHaveAttribute(
+      'data-oracle-state',
+      'verdict_revealed',
+      { timeout: 8_000 },
+    );
+    const guidance = page.getByRole('note', { name: title });
+    await expect(guidance).toBeVisible();
+    await expect(guidance).toContainText(says);
+    expect(await visibleText(page)).not.toMatch(/encouraging|promising|comparable scans/i);
+  });
+}

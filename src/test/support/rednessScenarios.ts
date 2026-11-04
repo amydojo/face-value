@@ -19,6 +19,7 @@ import type { TrialTruthEvidence } from '../../domain/trialTruth';
 import { evidenceRecordViewModelFromRecord } from '../../features/evidence-record/evidenceRecordViewModel';
 import { resultExperienceViewModelFromRecord } from '../../features/evidence-record/resultExperienceViewModel';
 import { submissionContinuityEvidenceViewModel } from '../../features/submission-continuity/submissionContinuityViewModel';
+import { safetyGuidanceFor, type SafetyGuidance } from '../../features/verdict/safetyGuidance';
 import { verdictViewModelFromRecord } from '../../features/verdict/verdictViewModel';
 
 export const COMPARABILITY_FIELDS = [
@@ -316,10 +317,18 @@ export interface ResultSurfaces {
   previousTrialsVerdict: string;
   nonFinding: string;
   claimBoundary: string;
+  /** Safety-priority guidance shown on the Oracle reveal and the Record result layer. */
+  guidance: SafetyGuidance | null;
   /** Strings the current UI renders visibly (Chromium-verified): the Oracle finding projection
-   * and NEXT label, the "Why this result" panel, the Record result layer, Previous Trials. */
+   * and NEXT label, the result guidance, the "Why this result" panel, the Record result layer,
+   * Previous Trials. */
   visible: string[];
 }
+
+const guidanceStrings = (guidance: SafetyGuidance | null): string[] =>
+  guidance
+    ? [guidance.title, ...guidance.lines, ...(guidance.actionMeaning ? [guidance.actionMeaning] : [])]
+    : [];
 
 export function surfacesFor(snapshot: RednessEvaluationSnapshot): ResultSurfaces {
   const record = recordForSnapshot(snapshot);
@@ -345,9 +354,11 @@ export function surfacesFor(snapshot: RednessEvaluationSnapshot): ResultSurfaces
     previousTrialsVerdict: previous.verdict,
     nonFinding: snapshot.interpretation.nonFinding,
     claimBoundary: snapshot.interpretation.claimBoundary.join(' '),
+    guidance: oracle.safetyGuidance ?? null,
     visible: [
       oracle.headline,
       oracle.nextStepLabel,
+      ...guidanceStrings(oracle.safetyGuidance ?? null),
       why.change,
       why.comparison,
       why.evidence,
@@ -357,6 +368,7 @@ export function surfacesFor(snapshot: RednessEvaluationSnapshot): ResultSurfaces
       previous.verdict,
       previous.directionLabel,
       previous.evidenceLevel,
+      ...guidanceStrings(safetyGuidanceFor(record.rednessEvaluation)),
       evidenceRecord.nextStep.statusLabel,
     ],
   };
