@@ -230,6 +230,14 @@ Record's evidence sheet, so the approved one-screen result layout is kept.
 Saved records keep their saved words; guidance is recomputed from their saved
 fields on display.
 
+On the revealed Oracle, a safety result's guidance title is the page headline
+and the eyebrow names the evidence strength (`RESULT · LIMITED EVIDENCE` or
+`RESULT · INCONCLUSIVE`), so the skin check is the first instruction in the
+first mobile viewport. If guidance lacks the facts it needs, it makes no claim
+and asks for a skin check. Persisted data this build cannot validate is copied
+to `face-value:structured-demo:v1:quarantine:<timestamp>` before the existing
+reset, so it is never destroyed.
+
 ## 8. Oracle completion contract
 
 The result remains sealed until the person activates the reveal. Finding,
