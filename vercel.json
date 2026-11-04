@@ -4,6 +4,11 @@
   "installCommand": "npm install --no-audit --no-fund",
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
+  "git": {
+    "deploymentEnabled": {
+      "fix/p0b-visible-safety-guidance": false
+    }
+  },
   "routes": [
     {
       "src": "/calibration/redness/?",
