@@ -16,9 +16,11 @@
     "verify:privacy": "node scripts/verify-client-privacy.mjs",
     "verify:redness-architecture": "node scripts/verify-redness-architecture.mjs",
     "verify:docs": "node scripts/verify-docs.mjs",
+    "prepare:local-optics": "node scripts/prepare-local-optics-assets.mjs",
     "check": "npm run lint && npm run typecheck && npm run test && npm run verify:redness-architecture && npm run verify:docs && npm run build && npm run verify:privacy"
   },
   "dependencies": {
+    "@mediapipe/tasks-vision": "0.10.35",
     "react": "^19.1.1",
     "react-dom": "^19.1.1"
   },

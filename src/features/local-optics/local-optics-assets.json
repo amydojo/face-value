@@ -1,0 +1,26 @@
+{
+  "manifestVersion": 1,
+  "publicBase": "/local-optics-assets/mediapipe-tasks-vision-0.10.35",
+  "runtime": {
+    "package": "@mediapipe/tasks-vision",
+    "version": "0.10.35",
+    "license": "Apache-2.0",
+    "npmIntegrity": "sha512-HOvadwVRE6JC+45nyYhmnywnr5h/J8KZvOeUNVOG9q/0875pZgItznFB9bRTvLc264YSJqiZ1NsIpCStJw/egg==",
+    "note": "Pinned below 1.0.0: tasks-vision 1.x sends usage metrics to odml.pa.googleapis.com from every task.",
+    "files": [
+      { "name": "wasm/vision_wasm_internal.js", "sha256": "e7fd9858e8e8f221d9b96eddc11f8e077f263e0b7bbd79d3cbe882b134274f8c", "bytes": 322044 },
+      { "name": "wasm/vision_wasm_internal.wasm", "sha256": "6a5c64584c2ab61c763b6e204afbdbc7ce1caf7f5216187322bca8df94f646bc", "bytes": 11153617 },
+      { "name": "wasm/vision_wasm_nosimd_internal.js", "sha256": "438d1fe8ff7f4d946025bc211c291543c037d8a3785ed4eee60f1f521b236296", "bytes": 321847 },
+      { "name": "wasm/vision_wasm_nosimd_internal.wasm", "sha256": "8a3092d34c79d3f57e6ba8592105e8a90f6b07c27891ffecd14cca428bfd3e31", "bytes": 10481398 }
+    ]
+  },
+  "model": {
+    "name": "face_landmarker.task",
+    "variant": "face_landmarker/float16/1",
+    "license": "Apache-2.0",
+    "sourceUrl": "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task",
+    "sha256": "64184e229b263107bc2b804c6625db1341ff2bb731874b0bcc2fe6544e0bc9ff",
+    "bytes": 3758596,
+    "provenance": "Hash and size match an independent mirror's record for sourceUrl; not yet fetched from Google's host in this environment."
+  }
+}
