@@ -51,6 +51,17 @@ async function seed(page: Page, state: unknown): Promise<void> {
   await page.reload();
 }
 
+// Rendering guidance writes no evidence: the saved record, its evaluation and the archive stay
+// byte-identical and no duplicate record appears. (Load-time normalisation of unrelated empty
+// fields, such as a missing burst becoming null, predates this change.)
+async function expectSavedEvidenceUnchanged(page: Page, seeded: Record<string, unknown>) {
+  const stored = JSON.parse((await page.evaluate((key) => localStorage.getItem(key), STORAGE_KEY)) ?? '{}');
+  expect((stored.archive as unknown[]).length).toBe((seeded.archive as unknown[]).length);
+  for (const key of ['record', 'archive', 'analysis']) {
+    expect(JSON.stringify(stored[key])).toBe(JSON.stringify(seeded[key]));
+  }
+}
+
 const visibleText = async (page: Page): Promise<string> =>
   (await page.locator('body').innerText()).replace(/\s+/g, ' ');
 
@@ -86,6 +97,13 @@ test('live worsening reveals an honest finding with no comparable claim', async 
   await expect(guidance).toContainText('Look at how your skin feels before using the product again.');
   await expect(guidance).toContainText('It does not mean continued use has been shown to be safe.');
   await expect(guidance).toBeInViewport();
+  // Readable ink, not a faded overlay, and the Save control points assistive tech at the guidance.
+  expect(await guidance.locator('p').first().evaluate((el) => getComputedStyle(el).color)).toBe(
+    'rgb(41, 36, 30)',
+  );
+  await expect(page.getByRole('button', { name: 'Save result' })).toHaveAccessibleDescription(
+    /Check your skin before you continue/,
+  );
   const why = page.getByRole('button', { name: /why this result/i }).first();
   expect(
     await guidance.evaluate(
@@ -116,8 +134,7 @@ test('live worsening record makes no comparable or verified claim', async ({ pag
   await expect(guidance).toBeVisible();
   await expect(guidance).toContainText('It does not mean continued use has been shown to be safe.');
   await expect(page.locator('[data-canonical-recommendation]').first()).toContainText('EVIDENCE');
-  // Rendering guidance writes nothing: the saved archive is byte-identical, no duplicate record.
-  expect(await page.evaluate((key) => localStorage.getItem(key), STORAGE_KEY)).toBe(JSON.stringify(state));
+  await expectSavedEvidenceUnchanged(page, state);
 
   await page.getByRole('button', { name: 'Open evidence record' }).first().click();
   const sheet = await visibleText(page);
@@ -133,7 +150,23 @@ test('a V1 saved record keeps its saved words and gains the skin check', async (
     page.getByText('Visible redness worsened across comparable scans.').first(),
   ).toBeVisible();
   await expect(page.getByRole('note', { name: 'Check your skin before you continue' })).toBeVisible();
-  expect(await page.evaluate((key) => localStorage.getItem(key), STORAGE_KEY)).toBe(JSON.stringify(state));
+  await expectSavedEvidenceUnchanged(page, state);
+});
+
+test('neutral guidance sits in the evidence sheet and keeps the approved result fit', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  const snapshot = liveScenario({ delta: 20, anchor: 1 });
+  await seed(page, persistedRecordState(snapshot, recordForSnapshot(snapshot)));
+  const result = page.locator('[data-result-layer="result"]');
+  await expect(result).toBeVisible();
+  await expect(result.locator('[data-safety-guidance]')).toHaveCount(0);
+  expect(await result.evaluate((el) => el.scrollHeight - el.clientHeight)).toBeLessThanOrEqual(1);
+  await page.getByRole('button', { name: 'Open evidence record' }).first().click();
+  const guidance = page
+    .getByRole('dialog', { name: 'Evidence record' })
+    .getByRole('note', { name: 'Favorable direction, not proof' });
+  await expect(guidance).toBeVisible();
+  await expect(guidance).toContainText('This does not show that the product works.');
 });
 
 for (const { name, scenario, title, says } of [

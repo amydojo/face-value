@@ -1,0 +1,36 @@
+/* Takes the host surface's ink (--fv-guidance-ink) or inherits it, so it reads on the Oracle paper
+   deck and the dark Record alike. */
+.notice {
+  display: grid;
+  gap: 5px;
+  margin: 0;
+  padding: 11px 12px 11px 13px;
+  border: 1px solid color-mix(in srgb, currentColor 22%, transparent);
+  border-left: 3px solid color-mix(in srgb, currentColor 45%, transparent);
+  border-radius: 10px;
+  color: var(--fv-guidance-ink, inherit);
+  text-align: left;
+}
+
+.notice[data-tone='safety'] {
+  border-left-color: #b4532a;
+  background: color-mix(in srgb, #b4532a 9%, transparent);
+}
+
+.notice strong {
+  font: 650 11px/1.3 var(--fv-font-mono);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.notice p,
+.notice small {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.notice small {
+  opacity: 0.78;
+  font-size: 12px;
+}

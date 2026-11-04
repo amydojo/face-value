@@ -228,6 +228,11 @@ function OraclePullHandle({
   );
 }
 
+// When guidance says the action label must not read as advice, it is captioned as evidence.
+const nextCaption = (viewModel: VerdictViewModel) => viewModel.safetyGuidance?.nextCaption ?? 'NEXT';
+const nextCaptionSpoken = (viewModel: VerdictViewModel) =>
+  nextCaption(viewModel) === 'EVIDENCE' ? 'Evidence' : 'Next';
+
 function FirmwareDisplay({
   phase,
   trialIdentity,
@@ -274,7 +279,7 @@ function FirmwareDisplay({
       </div>
       {resolved && !saving && !recorded && (
         <div className={styles.firmwareNext}>
-          <span>NEXT</span>
+          <span>{nextCaption(viewModel)}</span>
           <strong>{viewModel.nextStepLabel}</strong>
         </div>
       )}
@@ -329,7 +334,7 @@ function EvidencePaperContent({
       data-paper-specimen-product={specimenIdentity.productName}
       data-paper-specimen-strength={specimenIdentity.strength ?? ''}
       data-paper-specimen-volume={specimenIdentity.volume ?? ''}
-      aria-label={`${oracleSpecimenIdentityLabel(specimenIdentity)}. ${viewModel.headline} Next: ${viewModel.nextStepLabel}.`}
+      aria-label={`${oracleSpecimenIdentityLabel(specimenIdentity)}. ${viewModel.headline} ${nextCaptionSpoken(viewModel)}: ${viewModel.nextStepLabel}.`}
     >
       <header>
         <span>{latest ? 'LATEST VERDICT' : 'FACE VALUE'}</span>
@@ -341,7 +346,7 @@ function EvidencePaperContent({
         <strong data-evidence-finding>{viewModel.headline}</strong>
       </section>
       <footer>
-        <span>NEXT</span>
+        <span>{nextCaption(viewModel)}</span>
         <strong>{viewModel.nextStepLabel}</strong>
         <small data-latest-paper-action={latest ? '' : undefined}>
           {latest ? (
@@ -1057,7 +1062,7 @@ export function LatestVerdictCassette({
     <div className={styles.latestCassetteFrame} data-latest-verdict-cassette>
       <p className={styles.cassetteSummary}>
         Latest verdict for {verdictProduct(viewModel)}. {viewModel.headline} Confidence:{' '}
-        {viewModel.confidence}. Next: {viewModel.nextStepLabel}.
+        {viewModel.confidence}. {nextCaptionSpoken(viewModel)}: {viewModel.nextStepLabel}.
       </p>
       <OracleMachine
         variant="latest-verdict"

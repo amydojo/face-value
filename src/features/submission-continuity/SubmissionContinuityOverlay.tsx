@@ -10,6 +10,8 @@ import {
   trialDaySummary,
 } from '../../domain/phaseB5';
 import { EvidenceRecord } from '../evidence-record/EvidenceRecord';
+import { SafetyGuidanceNotice } from '../verdict/SafetyGuidanceNotice';
+import { safetyGuidanceFor } from '../verdict/safetyGuidance';
 import { CanonicalTrialChassis } from './CanonicalTrialChassis';
 import styles from './SubmissionContinuityOverlay.module.css';
 import {
@@ -25,6 +27,9 @@ type PortalTargets = {
   baselineLocked: HTMLElement | null;
   trialTruthFirmware: HTMLElement | null;
 };
+
+// The Save control sits before the guidance in reading order, so it points screen readers at it.
+const SAFETY_GUIDANCE_ID = 'continuity-safety-guidance';
 
 const emptyTargets: PortalTargets = {
   oracleScene: null,
@@ -129,6 +134,7 @@ export function SubmissionContinuityOverlay() {
         : null,
     [state.analysis, state.confidence, state.placement],
   );
+  const safetyGuidance = safetyGuidanceFor(state.analysis?.rednessEvaluation);
 
   const revealLead = (() => {
     if (state.oracleRevealState === 'sealed') {
@@ -330,6 +336,7 @@ export function SubmissionContinuityOverlay() {
               className={styles.saveControl}
               data-submission-save-result
               aria-label="Save result"
+              aria-describedby={safetyGuidance?.tone === 'safety' ? SAFETY_GUIDANCE_ID : undefined}
               onClick={saveResult}
             >
               <span>SAVE RESULT</span>
@@ -342,6 +349,9 @@ export function SubmissionContinuityOverlay() {
               data-continuity-result-actions
               aria-label="Why this result"
             >
+              {safetyGuidance && (
+                <SafetyGuidanceNotice guidance={safetyGuidance} id={SAFETY_GUIDANCE_ID} />
+              )}
               <button
                 type="button"
                 aria-expanded={whyOpen}

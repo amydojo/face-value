@@ -18,6 +18,8 @@ import {
   type TechnicalGroupId,
   type TechnicalGroupViewModel,
 } from './resultExperienceViewModel';
+import { SafetyGuidanceNotice } from '../verdict/SafetyGuidanceNotice';
+import { safetyGuidanceFor } from '../verdict/safetyGuidance';
 import styles from './EvidenceRecord.module.css';
 
 type ResultLayer = 'result' | 'evidence' | 'technical' | TechnicalGroupId;
@@ -338,6 +340,7 @@ export function EvidenceRecord({
   const viewModel = resultExperienceViewModelFromRecord(record);
   const recommendation = evidenceRecordViewModelFromRecord(record).nextStep;
   const recommendedAction = recommendation.statusLabel;
+  const safetyGuidance = safetyGuidanceFor(record.rednessEvaluation);
   const resultVerdict = resultVerdictFor(viewModel.direction, viewModel.verdict);
   const comparisonLabel = comparisonLabelFor(record);
   const comparisonVerified = record.comparison === 'comparable';
@@ -536,8 +539,11 @@ export function EvidenceRecord({
               {verificationSummary} · {viewModel.evidenceLevel.toLocaleLowerCase('en-US')} evidence
             </span>
           </div>
+          {/* Safety guidance always shows on the result layer, even if the layer then scrolls.
+              Neutral guidance lives at the top of the evidence sheet to keep the approved fit. */}
+          {safetyGuidance?.tone === 'safety' && <SafetyGuidanceNotice guidance={safetyGuidance} />}
           <div className={styles.resultRecommendation} data-canonical-recommendation>
-            <span>NEXT</span>
+            <span>{safetyGuidance?.nextCaption ?? 'NEXT'}</span>
             <strong>{recommendedAction}</strong>
           </div>
           <button
@@ -597,6 +603,7 @@ export function EvidenceRecord({
               meta={viewModel.folio}
               onBack={closeEvidence}
             />
+            {safetyGuidance && <SafetyGuidanceNotice guidance={safetyGuidance} />}
             <dl className={styles.evidenceRows}>
               <div>
                 <dt>Concern</dt>
