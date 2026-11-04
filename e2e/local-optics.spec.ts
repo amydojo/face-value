@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test';
 
 // REAL browser camera API with Chromium's synthetic camera device: getUserMedia, video frames,
 // canvas pixels and track lifecycle are real; the picture is Chromium's test pattern, not a face,
-// and the landmark model is unreachable here. This is not iPhone or Safari evidence.
+// and the landmark model is withheld. This is not iPhone or Safari evidence.
 
 test.use({
   launchOptions: { args: ['--use-fake-device-for-media-stream', '--use-fake-ui-for-media-stream'] },
@@ -24,8 +24,8 @@ test('local optics measures what it can and refuses what it cannot', async ({ pa
   });
   const requests: { url: string; method: string }[] = [];
   page.on('request', (request) => requests.push({ url: request.url(), method: request.method() }));
-  // The landmark model is hosted by third parties; make its absence explicit and deterministic.
-  await page.route(/cdn\.jsdelivr\.net|storage\.googleapis\.com/, (route) => route.abort());
+  // Make the model's absence explicit and deterministic (assets may or may not be prepared).
+  await page.route('**/face_landmarker.task', (route) => route.fulfill({ status: 404, body: '' }));
 
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/experiments/local-optics');
@@ -37,9 +37,7 @@ test('local optics measures what it can and refuses what it cannot', async ({ pa
   await expect(status).toContainText('Camera: on');
 
   await page.getByRole('button', { name: 'Load face landmarks' }).click();
-  await expect(status).toContainText('Landmarks: unavailable');
-  // It failed at the network (third-party model host refused), not before trying.
-  await expect.poll(() => requests.some((r) => r.url.includes('cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14'))).toBe(true);
+  await expect(status).toContainText('Landmarks: unavailable (Model not available at /local-optics-assets/');
 
   await page.getByRole('button', { name: 'Capture baseline' }).click();
   const baseline = page.locator('[data-local-optics-capture="baseline"]');
@@ -61,8 +59,7 @@ test('local optics measures what it can and refuses what it cannot', async ({ pa
   expect(await page.evaluate(() => JSON.stringify({ ...localStorage }))).toBe(storageBefore);
   expect(await page.evaluate(() => sessionStorage.length)).toBe(0);
   const origin = new URL(page.url()).origin;
-  const offOrigin = requests.filter((r) => !r.url.startsWith(origin));
-  expect(offOrigin.every((r) => /cdn\.jsdelivr\.net|storage\.googleapis\.com/.test(r.url) && r.method === 'GET')).toBe(true);
+  expect(requests.filter((r) => !r.url.startsWith(origin))).toEqual([]);
   expect(requests.filter((r) => r.method !== 'GET')).toEqual([]);
 
   // Leaving the page releases the camera.
