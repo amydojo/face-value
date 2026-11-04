@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { landmarkerAssets, loadMediaPipeLandmarker } from '../features/local-optics/landmarkSource';
+import type { LandmarkFrame } from '../features/local-optics/opticsMetrics';
 import { OpticsSession, type OpticsSessionDeps } from '../features/local-optics/opticsSession';
 
 // Resource handling with fake browser objects (SIMULATED): camera tracks, the landmark model,
@@ -12,7 +13,7 @@ function fakes(options: { landmarks?: boolean } = {}) {
   const pending: { resolve: (t: number) => void; cancel: ReturnType<typeof vi.fn> }[] = [];
   const source = {
     name: 'fake landmarks',
-    detect: vi.fn((_video: HTMLVideoElement, _timestampMs: number) => ({ faces: [] })),
+    detect: vi.fn<(video: HTMLVideoElement, timestampMs: number) => LandmarkFrame>(() => ({ faces: [] })),
     close: vi.fn(),
   };
   let clock = 0;
@@ -91,8 +92,8 @@ describe('optics session resources', () => {
     for (let k = 0; k < 2; k += 1) {
       await f.run(session.capture(f.video, 5));
     }
-    const stamps: number[] = f.source.detect.mock.calls.map((call: [HTMLVideoElement, number]) => call[1]);
-    expect(stamps.every((t: number, i: number) => i === 0 || t > stamps[i - 1])).toBe(true);
+    const stamps = f.source.detect.mock.calls.map((call) => call[1]);
+    expect(stamps.every((t, i) => i === 0 || t > stamps[i - 1])).toBe(true);
     session.dispose();
   });
 
