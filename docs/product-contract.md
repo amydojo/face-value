@@ -199,7 +199,13 @@ The current action set is exactly:
 | `not_proving_job`     | the completed trial does not support the assigned job                |
 | `safety_interruption` | reported or objective safety evidence interrupts ordinary evaluation |
 
-The deciding raw-score result cannot be rescued by unrelated skin metrics. A favorable raw-score movement cannot override an attribution blocker or safety interruption.
+The deciding raw-score result cannot be rescued by unrelated skin metrics.
+
+Result copy follows the rules in `redness-evidence-engine-v1.md` (engine
+v1.1.0): explanations name the deciding gate, scans are called comparable only
+when comparability was established, and worsening is never paired with
+encouraging language. Under live measurement the reachable actions are
+`test_longer`, `retry_alone` and `safety_interruption`. A favorable raw-score movement cannot override an attribution blocker or safety interruption.
 
 ## 8. Oracle completion contract
 

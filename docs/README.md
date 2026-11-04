@@ -62,6 +62,8 @@ At the current baseline:
 - `/calibration/redness` uses the signed engineering session and isolated face-free storage
 - calibration output is exploratory, provisional, and rejected or ignored by production loading
 - no clinical-validation claim is supported
+- result copy follows the engine v1.1.0 copy rules: no "comparable" claim without established comparability, and no encouraging language on worsening
+- live `limited` measurement reaches only `test_longer`, `retry_alone` and `safety_interruption`
 
 ## Phase C status
 
