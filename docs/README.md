@@ -95,6 +95,12 @@ Important current sets include:
 
 Synthetic Playwright evidence is not physical-device proof. Physical-device claims must record the exact commit, device, browser, conditions, outcome, and unresolved limitations.
 
+## Experiments
+
+Experiments are not authorities and are not connected to results:
+
+- [`experiments/local-optical-comparability.md`](experiments/local-optical-comparability.md): browser-local capture-condition measurement (unvalidated, not device-verified)
+
 ## Documentation rules
 
 Current authority documents must not:
