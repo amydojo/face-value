@@ -207,6 +207,29 @@ when comparability was established, and worsening is never paired with
 encouraging language. Under live measurement the reachable actions are
 `test_longer`, `retry_alone` and `safety_interruption`. A favorable raw-score movement cannot override an attribution blocker or safety interruption.
 
+### Safety guidance (presentation only)
+
+The action says what the evidence supports. It is not advice to keep using a
+product. Every revealed result therefore also shows safety guidance derived by
+`src/features/verdict/safetyGuidance.ts` from fields already on the saved
+evaluation. It is never persisted and never changes an action, threshold or gate.
+
+| Guidance            | When                                         | Shows                                                                 |
+| ------------------- | -------------------------------------------- | --------------------------------------------------------------------- |
+| Pause the product   | reported symptoms (`safety_interruption`)    | pause use; pharmacist, doctor or dermatologist if symptoms warrant it |
+| Check your skin     | readable worsening without reported symptoms | unfavorable direction, unconfirmed change, no causation, skin check   |
+| No result was read  | invalid comparison                           | no direction claimed; no new scan offered as the fix                  |
+| No change detected  | no detectable change                         | not a sign of improvement; the binding limitation                     |
+| Favorable, no proof | favorable movement short of `keep`           | direction is not proof the product works; the binding limitation      |
+
+When guidance must not let the action read as advice (worsening, invalid), the
+action is captioned `EVIDENCE` instead of `NEXT` and the guidance explains what
+the label means. Safety guidance always shows on the Oracle reveal and the
+Record result layer. Neutral guidance shows on the reveal and at the top of the
+Record's evidence sheet, so the approved one-screen result layout is kept.
+Saved records keep their saved words; guidance is recomputed from their saved
+fields on display.
+
 ## 8. Oracle completion contract
 
 The result remains sealed until the person activates the reveal. Finding,
