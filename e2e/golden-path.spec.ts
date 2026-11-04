@@ -351,6 +351,8 @@ for (const scenario of cases) {
     const forbiddenResultText = [
       'Visible redness moved in a favorable direction.',
       'The direction looks encouraging',
+      'matching scan conditions were not measured',
+      'Check how your skin is responding',
       'The trial window is not complete',
       'TEST LONGER',
       '93.34',

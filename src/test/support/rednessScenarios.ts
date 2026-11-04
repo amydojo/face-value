@@ -1,6 +1,7 @@
 // Test-only kit: drives the production redness bridge and the production result view models
 // with live-shaped evidence. It never calls a provider and never touches the network.
 import {
+  analysisResultFromRednessEvaluation,
   buildMvpRednessEvaluation,
   placementForRednessAction,
 } from '../../adapters/analysis/youcam/rednessEvidenceAdapter';
@@ -17,6 +18,7 @@ import type {
 import type { TrialTruthEvidence } from '../../domain/trialTruth';
 import { evidenceRecordViewModelFromRecord } from '../../features/evidence-record/evidenceRecordViewModel';
 import { resultExperienceViewModelFromRecord } from '../../features/evidence-record/resultExperienceViewModel';
+import { submissionContinuityEvidenceViewModel } from '../../features/submission-continuity/submissionContinuityViewModel';
 import { verdictViewModelFromRecord } from '../../features/verdict/verdictViewModel';
 
 export const COMPARABILITY_FIELDS = [
@@ -252,6 +254,8 @@ function compatibilityAction(action: RednessEvaluationSnapshot['interpretation']
   }
 }
 
+/** Mirrors the production record (createEvidenceRecord): `comparison` comes from the analysis
+ * the reducer stored, which maps limited measurement to `partially_comparable`. */
 export function recordForSnapshot(snapshot: RednessEvaluationSnapshot): EvidenceRecordData {
   const action = snapshot.interpretation.recommendedAction;
   return {
@@ -262,12 +266,7 @@ export function recordForSnapshot(snapshot: RednessEvaluationSnapshot): Evidence
     productBrand: 'Lab Dojo',
     job: 'Reduce visible redness',
     observationWindow: `${snapshot.baseline.sessions[0]?.capturedAt ?? snapshot.evaluatedAt} to ${snapshot.evaluatedAt}`,
-    comparison:
-      snapshot.measurementQuality === 'invalid'
-        ? 'not_comparable'
-        : snapshot.attributionQuality === 'blocked'
-          ? 'partially_comparable'
-          : 'comparable',
+    comparison: analysisResultFromRednessEvaluation(snapshot).comparison,
     finding: snapshot.interpretation.finding,
     nonFinding: snapshot.interpretation.nonFinding,
     confidence: snapshot.evidenceQuality,
@@ -317,6 +316,9 @@ export interface ResultSurfaces {
   previousTrialsVerdict: string;
   nonFinding: string;
   claimBoundary: string;
+  /** Strings the current UI renders visibly (Chromium-verified): the Oracle finding projection
+   * and NEXT label, the "Why this result" panel, the Record result layer, Previous Trials. */
+  visible: string[];
 }
 
 export function surfacesFor(snapshot: RednessEvaluationSnapshot): ResultSurfaces {
@@ -324,6 +326,12 @@ export function surfacesFor(snapshot: RednessEvaluationSnapshot): ResultSurfaces
   const oracle = verdictViewModelFromRecord(record);
   const evidenceRecord = evidenceRecordViewModelFromRecord(record);
   const previous = resultExperienceViewModelFromRecord(record);
+  const analysis = analysisResultFromRednessEvaluation(snapshot);
+  const why = submissionContinuityEvidenceViewModel(
+    analysis,
+    analysis.confidence,
+    placementForRednessAction(snapshot.interpretation.recommendedAction),
+  );
   return {
     oracleHeadline: oracle.headline,
     oracleExplanation: oracle.explanation,
@@ -337,6 +345,20 @@ export function surfacesFor(snapshot: RednessEvaluationSnapshot): ResultSurfaces
     previousTrialsVerdict: previous.verdict,
     nonFinding: snapshot.interpretation.nonFinding,
     claimBoundary: snapshot.interpretation.claimBoundary.join(' '),
+    visible: [
+      oracle.headline,
+      oracle.nextStepLabel,
+      why.change,
+      why.comparison,
+      why.evidence,
+      why.recommendation,
+      why.interpretation,
+      why.claimBoundary,
+      previous.verdict,
+      previous.directionLabel,
+      previous.evidenceLevel,
+      evidenceRecord.nextStep.statusLabel,
+    ],
   };
 }
 
