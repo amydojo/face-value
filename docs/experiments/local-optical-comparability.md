@@ -148,35 +148,82 @@ framing was. Distance changes in the protocol below must stay within selfie rang
 
 ## Running it on an iPhone
 
-Safari grants the camera only over HTTPS.
+Safari grants the camera only over HTTPS. There are two routes.
+
+### Branch preview on Vercel (preferred, needs authorisation)
+
+`vercel.json` builds through `scripts/vercel-build.mjs`:
+
+- **A Vercel preview of `experiment/local-optical-comparability`** runs
+  `npm run prepare:local-optics` and builds with `VITE_LOCAL_OPTICS_EXPERIMENT=true`. The prepare
+  step downloads the model from Google's URL and refuses it unless the SHA-256 matches. If the
+  builder cannot reach Google, the build fails rather than shipping a preview without a model.
+- **Production and every other branch** run the unchanged `npm run build`. A clean-checkout
+  production build is byte-identical to `main@766c76c`.
+
+See the authorisation checklist below before pushing.
+
+### Local HTTPS dev server
 
 1. Run `npm ci`, then `npm run prepare:local-optics`.
-2. Create a certificate the phone trusts, for example with
-   `mkcert <laptop-LAN-IP>`. Install mkcert's root CA on the iPhone and enable full trust for it.
-3. Start the dev server with
+2. Create a certificate the phone trusts, for example with `mkcert <laptop-LAN-IP>`. Install
+   mkcert's root CA on the iPhone and enable full trust for it.
+3. Start the server with
    `FV_DEV_HTTPS_CERT=<cert.pem> FV_DEV_HTTPS_KEY=<key.pem> npx vite --host 0.0.0.0`.
-4. Open `https://<laptop-LAN-IP>:4173/experiments/local-optics` in Safari.
-5. Tap **Start camera**, then **Load face landmarks**. The live line should read `faces 1` with
-   changing values.
+4. Open `https://<laptop-LAN-IP>:4173/experiments/local-optics`.
 
-The dev server serves the page, the model and the WASM (as `application/wasm`) over TLS. This
-was checked with a self-signed certificate; it has not been run on a phone.
+### On the phone: Safari checks
+
+The **Device diagnostics** panel reports each of these. Record them once per device:
+
+1. **Secure context** reads `yes`.
+2. **Camera permission:** Safari prompts on **Start camera**. Afterwards the panel reads
+   `granted`, or `not exposed by this browser`.
+3. **Front camera and orientation:** `Facing mode` should be `user`. `Frame` should read
+   `… portrait` when the phone is upright. A capture pair that changes size or orientation is
+   rejected.
+4. **Model initialisation:** `Delegate in use` reads `GPU`, or `CPU (GPU failed: …)`, with the
+   initialisation time. Reload with `?delegate=cpu` to measure the CPU path for comparison.
+5. **Background:** switch apps and come back. The camera stops (`Background pauses` goes up)
+   and **Restart camera** resumes it without re-downloading the model. If iOS ends the camera
+   itself, the status reads `interrupted`.
+6. **Network:** in Safari Web Inspector (Mac, Develop menu), check that the request list
+   matches the inventory below.
+
+### Network inventory
+
+Observed in Chromium on the production-style preview build, for a full session: load, camera,
+model, two captures and export.
+
+| Request | Size |
+|---|---|
+| `GET /experiments/local-optics` and the app shell, CSS and favicon | about 0.8 MB |
+| `GET /assets/LocalOptics-*.js`, `vision_bundle-*.js` (MediaPipe 0.10.35) | 166 KB |
+| `GET /local-optics-assets/…/face_landmarker.task` | 3.76 MB |
+| `GET /local-optics-assets/…/wasm/vision_wasm_internal.js` and `.wasm` (SIMD) | 11.5 MB |
+
+That is all ten requests: same-origin GETs only, with no POST and no `/api` call. Pixels and
+landmarks never leave the tab. On a Vercel preview, the Vercel toolbar may add requests to
+`vercel.live` unless it is disabled for the branch. Safari may also pick the non-SIMD runtime.
 
 ## iPhone test protocol (privacy-preserving)
 
-- **What to write down:** for each pair, write down only what the comparison table shows: the
-  `vs exp. tolerance` column and the Δ values for roll, yaw, pitch, apparent size, horizontal
-  position, face brightness and side shading.
-- **What never to keep:** no screenshots of the snapshots, and nothing saved by the app.
-- **Same phone, same session.** Hold the phone in the same position for every baseline.
+- **Recording:** after each pair, type its label in **Pair label** and tap **Add pair to log**.
+  When the session is done, tap **Copy log** and paste the JSON into a note.
+- **What the log holds:** numbers only: comparison rows, gates, frame sizes, face counts and
+  camera settings without device identifiers. It never holds images or landmarks, nothing is
+  saved, and nothing is sent.
+- **What never to keep:** screenshots of the snapshots.
+- **Setup:** same phone, same session, phone in the same position for every baseline. Keep
+  faces at selfie distance, because the detector is short-range.
 
-| Block | Pairs | Change between baseline and comparison |
+| Block | Labels | Change between baseline and comparison |
 |---|---|---|
-| A. Repeat | 10 | None: recapture immediately |
-| B. Orientation | 3 + 3 | Turn the head about 15° to one side; tilt it about 10° down |
-| C. Distance | 3 | Move the phone about 10 cm further away (stay within arm's length) |
-| D. Lighting | 3 + 3 | Switch one lamp off; move from window light to room light |
-| E. Background | 3 | Same light, different wall behind you |
+| A. Repeat | `A01` to `A10` | None: recapture immediately |
+| B. Head orientation | `B-yaw-1..3`, `B-pitch-1..3` | Turn the head about 15° to one side; tilt it about 10° down |
+| C. Distance | `C-dist-1..3` | Move the phone about 10 cm further away (still within arm's length) |
+| D. Lighting | `D-lamp-1..3`, `D-window-1..3` | Switch one lamp off; move from window light to room light |
+| E. Background | `E-bg-1..3` | Same light, different wall behind you |
 
 **Reading the results:**
 
@@ -186,7 +233,32 @@ was checked with a self-signed certificate; it has not been run on a phone.
   exposure is reacting to the background.
 - Nothing is a tolerance until this has been repeated across people and devices.
 
+## Preview deployment: authorisation checklist
+
+Nothing below has been done. Each item is a decision for the project owner.
+
+1. **Push.** Pushing `experiment/local-optical-comparability` creates a Vercel preview
+   automatically; this branch has no `git.deploymentEnabled` entry. Running GitHub Actions also
+   needs a draft PR.
+2. **Public access.** The `face-value` project has Vercel Authentication and password
+   protection turned off, so any preview is public to whoever has its URL. Either enable
+   Vercel Authentication for preview deployments (a project setting: it covers all previews,
+   not production, and Safari must be logged in to Vercel) or accept a public experimental page.
+3. **Secrets in previews.** `YOUCAM_API_KEY` and `YOUCAM_SPIKE_TOKEN` are scoped to preview as
+   well as production. The experiment never calls `/api`, but the preview still ships the API
+   routes, with the same guards as production. No YouCam call happens unless someone uses those
+   routes.
+4. **Vercel toolbar.** To keep the page free of `vercel.live`, add the preview variable
+   `VERCEL_PREVIEW_FEEDBACK_ENABLED=0` for this branch only.
+5. **Build reachability.** The Vercel builder must reach `storage.googleapis.com`. If it cannot,
+   or the bytes differ, the build fails.
+6. **After deploying:** open the route, run the Safari checks, and compare Web Inspector's
+   network list with the inventory above.
+7. **Cleanup.** Delete the preview deployment when the study ends. Do not merge the
+   experiment.
+
 ## Next smallest experiment
 
-Run the protocol above on one iPhone in Safari. First confirm that the model initialises on
-device (the status line names the delegate) and that the live readout tracks head turns.
+1. Clear the authorisation checklist and deploy the branch preview.
+2. On one iPhone, record the Safari checks.
+3. Run the protocol, Block A first, and export the numeric log.
