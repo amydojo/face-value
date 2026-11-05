@@ -12,6 +12,7 @@ import {
   type DetectedFace,
   type PixelFrame,
 } from '../features/local-optics/opticsMetrics';
+import { exportLog, exportPair } from '../features/local-optics/opticsExport';
 
 // SIMULATED inputs: geometric landmark sets and synthetic pixel frames. They test the arithmetic
 // and the honesty rules, not the landmark model or a real camera.
@@ -294,5 +295,28 @@ describe('comparing two captures', () => {
     const c = compareCaptures(none, none);
     expect(c.overall).toBe('not_comparable');
     expect(c.rows.some((r) => r.status === 'within_experimental_tolerance')).toBe(false);
+  });
+});
+
+describe('orientation and numeric export', () => {
+  it('a change of frame size or orientation makes the pair not comparable', () => {
+    const a = steady();
+    const b = { ...steady(), frameSize: { width: H, height: W } };
+    const c = compareCaptures(a, b);
+    expect(c.overall).toBe('not_comparable');
+    expect(c.reasons).toContain(`Frame size or orientation changed (${W}×${H} → ${H}×${W})`);
+  });
+
+  it('the export holds numbers and labels only: no pixels, landmarks or device identifiers', () => {
+    const a = steady();
+    const b = steady({ rollDeg: 3 });
+    const withIds = { ...b, camera: { settings: { width: 640, facingMode: 'user' } } };
+    const pair = exportPair('  A01 repeat  ', compareCaptures(a, withIds), a, withIds, new Date('2026-11-04T12:00:00Z'));
+    const json = JSON.stringify(exportLog([pair], compareCaptures(a, withIds), null, 'test-agent'));
+    expect(pair.label).toBe('A01 repeat');
+    expect(pair.rows.find((r) => r.property === 'Roll')?.difference).toBeCloseTo(3, 1);
+    expect(json).not.toMatch(/data:|blob:|"points"|"data"|deviceId|groupId|"x":/);
+    expect(json.length).toBeLessThan(20_000);
+    expect(JSON.parse(json)).toMatchObject({ exportVersion: 'fv-local-optics-export-0.1', pairs: [{ label: 'A01 repeat' }] });
   });
 });

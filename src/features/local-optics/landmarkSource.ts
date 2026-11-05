@@ -7,8 +7,17 @@ import type { LandmarkFrame } from './opticsMetrics';
  * same-origin static files (see scripts/prepare-local-optics-assets.mjs), loaded only when the
  * person asks.
  */
+export interface LandmarkerInitReport {
+  delegate: 'GPU' | 'CPU';
+  requestedDelegate: 'auto' | 'CPU';
+  /** Why the GPU delegate failed, when the CPU fallback was used. */
+  gpuFailure: string | null;
+  initMs: number;
+}
+
 export interface FaceLandmarkSource {
   readonly name: string;
+  readonly init?: LandmarkerInitReport;
   detect(video: HTMLVideoElement, timestampMs: number): LandmarkFrame;
   close(): void;
 }
@@ -50,6 +59,7 @@ export interface LandmarkerLoaderDeps {
   importVision: () => Promise<MediaPipeVision>;
   fetchBytes: (url: string) => Promise<ArrayBuffer>;
   digestHex: (bytes: ArrayBuffer) => Promise<string>;
+  now?: () => number;
 }
 
 const browserLoaderDeps: LandmarkerLoaderDeps = {
@@ -68,7 +78,10 @@ const browserLoaderDeps: LandmarkerLoaderDeps = {
 export async function loadMediaPipeLandmarker(
   paths: LandmarkerAssets = landmarkerAssets(),
   deps: LandmarkerLoaderDeps = browserLoaderDeps,
+  requestedDelegate: 'auto' | 'CPU' = 'auto',
 ): Promise<FaceLandmarkSource> {
+  const now = deps.now ?? (() => performance.now());
+  const started = now();
   // Fetch and verify the model before any runtime work, so a wrong file never reaches inference.
   const modelBytes = await deps.fetchBytes(paths.model);
   const digest = await deps.digestHex(modelBytes);
@@ -85,16 +98,24 @@ export async function loadMediaPipeLandmarker(
     outputFaceBlendshapes: false,
   });
   let landmarker: MediaPipeLandmarker;
-  let delegate: 'GPU' | 'CPU' = 'GPU';
-  try {
-    landmarker = await vision.FaceLandmarker.createFromOptions(fileset, options('GPU'));
-  } catch {
-    delegate = 'CPU';
+  let delegate: 'GPU' | 'CPU' = requestedDelegate === 'CPU' ? 'CPU' : 'GPU';
+  let gpuFailure: string | null = null;
+  if (delegate === 'GPU') {
+    try {
+      landmarker = await vision.FaceLandmarker.createFromOptions(fileset, options('GPU'));
+    } catch (error) {
+      gpuFailure = error instanceof Error ? error.message : String(error);
+      delegate = 'CPU';
+      landmarker = await vision.FaceLandmarker.createFromOptions(fileset, options('CPU'));
+    }
+  } else {
     landmarker = await vision.FaceLandmarker.createFromOptions(fileset, options('CPU'));
   }
+  const init: LandmarkerInitReport = { delegate, requestedDelegate, gpuFailure, initMs: Math.round(now() - started) };
   let closed = false;
   return {
     name: `MediaPipe Face Landmarker (tasks-vision ${MEDIAPIPE_TASKS_VISION_VERSION}, ${delegate}, same-origin)`,
+    init,
     detect(video, timestampMs) {
       if (closed) throw new Error('Landmarker closed');
       const result = landmarker.detectForVideo(video, timestampMs);

@@ -186,3 +186,23 @@
     grid-template-columns: 1fr;
   }
 }
+
+.export {
+  width: 100%;
+  min-height: 140px;
+  font: 11px/1.4 var(--fv-font-mono, monospace);
+  border: 1px solid #d8d0c3;
+  border-radius: 6px;
+  padding: 6px;
+  background: #fff;
+  color: #1f1b16;
+}
+
+.controls input {
+  flex: 1 1 160px;
+  min-height: 40px;
+  padding: 0 10px;
+  border: 1px solid #1f1b16;
+  border-radius: 8px;
+  font: inherit;
+}

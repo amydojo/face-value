@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { loadMediaPipeLandmarker, LOCAL_OPTICS_MODEL, MEDIAPIPE_TASKS_VISION_VERSION } from './landmarkSource';
 import {
   compareCaptures,
@@ -16,6 +16,7 @@ import {
   type OpticsCapture,
   type OpticsSessionDeps,
 } from './opticsSession';
+import { exportLog, exportPair, type ExportedPair } from './opticsExport';
 import styles from './LocalOptics.module.css';
 
 type ModelState = { kind: 'off' } | { kind: 'loading' } | { kind: 'ready'; name: string } | { kind: 'failed'; message: string };
@@ -150,10 +151,54 @@ function CaptureFacts({ measurement: m }: { measurement: CaptureMeasurement }) {
   );
 }
 
+function Diagnostics(props: {
+  camera: string;
+  permission: string;
+  webgl2: string;
+  settings: Record<string, string | number | boolean> | null;
+  frame: { width: number; height: number } | null;
+  init: { delegate: string; requestedDelegate: string; gpuFailure: string | null; initMs: number } | null;
+  requestedDelegate: 'auto' | 'CPU';
+  backgroundPauses: number;
+}) {
+  const { settings, frame, init } = props;
+  const rows: Array<[string, string]> = [
+    ['Secure context (HTTPS)', globalThis.isSecureContext ? 'yes' : 'NO: the camera will be refused'],
+    ['Camera API', typeof navigator.mediaDevices?.getUserMedia === 'function' ? 'available' : 'unavailable'],
+    ['Camera permission', props.permission],
+    ['Camera', props.camera === 'paused' ? 'paused while the page was in the background' : props.camera],
+    ['Facing mode', settings ? String(settings.facingMode ?? 'not reported') : '—'],
+    [
+      'Frame',
+      frame && frame.width
+        ? `${frame.width}×${frame.height} ${frame.height > frame.width ? 'portrait' : 'landscape'}${settings?.frameRate ? ` · ${Number(settings.frameRate).toFixed(0)} fps` : ''}`
+        : '—',
+    ],
+    ['WebGL2', props.webgl2],
+    ['Delegate requested', props.requestedDelegate === 'CPU' ? 'CPU (?delegate=cpu)' : 'GPU, CPU fallback'],
+    ['Delegate in use', init ? `${init.delegate}${init.gpuFailure ? ` (GPU failed: ${init.gpuFailure})` : ''}` : '—'],
+    ['Model initialisation', init ? `${init.initMs} ms` : '—'],
+    ['Background pauses', String(props.backgroundPauses)],
+  ];
+  return (
+    <section className={styles.card} aria-label="Device diagnostics" data-local-optics-diagnostics>
+      <h2>Device diagnostics</h2>
+      <dl className={styles.settings}>
+        {rows.map(([k, v]) => (
+          <div key={k} data-diagnostic={k}>
+            <dt>{k}</dt>
+            <dd>{v}</dd>
+          </div>
+        ))}
+      </dl>
+    </section>
+  );
+}
+
 export function LocalOptics({ deps }: { deps?: OpticsSessionDeps } = {}) {
   const video = useRef<HTMLVideoElement>(null);
   const [session, setSession] = useState<OpticsSession | null>(null);
-  const [camera, setCamera] = useState<'off' | 'starting' | 'on' | 'failed'>('off');
+  const [camera, setCamera] = useState<'off' | 'starting' | 'on' | 'failed' | 'paused' | 'interrupted'>('off');
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [model, setModel] = useState<ModelState>({ kind: 'off' });
   const [busy, setBusy] = useState<Slot | null>(null);
@@ -161,16 +206,40 @@ export function LocalOptics({ deps }: { deps?: OpticsSessionDeps } = {}) {
   const [captures, setCaptures] = useState<Record<Slot, OpticsCapture | null>>({ baseline: null, comparison: null });
 
   const [generation, setGeneration] = useState(0);
+  const [backgroundPauses, setBackgroundPauses] = useState(0);
+  const [permission, setPermission] = useState<string>('not checked');
+  const [label, setLabel] = useState('');
+  const [log, setLog] = useState<ExportedPair[]>([]);
+  const [copyState, setCopyState] = useState<string | null>(null);
+  const [captureError, setCaptureError] = useState<string | null>(null);
+  // ?delegate=cpu skips the GPU attempt, for comparing delegates on a device.
+  const requestedDelegate = useMemo<'auto' | 'CPU'>(
+    () => (new URLSearchParams(globalThis.location?.search ?? '').get('delegate') === 'cpu' ? 'CPU' : 'auto'),
+    [],
+  );
+  const webgl2 = useMemo(() => {
+    try {
+      const canvas = document.createElement('canvas');
+      const gl = canvas.getContext('webgl2');
+      gl?.getExtension('WEBGL_lose_context')?.loseContext();
+      return gl ? 'available' : 'unavailable';
+    } catch {
+      return 'unavailable';
+    }
+  }, []);
 
   // One session per mount; StrictMode's remount gets a fresh one and the old one is disposed.
   // Leaving the page (pagehide) also releases the camera and model, then starts a clean session.
   useEffect(() => {
-    const next = new OpticsSession(deps ?? browserOpticsDeps(() => loadMediaPipeLandmarker()));
+    const next = new OpticsSession(
+      deps ?? browserOpticsDeps(() => loadMediaPipeLandmarker(undefined, undefined, requestedDelegate)),
+    );
     setSession(next);
     setCamera('off');
     setCameraError(null);
     setModel({ kind: 'off' });
     setCaptures({ baseline: null, comparison: null });
+    setLog([]);
     const onPageHide = () => {
       next.dispose(); // synchronously: the page may not render again before it is hidden
       setGeneration((g) => g + 1);
@@ -180,7 +249,42 @@ export function LocalOptics({ deps }: { deps?: OpticsSessionDeps } = {}) {
       window.removeEventListener('pagehide', onPageHide);
       next.dispose();
     };
-  }, [deps, generation]);
+  }, [deps, generation, requestedDelegate]);
+
+  // Backgrounding (app switch, lock screen) stops the camera; the model stays loaded. iOS may
+  // also end the track itself, which startCamera reports as 'interrupted'.
+  useEffect(() => {
+    if (!session) return;
+    const onVisibility = () => {
+      if (document.visibilityState === 'hidden' && session.cameraActive) {
+        session.stopCamera();
+        setCamera('paused');
+        setBackgroundPauses((n) => n + 1);
+      }
+    };
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => document.removeEventListener('visibilitychange', onVisibility);
+  }, [session]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const permissions = (navigator as Navigator & { permissions?: Permissions }).permissions;
+    if (!permissions?.query) {
+      setPermission('not exposed by this browser');
+      return;
+    }
+    permissions
+      .query({ name: 'camera' as PermissionName })
+      .then((status) => {
+        if (!cancelled) setPermission(status.state);
+      })
+      .catch(() => {
+        if (!cancelled) setPermission('not exposed by this browser');
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [camera]);
 
   // Live readout: one real model reading about four times a second, only while the camera and
   // model are both running. Nothing is kept; each reading replaces the last.
@@ -217,7 +321,7 @@ export function LocalOptics({ deps }: { deps?: OpticsSessionDeps } = {}) {
     setCamera('starting');
     setCameraError(null);
     try {
-      const result = await session.startCamera(video.current);
+      const result = await session.startCamera(video.current, () => setCamera('interrupted'));
       if (result.ok) setCamera('on');
       else {
         setCamera('failed');
@@ -242,12 +346,15 @@ export function LocalOptics({ deps }: { deps?: OpticsSessionDeps } = {}) {
   const capture = async (slot: Slot) => {
     if (!video.current || !session) return;
     setBusy(slot);
+    setCaptureError(null);
     try {
       const next = await session.capture(video.current);
       setCaptures((current) => {
         session.releaseCanvas(current[slot]?.snapshot);
         return { ...current, [slot]: next };
       });
+    } catch (error) {
+      setCaptureError(error instanceof Error ? error.message : 'Capture failed');
     } finally {
       setBusy(null);
     }
@@ -279,7 +386,7 @@ export function LocalOptics({ deps }: { deps?: OpticsSessionDeps } = {}) {
         <video ref={video} className={styles.preview} muted playsInline aria-label="Camera preview" />
         <div className={styles.controls}>
           <button type="button" onClick={startCamera} disabled={!session || camera === 'on' || camera === 'starting'}>
-            {camera === 'on' ? 'Camera on' : camera === 'starting' ? 'Starting…' : 'Start camera'}
+            {camera === 'on' ? 'Camera on' : camera === 'starting' ? 'Starting…' : camera === 'off' ? 'Start camera' : 'Restart camera'}
           </button>
           <button type="button" onClick={loadModel} disabled={!session || model.kind === 'loading' || model.kind === 'ready'}>
             {model.kind === 'ready' ? 'Landmarks loaded' : model.kind === 'loading' ? 'Loading landmarks…' : 'Load face landmarks'}
@@ -312,6 +419,7 @@ export function LocalOptics({ deps }: { deps?: OpticsSessionDeps } = {}) {
               : model.kind === 'loading'
                 ? 'loading'
                 : 'not loaded'}
+          {captureError ? ` · Capture failed: ${captureError}` : ''}
         </p>
         <p className={styles.muted}>
           Loading landmarks fetches MediaPipe Tasks Vision {MEDIAPIPE_TASKS_VISION_VERSION} and{' '}
@@ -319,6 +427,17 @@ export function LocalOptics({ deps }: { deps?: OpticsSessionDeps } = {}) {
           frame is sent anywhere.
         </p>
       </section>
+
+      <Diagnostics
+        camera={camera}
+        permission={permission}
+        webgl2={webgl2}
+        settings={camera === 'on' ? (session?.cameraSettings() ?? null) : null}
+        frame={camera === 'on' && video.current ? { width: video.current.videoWidth, height: video.current.videoHeight } : null}
+        init={model.kind === 'ready' ? (session?.modelInit ?? null) : null}
+        requestedDelegate={requestedDelegate}
+        backgroundPauses={backgroundPauses}
+      />
 
       <div className={styles.captures}>
         <CaptureCard label="Baseline" capture={captures.baseline} />
@@ -365,6 +484,74 @@ export function LocalOptics({ deps }: { deps?: OpticsSessionDeps } = {}) {
             Not assessed: {comparison.notAssessed.join('; ')}. Tolerances {EXPERIMENTAL_TOLERANCES.version} are exploratory
             and unvalidated.
           </p>
+          <div className={styles.controls} data-local-optics-export>
+            <input
+              aria-label="Pair label"
+              placeholder="Pair label, e.g. A01 repeat"
+              value={label}
+              maxLength={40}
+              onChange={(event) => setLabel(event.target.value)}
+            />
+            <button
+              type="button"
+              onClick={() => {
+                if (captures.baseline && captures.comparison) {
+                  const pair = exportPair(label, comparison, captures.baseline.measurement, captures.comparison.measurement);
+                  setLog((current) => [...current, pair]);
+                  setLabel('');
+                  setCopyState(null);
+                }
+              }}
+            >
+              Add pair to log
+            </button>
+          </div>
+        </section>
+      )}
+
+      {log.length > 0 && (
+        <section className={styles.card} aria-label="Numeric log" data-local-optics-log={log.length}>
+          <h2>Numeric log · {log.length} pair{log.length === 1 ? '' : 's'}</h2>
+          <p className={styles.muted}>
+            Numbers only: no images, landmarks or device identifiers. Kept in this tab until you clear it or leave the
+            page. Nothing is sent; copy it out yourself.
+          </p>
+          <textarea
+            className={styles.export}
+            readOnly
+            aria-label="Numeric log JSON"
+            value={JSON.stringify(
+              exportLog(
+                log,
+                comparison ?? { metricsVersion: LOCAL_OPTICS_METRICS_VERSION, tolerancesVersion: EXPERIMENTAL_TOLERANCES.version },
+                session?.modelInit ?? null,
+                navigator.userAgent,
+              ),
+              null,
+              2,
+            )}
+            onFocus={(event) => event.currentTarget.select()}
+          />
+          <div className={styles.controls}>
+            <button
+              type="button"
+              onClick={async () => {
+                const text = (document.querySelector('[aria-label="Numeric log JSON"]') as HTMLTextAreaElement | null)?.value ?? '';
+                try {
+                  await navigator.clipboard.writeText(text);
+                  setCopyState('Copied');
+                } catch {
+                  setCopyState('Copy failed: select the text above and copy it');
+                }
+              }}
+            >
+              Copy log
+            </button>
+            <button type="button" onClick={() => setLog([])}>
+              Clear log
+            </button>
+          </div>
+          {copyState && <p className={styles.muted}>{copyState}</p>}
         </section>
       )}
 

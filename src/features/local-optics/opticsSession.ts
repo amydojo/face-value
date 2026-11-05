@@ -97,11 +97,19 @@ export class OpticsSession {
     return this.landmarks?.name ?? null;
   }
 
+  get modelInit() {
+    return this.landmarks?.init ?? null;
+  }
+
   get cameraActive(): boolean {
     return this.stream !== null;
   }
 
-  async startCamera(video: HTMLVideoElement): Promise<CameraRequestResult> {
+  /**
+   * Starts the camera. `onEnded` fires if the browser ends the track itself (iOS does this when
+   * another app takes the camera or the page is interrupted).
+   */
+  async startCamera(video: HTMLVideoElement, onEnded?: () => void): Promise<CameraRequestResult> {
     const result = await this.deps.requestCamera();
     if (!result.ok) return result;
     if (this.disposed) {
@@ -109,6 +117,14 @@ export class OpticsSession {
       return { ok: false, reason: 'unknown' };
     }
     this.stream = result.stream;
+    const stream = result.stream;
+    for (const track of stream.getVideoTracks()) {
+      track.addEventListener?.('ended', () => {
+        if (this.stream !== stream) return;
+        this.stopCamera();
+        onEnded?.();
+      });
+    }
     this.deps.attach(video, result.stream);
     await this.deps.waitForFrame(video);
     return result;
@@ -125,11 +141,22 @@ export class OpticsSession {
     return source.name;
   }
 
+  /** The next animation frame; rejects if the frame is cancelled, so a capture never hangs. */
   private frame(): Promise<number> {
     const next = this.deps.nextFrame();
-    this.pendingFrame = next;
-    return next.promise.finally(() => {
-      if (this.pendingFrame === next) this.pendingFrame = null;
+    let stop!: (error: Error) => void;
+    const cancelled = new Promise<never>((_, reject) => {
+      stop = reject;
+    });
+    const pending = {
+      cancel: () => {
+        next.cancel();
+        stop(new Error('Capture stopped'));
+      },
+    };
+    this.pendingFrame = pending;
+    return Promise.race([next.promise, cancelled]).finally(() => {
+      if (this.pendingFrame === pending) this.pendingFrame = null;
     });
   }
 
@@ -194,6 +221,7 @@ export class OpticsSession {
       for (let i = 0; i < frames; i += 1) {
         const timestamp = await this.frame();
         if (this.disposed) throw new Error('Session closed');
+        if (this.stream !== stream) throw new Error('Capture stopped');
         // Unmirrored pixels, as the camera delivered them.
         context.drawImage(video, 0, 0, width, height);
         const image = context.getImageData(0, 0, width, height);
@@ -209,6 +237,19 @@ export class OpticsSession {
     const measurement = measureCapture(samples, cameraReport(stream));
     const last = samples.at(-1)?.landmarks;
     return { measurement, snapshot: work, faces: last?.faces ?? [] };
+  }
+
+  /** Releases the camera but keeps the landmark model, e.g. while the page is in the background. */
+  stopCamera(): void {
+    this.pendingFrame?.cancel();
+    this.pendingFrame = null;
+    releaseStream(this.stream);
+    this.stream = null;
+  }
+
+  /** Camera settings as the browser reports them for the running track (no device identifiers). */
+  cameraSettings(): CameraReport['settings'] | null {
+    return this.stream ? cameraReport(this.stream).settings : null;
   }
 
   dispose(): void {

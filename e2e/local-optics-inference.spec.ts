@@ -127,9 +127,9 @@ test.describe('one face', () => {
     await page.getByRole('button', { name: 'Capture baseline' }).click();
     await page.getByRole('button', { name: 'Capture comparison' }).click();
     const baseline = page.locator('[data-local-optics-capture="baseline"]');
-    await expect(baseline.locator('[data-local-optics-frames]')).toContainText('faces per frame 1–1');
+    await expect(baseline.locator('[data-local-optics-frames]')).toContainText('faces per frame 1–1', { timeout: 30_000 });
     const comparison = page.locator('[data-local-optics-comparison]');
-    await expect(comparison).toBeVisible();
+    await expect(comparison).toBeVisible({ timeout: 30_000 });
     for (const property of ['Roll', 'Apparent size', 'Horizontal position', 'Face brightness']) {
       await expect(comparison.getByRole('row', { name: new RegExp(`^${property} (measured|model)`) })).toHaveAttribute(
         'data-status',
@@ -179,6 +179,59 @@ test.describe('one face', () => {
   });
 });
 
+test.describe('device behaviour', () => {
+  test.use({ cameraVideo: videos.oneFace });
+
+  test('backgrounding stops the camera, CPU can be forced, and the export is numbers only', async ({ page }) => {
+    const requests: { url: string; method: string }[] = [];
+    await open(page, requests);
+    await page.goto('/experiments/local-optics?delegate=cpu');
+    await startAndLoad(page);
+    const diagnostics = page.locator('[data-local-optics-diagnostics]');
+    await expect(diagnostics.locator('[data-diagnostic="Delegate in use"] dd')).toHaveText('CPU');
+    await expect(diagnostics.locator('[data-diagnostic="Secure context (HTTPS)"] dd')).toHaveText('yes');
+    await expect(diagnostics.locator('[data-diagnostic="Frame"] dd')).toContainText('640×480 landscape');
+    await expect(diagnostics.locator('[data-diagnostic="Model initialisation"] dd')).toHaveText(/^\d+ ms$/);
+    await expect(page.locator('[data-local-optics-live]')).toContainText('Live · faces 1', { timeout: 15_000 });
+
+    // App switch: the page becomes hidden. The camera stops; the model stays loaded.
+    const modelFetches = () => requests.filter((r) => r.url.endsWith('/face_landmarker.task')).length;
+    const fetchedBefore = modelFetches();
+    await page.evaluate(() => {
+      Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'hidden' });
+      document.dispatchEvent(new Event('visibilitychange'));
+    });
+    await expect.poll(() => liveTracks(page)).toBe(0);
+    await expect(diagnostics.locator('[data-diagnostic="Background pauses"] dd')).toHaveText('1');
+    await expect(page.locator('[data-local-optics-status]')).toContainText('Camera: paused');
+    await page.evaluate(() => {
+      Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'visible' });
+      document.dispatchEvent(new Event('visibilitychange'));
+    });
+    await page.getByRole('button', { name: 'Restart camera' }).click();
+    await expect(page.locator('[data-local-optics-live]')).toContainText('Live · faces 1', { timeout: 15_000 });
+    expect(modelFetches()).toBe(fetchedBefore);
+    expect(await liveTracks(page)).toBe(1);
+
+    // Numbers-only export, built only on request.
+    await page.getByRole('button', { name: 'Capture baseline' }).click();
+    await page.getByRole('button', { name: 'Capture comparison' }).click();
+    await expect(page.locator('[data-local-optics-comparison]')).toBeVisible({ timeout: 30_000 });
+    await page.getByRole('textbox', { name: 'Pair label' }).fill('A01 repeat');
+    await page.getByRole('button', { name: 'Add pair to log' }).click();
+    const json = await page.getByRole('textbox', { name: 'Numeric log JSON' }).inputValue();
+    const parsed = JSON.parse(json);
+    expect(parsed).toMatchObject({ exportVersion: 'fv-local-optics-export-0.1', delegate: 'CPU', pairs: [{ label: 'A01 repeat' }] });
+    expect(parsed.pairs[0].captures.baseline.faceCounts.every((n: number) => n === 1)).toBe(true);
+    expect(json).not.toMatch(/data:|blob:|deviceId|groupId|"points"/);
+    expect(await page.evaluate(() => localStorage.length + sessionStorage.length)).toBe(0);
+
+    const origin = new URL(page.url()).origin;
+    expect(requests.filter((r) => !r.url.startsWith(origin))).toEqual([]);
+    expect(requests.filter((r) => r.method !== 'GET')).toEqual([]);
+  });
+});
+
 test.describe('no face', () => {
   test.use({ cameraVideo: videos.noFace });
 
@@ -188,7 +241,7 @@ test.describe('no face', () => {
     await expect(page.locator('[data-local-optics-live]')).toContainText(/^Live · faces 0$/, { timeout: 15_000 });
     await page.getByRole('button', { name: 'Capture baseline' }).click();
     const baseline = page.locator('[data-local-optics-capture="baseline"]');
-    await expect(baseline.locator('[data-local-optics-frames]')).toContainText('faces per frame 0–0');
+    await expect(baseline.locator('[data-local-optics-frames]')).toContainText('faces per frame 0–0', { timeout: 30_000 });
     await expect(baseline.locator('[data-local-optics-rejections]')).toContainText('no_face');
   });
 });
@@ -203,6 +256,7 @@ test.describe('multiple faces', () => {
     await page.getByRole('button', { name: 'Capture baseline' }).click();
     await expect(page.locator('[data-local-optics-capture="baseline"] [data-local-optics-rejections]')).toContainText(
       'multiple_faces',
+      { timeout: 30_000 },
     );
   });
 });

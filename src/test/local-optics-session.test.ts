@@ -111,9 +111,35 @@ describe('optics session resources', () => {
     session.dispose();
     expect(pendingCancel).toHaveBeenCalled();
     expect(f.track.stop).toHaveBeenCalled();
-    f.pending[0].resolve(1);
-    await expect(capturing).rejects.toThrow('Session closed');
+    // Cancelling the frame rejects the capture at once; it never waits for a frame that won't come.
+    await expect(capturing).rejects.toThrow('Capture stopped');
     expect(f.canvases.every((c) => c.width === 0)).toBe(true);
+  });
+
+  it('stopCamera releases only the camera; the model stays loaded', async () => {
+    const f = fakes();
+    const session = new OpticsSession(f.deps);
+    await session.startCamera(f.video);
+    await session.loadLandmarks();
+    session.stopCamera();
+    expect(f.track.stop).toHaveBeenCalledTimes(1);
+    expect(f.source.close).not.toHaveBeenCalled();
+    expect(session.cameraActive).toBe(false);
+    await expect(session.capture(f.video, 5)).rejects.toThrow('Camera is not running');
+    session.dispose();
+  });
+
+  it('a track ended by the browser stops the camera and is reported', async () => {
+    const f = fakes();
+    const listeners: Record<string, () => void> = {};
+    Object.assign(f.track, { addEventListener: (type: string, fn: () => void) => (listeners[type] = fn) });
+    const session = new OpticsSession(f.deps);
+    const onEnded = vi.fn();
+    await session.startCamera(f.video, onEnded);
+    listeners.ended();
+    expect(onEnded).toHaveBeenCalledTimes(1);
+    expect(session.cameraActive).toBe(false);
+    session.dispose();
   });
 
   it('a camera granted after dispose is stopped immediately', async () => {
@@ -207,6 +233,20 @@ describe('landmark model loading (fake runtime)', () => {
     source.close();
     expect(r.close).toHaveBeenCalledTimes(1);
     expect(() => source.detect({} as HTMLVideoElement, 2)).toThrow('Landmarker closed');
+  });
+
+  it('reports the delegate, the GPU failure reason, and initialisation time', async () => {
+    const r = runtime({ gpuFails: true });
+    let t = 100;
+    const source = await loadMediaPipeLandmarker(landmarkerAssets(), { ...deps(r.vision), now: () => (t += 40) });
+    expect(source.init).toEqual({ delegate: 'CPU', requestedDelegate: 'auto', gpuFailure: 'no webgl', initMs: 40 });
+  });
+
+  it('?delegate=cpu skips the GPU attempt entirely', async () => {
+    const r = runtime();
+    const source = await loadMediaPipeLandmarker(landmarkerAssets(), deps(r.vision), 'CPU');
+    expect(r.created.map((o) => (o.baseOptions as { delegate: string }).delegate)).toEqual(['CPU']);
+    expect(source.init).toMatchObject({ delegate: 'CPU', requestedDelegate: 'CPU', gpuFailure: null });
   });
 
   it('refuses a model whose hash does not match, before loading the runtime', async () => {

@@ -549,7 +549,14 @@ export function compareCaptures(a: CaptureMeasurement, b: CaptureMeasurement): C
   for (const r of rows) if (r.status === 'outside_experimental_tolerance') reasons.push(`${r.property} outside experimental tolerance`);
   const missingRequired = rows.filter((r) => REQUIRED.includes(r.property) && r.status === 'not_measured');
   for (const r of missingRequired) reasons.push(`${r.property} not measured`);
-  const rejected = a.rejections.length > 0 || b.rejections.length > 0;
+  // A rotated or resized frame changes what every geometric value means.
+  const frameChanged = a.frameSize.width !== b.frameSize.width || a.frameSize.height !== b.frameSize.height;
+  if (frameChanged) {
+    reasons.push(
+      `Frame size or orientation changed (${a.frameSize.width}×${a.frameSize.height} → ${b.frameSize.width}×${b.frameSize.height})`,
+    );
+  }
+  const rejected = a.rejections.length > 0 || b.rejections.length > 0 || frameChanged;
   const outside = rows.some((r) => r.status === 'outside_experimental_tolerance');
   return {
     metricsVersion: LOCAL_OPTICS_METRICS_VERSION,
