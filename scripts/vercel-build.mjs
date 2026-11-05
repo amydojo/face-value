@@ -7,10 +7,16 @@ import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 export const EXPERIMENT_BRANCH = 'experiment/local-optical-comparability';
+// face-value-optics-lab: a separate, Vercel-Authentication-protected project with no provider
+// credentials. It is not linked to Git, so API deployments into it are production-targeted; any
+// deployment of the experiment branch there is the experiment. Never the face-value project.
+export const OPTICS_LAB_PROJECT_ID = 'prj_LqZsxoGOjWRLSTLRbAJkyDqAgavI';
 
 export function buildPlan(env) {
   const experiment =
-    env.VERCEL === '1' && env.VERCEL_ENV === 'preview' && env.VERCEL_GIT_COMMIT_REF === EXPERIMENT_BRANCH;
+    env.VERCEL === '1' &&
+    env.VERCEL_GIT_COMMIT_REF === EXPERIMENT_BRANCH &&
+    (env.VERCEL_ENV === 'preview' || env.VERCEL_PROJECT_ID === OPTICS_LAB_PROJECT_ID);
   if (!experiment) return { experiment: false, steps: ['npm run build'], env: {} };
   const model = env.LOCAL_OPTICS_MODEL_PATH ? ` -- --model ${JSON.stringify(env.LOCAL_OPTICS_MODEL_PATH)}` : '';
   return {
