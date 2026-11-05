@@ -4,6 +4,11 @@
   "installCommand": "npm install --no-audit --no-fund",
   "buildCommand": "node scripts/vercel-build.mjs",
   "outputDirectory": "dist",
+  "git": {
+    "deploymentEnabled": {
+      "experiment/local-optical-comparability": false
+    }
+  },
   "routes": [
     {
       "src": "/calibration/redness/?",

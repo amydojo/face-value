@@ -16,6 +16,13 @@ describe('Vercel build plan', () => {
     expect(config.buildCommand).toBe('node scripts/vercel-build.mjs');
   });
 
+  it('pushing the experiment branch never auto-deploys it from Git (deploys are explicit)', () => {
+    const config = JSON.parse(readFileSync(resolve(process.cwd(), 'vercel.json'), 'utf8')) as {
+      git?: { deploymentEnabled?: Record<string, boolean> };
+    };
+    expect(config.git?.deploymentEnabled).toEqual({ [BRANCH]: false });
+  });
+
   it('production, other previews and local builds are the standard build', () => {
     for (const env of <Array<Record<string, string | undefined>>>[
       { VERCEL: '1', VERCEL_ENV: 'production', VERCEL_GIT_COMMIT_REF: 'main' },
