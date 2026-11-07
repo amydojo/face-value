@@ -173,6 +173,77 @@ describe('optics session resources', () => {
   });
 });
 
+describe('guided capture support', () => {
+  /** A 478-point face: an oval of points, outer eye corners 0.3 of the width apart. */
+  const face = (shiftX = 0) => {
+    const points = Array.from({ length: 478 }, (_, i) => ({
+      x: 0.5 + shiftX + 0.18 * Math.cos((i / 478) * 2 * Math.PI),
+      y: 0.47 + 0.22 * Math.sin((i / 478) * 2 * Math.PI),
+      z: 0,
+    }));
+    points[33] = { x: 0.35 + shiftX, y: 0.42, z: 0 };
+    points[263] = { x: 0.65 + shiftX, y: 0.42, z: 0 };
+    return { points, matrix: null };
+  };
+
+  it('live observations report framing, landmark speed and face light, keeping only the previous landmarks', async () => {
+    const f = fakes();
+    const session = new OpticsSession(f.deps);
+    await session.startCamera(f.video);
+    await session.loadLandmarks();
+    f.source.detect.mockReturnValueOnce({ faces: [face()] }).mockReturnValueOnce({ faces: [face(0.01)] });
+    const first = session.liveObservation(f.video, 1000)!;
+    expect(first.faceCount).toBe(1);
+    expect(first.speed).toBeNull(); // no previous reading yet
+    expect(first.face).toMatchObject({ centerX: expect.closeTo(0.5, 3), interocular: expect.closeTo(0.3, 5), outOfFrame: false });
+    expect(first.light).toMatchObject({ faceLuma: 128, clipped: 0 });
+    const second = session.liveObservation(f.video, 1100)!;
+    // Every landmark moved 0.01 of 1280 px = 12.8 px in 100 ms; 384 px between the eye corners.
+    expect(second.speed).toBeCloseTo(12.8 / 384 / 0.1, 3);
+    // The light sample is small and reused, and released with the camera.
+    const lightCanvases = f.canvases.filter((c) => c.width === 160);
+    expect(lightCanvases).toHaveLength(1);
+    session.stopCamera();
+    expect(lightCanvases[0].width).toBe(0);
+    session.dispose();
+  });
+
+  it('a lost face clears the speed reference; none is returned while a burst runs', async () => {
+    const f = fakes();
+    const session = new OpticsSession(f.deps);
+    await session.startCamera(f.video);
+    await session.loadLandmarks();
+    f.source.detect.mockReturnValueOnce({ faces: [face()] }).mockReturnValueOnce({ faces: [] }).mockReturnValueOnce({ faces: [face(0.2)] });
+    session.liveObservation(f.video, 1000);
+    expect(session.liveObservation(f.video, 1100)).toMatchObject({ faceCount: 0, face: null, speed: null });
+    expect(session.liveObservation(f.video, 1200)!.speed).toBeNull();
+    const burst = session.capture(f.video, 3);
+    expect(session.busy).toBe(true);
+    expect(session.liveObservation(f.video, 1300)).toBeNull();
+    await expect(session.capture(f.video, 3)).rejects.toThrow('A capture is already running');
+    await f.run(burst);
+    expect(session.busy).toBe(false);
+    session.dispose();
+  });
+
+  it('reports burst progress and refuses a burst whose frame size changes (rotation)', async () => {
+    const f = fakes();
+    const session = new OpticsSession(f.deps);
+    await session.startCamera(f.video);
+    const progress: number[] = [];
+    await f.run(session.capture(f.video, 4, (done) => progress.push(done)));
+    expect(progress).toEqual([1, 2, 3, 4]);
+
+    const rotating = session.capture(f.video, 6, (done) => {
+      if (done === 2) Object.assign(f.video, { videoWidth: 720, videoHeight: 1280 });
+    });
+    const outcome = await f.run(rotating.then(() => null, (error: Error) => error));
+    expect(outcome?.message).toBe('Camera orientation changed');
+    expect(session.busy).toBe(false);
+    session.dispose();
+  });
+});
+
 describe('landmark model loading (fake runtime)', () => {
   const MODEL = new Uint8Array([1, 2, 3]).buffer;
 
