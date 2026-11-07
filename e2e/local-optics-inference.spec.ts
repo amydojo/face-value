@@ -1,262 +1,257 @@
-import { execFileSync } from 'node:child_process';
-import { existsSync, mkdirSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
-import { expect, test as base, type Page } from '@playwright/test';
+import { faceVideo, noFaceVideo, twoFacesVideo } from './local-optics-videos';
+import {
+  expect,
+  expectSameOriginGets,
+  instruction,
+  liveTracks,
+  open,
+  requestsOf,
+  root,
+  scans,
+  setVisibility,
+  skipUnlessRealModel,
+  startNext,
+  test,
+  waitForGuide,
+  waitForPhase,
+} from './local-optics-harness';
 
-// REAL MediaPipe Face Landmarker inference on licensed still images, played into the page as
-// Chromium's camera (getUserMedia). The model, runtime and pixels are real; the "camera" is a
-// looping still image, not a person, and Chromium is not iOS Safari.
-//
-// Requires: Chromium, ffmpeg, and same-origin assets from `npm run prepare:local-optics`.
+// Guided capture with the REAL MediaPipe model on generated camera videos of a licensed still
+// (Chromium's file-backed camera). Real inference, pixels, gates and lifecycle; the "person" is a
+// moving photograph and Chromium is not iOS Safari.
 
-const FIXTURES = new URL('./fixtures/local-optics/', import.meta.url).pathname;
-const VIDEO_DIR = join(tmpdir(), 'fv-local-optics-inference');
-const ASSETS = new URL('../public/local-optics-assets/mediapipe-tasks-vision-0.10.35/face_landmarker.task', import.meta.url)
-  .pathname;
+skipUnlessRealModel();
+test.setTimeout(180_000);
 
-const videos = {
-  oneFace: join(VIDEO_DIR, 'one-face.y4m'),
-  noFace: join(VIDEO_DIR, 'no-face.y4m'),
-  twoFaces: join(VIDEO_DIR, 'two-faces.y4m'),
-};
+test.describe('steady phone', () => {
+  test.use({ cameraVideo: faceVideo('steady') });
 
-function hasFfmpeg(): boolean {
-  try {
-    execFileSync('ffmpeg', ['-version'], { stdio: 'ignore' });
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-function makeVideo(target: string, inputs: string[], filter: string) {
-  if (existsSync(target)) return;
-  mkdirSync(VIDEO_DIR, { recursive: true });
-  execFileSync(
-    'ffmpeg',
-    [
-      '-loglevel', 'error', '-y',
-      ...inputs.flatMap((input) => ['-loop', '1', '-i', join(FIXTURES, input)]),
-      '-filter_complex', filter, '-t', '1', '-r', '15', '-pix_fmt', 'yuv420p', '-f', 'yuv4mpegpipe', target,
-    ],
-    { stdio: 'inherit' },
-  );
-}
-
-const pad = 'scale=480:480,pad=640:480:80:0:color=0x808080';
-function prepareVideos() {
-  makeVideo(videos.oneFace, ['one-face-nasa-eileen-collins.png'], `[0:v]${pad}`);
-  makeVideo(videos.noFace, ['no-face-still-life.jpg'], '[0:v]scale=-2:480,pad=640:480:(ow-iw)/2:0:color=0x808080');
-  makeVideo(
-    videos.twoFaces,
-    ['one-face-nasa-eileen-collins.png', 'one-face-nasa-eileen-collins.png'],
-    // Head-and-shoulders crops: the detector is short-range, so faces must be selfie-sized.
-    '[0:v]crop=256:256:150:10,scale=320:320[a];[1:v]crop=256:256:150:10,scale=320:320[b];[a][b]hstack,pad=640:480:0:80:color=0x808080',
-  );
-}
-
-base.skip(({ browserName }) => browserName !== 'chromium', 'Needs Chromium’s file-backed camera device');
-base.skip(!existsSync(ASSETS), 'Run `npm run prepare:local-optics` first: the model assets are not prepared');
-base.skip(!hasFfmpeg(), 'ffmpeg is needed to turn the image fixtures into camera video');
-
-/** A page in a dedicated Chromium whose camera plays `video`. */
-const test = base.extend<{ cameraVideo: string; page: Page }>({
-  cameraVideo: ['', { option: true }],
-  page: async ({ playwright, launchOptions, baseURL, cameraVideo }, provide) => {
-    const browser = await playwright.chromium.launch({
-      ...launchOptions,
-      args: [
-        ...(launchOptions.args ?? []),
-        '--use-fake-device-for-media-stream',
-        '--use-fake-ui-for-media-stream',
-        `--use-file-for-fake-video-capture=${cameraVideo}`,
-      ],
-    });
-    const context = await browser.newContext({ baseURL, permissions: ['camera'] });
-    await provide(await context.newPage());
-    await browser.close();
-  },
-});
-
-async function open(page: Page, requests: { url: string; method: string }[]) {
-  await page.addInitScript(() => {
-    const tracks: MediaStreamTrack[] = [];
-    (window as unknown as { __tracks: MediaStreamTrack[] }).__tracks = tracks;
-    const original = navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
-    navigator.mediaDevices.getUserMedia = async (constraints) => {
-      const stream = await original(constraints);
-      tracks.push(...stream.getTracks());
-      return stream;
-    };
-  });
-  page.on('request', (r) => requests.push({ url: r.url(), method: r.method() }));
-  await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto('/experiments/local-optics');
-  await expect(page.getByText(/EXPERIMENTAL · UNVALIDATED/)).toBeVisible();
-}
-
-async function startAndLoad(page: Page) {
-  await page.getByRole('button', { name: 'Start camera' }).click();
-  await expect(page.locator('[data-local-optics-status]')).toContainText('Camera: on');
-  await page.getByRole('button', { name: 'Load face landmarks' }).click();
-  await expect(page.locator('[data-local-optics-status]')).toContainText(
-    /Landmarks: MediaPipe Face Landmarker \(tasks-vision 0\.10\.35, (GPU|CPU), same-origin\)/,
-    { timeout: 60_000 },
-  );
-}
-
-const liveTracks = (page: Page) =>
-  page.evaluate(() => (window as unknown as { __tracks: MediaStreamTrack[] }).__tracks.filter((t) => t.readyState === 'live').length);
-
-base.beforeAll(prepareVideos);
-
-test.describe('one face', () => {
-  test.use({ cameraVideo: videos.oneFace });
-
-  test('real model: live and captured measurements, same-origin only, clean shutdown and re-initialisation', async ({ page }) => {
-    const requests: { url: string; method: string }[] = [];
-    await open(page, requests);
-    await startAndLoad(page);
-    // React StrictMode (dev) mounted, unmounted and remounted the route: exactly one live camera track.
+  test('baseline then follow-up, captured automatically, matched, with nothing kept but numbers', async ({ page }) => {
+    await open(page);
+    await page.getByRole('button', { name: 'Start scan' }).click();
+    await waitForGuide(page);
+    await expect(page.getByText('Baseline', { exact: true })).toBeVisible();
+    // StrictMode mounted, unmounted and remounted the route: exactly one live camera track.
     expect(await liveTracks(page)).toBe(1);
 
-    const live = page.locator('[data-local-optics-live]');
-    await expect(live).toContainText(/Live · faces 1 · roll -?\d+\.\d° · yaw -?\d+\.\d° · size 0\.\d{3}/, { timeout: 15_000 });
-
-    await page.getByRole('button', { name: 'Capture baseline' }).click();
-    await page.getByRole('button', { name: 'Capture comparison' }).click();
-    const baseline = page.locator('[data-local-optics-capture="baseline"]');
-    await expect(baseline.locator('[data-local-optics-frames]')).toContainText('faces per frame 1–1', { timeout: 30_000 });
-    const comparison = page.locator('[data-local-optics-comparison]');
-    await expect(comparison).toBeVisible({ timeout: 30_000 });
-    for (const property of ['Roll', 'Apparent size', 'Horizontal position', 'Face brightness']) {
-      await expect(comparison.getByRole('row', { name: new RegExp(`^${property} (measured|model)`) })).toHaveAttribute(
-        'data-status',
-        /within_experimental_tolerance|outside_experimental_tolerance/,
-      );
-    }
-    await expect(comparison.getByRole('row', { name: /^Yaw/ })).toContainText('model estimate');
-    await page.screenshot({ path: test.info().outputPath('one-face-390x844.png'), fullPage: true });
-
-    // Every request went to this origin; the model and runtime came from the prepared assets.
-    const origin = new URL(page.url()).origin;
-    expect(requests.filter((r) => !r.url.startsWith(origin))).toEqual([]);
-    expect(requests.filter((r) => r.method !== 'GET')).toEqual([]);
-    expect(requests.some((r) => r.url.endsWith('/local-optics-assets/mediapipe-tasks-vision-0.10.35/face_landmarker.task'))).toBe(true);
-    expect(requests.some((r) => /vision_wasm_(nosimd_)?internal\.wasm$/.test(r.url))).toBe(true);
-    expect(await page.evaluate(() => sessionStorage.length)).toBe(0);
-
-    // Leaving the page stops the camera and drops the model; the next session initialises again.
-    await page.evaluate(() => window.dispatchEvent(new PageTransitionEvent('pagehide')));
+    await expect(page.locator('[data-panel="baseline"]')).toBeVisible({ timeout: 60_000 });
+    await expect(page.getByRole('heading', { name: 'Baseline captured' })).toBeVisible();
+    // The camera stops as soon as the capture is accepted.
     await expect.poll(() => liveTracks(page)).toBe(0);
-    await expect(page.locator('[data-local-optics-status]')).toContainText('Camera: off · Landmarks: not loaded');
-    await startAndLoad(page);
-    await expect(live).toContainText('Live · faces 1', { timeout: 15_000 });
-    expect(await liveTracks(page)).toBe(1);
+
+    await page.getByRole('button', { name: 'Scan follow-up' }).click();
+    await waitForGuide(page);
+    await expect(page.getByText('Follow-up', { exact: true })).toBeVisible();
+    await expect(page.locator('[data-panel="match"]')).toBeVisible({ timeout: 60_000 });
+    await expect(page.getByText('Experimental check. Not a validated comparison.')).toBeVisible();
+
+    const log = await scans(page);
+    expect(log.map((s) => [s.mode, s.outcome, s.trigger])).toEqual([
+      ['baseline', 'accepted', 'auto'],
+      ['follow_up', 'accepted', 'auto'],
+    ]);
+    expect(log[1].comparison).toBe('within_experimental_tolerances');
+    for (const scan of log) {
+      expect(scan.bursts.at(-1)).toMatchObject({ accepted: true, rejections: [], aligned: true });
+      expect(scan.acceptedMs).toBeGreaterThan(scan.firstAlignedMs!);
+    }
+
+    // Lab: the comparison is there in numbers; the analysed frame is released once done.
+    await page.getByRole('button', { name: 'Done' }).click();
+    await page.getByRole('button', { name: 'Lab' }).click();
+    const lab = page.locator('[data-local-optics-lab]');
+    await expect(lab.locator('[data-local-optics-comparison]')).toHaveAttribute('data-local-optics-comparison', 'within_experimental_tolerances');
+    await expect(lab.locator('[data-snapshot-released]')).toBeVisible();
+    await lab.getByRole('textbox', { name: 'Pair label' }).fill('A01 repeat');
+    await lab.getByRole('button', { name: 'Add pair to log' }).click();
+    const exported = await lab.getByRole('textbox', { name: 'Numeric log JSON' }).inputValue();
+    const usability = await lab.getByRole('textbox', { name: 'Usability log JSON' }).inputValue();
+    for (const json of [exported, usability, JSON.stringify(log)]) {
+      expect(json).not.toMatch(/data:|blob:|deviceId|groupId|"points"|"x":|"faceHeight"/);
+    }
+    expect(JSON.parse(exported).pairs[0]).toMatchObject({ label: 'A01 repeat', overall: 'within_experimental_tolerances' });
+
+    expectSameOriginGets(page);
+    expect(requestsOf(page).some((r) => r.url.endsWith('/face_landmarker.task'))).toBe(true);
+    expect(await page.evaluate(() => localStorage.length + sessionStorage.length)).toBe(0);
   });
 
-  test('model initialisation failure is reported and nothing is inferred', async ({ page }) => {
-    const requests: { url: string; method: string }[] = [];
-    await page.route('**/face_landmarker.task', (route) =>
-      route.fulfill({ status: 200, contentType: 'application/octet-stream', body: Buffer.alloc(1024, 7) }),
-    );
-    await open(page, requests);
-    await page.getByRole('button', { name: 'Start camera' }).click();
-    await page.getByRole('button', { name: 'Load face landmarks' }).click();
-    await expect(page.locator('[data-local-optics-status]')).toContainText('Landmarks: unavailable (Model integrity check failed');
-    // A refused model never reaches the runtime: no WebAssembly was requested.
-    expect(requests.some((r) => r.url.endsWith('.wasm'))).toBe(false);
-    await page.getByRole('button', { name: 'Capture baseline' }).click();
-    await expect(page.locator('[data-local-optics-capture="baseline"] [data-local-optics-rejections]')).toContainText(
-      'landmark_model_unavailable',
-    );
-    await page.unroute('**/face_landmarker.task');
-    await page.route('**/face_landmarker.task', (route) => route.fulfill({ status: 404, body: '' }));
+  test('interruptions: backgrounding while aligning or capturing, and the OS ending the camera', async ({ page }) => {
+    await open(page);
+    await page.getByRole('button', { name: 'Start scan' }).click();
+    await waitForGuide(page);
+
+    // App switch while the guide runs: camera off, a clear way back.
+    await setVisibility(page, 'hidden');
+    await expect(page.locator('[data-panel="paused"]')).toBeVisible();
+    await expect.poll(() => liveTracks(page)).toBe(0);
+    await setVisibility(page, 'visible');
+    await page.getByRole('button', { name: 'Resume scan' }).click();
+    await waitForGuide(page);
+
+    // App switch in the middle of a burst: the burst is abandoned, never half-accepted.
+    await waitForPhase(page, 'capturing');
+    await setVisibility(page, 'hidden');
+    await expect(page.locator('[data-panel="paused"]')).toBeVisible();
+    await setVisibility(page, 'visible');
+    await page.getByRole('button', { name: 'Resume scan' }).click();
+    await waitForGuide(page);
+
+    // iOS ends the track itself (call, Control Centre camera, another app).
+    await page.evaluate(() => {
+      const tracks = (window as unknown as { __tracks: MediaStreamTrack[] }).__tracks;
+      tracks.filter((t) => t.readyState === 'live').forEach((t) => t.dispatchEvent(new Event('ended')));
+    });
+    await expect(page.getByRole('heading', { name: 'Camera interrupted' })).toBeVisible();
+    await page.getByRole('button', { name: 'Resume scan' }).click();
+    await expect(page.locator('[data-panel="baseline"]')).toBeVisible({ timeout: 60_000 });
+
+    const [scan] = await scans(page);
+    expect(scan).toMatchObject({ outcome: 'accepted', interruptions: 3 });
+    // The abandoned burst left no record of acceptance.
+    expect(scan.bursts.filter((b) => b.accepted)).toHaveLength(1);
+    await expect.poll(() => liveTracks(page)).toBe(0);
+  });
+
+  test('cancel at any point returns to the start with the camera released; leaving the page cleans up', async ({ page }) => {
+    await open(page);
+    await page.getByRole('button', { name: 'Start scan' }).click();
+    await waitForGuide(page);
+    await page.getByRole('button', { name: 'Cancel scan' }).click();
+    await expect(page.getByRole('button', { name: 'Start scan' })).toBeVisible();
+    await expect.poll(() => liveTracks(page)).toBe(0);
+
+    await page.getByRole('button', { name: 'Start scan' }).click();
+    await waitForPhase(page, 'capturing');
+    await page.getByRole('button', { name: 'Cancel scan' }).click();
+    await expect(page.getByRole('button', { name: 'Start scan' })).toBeEnabled();
+    await expect.poll(() => liveTracks(page)).toBe(0);
+
     await page.evaluate(() => window.dispatchEvent(new PageTransitionEvent('pagehide')));
-    await page.getByRole('button', { name: 'Load face landmarks' }).click();
-    await expect(page.locator('[data-local-optics-status]')).toContainText('Model not available at');
+    await page.getByRole('button', { name: 'Start scan' }).click();
+    await expect(page.locator('[data-panel="baseline"]')).toBeVisible({ timeout: 60_000 });
+    const log = await scans(page);
+    expect(log.map((s) => s.outcome)).toEqual(['cancelled', 'cancelled', 'accepted']);
+    expect(log[1].bursts).toEqual([]); // the cancelled burst was not evaluated
   });
-});
 
-test.describe('device behaviour', () => {
-  test.use({ cameraVideo: videos.oneFace });
-
-  test('backgrounding stops the camera, CPU can be forced, and the export is numbers only', async ({ page }) => {
-    const requests: { url: string; method: string }[] = [];
-    await open(page, requests);
-    await page.goto('/experiments/local-optics?delegate=cpu');
-    await startAndLoad(page);
+  test('CPU delegate and Lab diagnostics on request', async ({ page }) => {
+    await open(page, '?delegate=cpu');
+    await page.getByRole('button', { name: 'Start scan' }).click();
+    await waitForGuide(page);
+    await page.getByRole('button', { name: 'Lab' }).click();
     const diagnostics = page.locator('[data-local-optics-diagnostics]');
     await expect(diagnostics.locator('[data-diagnostic="Delegate in use"] dd')).toHaveText('CPU');
     await expect(diagnostics.locator('[data-diagnostic="Secure context (HTTPS)"] dd')).toHaveText('yes');
-    await expect(diagnostics.locator('[data-diagnostic="Frame"] dd')).toContainText('640×480 landscape');
+    await expect(diagnostics.locator('[data-diagnostic="Frame"] dd')).toContainText('360×480 portrait');
     await expect(diagnostics.locator('[data-diagnostic="Model initialisation"] dd')).toHaveText(/^\d+ ms$/);
-    await expect(page.locator('[data-local-optics-live]')).toContainText('Live · faces 1', { timeout: 15_000 });
+    await expect(page.locator('[data-local-optics-live]')).toContainText(/faces 1 · roll -?\d+\.\d°/);
+    await expect(page.locator('[data-local-optics-model]')).toContainText('tasks-vision 0.10.35, CPU, same-origin');
+  });
+});
 
-    // App switch: the page becomes hidden. The camera stops; the model stays loaded.
-    const modelFetches = () => requests.filter((r) => r.url.endsWith('/face_landmarker.task')).length;
-    const fetchedBefore = modelFetches();
-    await page.evaluate(() => {
-      Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'hidden' });
-      document.dispatchEvent(new Event('visibilitychange'));
-    });
-    await expect.poll(() => liveTracks(page)).toBe(0);
-    await expect(diagnostics.locator('[data-diagnostic="Background pauses"] dd')).toHaveText('1');
-    await expect(page.locator('[data-local-optics-status]')).toContainText('Camera: paused');
-    await page.evaluate(() => {
-      Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'visible' });
-      document.dispatchEvent(new Event('visibilitychange'));
-    });
-    await page.getByRole('button', { name: 'Restart camera' }).click();
-    await expect(page.locator('[data-local-optics-live]')).toContainText('Live · faces 1', { timeout: 15_000 });
-    expect(modelFetches()).toBe(fetchedBefore);
-    expect(await liveTracks(page)).toBe(1);
+test.describe('drifting into place', () => {
+  test.use({ cameraVideo: faceVideo('driftIn') });
 
-    // Numbers-only export, built only on request.
-    await page.getByRole('button', { name: 'Capture baseline' }).click();
-    await page.getByRole('button', { name: 'Capture comparison' }).click();
-    await expect(page.locator('[data-local-optics-comparison]')).toBeVisible({ timeout: 30_000 });
-    await page.getByRole('textbox', { name: 'Pair label' }).fill('A01 repeat');
-    await page.getByRole('button', { name: 'Add pair to log' }).click();
-    const json = await page.getByRole('textbox', { name: 'Numeric log JSON' }).inputValue();
-    const parsed = JSON.parse(json);
-    expect(parsed).toMatchObject({ exportVersion: 'fv-local-optics-export-0.1', delegate: 'CPU', pairs: [{ label: 'A01 repeat' }] });
-    expect(parsed.pairs[0].captures.baseline.faceCounts.every((n: number) => n === 1)).toBe(true);
-    expect(json).not.toMatch(/data:|blob:|deviceId|groupId|"points"/);
-    expect(await page.evaluate(() => localStorage.length + sessionStorage.length)).toBe(0);
-
-    const origin = new URL(page.url()).origin;
-    expect(requests.filter((r) => !r.url.startsWith(origin))).toEqual([]);
-    expect(requests.filter((r) => r.method !== 'GET')).toEqual([]);
+  test('the guide corrects position, then captures; instructions never flicker', async ({ page }) => {
+    await open(page);
+    await page.getByRole('button', { name: 'Start scan' }).click();
+    await waitForGuide(page);
+    // Sample the visible instruction every 100 ms until the capture is accepted.
+    const seen: { id: string; t: number }[] = [];
+    const started = Date.now();
+    while ((await root(page).getAttribute('data-phase')) !== 'result' && Date.now() - started < 90_000) {
+      const id = (await instruction(page).getAttribute('data-instruction').catch(() => null)) ?? 'none';
+      if (seen.at(-1)?.id !== id) seen.push({ id, t: Date.now() - started });
+      await page.waitForTimeout(100);
+    }
+    await expect(page.locator('[data-panel="baseline"]')).toBeVisible();
+    const [scan] = await scans(page);
+    test.info().annotations.push({ type: 'instructions', description: JSON.stringify(seen) });
+    // The loop restarts off-centre every 12 s; at least one centring correction is requested.
+    expect(scan.instructions).toContain('center');
+    // No corrective instruction stayed on screen for less than the dwell time (sampled every 100 ms).
+    const visible = seen.filter((s) => !['aligned', 'none'].includes(s.id));
+    for (let i = 0; i < visible.length - 1; i += 1) {
+      const next = seen[seen.indexOf(visible[i]) + 1];
+      expect(next.t - visible[i].t).toBeGreaterThanOrEqual(350); // 100 ms sampling
+    }
   });
 });
 
 test.describe('no face', () => {
-  test.use({ cameraVideo: videos.noFace });
+  test.use({ cameraVideo: noFaceVideo() });
 
-  test('real model reports zero faces and the capture is rejected', async ({ page }) => {
-    await open(page, []);
-    await startAndLoad(page);
-    await expect(page.locator('[data-local-optics-live]')).toContainText(/^Live · faces 0$/, { timeout: 15_000 });
-    await page.getByRole('button', { name: 'Capture baseline' }).click();
-    const baseline = page.locator('[data-local-optics-capture="baseline"]');
-    await expect(baseline.locator('[data-local-optics-frames]')).toContainText('faces per frame 0–0', { timeout: 30_000 });
-    await expect(baseline.locator('[data-local-optics-rejections]')).toContainText('no_face');
+  test('asks for a face, never auto-captures, and a manual capture is refused by the gates', async ({ page }) => {
+    await open(page);
+    await page.getByRole('button', { name: 'Start scan' }).click();
+    await waitForGuide(page);
+    await expect(instruction(page)).toHaveAttribute('data-instruction', 'no_face', { timeout: 15_000 });
+    await expect(page.getByRole('status').filter({ hasText: 'Bring your face into view' })).toBeVisible();
+    await page.waitForTimeout(3000);
+    expect((await root(page).getAttribute('data-phase'))).toBe('live');
+    await page.getByRole('button', { name: 'Capture now' }).click();
+    await expect(page.locator('[data-notice]')).toContainText('Your face left the view', { timeout: 30_000 });
+    await waitForPhase(page, 'live');
+    await page.getByRole('button', { name: 'Cancel scan' }).click();
+    const [scan] = await scans(page);
+    expect(scan.outcome).toBe('cancelled');
+    expect(scan.bursts).toEqual([expect.objectContaining({ trigger: 'manual', accepted: false, rejections: expect.arrayContaining(['no_face']) })]);
   });
 });
 
-test.describe('multiple faces', () => {
-  test.use({ cameraVideo: videos.twoFaces });
+test.describe('two faces', () => {
+  test.use({ cameraVideo: twoFacesVideo() });
 
-  test('real model reports two faces and the capture is rejected', async ({ page }) => {
-    await open(page, []);
-    await startAndLoad(page);
-    await expect(page.locator('[data-local-optics-live]')).toContainText(/^Live · faces 2$/, { timeout: 15_000 });
-    await page.getByRole('button', { name: 'Capture baseline' }).click();
-    await expect(page.locator('[data-local-optics-capture="baseline"] [data-local-optics-rejections]')).toContainText(
-      'multiple_faces',
-      { timeout: 30_000 },
+  test('asks for one face and refuses a manual capture', async ({ page }) => {
+    await open(page);
+    await page.getByRole('button', { name: 'Start scan' }).click();
+    await waitForGuide(page);
+    await expect(instruction(page)).toHaveAttribute('data-instruction', 'multiple_faces', { timeout: 15_000 });
+    await page.getByRole('button', { name: 'Capture now' }).click();
+    await expect(page.locator('[data-notice]')).toContainText('Another face was in view', { timeout: 30_000 });
+    expect(await scans(page)).toEqual([]); // still in progress: a refused burst is not an outcome
+  });
+});
+
+test.describe('model integrity', () => {
+  test.use({ cameraVideo: faceVideo('steady') });
+
+  test('a model that fails its SHA-256 check never reaches the runtime, and the failure is clear', async ({ page }) => {
+    await page.route('**/face_landmarker.task', (route) =>
+      route.fulfill({ status: 200, contentType: 'application/octet-stream', body: Buffer.alloc(1024, 7) }),
     );
+    await open(page);
+    await page.getByRole('button', { name: 'Start scan' }).click();
+    await expect(page.locator('[data-failure="model"]')).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByRole('heading', { name: 'The face guide couldn’t load' })).toBeVisible();
+    await expect.poll(() => liveTracks(page)).toBe(0);
+    expect(requestsOf(page).some((r) => r.url.endsWith('.wasm'))).toBe(false);
+    await page.getByRole('button', { name: 'Lab' }).click();
+    await expect(page.locator('[data-local-optics-model]')).toContainText('Model integrity check failed');
+
+    // The real model comes back: "Try again" recovers without reloading.
+    await page.unroute('**/face_landmarker.task');
+    await page.getByRole('button', { name: 'Try again' }).click();
+    await waitForGuide(page);
+    await expect(root(page)).toHaveAttribute('data-phase', /live|capturing|result/);
+    const log = await scans(page);
+    expect(log[0].outcome).toBe('failed');
+  });
+});
+
+test.describe('restart after a result', () => {
+  test.use({ cameraVideo: faceVideo('steady') });
+
+  test('“Start over with a new baseline” returns to a first scan', async ({ page }) => {
+    await open(page);
+    await page.getByRole('button', { name: 'Start scan' }).click();
+    await expect(page.locator('[data-panel="baseline"]')).toBeVisible({ timeout: 60_000 });
+    await page.getByRole('button', { name: 'Done' }).click();
+    await expect(page.getByRole('heading', { name: 'Match your baseline' })).toBeVisible();
+    await page.getByRole('button', { name: 'Start over with a new baseline' }).click();
+    await expect(page.getByRole('heading', { name: 'Face scan' })).toBeVisible();
+    await startNext(page);
+    await expect(page.getByText('Baseline', { exact: true })).toBeVisible();
   });
 });

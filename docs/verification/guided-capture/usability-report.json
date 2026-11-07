@@ -1,0 +1,2294 @@
+{
+ "note": "Exploratory usability measures from e2e/local-optics-usability.spec.ts (Chromium, real model, scripted motion of a public-domain portrait). Not human usability results; not validated thresholds.",
+ "runs": {
+  "run1-before-speed-median": {
+   "drift-in-realtime": {
+    "scenario": "drift-in-realtime",
+    "measuredAt": "2026-11-07T02:52:11.978Z",
+    "regime": "realtime",
+    "video": "driftIn",
+    "summary": {
+     "auto": {
+      "trials": 3,
+      "accepted": 3,
+      "bursts": 3,
+      "rejectedBursts": 0,
+      "rejectionReasons": [],
+      "landmarkMotion": [
+       0.00806,
+       0.00604,
+       0.00604
+      ],
+      "frameIntervalMs": [
+       247,
+       236,
+       235
+      ],
+      "timeToAcceptMs": [
+       15492,
+       12874,
+       12891
+      ],
+      "guideToAcceptMs": [
+       14999,
+       12874,
+       12891
+      ],
+      "corrections": [
+       2,
+       1,
+       1
+      ],
+      "comparisons": [
+       null,
+       "within_experimental_tolerances",
+       "within_experimental_tolerances"
+      ],
+      "helpShown": [
+       false,
+       false,
+       false
+      ]
+     },
+     "manual": {
+      "trials": 0,
+      "accepted": 0,
+      "bursts": 0,
+      "rejectedBursts": 0,
+      "rejectionReasons": [],
+      "landmarkMotion": [],
+      "frameIntervalMs": [],
+      "timeToAcceptMs": [],
+      "guideToAcceptMs": [],
+      "corrections": [],
+      "comparisons": [],
+      "helpShown": []
+     }
+    },
+    "trials": [
+     {
+      "strategy": "auto",
+      "wallMs": 15580,
+      "scan": {
+       "version": "fv-guided-scan-metrics-0.1",
+       "mode": "baseline",
+       "outcome": "accepted",
+       "trigger": "auto",
+       "cameraReadyMs": 181,
+       "guideReadyMs": 493,
+       "firstFaceMs": 2902,
+       "firstAlignedMs": 8842,
+       "acceptedMs": 15492,
+       "endedMs": 15494,
+       "corrections": 2,
+       "instructions": [
+        "center",
+        "hold_still",
+        "aligned"
+       ],
+       "bursts": [
+        {
+         "trigger": "auto",
+         "accepted": true,
+         "rejections": [],
+         "aligned": true,
+         "landmarkMotion": 0.00806,
+         "frameIntervalMs": 247
+        }
+       ],
+       "interruptions": 0,
+       "helpShown": false,
+       "comparison": null
+      }
+     },
+     {
+      "strategy": "auto",
+      "wallMs": 12930,
+      "scan": {
+       "version": "fv-guided-scan-metrics-0.1",
+       "mode": "follow_up",
+       "outcome": "accepted",
+       "trigger": "auto",
+       "cameraReadyMs": 87,
+       "guideReadyMs": 0,
+       "firstFaceMs": 472,
+       "firstAlignedMs": 8434,
+       "acceptedMs": 12874,
+       "endedMs": 12874,
+       "corrections": 1,
+       "instructions": [
+        "center",
+        "aligned"
+       ],
+       "bursts": [
+        {
+         "trigger": "auto",
+         "accepted": true,
+         "rejections": [],
+         "aligned": true,
+         "landmarkMotion": 0.00604,
+         "frameIntervalMs": 236
+        }
+       ],
+       "interruptions": 0,
+       "helpShown": false,
+       "comparison": "within_experimental_tolerances"
+      }
+     },
+     {
+      "strategy": "auto",
+      "wallMs": 12964,
+      "scan": {
+       "version": "fv-guided-scan-metrics-0.1",
+       "mode": "follow_up",
+       "outcome": "accepted",
+       "trigger": "auto",
+       "cameraReadyMs": 98,
+       "guideReadyMs": 0,
+       "firstFaceMs": 502,
+       "firstAlignedMs": 8443,
+       "acceptedMs": 12891,
+       "endedMs": 12893,
+       "corrections": 1,
+       "instructions": [
+        "center",
+        "aligned"
+       ],
+       "bursts": [
+        {
+         "trigger": "auto",
+         "accepted": true,
+         "rejections": [],
+         "aligned": true,
+         "landmarkMotion": 0.00604,
+         "frameIntervalMs": 235
+        }
+       ],
+       "interruptions": 0,
+       "helpShown": false,
+       "comparison": "within_experimental_tolerances"
+      }
+     }
+    ]
+   },
+   "handheld-active-dilated": {
+    "scenario": "handheld-active-dilated",
+    "measuredAt": "2026-11-07T02:53:39.870Z",
+    "regime": "dilated x8",
+    "video": "handheldActive",
+    "summary": {
+     "auto": {
+      "trials": 3,
+      "accepted": 3,
+      "bursts": 3,
+      "rejectedBursts": 0,
+      "rejectionReasons": [],
+      "landmarkMotion": [
+       0.00857,
+       0.01478,
+       0.01078
+      ],
+      "frameIntervalMs": [
+       232,
+       230,
+       227
+      ],
+      "timeToAcceptMs": [
+       17655,
+       8524,
+       8410
+      ],
+      "guideToAcceptMs": [
+       17183,
+       8524,
+       8410
+      ],
+      "corrections": [
+       1,
+       0,
+       0
+      ],
+      "comparisons": [
+       null,
+       "within_experimental_tolerances",
+       "within_experimental_tolerances"
+      ],
+      "helpShown": [
+       false,
+       false,
+       false
+      ]
+     },
+     "manual": {
+      "trials": 3,
+      "accepted": 3,
+      "bursts": 3,
+      "rejectedBursts": 0,
+      "rejectionReasons": [],
+      "landmarkMotion": [
+       0.01511,
+       0.01511,
+       0.01511
+      ],
+      "frameIntervalMs": [
+       229,
+       233,
+       241
+      ],
+      "timeToAcceptMs": [
+       3675,
+       3714,
+       3799
+      ],
+      "guideToAcceptMs": [
+       3675,
+       3714,
+       3799
+      ],
+      "corrections": [
+       0,
+       0,
+       0
+      ],
+      "comparisons": [
+       "within_experimental_tolerances",
+       "within_experimental_tolerances",
+       "within_experimental_tolerances"
+      ],
+      "helpShown": [
+       false,
+       false,
+       false
+      ]
+     }
+    },
+    "trials": [
+     {
+      "strategy": "auto",
+      "wallMs": 17752,
+      "scan": {
+       "version": "fv-guided-scan-metrics-0.1",
+       "mode": "baseline",
+       "outcome": "accepted",
+       "trigger": "auto",
+       "cameraReadyMs": 242,
+       "guideReadyMs": 472,
+       "firstFaceMs": 2830,
+       "firstAlignedMs": 4338,
+       "acceptedMs": 17655,
+       "endedMs": 17656,
+       "corrections": 1,
+       "instructions": [
+        "hold_still",
+        "aligned"
+       ],
+       "bursts": [
+        {
+         "trigger": "auto",
+         "accepted": true,
+         "rejections": [],
+         "aligned": true,
+         "landmarkMotion": 0.00857,
+         "frameIntervalMs": 232
+        }
+       ],
+       "interruptions": 0,
+       "helpShown": false,
+       "comparison": null
+      }
+     },
+     {
+      "strategy": "auto",
+      "wallMs": 8587,
+      "scan": {
+       "version": "fv-guided-scan-metrics-0.1",
+       "mode": "follow_up",
+       "outcome": "accepted",
+       "trigger": "auto",
+       "cameraReadyMs": 157,
+       "guideReadyMs": 0,
+       "firstFaceMs": 397,
+       "firstAlignedMs": 1197,
+       "acceptedMs": 8524,
+       "endedMs": 8526,
+       "corrections": 0,
+       "instructions": [
+        "aligned"
+       ],
+       "bursts": [
+        {
+         "trigger": "auto",
+         "accepted": true,
+         "rejections": [],
+         "aligned": true,
+         "landmarkMotion": 0.01478,
+         "frameIntervalMs": 230
+        }
+       ],
+       "interruptions": 0,
+       "helpShown": false,
+       "comparison": "within_experimental_tolerances"
+      }
+     },
+     {
+      "strategy": "auto",
+      "wallMs": 8504,
+      "scan": {
+       "version": "fv-guided-scan-metrics-0.1",
+       "mode": "follow_up",
+       "outcome": "accepted",
+       "trigger": "auto",
+       "cameraReadyMs": 150,
+       "guideReadyMs": 0,
+       "firstFaceMs": 370,
+       "firstAlignedMs": 1196,
+       "acceptedMs": 8410,
+       "endedMs": 8411,
+       "corrections": 0,
+       "instructions": [
+        "aligned"
+       ],
+       "bursts": [
+        {
+         "trigger": "auto",
+         "accepted": true,
+         "rejections": [],
+         "aligned": true,
+         "landmarkMotion": 0.01078,
+         "frameIntervalMs": 227
+        }
+       ],
+       "interruptions": 0,
+       "helpShown": false,
+       "comparison": "within_experimental_tolerances"
+      }
+     },
+     {
+      "strategy": "manual-immediate",
+      "wallMs": 3971,
+      "scan": {
+       "version": "fv-guided-scan-metrics-0.1",
+       "mode": "follow_up",
+       "outcome": "accepted",
+       "trigger": "manual",
+       "cameraReadyMs": 148,
+       "guideReadyMs": 0,
+       "firstFaceMs": 415,
+       "firstAlignedMs": null,
+       "acceptedMs": 3675,
+       "endedMs": 3676,
+       "corrections": 0,
+       "instructions": [],
+       "bursts": [
+        {
+         "trigger": "manual",
+         "accepted": true,
+         "rejections": [],
+         "aligned": false,
+         "landmarkMotion": 0.01511,
+         "frameIntervalMs": 229
+        }
+       ],
+       "interruptions": 0,
+       "helpShown": false,
+       "comparison": "within_experimental_tolerances"
+      }
+     },
+     {
+      "strategy": "manual-immediate",
+      "wallMs": 4013,
+      "scan": {
+       "version": "fv-guided-scan-metrics-0.1",
+       "mode": "follow_up",
+       "outcome": "accepted",
+       "trigger": "manual",
+       "cameraReadyMs": 160,
+       "guideReadyMs": 0,
+       "firstFaceMs": 426,
+       "firstAlignedMs": null,
+       "acceptedMs": 3714,
+       "endedMs": 3715,
+       "corrections": 0,
+       "instructions": [],
+       "bursts": [
+        {
+         "trigger": "manual",
+         "accepted": true,
+         "rejections": [],
+         "aligned": false,
+         "landmarkMotion": 0.01511,
+         "frameIntervalMs": 233
+        }
+       ],
+       "interruptions": 0,
+       "helpShown": false,
+       "comparison": "within_experimental_tolerances"
+      }
+     },
+     {
+      "strategy": "manual-immediate",
+      "wallMs": 4072,
+      "scan": {
+       "version": "fv-guided-scan-metrics-0.1",
+       "mode": "follow_up",
+       "outcome": "accepted",
+       "trigger": "manual",
+       "cameraReadyMs": 150,
+       "guideReadyMs": 0,
+       "firstFaceMs": 383,
+       "firstAlignedMs": null,
+       "acceptedMs": 3799,
+       "endedMs": 3800,
+       "corrections": 0,
+       "instructions": [],
+       "bursts": [
+        {
+         "trigger": "manual",
+         "accepted": true,
+         "rejections": [],
+         "aligned": false,
+         "landmarkMotion": 0.01511,
+         "frameIntervalMs": 241
+        }
+       ],
+       "interruptions": 0,
+       "helpShown": false,
+       "comparison": "within_experimental_tolerances"
+      }
+     }
+    ]
+   },
+   "handheld-calm-dilated": {
+    "scenario": "handheld-calm-dilated",
+    "measuredAt": "2026-11-07T02:52:51.560Z",
+    "regime": "dilated x8",
+    "video": "handheld",
+    "summary": {
+     "auto": {
+      "trials": 3,
+      "accepted": 3,
+      "bursts": 3,
+      "rejectedBursts": 0,
+      "rejectionReasons": [],
+      "landmarkMotion": [
+       0.00648,
+       0.00583,
+       0.00392
+      ],
+      "frameIntervalMs": [
+       236,
+       244,
+       235
+      ],
+      "timeToAcceptMs": [
+       15101,
+       5403,
+       5261
+      ],
+      "guideToAcceptMs": [
+       14704,
+       5403,
+       5261
+      ],
+      "corrections": [
+       2,
+       0,
+       0
+      ],
+      "comparisons": [
+       null,
+       "within_experimental_tolerances",
+       "within_experimental_tolerances"
+      ],
+      "helpShown": [
+       false,
+       false,
+       false
+      ]
+     },
+     "manual": {
+      "trials": 3,
+      "accepted": 3,
+      "bursts": 3,
+      "rejectedBursts": 0,
+      "rejectionReasons": [],
+      "landmarkMotion": [
+       0.00612,
+       0.00612,
+       0.00612
+      ],
+      "frameIntervalMs": [
+       236,
+       236,
+       242
+      ],
+      "timeToAcceptMs": [
+       3724,
+       3714,
+       3896
+      ],
+      "guideToAcceptMs": [
+       3724,
+       3714,
+       3896
+      ],
+      "corrections": [
+       0,
+       0,
+       0
+      ],
+      "comparisons": [
+       "within_experimental_tolerances",
+       "within_experimental_tolerances",
+       "within_experimental_tolerances"
+      ],
+      "helpShown": [
+       false,
+       false,
+       false
+      ]
+     }
+    },
+    "trials": [
+     {
+      "strategy": "auto",
+      "wallMs": 15174,
+      "scan": {
+       "version": "fv-guided-scan-metrics-0.1",
+       "mode": "baseline",
+       "outcome": "accepted",
+       "trigger": "auto",
+       "cameraReadyMs": 427,
+       "guideReadyMs": 397,
+       "firstFaceMs": 2708,
+       "firstAlignedMs": 3343,
+       "acceptedMs": 15101,
+       "endedMs": 15102,
+       "corrections": 2,
+       "instructions": [
+        "hold_still",
+        "aligned",
+        "hold_still",
+        "aligned"
+       ],
+       "bursts": [
+        {
+         "trigger": "auto",
+         "accepted": true,
+         "rejections": [],
+         "aligned": true,
+         "landmarkMotion": 0.00648,
+         "frameIntervalMs": 236
+        }
+       ],
+       "interruptions": 0,
+       "helpShown": false,
+       "comparison": null
+      }
+     },
+     {
+      "strategy": "auto",
+      "wallMs": 5469,
+      "scan": {
+       "version": "fv-guided-scan-metrics-0.1",
+       "mode": "follow_up",
+       "outcome": "accepted",
+       "trigger": "auto",
+       "cameraReadyMs": 158,
+       "guideReadyMs": 0,
+       "firstFaceMs": 335,
+       "firstAlignedMs": 776,
+       "acceptedMs": 5403,
+       "endedMs": 5403,
+       "corrections": 0,
+       "instructions": [
+        "aligned"
+       ],
+       "bursts": [
+        {
+         "trigger": "auto",
+         "accepted": true,
+         "rejections": [],
+         "aligned": true,
+         "landmarkMotion": 0.00583,
+         "frameIntervalMs": 244
+        }
+       ],
+       "interruptions": 0,
+       "helpShown": false,
+       "comparison": "within_experimental_tolerances"
+      }
+     },
+     {
+      "strategy": "auto",
+      "wallMs": 5373,
+      "scan": {
+       "version": "fv-guided-scan-metrics-0.1",
+       "mode": "follow_up",
+       "outcome": "accepted",
+       "trigger": "auto",
+       "cameraReadyMs": 148,
+       "guideReadyMs": 0,
+       "firstFaceMs": 369,
+       "firstAlignedMs": 749,
+       "acceptedMs": 5261,
+       "endedMs": 5262,
+       "corrections": 0,
+       "instructions": [
+        "aligned"
+       ],
+       "bursts": [
+        {
+         "trigger": "auto",
+         "accepted": true,
+         "rejections": [],
+         "aligned": true,
+         "landmarkMotion": 0.00392,
+         "frameIntervalMs": 235
+        }
+       ],
+       "interruptions": 0,
+       "helpShown": false,
+       "comparison": "within_experimental_tolerances"
+      }
+     },
+     {
+      "strategy": "manual-immediate",
+      "wallMs": 4003,
+      "scan": {
+       "version": "fv-guided-scan-metrics-0.1",
+       "mode": "follow_up",
+       "outcome": "accepted",
+       "trigger": "manual",
+       "cameraReadyMs": 148,
+       "guideReadyMs": 0,
+       "firstFaceMs": 388,
+       "firstAlignedMs": 778,
+       "acceptedMs": 3724,
+       "endedMs": 3724,
+       "corrections": 0,
+       "instructions": [],
+       "bursts": [
+        {
+         "trigger": "manual",
+         "accepted": true,
+         "rejections": [],
+         "aligned": true,
+         "landmarkMotion": 0.00612,
+         "frameIntervalMs": 236
+        }
+       ],
+       "interruptions": 0,
+       "helpShown": false,
+       "comparison": "within_experimental_tolerances"
+      }
+     },
+     {
+      "strategy": "manual-immediate",
+      "wallMs": 3994,
+      "scan": {
+       "version": "fv-guided-scan-metrics-0.1",
+       "mode": "follow_up",
+       "outcome": "accepted",
+       "trigger": "manual",
+       "cameraReadyMs": 151,
+       "guideReadyMs": 0,
+       "firstFaceMs": 349,
+       "firstAlignedMs": 787,
+       "acceptedMs": 3714,
+       "endedMs": 3715,
+       "corrections": 0,
+       "instructions": [],
+       "bursts": [
+        {
+         "trigger": "manual",
+         "accepted": true,
+         "rejections": [],
+         "aligned": true,
+         "landmarkMotion": 0.00612,
+         "frameIntervalMs": 236
+        }
+       ],
+       "interruptions": 0,
+       "helpShown": false,
+       "comparison": "within_experimental_tolerances"
+      }
+     },
+     {
+      "strategy": "manual-immediate",
+      "wallMs": 4114,
+      "scan": {
+       "version": "fv-guided-scan-metrics-0.1",
+       "mode": "follow_up",
+       "outcome": "accepted",
+       "trigger": "manual",
+       "cameraReadyMs": 151,
+       "guideReadyMs": 0,
+       "firstFaceMs": 374,
+       "firstAlignedMs": 812,
+       "acceptedMs": 3896,
+       "endedMs": 3896,
+       "corrections": 0,
+       "instructions": [],
+       "bursts": [
+        {
+         "trigger": "manual",
+         "accepted": true,
+         "rejections": [],
+         "aligned": true,
+         "landmarkMotion": 0.00612,
+         "frameIntervalMs": 242
+        }
+       ],
+       "interruptions": 0,
+       "helpShown": false,
+       "comparison": "within_experimental_tolerances"
+      }
+     }
+    ]
+   },
+   "shaky-dilated": {
+    "scenario": "shaky-dilated",
+    "measuredAt": "2026-11-07T02:54:16.675Z",
+    "regime": "dilated x8",
+    "video": "shaky",
+    "summary": {
+     "auto": {
+      "trials": 1,
+      "accepted": 0,
+      "bursts": 0,
+      "rejectedBursts": 0,
+      "rejectionReasons": [],
+      "landmarkMotion": [],
+      "frameIntervalMs": [],
+      "timeToAcceptMs": [],
+      "guideToAcceptMs": [],
+      "corrections": [
+       1
+      ],
+      "comparisons": [
+       null
+      ],
+      "helpShown": [
+       true
+      ]
+     },
+     "manual": {
+      "trials": 1,
+      "accepted": 0,
+      "bursts": 2,
+      "rejectedBursts": 2,
+      "rejectionReasons": [
+       "motion",
+       "motion"
+      ],
+      "landmarkMotion": [
+       0.08982,
+       0.07885
+      ],
+      "frameIntervalMs": [
+       238,
+       230
+      ],
+      "timeToAcceptMs": [],
+      "guideToAcceptMs": [],
+      "corrections": [
+       0
+      ],
+      "comparisons": [
+       null
+      ],
+      "helpShown": [
+       false
+      ]
+     }
+    },
+    "trials": [
+     {
+      "strategy": "auto",
+      "wallMs": 28185,
+      "scan": {
+       "version": "fv-guided-scan-metrics-0.1",
+       "mode": "baseline",
+       "outcome": "cancelled",
+       "trigger": null,
+       "cameraReadyMs": 398,
+       "guideReadyMs": 383,
+       "firstFaceMs": 2605,
+       "firstAlignedMs": 10513,
+       "acceptedMs": null,
+       "endedMs": 28120,
+       "corrections": 1,
+       "instructions": [
+        "hold_still"
+       ],
+       "bursts": [],
+       "interruptions": 0,
+       "helpShown": true,
+       "comparison": null
+      },
+      "note": "cancelled at budget"
+     },
+     {
+      "strategy": "manual-immediate",
+      "wallMs": 7276,
+      "scan": {
+       "version": "fv-guided-scan-metrics-0.1",
+       "mode": "baseline",
+       "outcome": "cancelled",
+       "trigger": null,
+       "cameraReadyMs": 150,
+       "guideReadyMs": 0,
+       "firstFaceMs": 402,
+       "firstAlignedMs": null,
+       "acceptedMs": null,
+       "endedMs": 7214,
+       "corrections": 0,
+       "instructions": [],
+       "bursts": [
+        {
+         "trigger": "manual",
+         "accepted": false,
+         "rejections": [
+          "motion"
+         ],
+         "aligned": false,
+         "landmarkMotion": 0.08982,
+         "frameIntervalMs": 238
+        },
+        {
+         "trigger": "manual",
+         "accepted": false,
+         "rejections": [
+          "motion"
+         ],
+         "aligned": false,
+         "landmarkMotion": 0.07885,
+         "frameIntervalMs": 230
+        }
+       ],
+       "interruptions": 0,
+       "helpShown": false,
+       "comparison": null
+      }
+     }
+    ]
+   },
+   "steady-realtime": {
+    "scenario": "steady-realtime",
+    "measuredAt": "2026-11-07T02:51:29.009Z",
+    "regime": "realtime",
+    "video": "steady",
+    "summary": {
+     "auto": {
+      "trials": 3,
+      "accepted": 3,
+      "bursts": 3,
+      "rejectedBursts": 0,
+      "rejectionReasons": [],
+      "landmarkMotion": [
+       0.00806,
+       0.00806,
+       0.00806
+      ],
+      "frameIntervalMs": [
+       262,
+       271,
+       258
+      ],
+      "timeToAcceptMs": [
+       11816,
+       7645,
+       7530
+      ],
+      "guideToAcceptMs": [
+       11341,
+       7645,
+       7530
+      ],
+      "corrections": [
+       1,
+       0,
+       0
+      ],
+      "comparisons": [
+       null,
+       "within_experimental_tolerances",
+       "within_experimental_tolerances"
+      ],
+      "helpShown": [
+       false,
+       false,
+       false
+      ]
+     },
+     "manual": {
+      "trials": 0,
+      "accepted": 0,
+      "bursts": 0,
+      "rejectedBursts": 0,
+      "rejectionReasons": [],
+      "landmarkMotion": [],
+      "frameIntervalMs": [],
+      "timeToAcceptMs": [],
+      "guideToAcceptMs": [],
+      "corrections": [],
+      "comparisons": [],
+      "helpShown": []
+     }
+    },
+    "trials": [
+     {
+      "strategy": "auto",
+      "wallMs": 12097,
+      "scan": {
+       "version": "fv-guided-scan-metrics-0.1",
+       "mode": "baseline",
+       "outcome": "accepted",
+       "trigger": "auto",
+       "cameraReadyMs": 213,
+       "guideReadyMs": 475,
+       "firstFaceMs": 3109,
+       "firstAlignedMs": 3385,
+       "acceptedMs": 11816,
+       "endedMs": 11817,
+       "corrections": 1,
+       "instructions": [
+        "aligned",
+        "hold_still",
+        "aligned"
+       ],
+       "bursts": [
+        {
+         "trigger": "auto",
+         "accepted": true,
+         "rejections": [],
+         "aligned": true,
+         "landmarkMotion": 0.00806,
+         "frameIntervalMs": 262
+        }
+       ],
+       "interruptions": 0,
+       "helpShown": false,
+       "comparison": null
+      }
+     },
+     {
+      "strategy": "auto",
+      "wallMs": 7897,
+      "scan": {
+       "version": "fv-guided-scan-metrics-0.1",
+       "mode": "follow_up",
+       "outcome": "accepted",
+       "trigger": "auto",
+       "cameraReadyMs": 58,
+       "guideReadyMs": 0,
+       "firstFaceMs": 343,
+       "firstAlignedMs": 698,
+       "acceptedMs": 7645,
+       "endedMs": 7646,
+       "corrections": 0,
+       "instructions": [
+        "aligned"
+       ],
+       "bursts": [
+        {
+         "trigger": "auto",
+         "accepted": true,
+         "rejections": [],
+         "aligned": true,
+         "landmarkMotion": 0.00806,
+         "frameIntervalMs": 271
+        }
+       ],
+       "interruptions": 0,
+       "helpShown": false,
+       "comparison": "within_experimental_tolerances"
+      }
+     },
+     {
+      "strategy": "auto",
+      "wallMs": 7762,
+      "scan": {
+       "version": "fv-guided-scan-metrics-0.1",
+       "mode": "follow_up",
+       "outcome": "accepted",
+       "trigger": "auto",
+       "cameraReadyMs": 72,
+       "guideReadyMs": 0,
+       "firstFaceMs": 294,
+       "firstAlignedMs": 783,
+       "acceptedMs": 7530,
+       "endedMs": 7530,
+       "corrections": 0,
+       "instructions": [
+        "aligned"
+       ],
+       "bursts": [
+        {
+         "trigger": "auto",
+         "accepted": true,
+         "rejections": [],
+         "aligned": true,
+         "landmarkMotion": 0.00806,
+         "frameIntervalMs": 258
+        }
+       ],
+       "interruptions": 0,
+       "helpShown": false,
+       "comparison": "within_experimental_tolerances"
+      }
+     }
+    ],
+    "recovery": {
+     "resumeToResultMs": 7491,
+     "scan": {
+      "version": "fv-guided-scan-metrics-0.1",
+      "mode": "follow_up",
+      "outcome": "accepted",
+      "trigger": "auto",
+      "cameraReadyMs": 65,
+      "guideReadyMs": 0,
+      "firstFaceMs": 289,
+      "firstAlignedMs": 1093,
+      "acceptedMs": 7802,
+      "endedMs": 7804,
+      "corrections": 0,
+      "instructions": [
+       "aligned"
+      ],
+      "bursts": [
+       {
+        "trigger": "auto",
+        "accepted": true,
+        "rejections": [],
+        "aligned": true,
+        "landmarkMotion": 0.00806,
+        "frameIntervalMs": 250
+       }
+      ],
+      "interruptions": 1,
+      "helpShown": false,
+      "comparison": "within_experimental_tolerances"
+     }
+    }
+   },
+   "too-far-realtime": {
+    "scenario": "too-far-realtime",
+    "measuredAt": "2026-11-07T02:54:41.755Z",
+    "regime": "realtime",
+    "video": "far",
+    "summary": {
+     "auto": {
+      "trials": 1,
+      "accepted": 0,
+      "bursts": 0,
+      "rejectedBursts": 0,
+      "rejectionReasons": [],
+      "landmarkMotion": [],
+      "frameIntervalMs": [],
+      "timeToAcceptMs": [],
+      "guideToAcceptMs": [],
+      "corrections": [
+       1
+      ],
+      "comparisons": [
+       null
+      ],
+      "helpShown": [
+       true
+      ]
+     },
+     "manual": {
+      "trials": 0,
+      "accepted": 0,
+      "bursts": 0,
+      "rejectedBursts": 0,
+      "rejectionReasons": [],
+      "landmarkMotion": [],
+      "frameIntervalMs": [],
+      "timeToAcceptMs": [],
+      "guideToAcceptMs": [],
+      "corrections": [],
+      "comparisons": [],
+      "helpShown": []
+     }
+    },
+    "trials": [
+     {
+      "strategy": "auto",
+      "wallMs": 23699,
+      "scan": {
+       "version": "fv-guided-scan-metrics-0.1",
+       "mode": "baseline",
+       "outcome": "cancelled",
+       "trigger": null,
+       "cameraReadyMs": 204,
+       "guideReadyMs": 494,
+       "firstFaceMs": 3036,
+       "firstAlignedMs": null,
+       "acceptedMs": null,
+       "endedMs": 23616,
+       "corrections": 1,
+       "instructions": [
+        "move_closer"
+       ],
+       "bursts": [],
+       "interruptions": 0,
+       "helpShown": true,
+       "comparison": null
+      },
+      "note": "cancelled at budget"
+     }
+    ]
+   }
+  },
+  "run2-current": {
+   "drift-in-realtime": {
+    "scenario": "drift-in-realtime",
+    "measuredAt": "2026-11-07T02:57:06.899Z",
+    "regime": "realtime",
+    "video": "driftIn",
+    "summary": {
+     "auto": {
+      "trials": 3,
+      "accepted": 3,
+      "bursts": 3,
+      "rejectedBursts": 0,
+      "rejectionReasons": [],
+      "landmarkMotion": [
+       0.00606,
+       0.00604,
+       0.00604
+      ],
+      "frameIntervalMs": [
+       253,
+       238,
+       253
+      ],
+      "timeToAcceptMs": [
+       13959,
+       13573,
+       13576
+      ],
+      "guideToAcceptMs": [
+       13525,
+       13573,
+       13576
+      ],
+      "corrections": [
+       2,
+       2,
+       2
+      ],
+      "comparisons": [
+       null,
+       "within_experimental_tolerances",
+       "within_experimental_tolerances"
+      ],
+      "helpShown": [
+       false,
+       false,
+       false
+      ]
+     },
+     "manual": {
+      "trials": 0,
+      "accepted": 0,
+      "bursts": 0,
+      "rejectedBursts": 0,
+      "rejectionReasons": [],
+      "landmarkMotion": [],
+      "frameIntervalMs": [],
+      "timeToAcceptMs": [],
+      "guideToAcceptMs": [],
+      "corrections": [],
+      "comparisons": [],
+      "helpShown": []
+     }
+    },
+    "trials": [
+     {
+      "strategy": "auto",
+      "wallMs": 14034,
+      "scan": {
+       "version": "fv-guided-scan-metrics-0.1",
+       "mode": "baseline",
+       "outcome": "accepted",
+       "trigger": "auto",
+       "cameraReadyMs": 193,
+       "guideReadyMs": 434,
+       "firstFaceMs": 2934,
+       "firstAlignedMs": 9240,
+       "acceptedMs": 13959,
+       "endedMs": 13961,
+       "corrections": 2,
+       "instructions": [
+        "center",
+        "hold_still",
+        "aligned"
+       ],
+       "bursts": [
+        {
+         "trigger": "auto",
+         "accepted": true,
+         "rejections": [],
+         "aligned": true,
+         "landmarkMotion": 0.00606,
+         "frameIntervalMs": 253
+        }
+       ],
+       "interruptions": 0,
+       "helpShown": false,
+       "comparison": null
+      }
+     },
+     {
+      "strategy": "auto",
+      "wallMs": 13648,
+      "scan": {
+       "version": "fv-guided-scan-metrics-0.1",
+       "mode": "follow_up",
+       "outcome": "accepted",
+       "trigger": "auto",
+       "cameraReadyMs": 89,
+       "guideReadyMs": 0,
+       "firstFaceMs": 469,
+       "firstAlignedMs": 8890,
+       "acceptedMs": 13573,
+       "endedMs": 13574,
+       "corrections": 2,
+       "instructions": [
+        "center",
+        "hold_still",
+        "aligned"
+       ],
+       "bursts": [
+        {
+         "trigger": "auto",
+         "accepted": true,
+         "rejections": [],
+         "aligned": true,
+         "landmarkMotion": 0.00604,
+         "frameIntervalMs": 238
+        }
+       ],
+       "interruptions": 0,
+       "helpShown": false,
+       "comparison": "within_experimental_tolerances"
+      }
+     },
+     {
+      "strategy": "auto",
+      "wallMs": 13642,
+      "scan": {
+       "version": "fv-guided-scan-metrics-0.1",
+       "mode": "follow_up",
+       "outcome": "accepted",
+       "trigger": "auto",
+       "cameraReadyMs": 89,
+       "guideReadyMs": 0,
+       "firstFaceMs": 499,
+       "firstAlignedMs": 8833,
+       "acceptedMs": 13576,
+       "endedMs": 13577,
+       "corrections": 2,
+       "instructions": [
+        "center",
+        "hold_still",
+        "aligned"
+       ],
+       "bursts": [
+        {
+         "trigger": "auto",
+         "accepted": true,
+         "rejections": [],
+         "aligned": true,
+         "landmarkMotion": 0.00604,
+         "frameIntervalMs": 253
+        }
+       ],
+       "interruptions": 0,
+       "helpShown": false,
+       "comparison": "within_experimental_tolerances"
+      }
+     }
+    ]
+   },
+   "handheld-active-dilated": {
+    "scenario": "handheld-active-dilated",
+    "measuredAt": "2026-11-07T02:58:32.989Z",
+    "regime": "dilated x8",
+    "video": "handheldActive",
+    "summary": {
+     "auto": {
+      "trials": 3,
+      "accepted": 3,
+      "bursts": 3,
+      "rejectedBursts": 0,
+      "rejectionReasons": [],
+      "landmarkMotion": [
+       0.00999,
+       0.01251,
+       0.00608
+      ],
+      "frameIntervalMs": [
+       236,
+       245,
+       227
+      ],
+      "timeToAcceptMs": [
+       15316,
+       7454,
+       16897
+      ],
+      "guideToAcceptMs": [
+       14898,
+       7454,
+       16897
+      ],
+      "corrections": [
+       1,
+       1,
+       2
+      ],
+      "comparisons": [
+       null,
+       "within_experimental_tolerances",
+       "within_experimental_tolerances"
+      ],
+      "helpShown": [
+       false,
+       false,
+       false
+      ]
+     },
+     "manual": {
+      "trials": 3,
+      "accepted": 3,
+      "bursts": 3,
+      "rejectedBursts": 0,
+      "rejectionReasons": [],
+      "landmarkMotion": [
+       0.01511,
+       0.01511,
+       0.01511
+      ],
+      "frameIntervalMs": [
+       248,
+       232,
+       233
+      ],
+      "timeToAcceptMs": [
+       3863,
+       3689,
+       3754
+      ],
+      "guideToAcceptMs": [
+       3863,
+       3689,
+       3754
+      ],
+      "corrections": [
+       0,
+       0,
+       0
+      ],
+      "comparisons": [
+       "within_experimental_tolerances",
+       "within_experimental_tolerances",
+       "within_experimental_tolerances"
+      ],
+      "helpShown": [
+       false,
+       false,
+       false
+      ]
+     }
+    },
+    "trials": [
+     {
+      "strategy": "auto",
+      "wallMs": 15410,
+      "scan": {
+       "version": "fv-guided-scan-metrics-0.1",
+       "mode": "baseline",
+       "outcome": "accepted",
+       "trigger": "auto",
+       "cameraReadyMs": 438,
+       "guideReadyMs": 418,
+       "firstFaceMs": 2830,
+       "firstAlignedMs": 3471,
+       "acceptedMs": 15316,
+       "endedMs": 15318,
+       "corrections": 1,
+       "instructions": [
+        "hold_still",
+        "aligned"
+       ],
+       "bursts": [
+        {
+         "trigger": "auto",
+         "accepted": true,
+         "rejections": [],
+         "aligned": true,
+         "landmarkMotion": 0.00999,
+         "frameIntervalMs": 236
+        }
+       ],
+       "interruptions": 0,
+       "helpShown": false,
+       "comparison": null
+      }
+     },
+     {
+      "strategy": "auto",
+      "wallMs": 7507,
+      "scan": {
+       "version": "fv-guided-scan-metrics-0.1",
+       "mode": "follow_up",
+       "outcome": "accepted",
+       "trigger": "auto",
+       "cameraReadyMs": 149,
+       "guideReadyMs": 0,
+       "firstFaceMs": 369,
+       "firstAlignedMs": 2817,
+       "acceptedMs": 7454,
+       "endedMs": 7455,
+       "corrections": 1,
+       "instructions": [
+        "hold_still",
+        "aligned"
+       ],
+       "bursts": [
+        {
+         "trigger": "auto",
+         "accepted": true,
+         "rejections": [],
+         "aligned": true,
+         "landmarkMotion": 0.01251,
+         "frameIntervalMs": 245
+        }
+       ],
+       "interruptions": 0,
+       "helpShown": false,
+       "comparison": "within_experimental_tolerances"
+      }
+     },
+     {
+      "strategy": "auto",
+      "wallMs": 16987,
+      "scan": {
+       "version": "fv-guided-scan-metrics-0.1",
+       "mode": "follow_up",
+       "outcome": "accepted",
+       "trigger": "auto",
+       "cameraReadyMs": 175,
+       "guideReadyMs": 0,
+       "firstFaceMs": 401,
+       "firstAlignedMs": 6464,
+       "acceptedMs": 16897,
+       "endedMs": 16899,
+       "corrections": 2,
+       "instructions": [
+        "hold_still",
+        "aligned",
+        "hold_still",
+        "aligned"
+       ],
+       "bursts": [
+        {
+         "trigger": "auto",
+         "accepted": true,
+         "rejections": [],
+         "aligned": true,
+         "landmarkMotion": 0.00608,
+         "frameIntervalMs": 227
+        }
+       ],
+       "interruptions": 0,
+       "helpShown": false,
+       "comparison": "within_experimental_tolerances"
+      }
+     },
+     {
+      "strategy": "manual-immediate",
+      "wallMs": 3942,
+      "scan": {
+       "version": "fv-guided-scan-metrics-0.1",
+       "mode": "follow_up",
+       "outcome": "accepted",
+       "trigger": "manual",
+       "cameraReadyMs": 151,
+       "guideReadyMs": 0,
+       "firstFaceMs": 362,
+       "firstAlignedMs": null,
+       "acceptedMs": 3863,
+       "endedMs": 3864,
+       "corrections": 0,
+       "instructions": [],
+       "bursts": [
+        {
+         "trigger": "manual",
+         "accepted": true,
+         "rejections": [],
+         "aligned": false,
+         "landmarkMotion": 0.01511,
+         "frameIntervalMs": 248
+        }
+       ],
+       "interruptions": 0,
+       "helpShown": false,
+       "comparison": "within_experimental_tolerances"
+      }
+     },
+     {
+      "strategy": "manual-immediate",
+      "wallMs": 3968,
+      "scan": {
+       "version": "fv-guided-scan-metrics-0.1",
+       "mode": "follow_up",
+       "outcome": "accepted",
+       "trigger": "manual",
+       "cameraReadyMs": 150,
+       "guideReadyMs": 0,
+       "firstFaceMs": 373,
+       "firstAlignedMs": null,
+       "acceptedMs": 3689,
+       "endedMs": 3689,
+       "corrections": 0,
+       "instructions": [],
+       "bursts": [
+        {
+         "trigger": "manual",
+         "accepted": true,
+         "rejections": [],
+         "aligned": false,
+         "landmarkMotion": 0.01511,
+         "frameIntervalMs": 232
+        }
+       ],
+       "interruptions": 0,
+       "helpShown": false,
+       "comparison": "within_experimental_tolerances"
+      }
+     },
+     {
+      "strategy": "manual-immediate",
+      "wallMs": 4016,
+      "scan": {
+       "version": "fv-guided-scan-metrics-0.1",
+       "mode": "follow_up",
+       "outcome": "accepted",
+       "trigger": "manual",
+       "cameraReadyMs": 154,
+       "guideReadyMs": 0,
+       "firstFaceMs": 360,
+       "firstAlignedMs": null,
+       "acceptedMs": 3754,
+       "endedMs": 3755,
+       "corrections": 0,
+       "instructions": [],
+       "bursts": [
+        {
+         "trigger": "manual",
+         "accepted": true,
+         "rejections": [],
+         "aligned": false,
+         "landmarkMotion": 0.01511,
+         "frameIntervalMs": 233
+        }
+       ],
+       "interruptions": 0,
+       "helpShown": false,
+       "comparison": "within_experimental_tolerances"
+      }
+     }
+    ]
+   },
+   "handheld-calm-dilated": {
+    "scenario": "handheld-calm-dilated",
+    "measuredAt": "2026-11-07T02:57:39.699Z",
+    "regime": "dilated x8",
+    "video": "handheld",
+    "summary": {
+     "auto": {
+      "trials": 3,
+      "accepted": 3,
+      "bursts": 3,
+      "rejectedBursts": 0,
+      "rejectionReasons": [],
+      "landmarkMotion": [
+       0.00967,
+       0.00583,
+       0.00583
+      ],
+      "frameIntervalMs": [
+       233,
+       239,
+       241
+      ],
+      "timeToAcceptMs": [
+       7997,
+       5627,
+       5655
+      ],
+      "guideToAcceptMs": [
+       7569,
+       5627,
+       5655
+      ],
+      "corrections": [
+       1,
+       0,
+       0
+      ],
+      "comparisons": [
+       null,
+       "within_experimental_tolerances",
+       "within_experimental_tolerances"
+      ],
+      "helpShown": [
+       false,
+       false,
+       false
+      ]
+     },
+     "manual": {
+      "trials": 3,
+      "accepted": 3,
+      "bursts": 3,
+      "rejectedBursts": 0,
+      "rejectionReasons": [],
+      "landmarkMotion": [
+       0.00612,
+       0.00612,
+       0.00612
+      ],
+      "frameIntervalMs": [
+       224,
+       241,
+       239
+      ],
+      "timeToAcceptMs": [
+       3589,
+       3776,
+       3777
+      ],
+      "guideToAcceptMs": [
+       3589,
+       3776,
+       3777
+      ],
+      "corrections": [
+       0,
+       0,
+       0
+      ],
+      "comparisons": [
+       "within_experimental_tolerances",
+       "within_experimental_tolerances",
+       "within_experimental_tolerances"
+      ],
+      "helpShown": [
+       false,
+       false,
+       false
+      ]
+     }
+    },
+    "trials": [
+     {
+      "strategy": "auto",
+      "wallMs": 8093,
+      "scan": {
+       "version": "fv-guided-scan-metrics-0.1",
+       "mode": "baseline",
+       "outcome": "accepted",
+       "trigger": "auto",
+       "cameraReadyMs": 226,
+       "guideReadyMs": 428,
+       "firstFaceMs": 2862,
+       "firstAlignedMs": 3493,
+       "acceptedMs": 7997,
+       "endedMs": 7998,
+       "corrections": 1,
+       "instructions": [
+        "hold_still",
+        "aligned"
+       ],
+       "bursts": [
+        {
+         "trigger": "auto",
+         "accepted": true,
+         "rejections": [],
+         "aligned": true,
+         "landmarkMotion": 0.00967,
+         "frameIntervalMs": 233
+        }
+       ],
+       "interruptions": 0,
+       "helpShown": false,
+       "comparison": null
+      }
+     },
+     {
+      "strategy": "auto",
+      "wallMs": 5690,
+      "scan": {
+       "version": "fv-guided-scan-metrics-0.1",
+       "mode": "follow_up",
+       "outcome": "accepted",
+       "trigger": "auto",
+       "cameraReadyMs": 33,
+       "guideReadyMs": 0,
+       "firstFaceMs": 243,
+       "firstAlignedMs": 1118,
+       "acceptedMs": 5627,
+       "endedMs": 5629,
+       "corrections": 0,
+       "instructions": [
+        "aligned"
+       ],
+       "bursts": [
+        {
+         "trigger": "auto",
+         "accepted": true,
+         "rejections": [],
+         "aligned": true,
+         "landmarkMotion": 0.00583,
+         "frameIntervalMs": 239
+        }
+       ],
+       "interruptions": 0,
+       "helpShown": false,
+       "comparison": "within_experimental_tolerances"
+      }
+     },
+     {
+      "strategy": "auto",
+      "wallMs": 5701,
+      "scan": {
+       "version": "fv-guided-scan-metrics-0.1",
+       "mode": "follow_up",
+       "outcome": "accepted",
+       "trigger": "auto",
+       "cameraReadyMs": 37,
+       "guideReadyMs": 0,
+       "firstFaceMs": 277,
+       "firstAlignedMs": 1090,
+       "acceptedMs": 5655,
+       "endedMs": 5656,
+       "corrections": 0,
+       "instructions": [
+        "aligned"
+       ],
+       "bursts": [
+        {
+         "trigger": "auto",
+         "accepted": true,
+         "rejections": [],
+         "aligned": true,
+         "landmarkMotion": 0.00583,
+         "frameIntervalMs": 241
+        }
+       ],
+       "interruptions": 0,
+       "helpShown": false,
+       "comparison": "within_experimental_tolerances"
+      }
+     },
+     {
+      "strategy": "manual-immediate",
+      "wallMs": 3864,
+      "scan": {
+       "version": "fv-guided-scan-metrics-0.1",
+       "mode": "follow_up",
+       "outcome": "accepted",
+       "trigger": "manual",
+       "cameraReadyMs": 150,
+       "guideReadyMs": 0,
+       "firstFaceMs": 392,
+       "firstAlignedMs": null,
+       "acceptedMs": 3589,
+       "endedMs": 3590,
+       "corrections": 0,
+       "instructions": [],
+       "bursts": [
+        {
+         "trigger": "manual",
+         "accepted": true,
+         "rejections": [],
+         "aligned": false,
+         "landmarkMotion": 0.00612,
+         "frameIntervalMs": 224
+        }
+       ],
+       "interruptions": 0,
+       "helpShown": false,
+       "comparison": "within_experimental_tolerances"
+      }
+     },
+     {
+      "strategy": "manual-immediate",
+      "wallMs": 4073,
+      "scan": {
+       "version": "fv-guided-scan-metrics-0.1",
+       "mode": "follow_up",
+       "outcome": "accepted",
+       "trigger": "manual",
+       "cameraReadyMs": 153,
+       "guideReadyMs": 0,
+       "firstFaceMs": 375,
+       "firstAlignedMs": null,
+       "acceptedMs": 3776,
+       "endedMs": 3777,
+       "corrections": 0,
+       "instructions": [],
+       "bursts": [
+        {
+         "trigger": "manual",
+         "accepted": true,
+         "rejections": [],
+         "aligned": false,
+         "landmarkMotion": 0.00612,
+         "frameIntervalMs": 241
+        }
+       ],
+       "interruptions": 0,
+       "helpShown": false,
+       "comparison": "within_experimental_tolerances"
+      }
+     },
+     {
+      "strategy": "manual-immediate",
+      "wallMs": 4057,
+      "scan": {
+       "version": "fv-guided-scan-metrics-0.1",
+       "mode": "follow_up",
+       "outcome": "accepted",
+       "trigger": "manual",
+       "cameraReadyMs": 156,
+       "guideReadyMs": 0,
+       "firstFaceMs": 403,
+       "firstAlignedMs": null,
+       "acceptedMs": 3777,
+       "endedMs": 3777,
+       "corrections": 0,
+       "instructions": [],
+       "bursts": [
+        {
+         "trigger": "manual",
+         "accepted": true,
+         "rejections": [],
+         "aligned": false,
+         "landmarkMotion": 0.00612,
+         "frameIntervalMs": 239
+        }
+       ],
+       "interruptions": 0,
+       "helpShown": false,
+       "comparison": "within_experimental_tolerances"
+      }
+     }
+    ]
+   },
+   "shaky-dilated": {
+    "scenario": "shaky-dilated",
+    "measuredAt": "2026-11-07T02:59:09.975Z",
+    "regime": "dilated x8",
+    "video": "shaky",
+    "summary": {
+     "auto": {
+      "trials": 1,
+      "accepted": 0,
+      "bursts": 0,
+      "rejectedBursts": 0,
+      "rejectionReasons": [],
+      "landmarkMotion": [],
+      "frameIntervalMs": [],
+      "timeToAcceptMs": [],
+      "guideToAcceptMs": [],
+      "corrections": [
+       1
+      ],
+      "comparisons": [
+       null
+      ],
+      "helpShown": [
+       true
+      ]
+     },
+     "manual": {
+      "trials": 1,
+      "accepted": 0,
+      "bursts": 2,
+      "rejectedBursts": 2,
+      "rejectionReasons": [
+       "motion",
+       "motion"
+      ],
+      "landmarkMotion": [
+       0.09421,
+       0.07457
+      ],
+      "frameIntervalMs": [
+       245,
+       229
+      ],
+      "timeToAcceptMs": [],
+      "guideToAcceptMs": [],
+      "corrections": [
+       0
+      ],
+      "comparisons": [
+       null
+      ],
+      "helpShown": [
+       false
+      ]
+     }
+    },
+    "trials": [
+     {
+      "strategy": "auto",
+      "wallMs": 28101,
+      "scan": {
+       "version": "fv-guided-scan-metrics-0.1",
+       "mode": "baseline",
+       "outcome": "cancelled",
+       "trigger": null,
+       "cameraReadyMs": 397,
+       "guideReadyMs": 381,
+       "firstFaceMs": 2583,
+       "firstAlignedMs": 10482,
+       "acceptedMs": null,
+       "endedMs": 28034,
+       "corrections": 1,
+       "instructions": [
+        "hold_still"
+       ],
+       "bursts": [],
+       "interruptions": 0,
+       "helpShown": true,
+       "comparison": null
+      },
+      "note": "cancelled at budget"
+     },
+     {
+      "strategy": "manual-immediate",
+      "wallMs": 7466,
+      "scan": {
+       "version": "fv-guided-scan-metrics-0.1",
+       "mode": "baseline",
+       "outcome": "cancelled",
+       "trigger": null,
+       "cameraReadyMs": 149,
+       "guideReadyMs": 0,
+       "firstFaceMs": 381,
+       "firstAlignedMs": null,
+       "acceptedMs": null,
+       "endedMs": 7401,
+       "corrections": 0,
+       "instructions": [],
+       "bursts": [
+        {
+         "trigger": "manual",
+         "accepted": false,
+         "rejections": [
+          "motion"
+         ],
+         "aligned": false,
+         "landmarkMotion": 0.09421,
+         "frameIntervalMs": 245
+        },
+        {
+         "trigger": "manual",
+         "accepted": false,
+         "rejections": [
+          "motion"
+         ],
+         "aligned": false,
+         "landmarkMotion": 0.07457,
+         "frameIntervalMs": 229
+        }
+       ],
+       "interruptions": 0,
+       "helpShown": false,
+       "comparison": null
+      }
+     }
+    ]
+   },
+   "steady-realtime": {
+    "scenario": "steady-realtime",
+    "measuredAt": "2026-11-07T02:56:24.193Z",
+    "regime": "realtime",
+    "video": "steady",
+    "summary": {
+     "auto": {
+      "trials": 3,
+      "accepted": 3,
+      "bursts": 3,
+      "rejectedBursts": 0,
+      "rejectionReasons": [],
+      "landmarkMotion": [
+       0.0121,
+       0.00807,
+       0.01008
+      ],
+      "frameIntervalMs": [
+       247,
+       253,
+       273
+      ],
+      "timeToAcceptMs": [
+       12283,
+       5795,
+       6035
+      ],
+      "guideToAcceptMs": [
+       11822,
+       5795,
+       6035
+      ],
+      "corrections": [
+       2,
+       0,
+       0
+      ],
+      "comparisons": [
+       null,
+       "within_experimental_tolerances",
+       "within_experimental_tolerances"
+      ],
+      "helpShown": [
+       false,
+       false,
+       false
+      ]
+     },
+     "manual": {
+      "trials": 0,
+      "accepted": 0,
+      "bursts": 0,
+      "rejectedBursts": 0,
+      "rejectionReasons": [],
+      "landmarkMotion": [],
+      "frameIntervalMs": [],
+      "timeToAcceptMs": [],
+      "guideToAcceptMs": [],
+      "corrections": [],
+      "comparisons": [],
+      "helpShown": []
+     }
+    },
+    "trials": [
+     {
+      "strategy": "auto",
+      "wallMs": 12372,
+      "scan": {
+       "version": "fv-guided-scan-metrics-0.1",
+       "mode": "baseline",
+       "outcome": "accepted",
+       "trigger": "auto",
+       "cameraReadyMs": 166,
+       "guideReadyMs": 461,
+       "firstFaceMs": 2986,
+       "firstAlignedMs": 3603,
+       "acceptedMs": 12283,
+       "endedMs": 12284,
+       "corrections": 2,
+       "instructions": [
+        "hold_still",
+        "aligned",
+        "hold_still",
+        "aligned"
+       ],
+       "bursts": [
+        {
+         "trigger": "auto",
+         "accepted": true,
+         "rejections": [],
+         "aligned": true,
+         "landmarkMotion": 0.0121,
+         "frameIntervalMs": 247
+        }
+       ],
+       "interruptions": 0,
+       "helpShown": false,
+       "comparison": null
+      }
+     },
+     {
+      "strategy": "auto",
+      "wallMs": 6070,
+      "scan": {
+       "version": "fv-guided-scan-metrics-0.1",
+       "mode": "follow_up",
+       "outcome": "accepted",
+       "trigger": "auto",
+       "cameraReadyMs": 55,
+       "guideReadyMs": 0,
+       "firstFaceMs": 258,
+       "firstAlignedMs": 1184,
+       "acceptedMs": 5795,
+       "endedMs": 5797,
+       "corrections": 0,
+       "instructions": [
+        "aligned"
+       ],
+       "bursts": [
+        {
+         "trigger": "auto",
+         "accepted": true,
+         "rejections": [],
+         "aligned": true,
+         "landmarkMotion": 0.00807,
+         "frameIntervalMs": 253
+        }
+       ],
+       "interruptions": 0,
+       "helpShown": false,
+       "comparison": "within_experimental_tolerances"
+      }
+     },
+     {
+      "strategy": "auto",
+      "wallMs": 6099,
+      "scan": {
+       "version": "fv-guided-scan-metrics-0.1",
+       "mode": "follow_up",
+       "outcome": "accepted",
+       "trigger": "auto",
+       "cameraReadyMs": 58,
+       "guideReadyMs": 0,
+       "firstFaceMs": 268,
+       "firstAlignedMs": 1119,
+       "acceptedMs": 6035,
+       "endedMs": 6037,
+       "corrections": 0,
+       "instructions": [
+        "aligned"
+       ],
+       "bursts": [
+        {
+         "trigger": "auto",
+         "accepted": true,
+         "rejections": [],
+         "aligned": true,
+         "landmarkMotion": 0.01008,
+         "frameIntervalMs": 273
+        }
+       ],
+       "interruptions": 0,
+       "helpShown": false,
+       "comparison": "within_experimental_tolerances"
+      }
+     }
+    ],
+    "recovery": {
+     "resumeToResultMs": 6168,
+     "scan": {
+      "version": "fv-guided-scan-metrics-0.1",
+      "mode": "follow_up",
+      "outcome": "accepted",
+      "trigger": "auto",
+      "cameraReadyMs": 59,
+      "guideReadyMs": 0,
+      "firstFaceMs": 292,
+      "firstAlignedMs": 1521,
+      "acceptedMs": 6457,
+      "endedMs": 6459,
+      "corrections": 0,
+      "instructions": [
+       "aligned"
+      ],
+      "bursts": [
+       {
+        "trigger": "auto",
+        "accepted": true,
+        "rejections": [],
+        "aligned": true,
+        "landmarkMotion": 0.00807,
+        "frameIntervalMs": 271
+       }
+      ],
+      "interruptions": 1,
+      "helpShown": false,
+      "comparison": "within_experimental_tolerances"
+     }
+    }
+   },
+   "too-far-realtime": {
+    "scenario": "too-far-realtime",
+    "measuredAt": "2026-11-07T02:59:34.848Z",
+    "regime": "realtime",
+    "video": "far",
+    "summary": {
+     "auto": {
+      "trials": 1,
+      "accepted": 0,
+      "bursts": 0,
+      "rejectedBursts": 0,
+      "rejectionReasons": [],
+      "landmarkMotion": [],
+      "frameIntervalMs": [],
+      "timeToAcceptMs": [],
+      "guideToAcceptMs": [],
+      "corrections": [
+       1
+      ],
+      "comparisons": [
+       null
+      ],
+      "helpShown": [
+       true
+      ]
+     },
+     "manual": {
+      "trials": 0,
+      "accepted": 0,
+      "bursts": 0,
+      "rejectedBursts": 0,
+      "rejectionReasons": [],
+      "landmarkMotion": [],
+      "frameIntervalMs": [],
+      "timeToAcceptMs": [],
+      "guideToAcceptMs": [],
+      "corrections": [],
+      "comparisons": [],
+      "helpShown": []
+     }
+    },
+    "trials": [
+     {
+      "strategy": "auto",
+      "wallMs": 23577,
+      "scan": {
+       "version": "fv-guided-scan-metrics-0.1",
+       "mode": "baseline",
+       "outcome": "cancelled",
+       "trigger": null,
+       "cameraReadyMs": 141,
+       "guideReadyMs": 425,
+       "firstFaceMs": 2928,
+       "firstAlignedMs": null,
+       "acceptedMs": null,
+       "endedMs": 23489,
+       "corrections": 1,
+       "instructions": [
+        "move_closer"
+       ],
+       "bursts": [],
+       "interruptions": 0,
+       "helpShown": true,
+       "comparison": null
+      },
+      "note": "cancelled at budget"
+     }
+    ]
+   }
+  }
+ }
+}
