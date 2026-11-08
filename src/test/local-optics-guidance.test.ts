@@ -258,3 +258,31 @@ describe('stillness filtering', () => {
     expect(moving.some((s) => s.fire)).toBe(false);
   });
 });
+
+describe('the instruction follows the detected condition', () => {
+  it('a resolved problem is replaced after the dwell, not held for the minimum display time', () => {
+    const guide = new CaptureGuide();
+    run(guide, 0, 3, (t) => good(t, { centerX: 0.8 })); // "center" on screen from about 450 ms
+    // Centred now, but the head tilts: "center" no longer applies.
+    const states = run(guide, 600, 8, (t) => good(t, { roll: 15 }));
+    const switchedAt = states.findIndex((s) => s.instruction.id === 'level');
+    expect(switchedAt).toBeGreaterThan(-1);
+    expect(600 + switchedAt * 100 - 500).toBeLessThan(GUIDE.minShowMs); // shown < 900 ms after "center"
+  });
+
+  it('a problem that is still present keeps its minimum display time when a higher one appears', () => {
+    const guide = new CaptureGuide();
+    run(guide, 0, 6, (t) => good(t, { roll: 15 })); // "level" shown at about 500 ms
+    // Still tilted, and now also too far: "move_closer" outranks "level", but "level" stays ≥ 900 ms.
+    const states = run(guide, 600, 12, (t) => good(t, { roll: 15, interocular: 0.12 }));
+    const at = states.findIndex((s) => s.instruction.id === 'move_closer');
+    expect(600 + at * 100 - 500).toBeGreaterThanOrEqual(GUIDE.minShowMs);
+  });
+
+  it('“moving” and “about to capture” read differently', () => {
+    const shaky = run(new CaptureGuide(), 0, 10, (t) => good(t, {}, { speed: 4 })).at(-1)!;
+    const ready = run(new CaptureGuide(), 0, 10, (t) => good(t)).at(-1)!;
+    expect(shaky.instruction.title).toBe('Hold steady');
+    expect(ready.instruction).toMatchObject({ id: 'aligned', title: 'Hold it there', detail: 'Capturing automatically' });
+  });
+});

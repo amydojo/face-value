@@ -61,7 +61,7 @@ export const test = base.extend<{ cameraVideo: string; page: Page }>({
         ...(cameraVideo ? [`--use-file-for-fake-video-capture=${cameraVideo}`] : []),
       ],
     });
-    const context = await browser.newContext({ baseURL, permissions: ['camera'], viewport: { width: 390, height: 844 } });
+    const context = await browser.newContext({ baseURL, permissions: ['camera', 'clipboard-read', 'clipboard-write'], viewport: { width: 390, height: 844 } });
     const page = await context.newPage();
     await page.addInitScript(() => {
       const tracks: MediaStreamTrack[] = [];

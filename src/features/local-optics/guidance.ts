@@ -86,7 +86,7 @@ export function instructionFor(id: InstructionId, followUp: boolean, baselineOri
     case 'preparing':
       return make('face', 'Preparing the face guide', 'This takes a moment the first time');
     case 'looking':
-      return make('face', 'Looking for your face', 'Hold your phone at eye level');
+      return make('face', 'Looking for your face', 'Point the front camera at your face');
     case 'no_face':
       return make('face', 'Bring your face into view', 'Face the screen in even light');
     case 'multiple_faces':
@@ -102,7 +102,7 @@ export function instructionFor(id: InstructionId, followUp: boolean, baselineOri
     case 'move_closer':
       return make('alignment', 'Move a little closer', followUp ? 'Fit your face to the outline' : 'Fill the outline with your face');
     case 'center':
-      return make('alignment', 'Center your face', followUp ? 'Line it up with the outline' : 'Keep it inside the outline');
+      return make('alignment', 'Center your face', followUp ? 'Follow the arrow to the outline' : 'Follow the arrow');
     case 'level':
       return make('alignment', 'Level your head', 'Keep your eyes level');
     case 'turn':
@@ -118,9 +118,9 @@ export function instructionFor(id: InstructionId, followUp: boolean, baselineOri
     case 'side_light':
       return make('light', 'Light is coming from the side', 'Face the light the way you did before');
     case 'hold_still':
-      return make('stillness', 'Hold still', 'Rest your elbows if you can');
+      return make('stillness', 'Hold steady', 'Keep the phone still for a moment');
     case 'aligned':
-      return make('ready', 'Hold still', 'Capturing automatically');
+      return make('ready', 'Hold it there', 'Capturing automatically');
   }
 }
 
@@ -433,7 +433,7 @@ export class CaptureGuide {
     const held = this.stableSince === null ? 0 : o.t - this.stableSince;
     const hold = Math.min(1, Math.min(held / GUIDE.stableMs, this.stableCount / GUIDE.stableObservations));
 
-    this.show(raw, o.t);
+    this.show(raw, o.t, failing);
     // Fire only after "Hold still" has actually been on screen: never mid-correction.
     const fire = !this.fired && hold >= 1 && this.shownId === 'aligned';
     if (fire) this.fired = true;
@@ -453,7 +453,7 @@ export class CaptureGuide {
   }
 
   /** Instruction hysteresis in time: dwell before switching, minimum display once switched. */
-  private show(raw: InstructionId, t: number): void {
+  private show(raw: InstructionId, t: number, failing: CheckId[]): void {
     if (raw === this.shownId) {
       this.candidate = null;
       return;
@@ -465,9 +465,15 @@ export class CaptureGuide {
     const urgent = raw === 'no_face' || raw === 'multiple_faces' || raw === 'rotate';
     // Reaching alignment is acknowledged after the dwell alone; the stability window guards it.
     const settled = raw === 'aligned' || this.shownId === 'looking' || this.shownId === 'preparing';
+    // The minimum display time only stops ping-pong while the shown problem is still present. Once
+    // its condition has cleared, the screen follows the current condition after the dwell alone.
+    const faceStates: InstructionId[] = ['no_face', 'multiple_faces'];
+    const stillPresent = faceStates.includes(this.shownId)
+      ? faceStates.includes(raw)
+      : failing.includes(this.shownId as CheckId);
     const dwell = urgent ? 0 : GUIDE.dwellMs;
     const displayed = t - this.shownAt;
-    if (t - this.candidateSince >= dwell && (urgent || settled || displayed >= GUIDE.minShowMs)) {
+    if (t - this.candidateSince >= dwell && (urgent || settled || !stillPresent || displayed >= GUIDE.minShowMs)) {
       this.shownId = raw;
       this.shownAt = t;
       this.candidate = null;

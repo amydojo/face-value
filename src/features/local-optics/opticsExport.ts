@@ -1,5 +1,7 @@
+import { GUIDE_VERSION } from './guidance';
 import { MEDIAPIPE_TASKS_VISION_VERSION, type LandmarkerInitReport } from './landmarkSource';
-import type { CaptureComparison, CaptureMeasurement } from './opticsMetrics';
+import { EXPERIMENTAL_TOLERANCES, LOCAL_OPTICS_METRICS_VERSION, type CaptureComparison, type CaptureMeasurement } from './opticsMetrics';
+import { SCAN_METRICS_VERSION, summarize, type ScanRecord, type ScanSummary } from './scanMetrics';
 
 /**
  * Manual, numbers-only export of a comparison for the iPhone protocol. Built only when the person
@@ -90,5 +92,64 @@ export function exportLog(
     delegate: init?.delegate ?? null,
     userAgent,
     pairs,
+  };
+}
+
+/**
+ * One-tap test report: the usability log and every follow-up comparison of this session, with the
+ * versions and the device path (delegate, frame) needed to read them. Numbers and state names
+ * only: no images, landmarks, baseline template, user agent or device identifiers.
+ */
+export const TEST_REPORT_VERSION = 'fv-guided-test-report-0.1';
+
+export interface TestReport {
+  reportVersion: typeof TEST_REPORT_VERSION;
+  generatedAt: string;
+  versions: { metrics: string; tolerances: string; guide: string; scanMetrics: string; runtime: string };
+  device: {
+    delegate: string | null;
+    requestedDelegate: 'auto' | 'CPU';
+    gpuFailure: string | null;
+    modelInitMs: number | null;
+    frame: { width: number; height: number; orientation: 'portrait' | 'landscape' } | null;
+    frameIntervalMs: number[];
+  };
+  usability: { summary: ScanSummary; scans: ScanRecord[] };
+  comparisons: ExportedPair[];
+  latestComparison: ExportedPair | null;
+  privacy: string;
+}
+
+export function buildTestReport(input: {
+  scans: ScanRecord[];
+  comparisons: ExportedPair[];
+  init: LandmarkerInitReport | null;
+  requestedDelegate: 'auto' | 'CPU';
+  frame: { width: number; height: number } | null;
+  now?: Date;
+}): TestReport {
+  const { scans, comparisons, init, frame } = input;
+  return {
+    reportVersion: TEST_REPORT_VERSION,
+    generatedAt: (input.now ?? new Date()).toISOString(),
+    versions: {
+      metrics: LOCAL_OPTICS_METRICS_VERSION,
+      tolerances: EXPERIMENTAL_TOLERANCES.version,
+      guide: GUIDE_VERSION,
+      scanMetrics: SCAN_METRICS_VERSION,
+      runtime: `@mediapipe/tasks-vision@${MEDIAPIPE_TASKS_VISION_VERSION}`,
+    },
+    device: {
+      delegate: init?.delegate ?? null,
+      requestedDelegate: input.requestedDelegate,
+      gpuFailure: init?.gpuFailure ? init.gpuFailure.slice(0, 160) : null,
+      modelInitMs: init?.initMs ?? null,
+      frame: frame ? { width: frame.width, height: frame.height, orientation: frame.height >= frame.width ? 'portrait' : 'landscape' } : null,
+      frameIntervalMs: scans.flatMap((s) => s.bursts.map((b) => b.frameIntervalMs)).filter((v): v is number => v !== null),
+    },
+    usability: { summary: summarize(scans), scans },
+    comparisons,
+    latestComparison: comparisons.at(-1) ?? null,
+    privacy: 'Numbers only: no images, landmarks, face templates, user agent or device identifiers.',
   };
 }

@@ -34,6 +34,13 @@ test.describe('steady phone', () => {
     // StrictMode mounted, unmounted and remounted the route: exactly one live camera track.
     expect(await liveTracks(page)).toBe(1);
 
+    // Aligned -> automatic capture is visible: the frame cue, the instruction, then the burst.
+    const chamber = page.locator('[data-camera="on"]');
+    await expect(chamber).toHaveAttribute('data-cue', 'aligned', { timeout: 60_000 });
+    // The burst may already have begun by the time this is read; both are the handoff.
+    await expect(instruction(page)).toContainText(/Hold it there|Capturing/);
+    await expect(chamber).toHaveAttribute('data-cue', 'capturing', { timeout: 30_000 });
+    await expect(page.locator('[data-shutter] + p')).toContainText(/Capturing · \d+ of 12/);
     await expect(page.locator('[data-panel="baseline"]')).toBeVisible({ timeout: 60_000 });
     await expect(page.getByRole('heading', { name: 'Baseline captured' })).toBeVisible();
     // The camera stops as soon as the capture is accepted.
@@ -56,19 +63,43 @@ test.describe('steady phone', () => {
       expect(scan.acceptedMs).toBeGreaterThan(scan.firstAlignedMs!);
     }
 
-    // Lab: the comparison is there in numbers; the analysed frame is released once done.
-    await page.getByRole('button', { name: 'Done' }).click();
+    // One-tap report, straight from the result screen: Lab, then Copy test report. Two taps, no
+    // scrolling, labels or "Add pair".
     await page.getByRole('button', { name: 'Lab' }).click();
     const lab = page.locator('[data-local-optics-lab]');
+    const copyReport = lab.getByRole('button', { name: 'Copy test report' });
+    await expect(copyReport).toBeInViewport();
+    await expect(lab.locator('[data-test-report-summary]')).toContainText('2 scans · 2 accepted · 0 refused bursts');
+    await expect(lab.locator('[data-test-report-summary]')).toContainText('latest follow-up matched');
+    await copyReport.click();
+    await expect(lab.getByRole('status').filter({ hasText: 'Copied' })).toBeVisible();
+    const reportText = await page.evaluate(() => navigator.clipboard.readText());
+    const report = JSON.parse(reportText);
+    expect(report).toMatchObject({
+      reportVersion: 'fv-guided-test-report-0.1',
+      device: { delegate: 'GPU', frame: { width: 360, height: 480, orientation: 'portrait' } },
+      usability: { summary: { scans: 2, accepted: 2, rejectedBursts: 0 } },
+      latestComparison: { label: 'follow-up 1', overall: 'within_experimental_tolerances' },
+    });
+    expect(report.usability.scans).toEqual(log);
+    expect(report.comparisons).toHaveLength(1);
+    expect(report.latestComparison.rows.length).toBeGreaterThan(8);
+    // The detailed diagnostics are still there, collapsed.
+    await expect(lab.locator('[data-local-optics-diagnostics]')).toBeHidden();
+    await lab.getByText('Diagnostics and details').click();
+
+    // Lab details: the comparison is there in numbers; the analysed frame is released once done.
+    await page.getByRole('button', { name: 'Done' }).click();
     await expect(lab.locator('[data-local-optics-comparison]')).toHaveAttribute('data-local-optics-comparison', 'within_experimental_tolerances');
     await expect(lab.locator('[data-snapshot-released]')).toBeVisible();
     await lab.getByRole('textbox', { name: 'Pair label' }).fill('A01 repeat');
     await lab.getByRole('button', { name: 'Add pair to log' }).click();
     const exported = await lab.getByRole('textbox', { name: 'Numeric log JSON' }).inputValue();
     const usability = await lab.getByRole('textbox', { name: 'Usability log JSON' }).inputValue();
-    for (const json of [exported, usability, JSON.stringify(log)]) {
+    for (const json of [exported, usability, JSON.stringify(log), reportText]) {
       expect(json).not.toMatch(/data:|blob:|deviceId|groupId|"points"|"x":|"faceHeight"/);
     }
+    expect(reportText).not.toMatch(/userAgent|Mozilla|fv-guided-baseline/);
     expect(JSON.parse(exported).pairs[0]).toMatchObject({ label: 'A01 repeat', overall: 'within_experimental_tolerances' });
 
     expectSameOriginGets(page);
@@ -140,6 +171,7 @@ test.describe('steady phone', () => {
     await page.getByRole('button', { name: 'Start scan' }).click();
     await waitForGuide(page);
     await page.getByRole('button', { name: 'Lab' }).click();
+    await page.getByText('Diagnostics and details').click();
     const diagnostics = page.locator('[data-local-optics-diagnostics]');
     await expect(diagnostics.locator('[data-diagnostic="Delegate in use"] dd')).toHaveText('CPU');
     await expect(diagnostics.locator('[data-diagnostic="Secure context (HTTPS)"] dd')).toHaveText('yes');
@@ -197,6 +229,12 @@ test.describe('no face', () => {
     const [scan] = await scans(page);
     expect(scan.outcome).toBe('cancelled');
     expect(scan.bursts).toEqual([expect.objectContaining({ trigger: 'manual', accepted: false, rejections: expect.arrayContaining(['no_face']) })]);
+    // The report carries the refusal; no comparison exists without a follow-up.
+    await page.getByRole('button', { name: 'Lab' }).click();
+    await page.getByRole('button', { name: 'Copy test report' }).click();
+    const report = JSON.parse(await page.evaluate(() => navigator.clipboard.readText()));
+    expect(report.usability.summary).toMatchObject({ scans: 1, accepted: 0, cancelled: 1, rejectedBursts: 1, manualRejectionRate: 1 });
+    expect(report).toMatchObject({ comparisons: [], latestComparison: null });
   });
 });
 
@@ -228,6 +266,7 @@ test.describe('model integrity', () => {
     await expect.poll(() => liveTracks(page)).toBe(0);
     expect(requestsOf(page).some((r) => r.url.endsWith('.wasm'))).toBe(false);
     await page.getByRole('button', { name: 'Lab' }).click();
+    await page.getByText('Diagnostics and details').click();
     await expect(page.locator('[data-local-optics-model]')).toContainText('Model integrity check failed');
 
     // The real model comes back: "Try again" recovers without reloading.

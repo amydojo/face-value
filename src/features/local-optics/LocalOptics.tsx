@@ -17,6 +17,7 @@ import { LabPanel } from './LabPanel';
 import { loadMediaPipeLandmarker } from './landmarkSource';
 import { compareCaptures, type CaptureComparison, type CaptureMeasurement } from './opticsMetrics';
 import { browserOpticsDeps, CAPTURE_FRAMES, OpticsSession, type OpticsCapture, type OpticsSessionDeps } from './opticsSession';
+import { exportPair, type ExportedPair } from './opticsExport';
 import { newScanRecord, type ScanOutcome, type ScanRecord } from './scanMetrics';
 import styles from './LocalOptics.module.css';
 
@@ -67,7 +68,7 @@ const FAILURE_COPY: Record<Failure, { title: string; detail: string }> = {
 const HELP_TIPS: Record<string, string> = {
   stillness: 'Rest your elbows on a table, or lean the phone against something steady.',
   light: 'Face a window or a soft lamp, away from bright light behind you.',
-  alignment: 'Hold the phone at eye level, about an arm’s length away.',
+  alignment: 'Hold the phone about an arm’s length away, facing you.',
   face: 'Make sure your face is well lit and fully in view.',
 };
 
@@ -89,6 +90,8 @@ export function LocalOptics({ deps }: { deps?: OpticsSessionDeps } = {}) {
   const [followUp, setFollowUp] = useState<CaptureMeasurement | null>(null);
   const [comparison, setComparison] = useState<CaptureComparison | null>(null);
   const [scans, setScans] = useState<ScanRecord[]>([]);
+  const [comparisons, setComparisons] = useState<ExportedPair[]>([]);
+  const [lastFrame, setLastFrame] = useState<{ width: number; height: number } | null>(null);
   const [labOpen, setLabOpen] = useState(false);
   const [backgroundPauses, setBackgroundPauses] = useState(0);
   const [permission, setPermission] = useState('not checked');
@@ -104,7 +107,7 @@ export function LocalOptics({ deps }: { deps?: OpticsSessionDeps } = {}) {
   const t0 = useRef(0);
   const autoRejections = useRef(0);
   const liveSince = useRef(0);
-  const lastFrame = useRef<string>('');
+  const lastFrameKey = useRef<string>('');
   const lastRejections = useRef<string[]>([]);
 
   const params = useMemo(() => new URLSearchParams(globalThis.location?.search ?? ''), []);
@@ -373,6 +376,8 @@ export function LocalOptics({ deps }: { deps?: OpticsSessionDeps } = {}) {
     const result = compareCaptures(baseline.measurement, m);
     setFollowUp(m);
     setComparison(result);
+    const baselineMeasurement = baseline.measurement;
+    setComparisons((current) => [...current, exportPair(`follow-up ${current.length + 1}`, result, baselineMeasurement, m)]);
     if (recordRef.current) recordRef.current.comparison = result.overall;
     finishRecord('accepted');
     setPhase({
@@ -419,8 +424,9 @@ export function LocalOptics({ deps }: { deps?: OpticsSessionDeps } = {}) {
     const record = recordRef.current;
     if (!g) return;
     const frameKey = `${o.frame.width}x${o.frame.height}`;
-    if (lastFrame.current && frameKey !== lastFrame.current) g.reset(); // rotation
-    lastFrame.current = frameKey;
+    if (lastFrameKey.current !== frameKey) setLastFrame(o.frame);
+    if (lastFrameKey.current && frameKey !== lastFrameKey.current) g.reset(); // rotation
+    lastFrameKey.current = frameKey;
     const state = g.update(o);
     setLive(o);
     setGuide(state);
@@ -468,7 +474,7 @@ export function LocalOptics({ deps }: { deps?: OpticsSessionDeps } = {}) {
   const cameraVisible = phase.kind === 'starting' || phase.kind === 'live' || phase.kind === 'capturing';
   const instruction: Instruction =
     phase.kind === 'capturing'
-      ? { id: 'aligned', category: 'ready', title: 'Capturing', detail: 'Hold still' }
+      ? { id: 'aligned', category: 'ready', title: 'Capturing', detail: 'Keep still for a moment' }
       : phase.kind === 'starting'
         ? { id: 'preparing', category: 'face', title: 'Opening the camera', detail: 'Allow camera access if asked' }
         : model.kind !== 'ready'
@@ -514,7 +520,12 @@ export function LocalOptics({ deps }: { deps?: OpticsSessionDeps } = {}) {
 
   return (
     <main className={styles.page} data-local-optics data-phase={phase.kind} data-scan-log={JSON.stringify(scans)}>
-      <section className={styles.chamber} data-camera={cameraVisible ? 'on' : 'off'} aria-label="Face scan">
+      <section
+        className={styles.chamber}
+        data-camera={cameraVisible ? 'on' : 'off'}
+        data-cue={phase.kind === 'capturing' ? 'capturing' : overlayMode === 'aligned' && !autoPaused ? 'aligned' : 'none'}
+        aria-label="Face scan"
+      >
         <video ref={video} className={styles.video} muted playsInline aria-label="Camera preview" hidden={!cameraVisible} />
         {cameraVisible && (
           <GuideOverlay
@@ -609,7 +620,7 @@ export function LocalOptics({ deps }: { deps?: OpticsSessionDeps } = {}) {
               </button>
               <p className={styles.shutterCaption} aria-hidden="true">
                 {phase.kind === 'capturing'
-                  ? `${phase.done} of ${phase.total}`
+                  ? `Capturing · ${phase.done} of ${phase.total}`
                   : autoPaused
                     ? 'Tap to capture'
                     : overlayMode === 'aligned'
@@ -656,6 +667,8 @@ export function LocalOptics({ deps }: { deps?: OpticsSessionDeps } = {}) {
         followUp={followUp}
         comparison={comparison}
         scans={scans}
+        comparisons={comparisons}
+        lastFrame={lastFrame}
         modelInit={model.kind === 'ready' ? (session?.modelInit ?? null) : null}
       />
     </main>
@@ -738,7 +751,7 @@ function Panel(props: {
       title = props.followUp ? 'Match your baseline' : 'Face scan';
       body = props.followUp
         ? 'Line your face up with the outline from your baseline. Face Value captures automatically when you’re steady.'
-        : 'Hold your phone at eye level. Face Value guides you into position and captures automatically when you’re steady.';
+        : 'Face the camera. Face Value guides you into position and captures automatically when you’re steady.';
       primary = { label: 'Start scan', action: props.onStart };
       secondary = props.followUp ? { label: 'Start over with a new baseline', action: props.onNewBaseline } : null;
   }

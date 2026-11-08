@@ -53,6 +53,7 @@ test('without the model the guide fails clearly, releases the camera and stores 
 
   // The Lab says why; nothing is ever uploaded or stored.
   await page.getByRole('button', { name: 'Lab' }).click();
+  await page.getByText('Diagnostics and details').click();
   await expect(page.locator('[data-local-optics-model]')).toContainText(
     'unavailable (Model not available at /local-optics-assets/mediapipe-tasks-vision-0.10.35/face_landmarker.task (404))',
   );

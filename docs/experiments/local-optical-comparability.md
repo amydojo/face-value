@@ -200,6 +200,49 @@ traces the person's face. A chevron points toward the outline when position is t
 Instructions are announced politely to screen readers and are always visual text; the rail
 marks state with text and a check mark as well as colour.
 
+### Revision 04.1: friction from the first iPhone run
+
+The first real-iPhone run had 2 of 2 automatic captures accepted, with no refused bursts. The
+baseline took 7.2 s and the follow-up 1.6 s; bursts ran at 22 ms per analysed frame. The person
+preferred automatic capture. The friction was in the wording and in getting results out of the
+Lab. Revision 04.1 changes only these; no threshold, gate, tolerance or stability requirement
+changed.
+
+- **Guidance wording.**
+  - "Hold your phone at eye level" became "Point the front camera at your face".
+  - "Center your face" now says "Follow the arrow", matching the on-screen chevron.
+  - Moving too much reads "Hold steady". Aligned and about to capture reads "Hold it there,
+    capturing automatically"; before, both said "Hold still".
+- **The instruction follows the current condition.** The 900 ms minimum display now applies
+  only while the shown problem is still present. Once it clears, the next instruction appears
+  after the 450 ms dwell alone.
+- **Aligned → capture is visible.** While the hold window fills, the chamber gets an amber frame
+  and the instruction turns amber. During the burst the frame thickens and the caption counts
+  "Capturing · n of 12". The frame disappears at once when the capture ends. Reduced motion
+  removes the easing.
+- **One-tap test report.** **Copy test report** is the first thing in the Lab. It copies one JSON
+  report (`fv-guided-test-report-0.1`) containing:
+  - versions;
+  - the device path: delegate, model initialisation time, frame size, burst frame intervals;
+  - the usability summary and every scan record;
+  - every follow-up comparison of the tab, recorded automatically with no label or "Add pair"
+    step.
+
+  It holds numbers and state names only: no images, landmarks, baseline template, user agent or
+  device identifiers. Everything else in the Lab sits under a collapsed **Diagnostics and
+  details**.
+
+**Interactions to get a usable test report** (usability numbers plus the paired measurements),
+counted from the result screen at 390 × 844 on each build:
+
+| | 04 (`5acc2f0`) | 04.1 |
+|---|---|---|
+| Taps | Lab, Add pair to log, Copy log, Copy usability log (plus a label field, optional): 4–5 | Lab, Copy test report: 2 |
+| Scrolling | About 1,800 px to the pair controls, then more to the usability log (Lab about 3,100 px tall) | None: the button is on screen after tapping Lab (Lab collapsed to about 445 px) |
+| Separate copies and pastes | 2 | 1 |
+
+[Screens, 04 vs 04.1](../verification/guided-capture/04-vs-04.1.png).
+
 ### Usability measures (exploratory, simulated)
 
 Measured with `e2e/local-optics-usability.spec.ts`: the real model in Chromium on a 2-core
@@ -353,13 +396,13 @@ See [Preview deployment](#preview-deployment). Safari must be logged in to Verce
 ### Real iPhone usability checklist (guided capture)
 
 Do these on the phone, holding it naturally, without reading the Lab first. After the session,
-open **Lab → Usability log**, tap **Copy usability log** and paste the JSON into a note. It holds
-numbers and state names only.
+tap **Lab**, then **Copy test report**, and paste the JSON into a note. It holds the usability log
+and every follow-up comparison, as numbers and state names only.
 
 1. **Cold start.** Open the page and tap **Start scan**. Note whether you understood what to do
    without reading anything, and how long the face guide took to appear (`guideReadyMs`,
    `firstFaceMs`).
-2. **Natural baseline.** Hold the phone at eye level, elbows free, and let it capture on its
+2. **Natural baseline.** Hold the phone naturally, facing you, and let it capture on its
    own. Note the time to the result (`acceptedMs`), each instruction you saw (`instructions`),
    and whether any instruction felt wrong or flickered.
 3. **Follow-up.** Tap **Scan follow-up**, put the phone down for a few seconds, pick it up again
