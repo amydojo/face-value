@@ -42,8 +42,9 @@ two face captures were taken under comparable conditions?
   centre, eye-corner distance, roll, yaw, pitch, face brightness, side shading). It holds no
   landmarks, contours, facial proportions, pixels or device identifiers. The baseline
   measurement kept for the comparison drops face-box height and edge margin, which together with
-  size and position would describe facial proportions. Both live in the tab's memory only and
-  are gone on reload.
+  size and position would describe facial proportions. Here both live in the tab's memory only
+  and are gone on reload. The separate [Living Trial](living-trial.md) saves the same ten-number
+  template on the device, only after the person chooses to save a trial.
 - **What is never done:** no upload, no storage, no data URLs or blobs, and no analytics.
 - **Same-origin only:** the MediaPipe runtime and model are static files on the same site (see
   [Assets](#assets)). Measured in Chromium with the real model loaded: every request went to the

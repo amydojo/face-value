@@ -11,6 +11,9 @@ import { YouCamSpike } from '../../features/youcam-spike/YouCamSpike';
 const LocalOptics = LOCAL_OPTICS_ENABLED
   ? lazy(() => import('../../features/local-optics/LocalOptics').then((module) => ({ default: module.LocalOptics })))
   : null;
+const LivingTrial = LOCAL_OPTICS_ENABLED
+  ? lazy(() => import('../../features/local-optics/LivingTrial').then((module) => ({ default: module.LivingTrial })))
+  : null;
 
 export function AppRouter() {
   const pathname = globalThis.location?.pathname ?? '/';
@@ -26,6 +29,13 @@ export function AppRouter() {
     return (
       <Suspense fallback={null}>
         <LocalOptics />
+      </Suspense>
+    );
+  }
+  if (LivingTrial && (pathname === '/trial' || pathname === '/trial/')) {
+    return (
+      <Suspense fallback={null}>
+        <LivingTrial />
       </Suspense>
     );
   }

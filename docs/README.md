@@ -100,6 +100,7 @@ Synthetic Playwright evidence is not physical-device proof. Physical-device clai
 Experiments are not authorities and are not connected to results:
 
 - [`experiments/local-optical-comparability.md`](experiments/local-optical-comparability.md): browser-local capture-condition measurement (unvalidated, not device-verified)
+- [`experiments/living-trial.md`](experiments/living-trial.md): one product, one claim, a saved baseline and check-ins on the device (experimental, consent-based local storage, no skin measurement)
 
 ## Documentation rules
 

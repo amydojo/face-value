@@ -43,7 +43,7 @@ type Phase =
 
 type ModelState = { kind: 'off' } | { kind: 'loading' } | { kind: 'ready'; name: string } | { kind: 'failed'; message: string };
 
-interface Baseline {
+export interface Baseline {
   template: BaselineTemplate;
   measurement: CaptureMeasurement;
 }
@@ -74,7 +74,19 @@ const HELP_TIPS: Record<string, string> = {
 
 const now = () => performance.now();
 
-export function LocalOptics({ deps }: { deps?: OpticsSessionDeps } = {}) {
+/**
+ * Living Trial mode: the scan starts by itself, an accepted capture is handed to the trial instead
+ * of the result panel, and Cancel leaves the scan. Without it the experiment behaves as before.
+ */
+export interface TrialCapture {
+  /** The trial's saved (rounded) baseline, or null to capture one. */
+  baseline: Baseline | null;
+  onBaseline: (r: { template: BaselineTemplate; frame: { width: number; height: number }; trigger: 'auto' | 'manual' }) => void;
+  onFollowUp: (r: { comparison: CaptureComparison; trigger: 'auto' | 'manual' }) => void;
+  onExit: () => void;
+}
+
+export function LocalOptics({ deps, trial }: { deps?: OpticsSessionDeps; trial?: TrialCapture } = {}) {
   const video = useRef<HTMLVideoElement>(null);
   const [session, setSession] = useState<OpticsSession | null>(null);
   const [generation, setGeneration] = useState(0);
@@ -85,7 +97,7 @@ export function LocalOptics({ deps }: { deps?: OpticsSessionDeps } = {}) {
   const [notice, setNotice] = useState<{ title: string; detail: string; key: number } | null>(null);
   const [help, setHelp] = useState(false);
   const [autoPaused, setAutoPaused] = useState(false);
-  const [baseline, setBaseline] = useState<Baseline | null>(null);
+  const [baseline, setBaseline] = useState<Baseline | null>(trial?.baseline ?? null);
   const [latest, setLatest] = useState<OpticsCapture | null>(null);
   const [followUp, setFollowUp] = useState<CaptureMeasurement | null>(null);
   const [comparison, setComparison] = useState<CaptureComparison | null>(null);
@@ -319,7 +331,17 @@ export function LocalOptics({ deps }: { deps?: OpticsSessionDeps } = {}) {
     clearLive();
     setNotice(null);
     setPhase({ kind: 'idle' });
+    trial?.onExit();
   };
+
+  // In a trial the scan starts as soon as the screen opens: the person already chose to scan.
+  const autoStarted = useRef(false);
+  useEffect(() => {
+    if (!trial || !session || autoStarted.current || phaseRef.current.kind !== 'idle') return;
+    autoStarted.current = true;
+    beginScan();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- once per mount, when the session exists
+  }, [session]);
 
   const finish = () => {
     session?.stopCamera();
@@ -370,6 +392,10 @@ export function LocalOptics({ deps }: { deps?: OpticsSessionDeps } = {}) {
       const template = baselineTemplate(m);
       if (template) setBaseline({ template, measurement: retainedBaselineMeasurement(m) });
       finishRecord('accepted');
+      if (trial && template) {
+        trial.onBaseline({ template, frame: { width: m.frameSize.width, height: m.frameSize.height }, trigger });
+        return;
+      }
       setPhase({ kind: 'result', result: { kind: 'baseline' } });
       return;
     }
@@ -380,6 +406,10 @@ export function LocalOptics({ deps }: { deps?: OpticsSessionDeps } = {}) {
     setComparisons((current) => [...current, exportPair(`follow-up ${current.length + 1}`, result, baselineMeasurement, m)]);
     if (recordRef.current) recordRef.current.comparison = result.overall;
     finishRecord('accepted');
+    if (trial) {
+      trial.onFollowUp({ comparison: result, trigger });
+      return;
+    }
     setPhase({
       kind: 'result',
       result:
@@ -548,7 +578,7 @@ export function LocalOptics({ deps }: { deps?: OpticsSessionDeps } = {}) {
           ) : (
             <span className={styles.tag}>Experimental · unvalidated</span>
           )}
-          {cameraVisible && <span className={styles.mode}>{followUpMode ? 'Follow-up' : 'Baseline'}</span>}
+          {cameraVisible && <span className={styles.mode}>{followUpMode ? (trial ? 'Check-in' : 'Follow-up') : 'Baseline'}</span>}
           <button type="button" className={styles.textButton} onClick={openLab} aria-controls="local-optics-lab">
             Lab
           </button>
@@ -633,6 +663,7 @@ export function LocalOptics({ deps }: { deps?: OpticsSessionDeps } = {}) {
           <Panel
             phase={phase}
             followUp={followUpMode}
+            inTrial={Boolean(trial)}
             onStart={beginScan}
             onResume={resume}
             onDone={finish}
@@ -678,6 +709,7 @@ export function LocalOptics({ deps }: { deps?: OpticsSessionDeps } = {}) {
 function Panel(props: {
   phase: Phase;
   followUp: boolean;
+  inTrial: boolean;
   onStart: () => void;
   onResume: () => void;
   onDone: () => void;
@@ -685,7 +717,7 @@ function Panel(props: {
   onNewBaseline: () => void;
 }) {
   const { phase } = props;
-  let eyebrow = props.followUp ? 'Follow-up scan' : 'Baseline scan';
+  let eyebrow = props.followUp ? (props.inTrial ? 'Check-in' : 'Follow-up scan') : 'Baseline scan';
   let title: string;
   let body: string;
   let list: string[] = [];
@@ -753,7 +785,11 @@ function Panel(props: {
         ? 'Line your face up with the outline from your baseline. Face Value captures automatically when you’re steady.'
         : 'Face the camera. Face Value guides you into position and captures automatically when you’re steady.';
       primary = { label: 'Start scan', action: props.onStart };
-      secondary = props.followUp ? { label: 'Start over with a new baseline', action: props.onNewBaseline } : null;
+      secondary = props.inTrial
+        ? { label: 'Back', action: props.onCancel }
+        : props.followUp
+          ? { label: 'Start over with a new baseline', action: props.onNewBaseline }
+          : null;
   }
 
   return (
@@ -784,7 +820,9 @@ function Panel(props: {
             {secondary.label}
           </button>
         )}
-        <p className={styles.privacy}>Frames stay in this tab’s memory. Nothing is uploaded or saved.</p>
+        <p className={styles.privacy}>
+          {props.inTrial ? 'Camera frames stay in this tab’s memory. They are never uploaded or saved.' : 'Frames stay in this tab’s memory. Nothing is uploaded or saved.'}
+        </p>
       </div>
     </div>
   );
