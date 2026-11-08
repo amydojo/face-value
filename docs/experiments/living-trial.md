@@ -15,6 +15,25 @@ the Oracle and the Evidence Record; none of their code or decision logic is used
   model, gates, thresholds and manual fallback; it starts by itself and hands an accepted capture
   to the trial instead of showing its own result panel).
 
+### Bootstrap exception (05.1, experiment builds only)
+
+`src/main.tsx` renders `/trial` and `/experiments/local-optics` **without** the production
+`FaceValueProvider` (and `StageFocusManager`). The provider reads saved journeys from
+localStorage while mounting; where Safari blocks website data, merely touching `localStorage`
+throws and the page never appears. Neither experiment uses the provider. The switch is
+`isStandaloneExperimentPath()` in `localOpticsAccess.ts`, which is `false` whenever
+`LOCAL_OPTICS_ENABLED` is false, so the production bundle compiles it away: the production build
+is byte-identical to 7ac47a6 (`index-DcyWFN_W.js`, SHA-256 `d955e626…`). The production journey
+itself is unchanged, including its existing failure with storage blocked; that is out of scope.
+
+### Deployment safety
+
+- `vercel.json` disables Git auto-deployment for exactly `experiment/local-optical-comparability`
+  and `feat/fv05-living-trial` (exact names; `main` and every other branch deploy as before).
+  Vercel reads this from the pushed commit; `main`'s own `vercel.json` has no such entry.
+- `scripts/vercel-build.mjs` builds the Living Trial branch as the experiment **only** in the
+  optics-lab project (`prj_LqZsxoGOjWRLSTLRbAJkyDqAgavI`); anywhere else it is the standard build.
+
 ## The journey
 
 1. **Start**: product name and one intended outcome (four common ones or free text). The screen
@@ -65,14 +84,20 @@ Rules enforced in `trialStore.ts` (unit-tested):
   (another tab, another version). A check-in is appended to the saved copy if another tab has
   added check-ins since.
 - **Unreadable data** (damaged JSON, wrong shape, newer/older version): "This saved trial can't be
-  opened … Nothing has been deleted." "Start a new trial" first copies it to
-  `fv.livingTrial.unreadable.<time>`, verifies the copy, then frees the main key; if the copy
-  fails nothing changes. Deleting it is a separate, confirmed action.
-- **Unavailable storage** (every write fails, e.g. older Private Browsing): the trial runs in the
-  tab and the start screen says it can't be kept.
-- **Retention**: kept until deleted. After 60 days without activity, the app asks "Keep" or
-  "Delete" on the next visit instead of opening the trial; it never deletes on its own. A 14-day
-  plan, or a much longer one, is unaffected.
+  opened … Nothing has been deleted." Its contents are never displayed. "Start a new trial" first
+  copies it to `fv.livingTrial.unreadable.<time>`, verifies the copy, then frees the main key; if
+  the copy fails nothing changes. Set-aside copies are bounded and the screen says so: removed
+  after 30 days (on the next visit), and at most two are kept. Deleting it now is a separate,
+  confirmed action.
+- **Blocked storage** (touching `localStorage` throws): the page still opens (see the bootstrap
+  exception), the start screen says the trial lasts only while the tab is open, there is no Save
+  button to promise anything, and every status reads "Not saved".
+- **Read-only storage** (reads work, writes fail: full, or older Private Browsing): a saved trial
+  still restores; a check-in that can't be written says "Not saved" with the reason, and the home
+  screen reads "Saved on this device · latest check-in not saved". The saved copy is untouched.
+- **Retention**: Face Value never deletes a trial on its own. After 60 days without activity, it
+  asks "Keep" or "Delete" on the next visit. Nothing promises the data will last 14 days: Safari
+  may remove it first (below), and the app says so before saving.
 - **Safari's own limits, disclosed in the app**: Safari can delete a site's script-written storage
   after 7 days of browser use without visiting it; Private Browsing discards it; clearing website
   data deletes it; it is not backed up, synced or encrypted.
@@ -96,10 +121,14 @@ Rules enforced in `trialStore.ts` (unit-tested):
   history and the reason mapping against the real `compareCaptures`.
 - `e2e/living-trial.spec.ts` (real model, Chromium's file-backed camera, `npm run
   prepare:local-optics` first): first visit → automatic baseline → verified save → reload →
-  **full browser restart from the same on-disk profile** → two check-ins → review; a moved saved
-  baseline steering the guide and producing a position mismatch; elapsed days and a 320×568 view;
-  retention prompt; damaged and other-version records; refused writes; blocked save then recovery;
-  denied camera; interrupted check-in; deletion; storage and network inventory.
+  **full browser restart from the same on-disk profile** → two automatic check-ins → review →
+  restart in **dimmer light** (guide holds; manual capture recorded as "light was different") →
+  restart **held too far** (guide asks to come closer; the gates refuse; nothing recorded) →
+  history and baseline intact. Also: storage that **throws before React starts** (whole ephemeral
+  trial, no page errors, no "Saved" anywhere); read-only storage; backgrounding and a page reload
+  mid check-in; a fresh profile; a moved saved baseline steering the guide; elapsed days and a
+  320×568 view; retention prompt; damaged and other-version records; blocked save then recovery;
+  denied camera; interrupted camera; deletion; storage and network inventory.
 
 Screenshots (390×844 unless named otherwise) from that run are in
 [`../verification/living-trial/`](../verification/living-trial/).

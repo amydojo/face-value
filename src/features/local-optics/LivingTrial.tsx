@@ -3,16 +3,19 @@ import { FaceValueActuator } from '../../components/FaceValueActuator';
 import { LocalOptics, type TrialCapture } from './LocalOptics';
 import type { OpticsSessionDeps } from './opticsSession';
 import {
+  ARCHIVE_DAYS,
   archivedKeys,
   archiveUnreadable,
   baselineMeasurement,
   browserStorage,
+  canWrite,
   checkInFromComparison,
   deleteTrialData,
   loadTrial,
   MAX_NAME,
   MAX_OUTCOME,
   newTrial,
+  purgeExpiredArchives,
   recordCheckIn,
   saveTrial,
   touched,
@@ -107,6 +110,8 @@ export function LivingTrial({
   clock?: () => Date;
 } = {}) {
   const storage = useMemo(() => (injected === undefined ? browserStorage() : injected), [injected]);
+  /** False where nothing can be saved: the trial then lasts only for this tab, and says so. */
+  const writable = useMemo(() => canWrite(storage), [storage]);
   const [screen, setScreen] = useState<Screen>({ kind: 'loading' });
   const [trial, setTrial] = useState<TrialRecord | null>(null);
   const [returning, setReturning] = useState(false);
@@ -122,6 +127,7 @@ export function LivingTrial({
   const saved = Boolean(trial?.consent);
 
   useEffect(() => {
+    if (writable) purgeExpiredArchives(storage, clock());
     const result = loadTrial(storage, clock());
     if (result.status === 'ok') {
       setTrial(result.trial);
@@ -186,7 +192,7 @@ export function LivingTrial({
           baseline: trial.baseline ? { template: trial.baseline.guide, measurement: baselineMeasurement(trial.baseline) } : null,
           onBaseline: ({ template, frame, trigger }) => {
             setTrial(withBaseline(trial, template, frame, trigger, clock()));
-            setScreen({ kind: 'baseline_done', error: storage ? null : 'unavailable', saving: false });
+            setScreen({ kind: 'baseline_done', error: writable ? null : 'unavailable', saving: false });
           },
           onFollowUp: ({ comparison, trigger }) => {
             const now = clock();
@@ -231,7 +237,7 @@ export function LivingTrial({
           title="One product. One claim."
           heading={heading}
           primary={{ label: 'Capture baseline', action: startTrial, disabled: !ready, actuator: 'ready' }}
-          note={storage ? null : 'This browser can’t save website data right now, so this trial will last only while this tab is open.'}
+          note={writable ? null : 'This browser can’t save website data right now, so this trial will last only while this tab is open.'}
           banner={banner}
         >
           <form
@@ -480,14 +486,14 @@ export function LivingTrial({
           heading={heading}
           back={() => goHome()}
           primary={
-            (saved && !dirty) || !storage
+            (saved && !dirty) || !writable
               ? { label: 'Back', action: () => goHome() }
               : {
                   label: saved ? 'Save latest changes' : 'Save trial on this device',
                   action: () => save((error) => setScreen({ kind: 'manage', confirm: false, error: `Not saved. ${SAVE_ERROR_COPY[error]}` })),
                 }
           }
-          secondary={(saved && !dirty) || !storage ? null : { label: 'Back', action: () => goHome() }}
+          secondary={(saved && !dirty) || !writable ? null : { label: 'Back', action: () => goHome() }}
         >
           <p className={styles.status} data-saved={saved ? 'yes' : 'no'}>
             {saved && trial.consent ? `Saved on this device since ${shortDate(trial.consent.grantedAt)}` : 'Not saved on this device'}
@@ -504,7 +510,7 @@ export function LivingTrial({
           <section className={styles.card}>
             <p className={styles.cardTitle}>How long</p>
             <ul className={styles.list}>
-              <li>Until you delete it. After {TRIAL_RETENTION_DAYS} days without a check-in, Face Value asks whether to keep or delete it.</li>
+              <li>Face Value never deletes it on its own. After {TRIAL_RETENTION_DAYS} days without a check-in, it asks whether to keep it.</li>
               <li>Safari may clear website data on its own after 7 days without a visit, and Private Browsing never keeps it.</li>
               <li>Never uploaded, backed up, synced or encrypted. Clearing Safari’s website data deletes it.</li>
             </ul>
@@ -582,8 +588,12 @@ export function LivingTrial({
           heading={heading}
           mark="warn"
           primary={{
-            label: 'Start a new trial',
+            label: writable ? 'Start a new trial' : 'Start a new trial in this tab',
             action: () => {
+              if (!writable) {
+                setScreen({ kind: 'start' }); // nothing can be written, so the old data stays exactly as it is
+                return;
+              }
               if (!archiveUnreadable(storage, screen.raw, clock())) {
                 setScreen({ ...screen, error: 'Couldn’t set the old data aside, so nothing was changed.' });
                 return;
@@ -596,7 +606,10 @@ export function LivingTrial({
             {screen.reason === 'incompatible'
               ? 'It was saved by a different version of Face Value.'
               : 'The saved data is damaged or incomplete.'}{' '}
-            Nothing has been deleted. Starting a new trial keeps the old data aside on this device.
+            Nothing has been deleted.{' '}
+            {writable
+              ? `Starting a new trial sets the old data aside on this device for ${ARCHIVE_DAYS} days, then removes it.`
+              : 'This browser can’t save right now, so a new trial would last only while this tab is open.'}
           </p>
           {screen.error && (
             <p className={styles.error} role="alert">

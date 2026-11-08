@@ -1,9 +1,10 @@
-import { mkdtempSync, rmSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
+import { existsSync, mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { BrowserContext, Page } from '@playwright/test';
-import { faceVideo } from './local-optics-videos';
-import { expect, liveTracks, requestsOf, skipUnlessRealModel, test } from './local-optics-harness';
+import { faceVideo, VIDEO_DIR } from './local-optics-videos';
+import { expect, liveTracks, requestsOf, setVisibility, skipUnlessRealModel, test } from './local-optics-harness';
 
 // THE LIVING TRIAL, end to end, with the REAL MediaPipe model on a generated camera video of a
 // licensed still (Chromium's file-backed camera). Covers registration, the automatic baseline,
@@ -13,10 +14,20 @@ import { expect, liveTracks, requestsOf, skipUnlessRealModel, test } from './loc
 // camera behaviour need the physical-iPhone protocol in docs/experiments/living-trial.md.
 
 skipUnlessRealModel();
-test.setTimeout(240_000);
+test.setTimeout(360_000);
 
 const KEY = 'fv.livingTrial.v1';
 const STEADY = faceVideo('steady');
+/** The same steady scene in dimmer light (a lamp instead of daylight). */
+const DIM = (() => {
+  const target = join(VIDEO_DIR, 'face-steady-dim.y4m');
+  if (existsSync(STEADY) && !existsSync(target)) {
+    execFileSync('ffmpeg', ['-loglevel', 'error', '-y', '-i', STEADY, '-vf', 'eq=brightness=-0.12', '-pix_fmt', 'yuv420p', '-f', 'yuv4mpegpipe', target]);
+  }
+  return target;
+})();
+/** The phone held much farther away. */
+const FAR = faceVideo('far');
 const SHOTS = process.env.FV_TRIAL_SHOTS_DIR;
 
 const trialRoot = (page: Page) => page.locator('[data-living-trial]');
@@ -105,14 +116,14 @@ test.describe('first visit, browser restart, return', () => {
   test('register, automatic baseline, save, close the browser, come back and keep going', async ({ playwright, launchOptions, baseURL }) => {
     const profile = mkdtempSync(join(tmpdir(), 'fv-trial-profile-'));
     const requests: { url: string; method: string }[] = [];
-    const launch = async () => {
+    const launch = async (video = STEADY) => {
       const context = await playwright.chromium.launchPersistentContext(profile, {
         ...launchOptions,
         args: [
           ...(launchOptions.args ?? []),
           '--use-fake-device-for-media-stream',
           '--use-fake-ui-for-media-stream',
-          `--use-file-for-fake-video-capture=${STEADY}`,
+          `--use-file-for-fake-video-capture=${video}`,
         ],
         baseURL,
         permissions: ['camera'],
@@ -221,6 +232,56 @@ test.describe('first visit, browser restart, return', () => {
       expect(after.checkIns.map((c: { conditions: string; quality: string }) => [c.quality, c.conditions])).toEqual([
         ['passed', 'matched'],
         ['passed', 'matched'],
+      ]);
+      expect(after.checkIns.map((c: { trigger: string }) => c.trigger)).toEqual(['auto', 'auto']); // follow-ups captured themselves
+
+      // 7. Back later in dimmer light: the guide holds the automatic capture; a manual one is kept
+      //    and marked as not matching. The tolerance is unchanged.
+      await context.close();
+      ({ context, page } = await launch(DIM));
+      await page.goto('/trial');
+      await screenIs(page, 'home');
+      await page.getByRole('button', { name: 'Start check-in' }).click();
+      await expect(page.getByRole('button', { name: 'Capture now' })).toBeEnabled({ timeout: 60_000 });
+      await expect(page.locator('[data-instruction]')).toHaveAttribute('data-category', 'light', { timeout: 30_000 });
+      await page.waitForTimeout(3000);
+      await expect(trialRoot(page)).toHaveAttribute('data-screen', 'capture');
+      await page.getByRole('button', { name: 'Capture now' }).click();
+      await screenIs(page, 'check_in_done');
+      await expect(page.getByRole('heading', { level: 1 })).toHaveText('Conditions didn’t match');
+      await expect(page.locator('[data-reasons]')).toContainText('The light was different');
+      await expect(page.locator('[data-check-in-save]')).toHaveAttribute('data-check-in-save', 'saved');
+      await shot(page, '15-check-in-different-light');
+      await page.getByRole('button', { name: 'Done' }).click();
+      await expect(page.locator('[data-check-in-count]')).toHaveText('3');
+
+      // 8. Back later holding the phone much farther away: the guide asks to come closer, never
+      //    captures by itself, and the unchanged quality gates refuse a manual capture, so nothing
+      //    is recorded.
+      await context.close();
+      ({ context, page } = await launch(FAR));
+      await page.goto('/trial');
+      await screenIs(page, 'home');
+      await page.getByRole('button', { name: 'Start check-in' }).click();
+      await expect(page.getByRole('button', { name: 'Capture now' })).toBeEnabled({ timeout: 60_000 });
+      await expect(page.locator('[data-instruction]')).toHaveAttribute('data-instruction', 'move_closer', { timeout: 30_000 });
+      await page.waitForTimeout(3000);
+      await expect(trialRoot(page)).toHaveAttribute('data-screen', 'capture');
+      await page.getByRole('button', { name: 'Capture now' }).click();
+      await expect(page.locator('[data-notice]')).toBeVisible({ timeout: 30_000 });
+      await expect(trialRoot(page)).toHaveAttribute('data-screen', 'capture');
+      await shot(page, '16-check-in-too-far');
+      await page.getByRole('button', { name: 'Cancel scan' }).click();
+      await screenIs(page, 'home');
+      await expect.poll(() => liveTracks(page)).toBe(0);
+      await expect(page.locator('[data-check-in-count]')).toHaveText('3');
+
+      const history = JSON.parse((await stored(page))!);
+      expect(history.baseline).toEqual(baselineBefore);
+      expect(history.checkIns.map((c: { trigger: string; conditions: string; reasons: string[] }) => [c.trigger, c.conditions, c.reasons])).toEqual([
+        ['auto', 'matched', []],
+        ['auto', 'matched', []],
+        ['manual', 'not_matched', ['light']],
       ]);
 
       // 10. Only the documented record; nothing else kept; nothing sent anywhere.
@@ -361,6 +422,127 @@ test.describe('saved data that is old, missing, damaged or from another version'
     await expect(page.getByRole('button', { name: 'Capture baseline' })).toBeDisabled();
     await register(page);
     await expect(page.getByRole('button', { name: 'Capture baseline' })).toBeEnabled();
+  });
+});
+
+test.describe('storage blocked before the app starts', () => {
+  test.use({ cameraVideo: STEADY });
+
+  test('the trial opens and runs in the tab, and never claims to be saved', async ({ page }) => {
+    // As Safari does with website data blocked: touching either storage object throws, from the
+    // first script on the page, before React initialises.
+    await page.addInitScript(() => {
+      for (const name of ['localStorage', 'sessionStorage']) {
+        Object.defineProperty(window, name, {
+          configurable: true,
+          get() {
+            throw new DOMException('The operation is insecure.', 'SecurityError');
+          },
+        });
+      }
+    });
+    const errors: string[] = [];
+    page.on('pageerror', (e) => errors.push(e.message));
+
+    await page.goto('/trial');
+    await screenIs(page, 'start', 15_000);
+    await expect(page.getByText(/can’t save website data right now, so this trial will last only while this tab is open/)).toBeVisible();
+    await shot(page, '17-blocked-storage-start');
+    await register(page);
+    await captureBaseline(page);
+    await expect(page.locator('[data-save-error]')).toHaveAttribute('data-save-error', 'unavailable');
+    await expect(page.getByRole('button', { name: /Save trial/ })).toHaveCount(0); // no save to promise
+    await shot(page, '18-blocked-storage-baseline');
+    await page.getByRole('button', { name: 'Continue without saving' }).click();
+    await screenIs(page, 'home');
+    await expect(page.locator('[data-saved]')).toHaveAttribute('data-saved', 'no');
+    await expect(page.locator('[data-saved]')).toHaveText('Not saved · this trial ends when you close this tab');
+
+    await checkIn(page);
+    await expect(page.locator('[data-check-in-save]')).toHaveText('Not saved on this device');
+    await page.getByRole('button', { name: 'Done' }).click();
+    await expect(page.locator('[data-check-in-count]')).toHaveText('1');
+    await page.getByRole('button', { name: 'Manage trial' }).click();
+    await expect(page.locator('[data-saved]')).toHaveText('Not saved on this device');
+    await expect(page.getByRole('button', { name: /Save trial/ })).toHaveCount(0);
+    await expect(page.getByText(/Saved on this device/)).toHaveCount(0);
+    expect(errors).toEqual([]);
+
+    // The tab really is all there is: a reload starts over (still without crashing).
+    await page.reload();
+    await screenIs(page, 'start', 15_000);
+    expect(errors).toEqual([]);
+  });
+
+  test('read-only storage still restores a saved trial, and a check-in that can’t be written says so', async ({ page }) => {
+    await seed(page, record({ days: 1, checkIns: 1 }));
+    await screenIs(page, 'home', 10_000);
+    const before = await stored(page);
+    await page.addInitScript(() => {
+      Storage.prototype.setItem = function () {
+        throw new DOMException('The quota has been exceeded.', 'QuotaExceededError');
+      };
+    });
+    await page.reload();
+    await screenIs(page, 'home', 10_000);
+    await expect(page.getByText('Welcome back')).toBeVisible();
+    await expect(page.locator('[data-saved]')).toHaveAttribute('data-saved', 'yes');
+    await page.getByRole('button', { name: 'Start check-in' }).click();
+    await expect(page.getByRole('button', { name: 'Capture now' })).toBeEnabled({ timeout: 60_000 });
+    await page.getByRole('button', { name: 'Capture now' }).click();
+    await screenIs(page, 'check_in_done');
+    await expect(page.locator('[data-check-in-save]')).toHaveAttribute('data-check-in-save', 'quota');
+    await expect(page.locator('[data-check-in-save]')).toContainText('Not saved.');
+    await page.getByRole('button', { name: 'Done' }).click();
+    await expect(page.locator('[data-saved]')).toHaveAttribute('data-saved', 'partly');
+    await expect(page.locator('[data-check-in-count]')).toHaveText('2');
+    expect(await stored(page)).toBe(before); // the saved trial is untouched
+  });
+});
+
+test.describe('Safari-style interruptions mid check-in', () => {
+  test.use({ cameraVideo: STEADY });
+
+  test('backgrounded: the camera stops, resumes on return, and the check-in completes; leaving records nothing', async ({ page }) => {
+    await instrument(page);
+    await page.goto('/trial');
+    await register(page);
+    await captureBaseline(page);
+    await page.getByRole('button', { name: 'Save trial on this device' }).click();
+    await screenIs(page, 'home');
+
+    // App switcher / lock screen: hidden, then visible again.
+    await page.getByRole('button', { name: 'Start check-in' }).click();
+    await expect(page.getByRole('button', { name: 'Capture now' })).toBeEnabled({ timeout: 60_000 });
+    await setVisibility(page, 'hidden');
+    await expect.poll(() => liveTracks(page)).toBe(0);
+    await setVisibility(page, 'visible');
+    await page.getByRole('button', { name: 'Resume scan' }).click();
+    await screenIs(page, 'check_in_done');
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText('Conditions matched');
+    await page.getByRole('button', { name: 'Done' }).click();
+    await expect(page.locator('[data-check-in-count]')).toHaveText('1');
+
+    // Safari discards the page mid-scan (pagehide, then a fresh load): back to the trial, nothing half-recorded.
+    await page.getByRole('button', { name: 'Start check-in' }).click();
+    await expect(page.getByRole('button', { name: 'Capture now' })).toBeEnabled({ timeout: 60_000 });
+    await page.reload();
+    await screenIs(page, 'home', 15_000);
+    await expect(page.getByText('Welcome back')).toBeVisible();
+    await expect(page.locator('[data-check-in-count]')).toHaveText('1');
+    expect(JSON.parse((await stored(page))!).checkIns).toHaveLength(1);
+  });
+
+  test('a new browser profile with no saved trial starts fresh', async ({ page }) => {
+    await seed(page, record({ checkIns: 2 }));
+    await screenIs(page, 'home', 10_000);
+    const fresh = await page.context().browser()!.newContext({ baseURL: new URL(page.url()).origin, viewport: { width: 390, height: 844 } });
+    const other = await fresh.newPage();
+    await other.goto('/trial');
+    await expect(other.locator('[data-living-trial]')).toHaveAttribute('data-screen', 'start', { timeout: 10_000 });
+    await expect(other.getByLabel('Product')).toHaveValue('');
+    await fresh.close();
+    await expect(page.locator('[data-check-in-count]')).toHaveText('2');
   });
 });
 

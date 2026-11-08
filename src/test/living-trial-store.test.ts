@@ -2,7 +2,11 @@ import { describe, expect, it } from 'vitest';
 import { BASELINE_TEMPLATE_VERSION, type BaselineTemplate } from '../features/local-optics/guidance';
 import { compareCaptures, type CaptureMeasurement } from '../features/local-optics/opticsMetrics';
 import {
+  ARCHIVE_DAYS,
   archivedKeys,
+  browserStorage,
+  canWrite,
+  purgeExpiredArchives,
   archiveUnreadable,
   baselineMeasurement,
   checkInFromComparison,
@@ -229,6 +233,51 @@ describe('Living Trial record', () => {
     expect(trialDay(trial, new Date(T0.getTime() + 23 * 3_600_000))).toBe(1);
     expect(trialDay(trial, at(3))).toBe(4);
     expect(trialDay(trial, at(-1))).toBe(1);
+  });
+});
+
+describe('blocked, read-only and bounded storage', () => {
+  it('reading localStorage that throws on access gives null instead of crashing', () => {
+    const descriptor = Object.getOwnPropertyDescriptor(globalThis, 'localStorage');
+    Object.defineProperty(globalThis, 'localStorage', {
+      configurable: true,
+      get() {
+        throw new DOMException('The operation is insecure.', 'SecurityError');
+      },
+    });
+    try {
+      expect(browserStorage()).toBeNull();
+      expect(canWrite(browserStorage())).toBe(false);
+    } finally {
+      if (descriptor) Object.defineProperty(globalThis, 'localStorage', descriptor);
+      else delete (globalThis as { localStorage?: unknown }).localStorage;
+    }
+  });
+
+  it('a store that reads but cannot write still restores, and reports itself unwritable', () => {
+    const storage = new MemoryStorage();
+    saveTrial(storage, savedTrial());
+    storage.setItem = () => {
+      throw new DOMException('full', 'QuotaExceededError');
+    };
+    expect(canWrite(storage)).toBe(false);
+    expect(loadTrial(storage, at(1)).status).toBe('ok');
+    expect(canWrite(new MemoryStorage())).toBe(true);
+    expect(new MemoryStorage().length).toBe(0); // the probe leaves nothing behind
+  });
+
+  it('set-aside copies are bounded in number and age', () => {
+    const storage = new MemoryStorage();
+    for (const day of [0, 1, 2]) {
+      storage.setItem(TRIAL_STORAGE_KEY, `broken-${day}`);
+      archiveUnreadable(storage, `broken-${day}`, at(day));
+    }
+    expect(archivedKeys(storage)).toEqual([`${TRIAL_ARCHIVE_PREFIX}${at(1).toISOString()}`, `${TRIAL_ARCHIVE_PREFIX}${at(2).toISOString()}`]);
+    expect(purgeExpiredArchives(storage, at(ARCHIVE_DAYS))).toBe(0);
+    expect(purgeExpiredArchives(storage, at(ARCHIVE_DAYS + 1.5))).toBe(1);
+    storage.setItem(`${TRIAL_ARCHIVE_PREFIX}not-a-date`, 'x');
+    expect(purgeExpiredArchives(storage, at(ARCHIVE_DAYS + 3))).toBe(2);
+    expect(storage.length).toBe(0);
   });
 });
 

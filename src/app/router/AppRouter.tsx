@@ -4,7 +4,7 @@ import { RednessCalibration } from '../../features/calibration-redness/RednessCa
 import { DemoLab } from '../../features/demo-lab/DemoLab';
 import { DEMO_LAB_ENABLED } from '../../features/demo-lab/demoLabAccess';
 import { YouCamCalibration } from '../../features/youcam-calibration/YouCamCalibration';
-import { LOCAL_OPTICS_ENABLED } from '../../features/local-optics/localOpticsAccess';
+import { LOCAL_OPTICS_ENABLED, TRIAL_PATHS } from '../../features/local-optics/localOpticsAccess';
 import { YouCamSpike } from '../../features/youcam-spike/YouCamSpike';
 
 // Experimental and isolated: a separate chunk, and absent from builds that do not opt in.
@@ -32,7 +32,7 @@ export function AppRouter() {
       </Suspense>
     );
   }
-  if (LivingTrial && (pathname === '/trial' || pathname === '/trial/')) {
+  if (LivingTrial && TRIAL_PATHS.includes(pathname)) {
     return (
       <Suspense fallback={null}>
         <LivingTrial />

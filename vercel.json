@@ -6,7 +6,8 @@
   "outputDirectory": "dist",
   "git": {
     "deploymentEnabled": {
-      "experiment/local-optical-comparability": false
+      "experiment/local-optical-comparability": false,
+      "feat/fv05-living-trial": false
     }
   },
   "routes": [

@@ -26,6 +26,9 @@ export const TRIAL_PLAN_DAYS = 14;
 /** After this long without activity, the app asks whether to keep or delete the saved trial. */
 export const TRIAL_RETENTION_DAYS = 60;
 export const MAX_CHECK_INS = 120;
+/** Unreadable records set aside before a new trial are removed after this long, and at most this many are kept. */
+export const ARCHIVE_DAYS = 30;
+export const MAX_ARCHIVES = 2;
 export const MAX_NAME = 80;
 export const MAX_OUTCOME = 120;
 
@@ -79,17 +82,33 @@ export type LoadResult =
 export type SaveError = 'unavailable' | 'quota' | 'blocked' | 'verify' | 'invalid' | 'conflict';
 export type SaveResult = { ok: true } | { ok: false; error: SaveError };
 
-/** The browser's localStorage if it can actually be written (Private Browsing and blocked storage fail). */
+/**
+ * The browser's localStorage if it can be read, else null. Merely touching `localStorage` throws
+ * where Safari blocks website data, so every access is guarded. Writing is checked separately: a
+ * full or read-only store can still restore a saved trial.
+ */
 export function browserStorage(): TrialStorage | null {
   try {
     const storage = globalThis.localStorage;
     if (!storage) return null;
-    const probe = `${TRIAL_STORAGE_KEY}.probe`;
-    storage.setItem(probe, '1');
-    storage.removeItem(probe);
+    storage.getItem(TRIAL_STORAGE_KEY);
     return storage;
   } catch {
     return null;
+  }
+}
+
+/** Whether a write currently succeeds (Private Browsing in older Safari, a full or blocked store fail). */
+export function canWrite(storage: TrialStorage | null): boolean {
+  if (!storage) return false;
+  const probe = `${TRIAL_STORAGE_KEY}.probe`;
+  try {
+    storage.setItem(probe, '1');
+    const ok = storage.getItem(probe) === '1';
+    storage.removeItem(probe);
+    return ok;
+  } catch {
+    return false;
   }
 }
 
@@ -245,6 +264,8 @@ export function saveTrial(storage: TrialStorage | null, trial: TrialRecord): Sav
 /**
  * Moves an unreadable saved record aside (it is kept, not deleted) so a new trial can be started.
  * Returns the archive key, or null if the copy could not be written; then nothing is removed.
+ * Set-aside copies are never shown and are bounded: the oldest beyond MAX_ARCHIVES is removed,
+ * and purgeExpiredArchives removes any older than ARCHIVE_DAYS (both stated on the screen).
  */
 export function archiveUnreadable(storage: TrialStorage | null, raw: string, now: Date): string | null {
   if (!storage) return null;
@@ -253,10 +274,29 @@ export function archiveUnreadable(storage: TrialStorage | null, raw: string, now
     storage.setItem(key, raw);
     if (storage.getItem(key) !== raw) return null;
     storage.removeItem(TRIAL_STORAGE_KEY);
+    const older = archivedKeys(storage).filter((k) => k !== key).sort();
+    for (const k of older.slice(0, Math.max(0, older.length - (MAX_ARCHIVES - 1)))) storage.removeItem(k);
     return key;
   } catch {
     return null;
   }
+}
+
+/** Removes set-aside unreadable copies older than ARCHIVE_DAYS (or with an unreadable date). */
+export function purgeExpiredArchives(storage: TrialStorage | null, now: Date): number {
+  let removed = 0;
+  for (const key of archivedKeys(storage)) {
+    const at = Date.parse(key.slice(TRIAL_ARCHIVE_PREFIX.length));
+    if (Number.isNaN(at) || now.getTime() - at > ARCHIVE_DAYS * DAY) {
+      try {
+        storage?.removeItem(key);
+        removed += 1;
+      } catch {
+        // left for the next visit
+      }
+    }
+  }
+  return removed;
 }
 
 export function archivedKeys(storage: TrialStorage | null): string[] {
