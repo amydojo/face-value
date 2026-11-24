@@ -1,5 +1,6 @@
 // Research-only candidate geometry and color evaluation; never imported by production.
-import {linearize,encode,lab} from './chroma.mjs';
+import {linearize,encode,lab,neutralCorrect} from './chroma.mjs';
+import {fitNeutralRamp,applyRamp} from './calibration-stress.mjs';
 
 function rgbOK(x){return Array.isArray(x)&&x.length===3&&x.every(v=>Number.isFinite(v)&&v>0&&v<1)}
 
@@ -25,9 +26,12 @@ function calibrationReport(patches){
  const fit=patches.filter(p=>p.role==="fit"),test=patches.filter(p=>p.role==="holdout");
  if(fit.length<4||test.length<3)return {...base,status:"abstain",reason:"insufficient_disjoint_references"};
  const C=fitAffine(fit);
- const rows=test.map(p=>{const raw=rgbOK(p.observed)?p.observed:null,corrected=applyAffine(raw,C);const truth=lab(p.expected);const error=v=>{if(!v)return null;const q=lab(v);return {deltaA:q.a-truth.a,deltaE76:Math.hypot(q.L-truth.L,q.a-truth.a,q.b-truth.b)}};return {id:p.id,raw:error(raw),affine:error(corrected)}});
+ const neutral=fit.filter(p=>p.expected.every(v=>Math.abs(v-p.expected[0])<1e-8));
+ const mid=neutral.length?neutral.reduce((a,b)=>Math.abs(a.expected[0]-.5)<=Math.abs(b.expected[0]-.5)?a:b):null;
+ const ramp=fitNeutralRamp(neutral.map(p=>p.expected),neutral.map(p=>p.observed));
+ const rows=test.map(p=>{const raw=rgbOK(p.observed)?p.observed:null,corrected=applyAffine(raw,C);const truth=lab(p.expected);const error=v=>{if(!v)return null;const q=lab(v);return {deltaA:q.a-truth.a,deltaE76:Math.hypot(q.L-truth.L,q.a-truth.a,q.b-truth.b)}};const one=raw&&mid&&rgbOK(mid.observed)?neutralCorrect(raw,mid.observed,mid.expected):null;const many=raw?applyRamp(raw,ramp):null;return {id:p.id,raw:error(raw),neutral:error(one?.status==='synthetic_only'?one.rgb:null),ramp:error(many?.status==='synthetic_only'?many.rgb:null),affine:error(corrected)}});
  const summarize=k=>{const a=rows.map(r=>r[k]).filter(Boolean);return {n:a.length,total:test.length,meanAbsA:a.length?a.reduce((s,v)=>s+Math.abs(v.deltaA),0)/a.length:null,meanDeltaE76:a.length?a.reduce((s,v)=>s+v.deltaE76,0)/a.length:null,maxAbsA:a.length?Math.max(...a.map(v=>Math.abs(v.deltaA))):null}};
- return {...base,status:"research_only",fitCount:fit.length,holdoutCount:test.length,affineAvailable:!!C,rows,raw:summarize("raw"),affine:summarize("affine")};
+ return {...base,status:"research_only",fitCount:fit.length,holdoutCount:test.length,affineAvailable:!!C,rows,raw:summarize("raw"),neutral:summarize("neutral"),ramp:summarize("ramp"),affine:summarize("affine"),neutralReferenceCount:neutral.length};
 }
 
 function candidateRegions(points,width,height,pose){
