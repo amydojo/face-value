@@ -43,6 +43,6 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
       : 'Standard build (Local Optics experiment not included)',
   );
   for (const step of plan.steps) {
-    execSync(step, { stdio: 'inherit', env: { ...process.env, ...plan.env } });
+    execSync(step, { stdio: 'inherit', env: { ...process.env, VITE_FV07_RESEARCH: 'false', ...plan.env } });
   }
 }
