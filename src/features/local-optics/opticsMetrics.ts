@@ -494,12 +494,12 @@ function row(
   difference: (x: number, y: number) => number = (x, y) => y - x,
 ): ComparisonRow {
   const provenance = a.provenance === 'unavailable' ? b.provenance : a.provenance;
-  if (a.value === null || b.value === null) {
+  if (a.value === null || b.value === null || !Number.isFinite(a.value) || !Number.isFinite(b.value)) {
     return {
       property,
       provenance: 'unavailable',
-      baseline: a.value,
-      comparison: b.value,
+      baseline: a.value !== null && Number.isFinite(a.value) ? a.value : null,
+      comparison: b.value !== null && Number.isFinite(b.value) ? b.value : null,
       difference: null,
       tolerance,
       status: 'not_measured',
@@ -547,7 +547,7 @@ export function compareCaptures(a: CaptureMeasurement, b: CaptureMeasurement): C
   for (const r of a.rejections) reasons.push(`Baseline rejected: ${r}`);
   for (const r of b.rejections) reasons.push(`Comparison rejected: ${r}`);
   for (const r of rows) if (r.status === 'outside_experimental_tolerance') reasons.push(`${r.property} outside experimental tolerance`);
-  const missingRequired = rows.filter((r) => REQUIRED.includes(r.property) && r.status === 'not_measured');
+  const missingRequired = rows.filter((r) => REQUIRED.includes(r.property) && (r.status === 'not_measured' || r.status === 'shown_without_tolerance'));
   for (const r of missingRequired) reasons.push(`${r.property} not measured`);
   // A rotated or resized frame changes what every geometric value means.
   const frameChanged = a.frameSize.width !== b.frameSize.width || a.frameSize.height !== b.frameSize.height;

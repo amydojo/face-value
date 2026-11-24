@@ -393,7 +393,7 @@ export function LocalOptics({ deps, trial }: { deps?: OpticsSessionDeps; trial?:
     if (!baseline) {
       const template = baselineTemplate(m);
       if (template) setBaseline({ template, measurement: retainedBaselineMeasurement(m) });
-      const diagnostics = trial?.collectDiagnostics ? captureDiagnostics(m, null, recordRef.current) : undefined;
+      const diagnostics = trial?.collectDiagnostics ? captureDiagnostics(m, null, recordRef.current, { delegate: session.modelInit?.delegate ?? null, frameIntervalMs: capture.frameIntervalMs }) ?? undefined : undefined;
       finishRecord('accepted');
       if (trial && template) {
         trial.onBaseline({ template, frame: { width: m.frameSize.width, height: m.frameSize.height }, trigger, diagnostics });
@@ -408,7 +408,7 @@ export function LocalOptics({ deps, trial }: { deps?: OpticsSessionDeps; trial?:
     const baselineMeasurement = baseline.measurement;
     setComparisons((current) => [...current, exportPair(`follow-up ${current.length + 1}`, result, baselineMeasurement, m)]);
     if (recordRef.current) recordRef.current.comparison = result.overall;
-    const diagnostics = trial?.collectDiagnostics ? captureDiagnostics(m, result, recordRef.current) : undefined;
+    const diagnostics = trial?.collectDiagnostics ? captureDiagnostics(m, result, recordRef.current, { delegate: session.modelInit?.delegate ?? null, frameIntervalMs: capture.frameIntervalMs }) ?? undefined : undefined;
     finishRecord('accepted');
     if (trial) {
       trial.onFollowUp({ comparison: result, trigger, diagnostics });

@@ -8,6 +8,8 @@ export const CONTRACT_VERSION = 'fv-optical-measurement-1';
 const fields = ['roll', 'yaw', 'pitch', 'interocular', 'centerX', 'centerY', 'landmarkMotion', 'pixelMotion', 'faceLuma', 'faceLumaSpread', 'faceClipped', 'shadingAsymmetry', 'frameLuma'] as const;
 const properties = ['Roll', 'Yaw', 'Pitch', 'Apparent size', 'Horizontal position', 'Vertical position', 'Face brightness', 'Side shading', 'Face brightness spread', 'Whole-frame brightness', 'Background chromaticity r', 'Background chromaticity g'] as const;
 const statuses = ['within_experimental_tolerance', 'outside_experimental_tolerance', 'shown_without_tolerance', 'not_measured'] as const;
+const cameraFields = ['width', 'height', 'frameRate', 'exposureTime', 'exposureCompensation', 'iso', 'colorTemperature'] as const;
+const rejectionReasons = ['landmark_model_unavailable', 'no_face', 'multiple_faces', 'face_out_of_frame', 'unstable_face_count', 'motion', 'clipped_highlights', 'too_few_frames'] as const;
 const provenance = ['measured', 'model_estimate', 'estimate', 'reported', 'unavailable'] as const;
 type Numeric = number | null;
 type Property = typeof properties[number];
@@ -17,6 +19,10 @@ export interface CaptureDiagnostics {
   version: typeof DIAGNOSTIC_VERSION;
   frame: { width: number; height: number };
   frameCount: Numeric;
+  camera: Partial<Record<typeof cameraFields[number], number>>;
+  delegate: 'GPU' | 'CPU' | null;
+  frameIntervalMs: Numeric;
+  rejectionReasons: Array<typeof rejectionReasons[number]>;
   measurements: Partial<Record<Field, { value: Numeric; provenance: typeof provenance[number] }>>;
   rows: Row[];
   durationMs: Numeric;
@@ -53,20 +59,29 @@ export function readCaptureDiagnostics(input: unknown): CaptureDiagnostics | nul
     if (!r || !member(properties, r.property) || !member(statuses, r.status) || !member(provenance, r.provenance)) continue;
     rows.push({ property: r.property, baseline: finite(r.baseline), comparison: finite(r.comparison), difference: finite(r.difference), tolerance: nonnegative(r.tolerance), status: r.status, provenance: r.provenance });
   }
+  const camera: CaptureDiagnostics['camera'] = {};
+  const settings = obj(d.camera);
+  for (const field of cameraFields) {
+    const value = finite(settings?.[field]);
+    if (value !== null) camera[field] = value;
+  }
+  const failures = Array.isArray(d.rejectionReasons) ? [...new Set(d.rejectionReasons.filter((r): r is typeof rejectionReasons[number] => member(rejectionReasons, r)))] : [];
   return { version: DIAGNOSTIC_VERSION, frame: { width, height }, frameCount: nonnegative(d.frameCount), measurements, rows,
+    camera, delegate: d.delegate === 'GPU' || d.delegate === 'CPU' ? d.delegate : null, frameIntervalMs: nonnegative(d.frameIntervalMs), rejectionReasons: failures,
     durationMs: nonnegative(d.durationMs), rejectedBursts: nonnegative(d.rejectedBursts), attempts: nonnegative(d.attempts), interruptions: nonnegative(d.interruptions) };
 }
 
 /** UI-independent numerical snapshot of an accepted burst, not a skin measurement. */
-export function captureDiagnostics(m: CaptureMeasurement, comparison: CaptureComparison | null, scan: ScanRecord | null): CaptureDiagnostics {
+export function captureDiagnostics(m: CaptureMeasurement, comparison: CaptureComparison | null, scan: ScanRecord | null, device?: { delegate: 'GPU' | 'CPU' | null; frameIntervalMs: Numeric }): CaptureDiagnostics | null {
   const measurements = Object.fromEntries(fields.map(field => [field, { value: m[field].value, provenance: m[field].provenance }]));
   const result = readCaptureDiagnostics({
     version: DIAGNOSTIC_VERSION, frame: m.frameSize, frameCount: m.frameCount, measurements,
+    camera: m.camera.settings, delegate: device?.delegate ?? null, frameIntervalMs: device?.frameIntervalMs ?? null,
+    rejectionReasons: scan?.bursts.flatMap(b => b.rejections) ?? [],
     rows: comparison?.rows ?? [], durationMs: scan?.acceptedMs ?? null, rejectedBursts: scan ? scan.bursts.filter(b => !b.accepted).length : null,
     attempts: scan?.bursts.length ?? null, interruptions: scan?.interruptions ?? null,
   });
-  if (!result) throw new Error('Invalid diagnostic frame');
-  return result;
+  return result; // Optional instrumentation must not block an accepted capture.
 }
 
 /** This is optical eligibility only; scientific measurement uncertainty has not been established. */
@@ -90,7 +105,7 @@ export function buildTrialDiagnostics(trial: TrialRecord) {
     checkIns: trial.checkIns.map((c, i) => ({ id: 'check-in-' + (i + 1), elapsedMinutes: elapsedMinutes(c.at), captureQuality: c.quality, trigger: c.trigger,
       conditions: c.conditions, reasons: c.reasons.filter(r => ['light', 'distance', 'position', 'angle', 'framing'].includes(r)), comparisonEligibility: opticalEligibility(c.conditions),
       diagnostics: readCaptureDiagnostics(c.diagnostics) })),
-    missing: ['Historical or non-opted-in capture diagnostics are null; not reconstructed.', 'Calibrated distance, illumination, color temperature and measurement uncertainty are unavailable.', 'Cancelled or failed scans outside an accepted capture are not retained.'],
+    missing: ['Historical or non-opted-in capture diagnostics are null; not reconstructed.', 'Omitted camera settings were not available or were excluded by the privacy allowlist.', 'Calibrated distance, illumination, color temperature and measurement uncertainty are unavailable.', 'Cancelled or failed scans outside an accepted capture are not retained.'],
     privacy: 'User-initiated numeric export; no frames, landmarks, product, free text, device identifiers or network telemetry.',
   };
 }
