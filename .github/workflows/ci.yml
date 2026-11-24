@@ -61,6 +61,8 @@ jobs:
           path: dist
           if-no-files-found: error
       - run: npx playwright install --with-deps webkit
+      - name: Verify WebKit collection does not load Chromium camera fixtures
+        run: npx playwright test --list
       - name: Mobile WebKit
         env:
           PLAYWRIGHT_JSON_OUTPUT_NAME: playwright-results.json
@@ -79,3 +81,44 @@ jobs:
           name: playwright-evidence
           path: test-results
           if-no-files-found: ignore
+
+  fv06-optical-validation:
+    if: github.event_name == 'pull_request' && github.head_ref == 'feat/fv06-foundation-lock'
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.18.0
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - run: npm run prepare:local-optics
+      - run: test -s public/local-optics-assets/mediapipe-tasks-vision-0.10.35/face_landmarker.task
+      - name: Verify standard output after model assets have been prepared
+        run: |
+          VITE_LOCAL_OPTICS_EXPERIMENT=false npm run build
+          test ! -e dist/local-optics-assets
+          if find dist/assets -type f -name '*.js' -print0 | xargs -0 grep -l 'fv-trial-diagnostics-1'; then exit 1; fi
+      - name: Verify opt-in experiment output
+        run: |
+          VITE_LOCAL_OPTICS_EXPERIMENT=true npm run build
+          test -s dist/local-optics-assets/mediapipe-tasks-vision-0.10.35/face_landmarker.task
+      - run: command -v ffmpeg || (sudo apt-get update && sudo apt-get install -y ffmpeg)
+      - run: ffmpeg -version
+      - run: npx playwright install --with-deps chromium
+      - name: Optical experiment tests (real model, simulated camera)
+        env:
+          PLAYWRIGHT_JSON_OUTPUT_NAME: fv06-optics-results.json
+        run: npx playwright test --config playwright.optics.config.ts --reporter=github,json
+      - name: Upload optical experiment evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fv06-optics-evidence
+          path: |
+            fv06-optics-results.json
+            test-results
+          if-no-files-found: warn

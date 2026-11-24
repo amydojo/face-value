@@ -30,6 +30,7 @@ import {
   type TrialRecord,
   type TrialStorage,
 } from './trialStore';
+import { buildTrialDiagnostics, shareTrialDiagnostics, type ShareOutcome } from './trialDiagnostics';
 import styles from './LivingTrial.module.css';
 
 // The Living Trial: one product, one intended outcome, a baseline and check-ins, kept on this
@@ -121,6 +122,8 @@ export function LivingTrial({
   const [name, setName] = useState('');
   const [choice, setChoice] = useState<string | null>(null);
   const [other, setOther] = useState('');
+  const [collectDiagnostics, setCollectDiagnostics] = useState(false);
+  const [shareStatus, setShareStatus] = useState<ShareOutcome | null>(null);
   const captures = useRef(0);
   const heading = useRef<HTMLHeadingElement>(null);
 
@@ -190,13 +193,15 @@ export function LivingTrial({
     trial && screen.kind === 'capture'
       ? {
           baseline: trial.baseline ? { template: trial.baseline.guide, measurement: baselineMeasurement(trial.baseline) } : null,
-          onBaseline: ({ template, frame, trigger }) => {
-            setTrial(withBaseline(trial, template, frame, trigger, clock()));
+          collectDiagnostics,
+          onBaseline: ({ template, frame, trigger, diagnostics }) => {
+            const next = withBaseline(trial, template, frame, trigger, clock());
+            setTrial(diagnostics && next.baseline ? { ...next, baseline: { ...next.baseline, diagnostics } } : next);
             setScreen({ kind: 'baseline_done', error: writable ? null : 'unavailable', saving: false });
           },
-          onFollowUp: ({ comparison, trigger }) => {
+          onFollowUp: ({ comparison, trigger, diagnostics }) => {
             const now = clock();
-            const checkIn = checkInFromComparison(comparison, trigger, now);
+            const checkIn = { ...checkInFromComparison(comparison, trigger, now), ...(diagnostics ? { diagnostics } : {}) };
             const { trial: next, save: result } = recordCheckIn(storage, trial, checkIn, now);
             setTrial(next); // kept in this tab even if the save failed
             setDirty(Boolean(result && !result.ok));
@@ -287,6 +292,7 @@ export function LivingTrial({
               )}
             </fieldset>
           </form>
+          <label className={styles.text}><input type="checkbox" checked={collectDiagnostics} onChange={(event) => setCollectDiagnostics(event.target.checked)} /> Keep numerical optical diagnostics with new captures (optional; saved locally with the trial).</label>
           <dl className={styles.facts}>
             <div>
               <dt>{TRIAL_PLAN_DAYS} days</dt>
@@ -342,6 +348,7 @@ export function LivingTrial({
             <ul className={styles.list}>
               <li>Kept in this browser on this device only. Not backed up, synced or encrypted.</li>
               <li>Saved: the product, its claim, dates, and ten rounded numbers for framing, head angle and light. No photos or video.</li>
+              {collectDiagnostics && <li>Also includes numerical optical diagnostics, comparison deviations and timing when available.</li>}
               <li>Safari may clear it if you don’t open Face Value for 7 days. Private Browsing doesn’t keep it.</li>
             </ul>
           </section>
@@ -383,6 +390,7 @@ export function LivingTrial({
             </dl>
           </section>
           <p className={styles.text}>Next: a check-in. Hold the phone as you did for the baseline; the outline guides you back.</p>
+          <label className={styles.text}><input type="checkbox" checked={collectDiagnostics} onChange={(event) => setCollectDiagnostics(event.target.checked)} /> Keep numerical optical diagnostics with new captures (optional; saved locally with the trial).</label>
           <p className={styles.status} data-saved={saved ? (dirty ? 'partly' : 'yes') : 'no'}>
             {saved
               ? dirty
@@ -466,6 +474,14 @@ export function LivingTrial({
               </li>
             ))}
           </ol>
+          <section className={styles.card} aria-label="Optical diagnostics">
+            <p className={styles.cardTitle}>Optical diagnostics</p>
+            <p className={styles.cardText}>Numbers and outcomes only. No photos, product name or personal identifiers. Older captures may have outcomes only.</p>
+            <button type="button" className={styles.link} onClick={() => { void shareTrialDiagnostics(buildTrialDiagnostics(trial)).then(setShareStatus); }}>Share diagnostics</button>
+            <button type="button" className={styles.link} onClick={() => { void shareTrialDiagnostics(buildTrialDiagnostics(trial), 'download').then(setShareStatus); }}>Download JSON</button>
+            <button type="button" className={styles.link} onClick={() => { void shareTrialDiagnostics(buildTrialDiagnostics(trial), 'copy').then(setShareStatus); }}>Copy JSON</button>
+            {shareStatus && <p role="status" className={styles.cardText}>{shareStatus === 'unavailable' ? 'Could not export. Try Download JSON or Copy JSON.' : shareStatus === 'cancelled' ? 'Sharing cancelled.' : shareStatus === 'downloaded' ? 'Download requested.' : shareStatus === 'copied' ? 'Copied.' : 'Shared.'}</p>}
+          </section>
           <section className={styles.card} aria-label="What this can’t tell you">
             <p className={styles.cardTitle}>What this can’t tell you</p>
             <p className={styles.cardText}>
@@ -503,6 +519,7 @@ export function LivingTrial({
             <ul className={styles.list}>
               <li>Product and claim: “{trial.product.name}”, “{trial.product.outcome}”.</li>
               <li>Dates of the baseline and {plural(trial.checkIns.length, 'check-in')}, and whether each matched.</li>
+              <li>Optional numerical optical diagnostics from captures where you opted in.</li>
               <li>Ten rounded numbers from the baseline: framing, head angle and light. Derived from your face, so treat them as personal.</li>
               <li>No photos, video, face mesh or measurements of your skin.</li>
             </ul>

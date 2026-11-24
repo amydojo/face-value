@@ -658,3 +658,41 @@ test.describe('deleting', () => {
     expect(requestsOf(page).filter((r) => r.method !== 'GET')).toEqual([]);
   });
 });
+
+test.describe('FV06 optional diagnostics', () => {
+  test.use({ cameraVideo: STEADY });
+  test('exports historical outcomes without touching storage; opted-in capture details survive reload', async ({ page }) => {
+    await seed(page, record({ checkIns: 2 }));
+    await screenIs(page, 'home');
+    const before = await stored(page);
+    await page.getByRole('button', { name: 'Review evidence' }).click();
+    await page.getByRole('button', { name: 'Copy JSON' }).click();
+    await expect(page.getByText('Copied.', { exact: true })).toBeVisible();
+    const historical = JSON.parse(await page.evaluate(() => navigator.clipboard.readText()));
+    expect(historical.checkIns).toHaveLength(2);
+    expect(historical.checkIns.every((c: { diagnostics: unknown }) => c.diagnostics === null)).toBe(true);
+    expect(JSON.stringify(historical)).not.toContain('Niacinamide');
+    expect(await stored(page)).toBe(before);
+    // Use a separate fresh test profile state; never reset a real owner's trial.
+    await page.evaluate(key => localStorage.removeItem(key), KEY);
+    await page.reload();
+    await screenIs(page, 'start');
+    await register(page);
+    await page.getByLabel(/Keep numerical optical diagnostics/).check();
+    await captureBaseline(page);
+    await page.getByRole('button', { name: 'Save trial on this device' }).click();
+    await screenIs(page, 'home');
+    await checkIn(page);
+    await page.getByRole('button', { name: 'Done' }).click();
+    await page.reload();
+    await screenIs(page, 'home');
+    await page.getByRole('button', { name: 'Review evidence' }).click();
+    await page.getByRole('button', { name: 'Copy JSON' }).click();
+    await expect(page.getByText('Copied.', { exact: true })).toBeVisible();
+    const report = JSON.parse(await page.evaluate(() => navigator.clipboard.readText()));
+    expect(report.baseline.diagnostics.measurements.interocular.value).toEqual(expect.any(Number));
+    expect(report.checkIns[0].diagnostics.rows.length).toBeGreaterThanOrEqual(8);
+    expect(report.checkIns[0].diagnostics.attempts).toBeGreaterThanOrEqual(1);
+    expect(JSON.stringify(report)).not.toContain('Azelaic');
+  });
+});

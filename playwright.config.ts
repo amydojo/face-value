@@ -35,6 +35,9 @@ const captureRasterAllowance =
 
 export default defineConfig({
   testDir: './e2e',
+  // Chromium-only fake-camera specs generate FFmpeg fixtures during module collection.
+  // Exclude them before discovery, not via a runtime skip after the module has loaded.
+  testIgnore: /(?:local-optics(?:-[^.]+)?|living-trial)\.spec\.ts$/,
   fullyParallel: false,
   // The suite validates animation milestones and pixel geometry in WebKit.
   // A single CI browser keeps OS-level animation-event scheduling stable.

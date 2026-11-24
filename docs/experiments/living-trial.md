@@ -1,8 +1,7 @@
 # Living Trial (experiment 05)
 
 One product, one claim, one ongoing experiment, built on the guided capture from
-[`local-optical-comparability.md`](local-optical-comparability.md). Status: **experimental,
-unvalidated, not yet device-verified**. It is separate from the production journey, its trials,
+[`local-optical-comparability.md`](local-optical-comparability.md). Status: **experimental, unvalidated; preliminary physical iPhone feasibility observed on November 23, 2026**. See [FV06 foundation record](fv06-foundation-lock.md). It is separate from the production journey, its trials,
 the Oracle and the Evidence Record; none of their code or decision logic is used or changed.
 
 ## Where it lives

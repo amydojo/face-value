@@ -1,3 +1,4 @@
+import { readCaptureDiagnostics, type CaptureDiagnostics } from './trialDiagnostics';
 import { BASELINE_TEMPLATE_VERSION, type BaselineTemplate } from './guidance';
 import {
   LOCAL_OPTICS_METRICS_VERSION,
@@ -44,6 +45,7 @@ export interface CheckIn {
   quality: 'passed';
   conditions: Conditions;
   reasons: ConditionReason[];
+  diagnostics?: CaptureDiagnostics;
 }
 
 export interface TrialBaseline {
@@ -53,6 +55,7 @@ export interface TrialBaseline {
   /** Size of the analysed frame, used to detect a change of orientation or crop. */
   frame: { width: number; height: number };
   guide: BaselineTemplate;
+  diagnostics?: CaptureDiagnostics;
 }
 
 export interface TrialRecord {
@@ -146,7 +149,9 @@ function readCheckIn(v: unknown): CheckIn | null {
   if (!isObject(v) || !isIso(v.at) || !TRIGGERS.includes(v.trigger as string) || v.quality !== 'passed') return null;
   if (!CONDITIONS.includes(v.conditions as Conditions) || !Array.isArray(v.reasons)) return null;
   if (!v.reasons.every((r) => REASONS.includes(r as ConditionReason))) return null;
+  const diagnostics = readCaptureDiagnostics(v.diagnostics);
   return {
+    ...(diagnostics ? { diagnostics } : {}),
     at: v.at,
     trigger: v.trigger as CheckIn['trigger'],
     quality: 'passed',
@@ -178,6 +183,7 @@ export function parseTrial(raw: string): { ok: true; trial: TrialRecord } | { ok
   const frame = baseline.frame;
   if (!isObject(frame) || !isNum(frame.width, 1, 10000) || !isNum(frame.height, 1, 10000)) return { ok: false, reason: 'corrupt' };
   const guide = readTemplate(baseline.guide);
+  const diagnostics = readCaptureDiagnostics(baseline.diagnostics);
   if (!guide) return { ok: false, reason: 'corrupt' };
   if (!Array.isArray(v.checkIns) || v.checkIns.length > MAX_CHECK_INS) return { ok: false, reason: 'corrupt' };
   const checkIns = v.checkIns.map(readCheckIn);
@@ -199,6 +205,7 @@ export function parseTrial(raw: string): { ok: true; trial: TrialRecord } | { ok
         quality: 'passed',
         frame: { width: frame.width, height: frame.height },
         guide,
+        ...(diagnostics ? { diagnostics } : {}),
       },
       checkIns: checkIns as CheckIn[],
     },

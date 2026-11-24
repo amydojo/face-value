@@ -152,9 +152,23 @@ test.describe('steady phone', () => {
     await expect(page.getByRole('button', { name: 'Start scan' })).toBeVisible();
     await expect.poll(() => liveTracks(page)).toBe(0);
 
+    // Arm a browser-side observer before starting. A Playwright actionability round-trip can
+    // outlast the brief burst and detach the cancel button; do not mistake that for a camera bug.
+    // This still exercises the real cancel handler while the rendered phase is capturing.
+    await page.evaluate(() => {
+      const root = document.querySelector('[data-local-optics]')!;
+      const observer = new MutationObserver(() => {
+        if (root.getAttribute('data-phase') !== 'capturing') return;
+        const cancel = root.querySelector<HTMLButtonElement>('button[aria-label="Cancel scan"]');
+        if (!cancel || cancel.disabled) return;
+        observer.disconnect();
+        root.setAttribute('data-test-cancelled-during-burst', 'true');
+        cancel.click();
+      });
+      observer.observe(root, { attributes: true, attributeFilter: ['data-phase'], childList: true, subtree: true });
+    });
     await page.getByRole('button', { name: 'Start scan' }).click();
-    await waitForPhase(page, 'capturing');
-    await page.getByRole('button', { name: 'Cancel scan' }).click();
+    await expect(root(page)).toHaveAttribute('data-test-cancelled-during-burst', 'true', { timeout: 60_000 });
     await expect(page.getByRole('button', { name: 'Start scan' })).toBeEnabled();
     await expect.poll(() => liveTracks(page)).toBe(0);
 
@@ -192,9 +206,15 @@ test.describe('drifting into place', () => {
     // Sample the visible instruction every 100 ms until the capture is accepted.
     const seen: { id: string; t: number }[] = [];
     const started = Date.now();
-    while ((await root(page).getAttribute('data-phase')) !== 'result' && Date.now() - started < 90_000) {
-      const id = (await instruction(page).getAttribute('data-instruction').catch(() => null)) ?? 'none';
-      if (seen.at(-1)?.id !== id) seen.push({ id, t: Date.now() - started });
+    while (Date.now() - started < 90_000) {
+      // Read phase and instruction atomically, without locator auto-wait on an element
+      // that is intentionally removed as the result screen appears.
+      const state = await page.evaluate(() => ({
+        phase: document.querySelector('[data-local-optics]')?.getAttribute('data-phase'),
+        instruction: document.querySelector('[data-instruction]')?.getAttribute('data-instruction') ?? 'none',
+      }));
+      if (seen.at(-1)?.id !== state.instruction) seen.push({ id: state.instruction, t: Date.now() - started });
+      if (state.phase === 'result') break;
       await page.waitForTimeout(100);
     }
     await expect(page.locator('[data-panel="baseline"]')).toBeVisible();
