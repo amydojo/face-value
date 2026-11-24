@@ -3,13 +3,13 @@ import {loadMediaPipeLandmarker} from '../../src/features/local-optics/landmarkS
 import {faceGeometry} from '../../src/features/local-optics/opticsMetrics.ts';
 const $=id=>document.getElementById(id);
 const video=$('video'),view=$('view'),ctx=view.getContext('2d',{willReadFrequently:true});
-const allowedHost=['localhost','127.0.0.1','[::1]'].includes(location.hostname);
+const allowedHost=['localhost','127.0.0.1','[::1]'].includes(location.hostname) || (import.meta.env.VITE_FV07_RESEARCH === 'true' && location.protocol === 'https:' && /^face-value-optics-[a-z0-9-]+-amy-dos-projects\.vercel\.app$/.test(location.hostname));
 let stream=null,model=null,pixels=null,regions=null,source=null,report=null,records=[],captureId=0,recorded=false,busy=false,epoch=0;
 const status=t=>{$('status').textContent=t;};
 const show=(id,x)=>{$(id).textContent=JSON.stringify(x,null,2);};
 const buttons=['start','stop','snap','fixture','clear','calibrate','face','record','repeat','export'];
 function lock(v){busy=v;for(const id of buttons)$(id).disabled=v||!allowedHost;}
-function assertLocal(){if(!allowedHost)throw Error('This workbench is restricted to localhost.');}
+function assertLocal(){if(!allowedHost)throw Error('This workbench requires localhost or the protected research preview.');}
 function resetCapture(){pixels=null;regions=null;source=null;recorded=false;$('review').checked=false;$('mapping').textContent='';ctx.clearRect(0,0,view.width,view.height);}
 function stop(){epoch++;if(stream)stream.getTracks().forEach(t=>t.stop());stream=null;video.srcObject=null;if(model){model.close();model=null;}}
 function clear(){stop();resetCapture();records=[];report=null;captureId=0;$('calibration').textContent='';$('results').textContent='';status('Session cleared.');}
@@ -54,4 +54,4 @@ bind('record',()=>{
 bind('repeat',()=>show('results',repeatability(records)));
 bind('export',()=>{const result={schema:'fv07-workbench-0.1',skinMeasurementEligible:false,calibrated:false,uncertainty:'not_quantified',reference:report,regionalRepeatability:repeatability(records),observations:records.map(r=>({...r}))};const blob=new Blob([JSON.stringify(result,null,2)],{type:'application/json'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='chroma-research.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);status('Numeric research report exported.');});
 window.addEventListener('pagehide',clear);document.addEventListener('visibilitychange',()=>{if(document.hidden){stop();resetCapture();status('Camera stopped and frame cleared while hidden.');}});
-if(!allowedHost){lock(false);status('Localhost only. No camera or research actions are available here.');}
+if(!allowedHost){lock(false);status('Research origin not permitted. No camera or research actions are available here.');}
