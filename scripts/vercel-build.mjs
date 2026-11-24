@@ -11,6 +11,7 @@ export const EXPERIMENT_BRANCH = 'experiment/local-optical-comparability';
 // (including a preview in face-value, which vercel.json also suppresses) it is the standard build.
 export const TRIAL_BRANCH = 'feat/fv05-living-trial';
 export const FOUNDATION_BRANCH = 'feat/fv06-foundation-lock';
+export const CHROMA_BRANCH = 'experiment/fv07-chroma';
 // face-value-optics-lab: a separate, Vercel-Authentication-protected project with no provider
 // credentials. It is not linked to Git, so API deployments into it are production-targeted; any
 // deployment of the experiment branch there is the experiment. Never the face-value project.
@@ -19,6 +20,9 @@ export const OPTICS_LAB_PROJECT_ID = 'prj_LqZsxoGOjWRLSTLRbAJkyDqAgavI';
 export function buildPlan(env) {
   const ref = env.VERCEL_GIT_COMMIT_REF;
   const lab = env.VERCEL_PROJECT_ID === OPTICS_LAB_PROJECT_ID;
+  if (env.VERCEL === '1' && lab && ref === CHROMA_BRANCH && env.VERCEL_ENV === 'preview') {
+    return { experiment: true, steps: ['npm run prepare:local-optics', 'npm run build'], env: { VITE_LOCAL_OPTICS_EXPERIMENT: 'true', VITE_FV07_RESEARCH: 'true' } };
+  }
   const experiment =
     env.VERCEL === '1' &&
     lab && (ref === EXPERIMENT_BRANCH || ref === TRIAL_BRANCH || ref === FOUNDATION_BRANCH);
@@ -39,6 +43,6 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
       : 'Standard build (Local Optics experiment not included)',
   );
   for (const step of plan.steps) {
-    execSync(step, { stdio: 'inherit', env: { ...process.env, ...plan.env } });
+    execSync(step, { stdio: 'inherit', env: { ...process.env, VITE_FV07_RESEARCH: 'false', ...plan.env } });
   }
 }

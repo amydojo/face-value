@@ -1,0 +1,49 @@
+name: FV07 offline research
+on:
+  pull_request:
+    paths:
+      - 'research/fv07/**'
+      - '.github/workflows/fv07-research.yml'
+permissions:
+  contents: read
+jobs:
+  synthetic-calibration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node --test research/fv07/*.test.mjs
+      - run: node --input-type=module -e "import {stressExperiment} from './research/fv07/calibration-stress.mjs'; console.table(stressExperiment().summary)"
+  workbench-browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm ci --no-audit --no-fund
+      - run: npx playwright install --with-deps chromium
+      - run: node research/fv07/lab-smoke.mjs
+  protected-build-isolation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm ci --no-audit --no-fund
+      - name: Standard build excludes CHROMA
+        run: |
+          VITE_FV07_RESEARCH=false VITE_LOCAL_OPTICS_EXPERIMENT=false npm run build
+          test ! -e dist/research/fv07/lab.html
+          if find dist/assets -name '*.js' -print0 | xargs -0 grep -l 'fv07-workbench-0.1'; then exit 1; fi
+      - name: Explicit research build includes only research HTML
+        run: |
+          VITE_FV07_RESEARCH=true VITE_LOCAL_OPTICS_EXPERIMENT=true npm run build
+          test -s dist/research/fv07/lab.html
+          test ! -e dist/index.html

@@ -28,6 +28,9 @@ function isolateOpticsAssets(): Plugin {
 
 export default defineConfig({
   plugins: [react(), isolateOpticsAssets()],
+  ...(process.env.VITE_FV07_RESEARCH === 'true' ? {
+    build: { rollupOptions: { input: resolve(process.cwd(), 'research/fv07/lab.html') } },
+  } : {}),
   server: { host: '127.0.0.1', port: 4173, ...(https ? { https } : {}) },
   preview: { host: '127.0.0.1', port: 4173 },
   test: {

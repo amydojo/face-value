@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 // @ts-expect-error -- plain ESM build script without type declarations
-import { buildPlan, EXPERIMENT_BRANCH, OPTICS_LAB_PROJECT_ID, TRIAL_BRANCH, FOUNDATION_BRANCH } from '../../scripts/vercel-build.mjs';
+import { buildPlan, EXPERIMENT_BRANCH, OPTICS_LAB_PROJECT_ID, TRIAL_BRANCH, FOUNDATION_BRANCH, CHROMA_BRANCH } from '../../scripts/vercel-build.mjs';
 
 // The experiment reaches a Vercel build only as a preview of its own branch.
 
@@ -25,7 +25,7 @@ describe('Vercel build plan', () => {
       git?: { deploymentEnabled?: Record<string, boolean> };
     };
     // Exact names, not patterns: main and every other branch keep their normal deployments.
-    expect(config.git?.deploymentEnabled).toEqual({ [BRANCH]: false, 'feat/fv05-living-trial': false, 'feat/fv06-foundation-lock': false });
+    expect(config.git?.deploymentEnabled).toEqual({ [BRANCH]: false, 'feat/fv05-living-trial': false, 'feat/fv06-foundation-lock': false, 'experiment/fv07-chroma': false });
     expect(TRIAL).toBe('feat/fv05-living-trial');
     expect(FOUNDATION).toBe('feat/fv06-foundation-lock');
   });
@@ -46,6 +46,9 @@ describe('Vercel build plan', () => {
       { VERCEL: '1', VERCEL_ENV: 'preview', VERCEL_GIT_COMMIT_REF: FOUNDATION, VERCEL_PROJECT_ID: FACE_VALUE },
       { VERCEL: '1', VERCEL_ENV: 'production', VERCEL_GIT_COMMIT_REF: FOUNDATION, VERCEL_PROJECT_ID: FACE_VALUE },
       { VERCEL: '1', VERCEL_ENV: 'preview', VERCEL_GIT_COMMIT_REF: FOUNDATION },
+      { VERCEL: '1', VERCEL_ENV: 'production', VERCEL_GIT_COMMIT_REF: 'experiment/fv07-chroma', VERCEL_PROJECT_ID: LAB },
+      { VERCEL: '1', VERCEL_ENV: 'preview', VERCEL_GIT_COMMIT_REF: 'experiment/fv07-chroma', VERCEL_PROJECT_ID: FACE_VALUE },
+      { VERCEL: '1', VERCEL_ENV: 'production', VERCEL_GIT_COMMIT_REF: 'experiment/fv07-chroma', VERCEL_PROJECT_ID: FACE_VALUE },
       {},
     ]) {
       expect(plan(env)).toEqual({ experiment: false, steps: ['npm run build'], env: { VITE_LOCAL_OPTICS_EXPERIMENT: 'false' } });
@@ -62,6 +65,10 @@ describe('Vercel build plan', () => {
 
   it('the protected optics-lab project builds the experiment branch even when production-targeted', () => {
     expect(plan({ VERCEL: '1', VERCEL_ENV: 'production', VERCEL_GIT_COMMIT_REF: BRANCH, VERCEL_PROJECT_ID: LAB }).experiment).toBe(true);
+  });
+
+  it('CHROMA is a separate preview-only entrypoint in the protected lab', () => {
+    expect(plan({ VERCEL: '1', VERCEL_ENV: 'preview', VERCEL_GIT_COMMIT_REF: CHROMA_BRANCH, VERCEL_PROJECT_ID: LAB })).toEqual({ experiment: true, steps: ['npm run prepare:local-optics', 'npm run build'], env: { VITE_LOCAL_OPTICS_EXPERIMENT: 'true', VITE_FV07_RESEARCH: 'true' } });
   });
 
   it('FV06 is opt-in only in the protected lab project', () => {

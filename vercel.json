@@ -8,7 +8,8 @@
     "deploymentEnabled": {
       "experiment/local-optical-comparability": false,
       "feat/fv05-living-trial": false,
-      "feat/fv06-foundation-lock": false
+      "feat/fv06-foundation-lock": false,
+      "experiment/fv07-chroma": false
     }
   },
   "routes": [
