@@ -34,6 +34,8 @@ describe('Vercel build plan', () => {
     for (const env of <Array<Record<string, string | undefined>>>[
       { VERCEL: '1', VERCEL_ENV: 'production', VERCEL_GIT_COMMIT_REF: 'main' },
       { VERCEL: '1', VERCEL_ENV: 'production', VERCEL_GIT_COMMIT_REF: BRANCH },
+      { VERCEL: '1', VERCEL_ENV: 'preview', VERCEL_GIT_COMMIT_REF: BRANCH },
+      { VERCEL: '1', VERCEL_ENV: 'preview', VERCEL_GIT_COMMIT_REF: BRANCH, VERCEL_PROJECT_ID: FACE_VALUE },
       { VERCEL: '1', VERCEL_ENV: 'preview', VERCEL_GIT_COMMIT_REF: 'fix/p0b-visible-safety-guidance' },
       { VERCEL_ENV: 'preview', VERCEL_GIT_COMMIT_REF: BRANCH },
       { VERCEL: '1', VERCEL_ENV: 'production', VERCEL_GIT_COMMIT_REF: BRANCH, VERCEL_PROJECT_ID: 'prj_EYUVxgQe5Byl5AfwAtBhY8T8WEF0' },
@@ -46,12 +48,12 @@ describe('Vercel build plan', () => {
       { VERCEL: '1', VERCEL_ENV: 'preview', VERCEL_GIT_COMMIT_REF: FOUNDATION },
       {},
     ]) {
-      expect(plan(env)).toEqual({ experiment: false, steps: ['npm run build'], env: {} });
+      expect(plan(env)).toEqual({ experiment: false, steps: ['npm run build'], env: { VITE_LOCAL_OPTICS_EXPERIMENT: 'false' } });
     }
   });
 
-  it('a preview of the experiment branch prepares verified assets and opts the route in', () => {
-    expect(plan({ VERCEL: '1', VERCEL_ENV: 'preview', VERCEL_GIT_COMMIT_REF: BRANCH })).toEqual({
+  it('an explicit protected lab preview prepares verified assets and opts the route in', () => {
+    expect(plan({ VERCEL: '1', VERCEL_ENV: 'preview', VERCEL_GIT_COMMIT_REF: BRANCH, VERCEL_PROJECT_ID: LAB })).toEqual({
       experiment: true,
       steps: ['npm run prepare:local-optics', 'npm run build'],
       env: { VITE_LOCAL_OPTICS_EXPERIMENT: 'true' },
