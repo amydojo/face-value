@@ -79,3 +79,34 @@ jobs:
           name: playwright-evidence
           path: test-results
           if-no-files-found: ignore
+
+  fv06-optical-validation:
+    if: github.event_name == 'pull_request' && github.head_ref == 'feat/fv06-foundation-lock'
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.18.0
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - run: npm run prepare:local-optics
+      - run: test -s public/local-optics-assets/mediapipe-tasks-vision-0.10.35/face_landmarker.task
+      - run: command -v ffmpeg || (sudo apt-get update && sudo apt-get install -y ffmpeg)
+      - run: npx playwright install --with-deps chromium
+      - name: Optical experiment tests (real model, simulated camera)
+        env:
+          PLAYWRIGHT_JSON_OUTPUT_NAME: fv06-optics-results.json
+        run: npx playwright test --config playwright.optics.config.ts --reporter=github,json
+      - name: Upload optical experiment evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fv06-optics-evidence
+          path: |
+            fv06-optics-results.json
+            test-results
+          if-no-files-found: warn
