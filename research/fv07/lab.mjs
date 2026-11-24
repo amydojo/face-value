@@ -7,7 +7,7 @@ const allowedHost=['localhost','127.0.0.1','[::1]'].includes(location.hostname) 
 let stream=null,model=null,pixels=null,regions=null,source=null,report=null,records=[],captureId=0,recorded=false,busy=false,epoch=0;
 const status=t=>{$('status').textContent=t;};
 const show=(id,x)=>{$(id).textContent=JSON.stringify(x,null,2);};
-const buttons=['start','stop','snap','fixture','clear','calibrate','face','record','repeat','export'];
+const buttons=['start','stop','snap','fixture','clear','calibrate','face','record','repeat','export','overlay'];
 function lock(v){busy=v;for(const id of buttons)$(id).disabled=v||!allowedHost;}
 function assertLocal(){if(!allowedHost)throw Error('This workbench requires localhost or the protected research preview.');}
 function resetCapture(){pixels=null;regions=null;source=null;recorded=false;$('review').checked=false;$('mapping').textContent='';ctx.clearRect(0,0,view.width,view.height);}
@@ -19,15 +19,22 @@ function drawRegions(rs){ctx.strokeStyle='#e7b097';ctx.lineWidth=1.5;for(const r
 const colors=[[.25,.25,.25],[.5,.5,.5],[.75,.75,.75],[.2,.3,.4],[.65,.25,.3],[.3,.65,.25],[.25,.3,.7],[.45,.32,.24],[.66,.51,.42],[.35,.48,.6],[.28,.19,.16],[.72,.52,.43]];
 const fixture=()=>colors.map((expected,i)=>({id:'p'+(i+1),role:i<7?'fit':'holdout',expected,cx:(i%4+.5)/4,cy:(Math.floor(i/4)+.5)/3,rx:.075,ry:.10}));
 $('manifest').value=JSON.stringify(fixture(),null,2);
-bind('start',async()=>{if(!navigator.mediaDevices?.getUserMedia)throw Error('Camera unavailable on this origin.');stop();const token=epoch;const s=await navigator.mediaDevices.getUserMedia({audio:false,video:{facingMode:'user',width:{ideal:1280},height:{ideal:720}}});if(epoch!==token||document.hidden){s.getTracks().forEach(t=>t.stop());return;}stream=s;video.srcObject=s;try{await video.play();}catch(e){stop();throw e;}status('Camera active locally.');});
+function readManifest(){const m=JSON.parse($('manifest').value);if(!Array.isArray(m)||m.length>128||m.some(p=>!p||typeof p.id!=='string'||!p.id||![p.cx,p.cy,p.rx,p.ry].every(Number.isFinite)||p.rx<=0||p.ry<=0||p.cx-p.rx<0||p.cx+p.rx>1||p.cy-p.ry<0||p.cy+p.ry>1)||new Set(m.map(p=>p.id)).size!==m.length)throw Error('Invalid reference coordinates or duplicate patch IDs.');return m;}
+function updatePatchOptions(){const old=$('patch').value,m=readManifest();$('patch').replaceChildren(...m.map((p,i)=>{const o=document.createElement('option');o.value=String(i);o.textContent=p.id+' / '+p.role;return o;}));if(m[Number(old)])$('patch').value=old;}
+function drawPatches(){if(!pixels||regions)throw Error('Capture a reference frame, not a face.');const m=readManifest();ctx.putImageData(pixels,0,0);for(const [i,p] of m.entries()){ctx.strokeStyle=String(i)===$('patch').value?'#ffffff':'#e7b097';ctx.lineWidth=2;ctx.beginPath();ctx.ellipse(p.cx*pixels.width,p.cy*pixels.height,p.rx*pixels.width,p.ry*pixels.height,0,0,2*Math.PI);ctx.stroke();ctx.fillStyle='#ffffff';ctx.font='12px sans-serif';ctx.fillText(String(i+1),p.cx*pixels.width,p.cy*pixels.height);}}
+updatePatchOptions();
+$('manifest').addEventListener('change',()=>{try{updatePatchOptions();}catch(e){status(e.message);}});
+$('patch').addEventListener('change',()=>{if(pixels&&!regions)try{drawPatches();}catch(e){status(e.message);}});
+view.addEventListener('click',e=>{if(!allowedHost||busy||!pixels||regions)return;try{const m=readManifest(),p=m[Number($('patch').value)];if(!p)return;const b=view.getBoundingClientRect(),scale=Math.min(b.width/view.width,b.height/view.height),w=view.width*scale,h=view.height*scale;const x=(e.clientX-b.left-(b.width-w)/2)/w,y=(e.clientY-b.top-(b.height-h)/2)/h;if(x<0||x>1||y<0||y>1)return;p.cx=Math.max(p.rx,Math.min(1-p.rx,x));p.cy=Math.max(p.ry,Math.min(1-p.ry,y));$('manifest').value=JSON.stringify(m,null,2);report=null;$('calibration').textContent='';drawPatches();}catch(e){status(e.message);}});
+bind('overlay',()=>{updatePatchOptions();drawPatches();});
+bind('start',async()=>{if(!navigator.mediaDevices?.getUserMedia)throw Error('Camera unavailable on this origin.');stop();const token=epoch;const s=await navigator.mediaDevices.getUserMedia({audio:false,video:{facingMode:{ideal:$('camera').value},width:{ideal:1280},height:{ideal:720}}});if(epoch!==token||document.hidden){s.getTracks().forEach(t=>t.stop());return;}stream=s;video.srcObject=s;try{await video.play();}catch(e){stop();throw e;}status('Camera active locally.');});
 bind('stop',()=>{stop();status('Camera stopped.');});
 bind('clear',clear);
-bind('snap',()=>{snapshot();status('Reference frame captured locally. Edit the manifest to match your target.');});
-bind('fixture',()=>{stop();resetCapture();view.width=640;view.height=480;const manifest=fixture();for(const p of manifest){ctx.fillStyle='rgb('+p.expected.map(v=>Math.round(v*255)).join(',')+')';ctx.fillRect((p.cx-.12)*640,(p.cy-.155)*480,.24*640,.31*480);}pixels=ctx.getImageData(0,0,640,480);source='synthetic';$('manifest').value=JSON.stringify(manifest,null,2);status('Synthetic target loaded.');});
+bind('snap',()=>{snapshot();report=null;$('calibration').textContent='';status('Reference frame captured locally. Edit the manifest to match your target.');});
+bind('fixture',()=>{stop();resetCapture();view.width=640;view.height=480;const manifest=fixture();for(const p of manifest){ctx.fillStyle='rgb('+p.expected.map(v=>Math.round(v*255)).join(',')+')';ctx.fillRect((p.cx-.12)*640,(p.cy-.155)*480,.24*640,.31*480);}pixels=ctx.getImageData(0,0,640,480);source='synthetic';$('manifest').value=JSON.stringify(manifest,null,2);updatePatchOptions();report=null;$('calibration').textContent='';status('Synthetic target loaded.');});
 bind('calibrate',()=>{
  if(!pixels)throw Error('Capture a reference frame first.');
- const m=JSON.parse($('manifest').value);
- if(!Array.isArray(m)||m.length>128||m.some(p=>!p||![p.cx,p.cy,p.rx,p.ry].every(Number.isFinite)||p.rx<=0||p.ry<=0||p.cx-p.rx<0||p.cx+p.rx>1||p.cy-p.ry<0||p.cy+p.ry>1)||new Set(m.map(p=>p.id)).size!==m.length)throw Error('Invalid reference coordinates or duplicate patch IDs.');
+ if(regions)throw Error('Capture a reference frame, not a face.');const m=readManifest();
  for(let i=0;i<m.length;i++)for(let j=i+1;j<m.length;j++)if(Math.abs(m[i].cx-m[j].cx)<m[i].rx+m[j].rx&&Math.abs(m[i].cy-m[j].cy)<m[i].ry+m[j].ry)throw Error('Patch sampling boxes must not overlap.');
  const samples=m.map((p,i)=>{const q=sampleRegion(pixels,{cx:p.cx*pixels.width,cy:p.cy*pixels.height,rx:p.rx*pixels.width,ry:p.ry*pixels.height,ux:1,uy:0});return {id:'patch-'+(i+1),role:p.role,expected:p.expected,observed:q.status==='research_only'?q.medianRGB:null};});
  report={source,referenceProvenance:source==='synthetic'?'synthetic_fixture':$('target').value,...calibrationReport(samples)};show('calibration',report);status('Reference errors evaluated. No correction has been authorized for skin.');
