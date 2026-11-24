@@ -22,3 +22,6 @@ Numeric exports include only research reports and controlled condition labels; s
 
 ## Validation
 Intermediate remote research runs 45350877065 and 45351046585 passed. The new browser smoke workflow exercises the synthetic target, all four correction methods, report export, empty-data abstention, clearing, and local-only requests. Exact final-head results must be inspected separately. Physical camera runs, model-based placement, reference target accuracy, device diversity and measurement uncertainty remain unverified.
+
+## Experiment 006: integrated synthetic drift challenge
+Run `node --input-type=module -e "import {integratedDrift} from './research/fv07/integrated-drift.mjs'; console.table(integratedDrift().drift)"`. The fixture combines three known conditions (identity, channel gain, nonlinear tone), three repeat captures each, three candidate regions and 12 independent color-reference patches. The underlying regional colors are fixed; only the simulated image pipeline and small quantization perturbations change. Compare within-condition SD against between-condition apparent a* shifts. This illustrates why repeatability alone cannot establish color validity. The integrated test expects 27 numeric observations and six between-condition comparisons, and keeps all outputs ineligible for skin measurement. Physical evidence is still required.
