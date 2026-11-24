@@ -25,7 +25,7 @@ describe('Vercel build plan', () => {
       git?: { deploymentEnabled?: Record<string, boolean> };
     };
     // Exact names, not patterns: main and every other branch keep their normal deployments.
-    expect(config.git?.deploymentEnabled).toEqual({ [BRANCH]: false, 'feat/fv05-living-trial': false, 'feat/fv06-foundation-lock': false });
+    expect(config.git?.deploymentEnabled).toEqual({ [BRANCH]: false, 'feat/fv05-living-trial': false, 'feat/fv06-foundation-lock': false, 'experiment/fv07-chroma': false });
     expect(TRIAL).toBe('feat/fv05-living-trial');
     expect(FOUNDATION).toBe('feat/fv06-foundation-lock');
   });
@@ -46,6 +46,8 @@ describe('Vercel build plan', () => {
       { VERCEL: '1', VERCEL_ENV: 'preview', VERCEL_GIT_COMMIT_REF: FOUNDATION, VERCEL_PROJECT_ID: FACE_VALUE },
       { VERCEL: '1', VERCEL_ENV: 'production', VERCEL_GIT_COMMIT_REF: FOUNDATION, VERCEL_PROJECT_ID: FACE_VALUE },
       { VERCEL: '1', VERCEL_ENV: 'preview', VERCEL_GIT_COMMIT_REF: FOUNDATION },
+      { VERCEL: '1', VERCEL_ENV: 'preview', VERCEL_GIT_COMMIT_REF: 'experiment/fv07-chroma', VERCEL_PROJECT_ID: LAB },
+      { VERCEL: '1', VERCEL_ENV: 'production', VERCEL_GIT_COMMIT_REF: 'experiment/fv07-chroma', VERCEL_PROJECT_ID: FACE_VALUE },
       {},
     ]) {
       expect(plan(env)).toEqual({ experiment: false, steps: ['npm run build'], env: { VITE_LOCAL_OPTICS_EXPERIMENT: 'false' } });
