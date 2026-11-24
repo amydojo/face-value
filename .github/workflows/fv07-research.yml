@@ -17,3 +17,14 @@ jobs:
           node-version: '22'
       - run: node --test research/fv07/*.test.mjs
       - run: node --input-type=module -e "import {stressExperiment} from './research/fv07/calibration-stress.mjs'; console.table(stressExperiment().summary)"
+  workbench-browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm ci --no-audit --no-fund
+      - run: npx playwright install --with-deps chromium
+      - run: node research/fv07/lab-smoke.mjs
