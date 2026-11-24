@@ -1,0 +1,19 @@
+name: FV07 offline research
+on:
+  pull_request:
+    paths:
+      - 'research/fv07/**'
+      - '.github/workflows/fv07-research.yml'
+permissions:
+  contents: read
+jobs:
+  synthetic-calibration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node --test research/fv07/*.test.mjs
+      - run: node --input-type=module -e "import {stressExperiment} from './research/fv07/calibration-stress.mjs'; console.table(stressExperiment().summary)"
