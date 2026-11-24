@@ -19,6 +19,7 @@ import { compareCaptures, type CaptureComparison, type CaptureMeasurement } from
 import { browserOpticsDeps, CAPTURE_FRAMES, OpticsSession, type OpticsCapture, type OpticsSessionDeps } from './opticsSession';
 import { exportPair, type ExportedPair } from './opticsExport';
 import { newScanRecord, type ScanOutcome, type ScanRecord } from './scanMetrics';
+import { captureDiagnostics, type CaptureDiagnostics } from './trialDiagnostics';
 import styles from './LocalOptics.module.css';
 
 // Guided, hand-held-first capture for the Local Optics experiment. The person sees the camera, an
@@ -81,8 +82,9 @@ const now = () => performance.now();
 export interface TrialCapture {
   /** The trial's saved (rounded) baseline, or null to capture one. */
   baseline: Baseline | null;
-  onBaseline: (r: { template: BaselineTemplate; frame: { width: number; height: number }; trigger: 'auto' | 'manual' }) => void;
-  onFollowUp: (r: { comparison: CaptureComparison; trigger: 'auto' | 'manual' }) => void;
+  collectDiagnostics?: boolean;
+  onBaseline: (r: { template: BaselineTemplate; frame: { width: number; height: number }; trigger: 'auto' | 'manual'; diagnostics?: CaptureDiagnostics }) => void;
+  onFollowUp: (r: { comparison: CaptureComparison; trigger: 'auto' | 'manual'; diagnostics?: CaptureDiagnostics }) => void;
   onExit: () => void;
 }
 
@@ -391,9 +393,10 @@ export function LocalOptics({ deps, trial }: { deps?: OpticsSessionDeps; trial?:
     if (!baseline) {
       const template = baselineTemplate(m);
       if (template) setBaseline({ template, measurement: retainedBaselineMeasurement(m) });
+      const diagnostics = trial?.collectDiagnostics ? captureDiagnostics(m, null, recordRef.current) : undefined;
       finishRecord('accepted');
       if (trial && template) {
-        trial.onBaseline({ template, frame: { width: m.frameSize.width, height: m.frameSize.height }, trigger });
+        trial.onBaseline({ template, frame: { width: m.frameSize.width, height: m.frameSize.height }, trigger, diagnostics });
         return;
       }
       setPhase({ kind: 'result', result: { kind: 'baseline' } });
@@ -405,9 +408,10 @@ export function LocalOptics({ deps, trial }: { deps?: OpticsSessionDeps; trial?:
     const baselineMeasurement = baseline.measurement;
     setComparisons((current) => [...current, exportPair(`follow-up ${current.length + 1}`, result, baselineMeasurement, m)]);
     if (recordRef.current) recordRef.current.comparison = result.overall;
+    const diagnostics = trial?.collectDiagnostics ? captureDiagnostics(m, result, recordRef.current) : undefined;
     finishRecord('accepted');
     if (trial) {
-      trial.onFollowUp({ comparison: result, trigger });
+      trial.onFollowUp({ comparison: result, trigger, diagnostics });
       return;
     }
     setPhase({
