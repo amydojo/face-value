@@ -11,7 +11,7 @@ channel_mixing: ([r,g,b])=>[.84*r+.16*g,.9*g+.1*b,.12*r+.88*b],
 severe_clipping: ([r,g,b])=>[3*r,2*g,2*b]
 };
 
-function simulate(rgb, transform){return transform(rgb.map(linearize)).map(x=>encode(Math.max(0,Math.min(1,x))));}
+function simulate(rgb, transform){return transform(rgb.map(linearize)).map(x=>x<=0?0:x>=1?1:encode(x));}
 
 function validInterior(rgb){return Array.isArray(rgb)&&rgb.length===3&&rgb.every(x=>Number.isFinite(x)&&x>0&&x<1);}
 
